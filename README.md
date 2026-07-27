@@ -84,6 +84,64 @@ game-data leaks.
   [refkeen](https://github.com/CrossplayGaming/ReflectionHLE) (branch
   `keenlauncher`)
 
+## Known rough edges — and where bugs likely lurk
+
+This is a beta. The simulation core is replay-verified, but everything
+*around* it is younger. Honest map of where to expect trouble — bug
+reports very welcome in [Issues](../../issues), especially for anything
+on this list:
+
+**Game-version coverage (most likely trouble spot)**
+- Keen 1-3's boot-time data rip supports the **v1.31** executables
+  (Steam ships these) plus a v1.1 fallback for Keen 1 only. Other
+  versions — shareware releases, v1.0/1.2, CGA — will be rejected with
+  an error dialog. If you hit it, tell us your version; adding offsets
+  for a new layout is usually easy.
+- Keen 6 needs its metadata to match your copy's version: v1.4 is set
+  up by default, v1.0/v1.5 need the one-folder swap described in the
+  README. v1.0 support was built against a single known copy; other
+  v1.0 prints may misbehave.
+- GOG and other non-Steam releases should work but are untested.
+
+**First-run setup**
+- The title-art and Galaxy-audio pulls briefly block the launcher
+  behind a "FIRST-TIME SETUP" screen (up to ~30-60s worst case). If a
+  pull fails, the slot falls back to a text tile — harmless, but report
+  it. Keen Dreams' art pull still flashes a small visible window once.
+- Own only Keen 4 (not 5)? The Galaxy sfx toggle works with the sounds
+  Keen 4 provides; Keen-5-sourced effects (doors, keycards, teleport,
+  enemy shots) and most Keen 2/3 music stay silent.
+
+**Presentation (safe-by-design fallbacks that may still surprise)**
+- Keen Dreams: dialogs the port knows about float over the widescreen
+  view; anything else (the control panel, unusual prompts) drops to the
+  classic 4:3 framed view and back. If a screen looks *wrong* rather
+  than just classic, that's a bug.
+- Widescreen edge cases: narrow custom-sized levels, fades, and level
+  transitions have all been fixed at least once — fresh eyes may find
+  more. Screenshots help enormously.
+
+**Audio balance and taste**
+- Galaxy sfx run a bit louder than the PC-speaker they replace, and the
+  music-to-effects mix is a first pass. The Keen 3 music-to-level
+  assignment is our curation, not id's. Opinions welcome.
+
+**Environment**
+- Windows 10/11 x64 only, developed on one machine — DPI scaling,
+  multi-monitor, unusual refresh rates, and exotic controllers are
+  exactly where platform bugs hide. The binaries are unsigned, so
+  SmartScreen will warn on first run (More info → Run anyway).
+
+**Known and deliberately deferred**
+- No two-player support in any engine. No CGA-version support.
+- Quicksave shares save slot 7 with the in-game save menus (by design,
+  so quicksaves are loadable from the game's own menu — but it will
+  overwrite whatever you keep in that slot).
+
+When reporting: say which game, your game files' version/source
+(Steam/GOG/disk), what you did, and what you saw — a screenshot or a
+video clip is gold.
+
 ## Credits and license
 
 Standing on giants: [K1n9_Duk3's Keen 1-3 source

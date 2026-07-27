@@ -62,6 +62,18 @@ IN THE GAMES
   Keen 1-3: Options menu for view size, smooth motion, rebinding,
             score box, Galaxy audio.  Keen Dreams: F6 pad rebinding.
 
+FOUND A BUG?
+------------
+This is a beta -- reports are very welcome at:
+    https://github.com/CrossplayGaming/megarocket/issues
+Most likely trouble spots: game versions other than the Steam releases
+(Keen 1-3 need v1.31 or v1.1 executables; Keen 6 needs the matching
+metadata swap), first-run setup, and widescreen edge cases.  When
+reporting, say which game, where your game files came from, what you
+did, and what you saw -- screenshots are gold.  The binaries are
+unsigned, so Windows SmartScreen may warn on first run (More info ->
+Run anyway).
+
 CREDITS
 -------
 Megarocket stands on the shoulders of giants:
