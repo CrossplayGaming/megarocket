@@ -1,0 +1,78 @@
+;===============================================================================
+; BSS LAYOUT RECREATION CHEAT -- ASSEMBLY EQUATES
+;
+; I couldn't use my old trick of grouping the BSS segment variables into a
+; struct to recreate the original layout, since some of the variables need to
+; be accessed from the assembly code. That's part of the reason why Keen 1-3
+; were more difficult to reconstruct than Keen 4-6.
+
+; Make sure these names match the ones used in BSSCHEAT.H!
+;===============================================================================
+
+ifndef NEWORDER
+
+;KEENMAIN.C variables:
+;---------------------
+
+;EGApage       equ _wrr0
+;mapwidthextra equ _leSi
+;uservect      equ _Qw5Z
+;oldtiles      equ _dl_p
+;oldtiles2     equ _Q7FD
+;spritelist    equ _LVhK
+;mapbwide      equ _8miL
+;piclist       equ _eFLi
+;mapplane      equ _TEnH
+;cyclespeed    equ _BW2e
+;tilelist      equ _Jt31
+;spritesshown  equ _Xtvr
+;picsshown     equ _eX_v
+;originx       equ _5xbg
+;originy       equ _noCz
+;tilesshown    equ _F_Di
+
+
+;IDLIB.C variables:
+;-------------------
+
+egasprites    equ _TdZU
+charptr       equ _aFEX
+picptr        equ _iCPL
+spritetable   equ _hvqR
+pictable      equ _IW_Q
+tileptr       equ _q_aj
+
+else
+
+;KEENMAIN.C variables:
+;---------------------
+
+;EGApage       equ _Qh9W
+;mapwidthextra equ _XCZF
+;uservect      equ _8dax
+;oldtiles      equ _uSGs
+;oldtiles2     equ _X3mz
+;spritelist    equ _x_oS
+;mapbwide      equ _EKPx
+;piclist       equ _Jt31
+;mapplane      equ _fV5x
+;cyclespeed    equ _1SYo
+;tilelist      equ _eBZU
+;spritesshown  equ _5xbg
+;picsshown     equ _q_gE
+;originx       equ _uoiD
+;originy       equ _jEJj
+;tilesshown    equ _bUKD
+
+
+;IDLIB.C variables:
+;-------------------
+
+egasprites    equ _l9bY
+charptr       equ _q0Hi
+picptr        equ _5VS1
+spritetable   equ _pgt5
+pictable      equ _2CCC
+tileptr       equ _UYda
+
+endif

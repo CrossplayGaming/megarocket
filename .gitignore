@@ -1,0 +1,36 @@
+# ---- game data and user installs: NEVER in the repo ----
+/rt/
+/keen13/gamedata/
+/keen13/gamedata2/
+/keen13/gamedata3/
+/keendreams/game/
+/keendreams/*.zip
+/keen6/
+/keen6patch/
+
+# ---- engine forks live in their own repos (clone them in here) ----
+/omnispeak/
+/omnispeak-ref/
+/refkeen/
+
+# ---- third-party SDKs and build outputs ----
+/deps/
+/dist/
+build/
+__pycache__/
+
+# ---- derived assets (generated locally from the user's game data) ----
+*.ppm
+/keen13/sfx46_k4/
+/keen13/sfx46_k5/
+/keen13/tools/pic0_TITLE.*
+/launcher/*.png
+
+# ---- local state, binaries, debug droppings ----
+*.exe
+*.dll
+keenlauncher.cfg
+/launcher/keenlauncher.cfg
+/keen13/port/captures/
+/keen13/port/*.txt
+/keen13/art_test*.png

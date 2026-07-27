@@ -1,0 +1,7 @@
+%exefile KEEN1.EXE 104232
+
+%dump ENDSCRN.CK1  $12160 $FA8
+%dump INTROSCN.GRA $13110 $FA8
+%dump TILEINFO.CK1 $1416A $1CA4
+
+%abort

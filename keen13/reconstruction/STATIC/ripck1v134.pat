@@ -1,0 +1,6 @@
+%exefile KEEN1.EXE 100132
+
+%dump ENDSCRN.PSA  $123B0 $FA8
+%dump TILEINFO.CK1 $1340A $1CA4
+
+%abort

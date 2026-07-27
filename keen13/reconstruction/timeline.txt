@@ -1,0 +1,125 @@
+Keen 1-3 source code recreation timeline
+========================================
+
+2015-10-06 (A long time ago in a galaxy far, far away):
+- started disassembly of Keen 1-3
+
+2021-01-28:
+- started implementation of Keen 1
+
+2021-02-06:
+- first files compiled
+
+2021-02-08:
+- code compiles into a proper executable - lots of bugs left
+
+2021-02-09:
+- most bugs fixed - game appears to be fully playable
+- entering a name into the high scores causes a crash: FIXED
+
+2021-02-10:
+- fixed a bug that caused Keen to get stuck in the shooting animation
+- fixed backspace handling error in Input()
+
+2021-02-11:
+- implemented enemy behavior and cutscenes for Keen 2
+- started implementing enemy behavior for Keen 3
+
+2021-02-12:
+- implemented enemy behavior and cutscenes for Keen 3
+- implemented cheats and status windows for Keen 2 & 3
+
+2021-02-13:
+- implemented more episode-specific stuff for Keen 2 & 3
+  * status window
+  * cheat window
+  * world map handling (done tiles, teleporters)
+  * Messie behavior (Keen 3)
+  * tile pickup handling
+
+2021-02-14:
+- got Keen 2 and Keen 3 to compile (still missing a few bits)
+- fixed bug in masked tile drawing code
+
+2021-02-15:
+- fixed bug in Messie code
+- fixed exit door drawing (uses different tile numbers in Keen 3)
+
+2021-05-07:
+- got rid of the ugly hacks in the unwound refresh routines and implemented
+  them with proper macros and segment declarations
+- added the GPL comments at the beginning of every source file
+
+2024-10-01:
+- revisited the projects to make them compile with Turbo C++ 1.00 to get an
+  accurate recreation of the original v1.31 executables (I tried using Turbo
+  C++ 1.01 before and that didn't work at all, but 1.00 seems to work)
+
+2025-06-01 to 2025-06-06:
+- merged/included several C code files into a single file to get the correct
+  alignment (padding bytes before the jump tables)
+- merged all assembly code files onto a single file (there must be no padding
+  in between the assembly routines)
+- fixed most of the code differences along the way
+
+2025-06-12:
+- Fixed the last remaining code difference for Keen 1 in the Ack() function.
+  Needed an ugly hack to make it work. Now all that's left is to make sure the
+  uninitialized variables appear in the correct order... And then fix any
+  remaining code differences in Keen 2 and Keen 3.
+
+2025-06-13:
+- Spent some time comparing the code of various Keen 1 versions to each other
+  for future reference. Not sure if I want to reconstruct the source code for
+  all known versions or if v1.31 will be the only supported version.
+
+2025-09-12:
+- Code finally compiles into a 100% identical copy of Keen 1 v1.31
+- Prepared data extraction scripts and .obj file generation scripts for 2 and 3
+
+2025-09-13:
+- wrote a utility to convert TILEINFO files into C source files
+- code compiles into a 100% identical copy of Keen 2 v1.31
+- and also got Keen 3 v1.31 to work correctly
+
+2025-09-14:
+- merged some code files together
+- modified IDASM.ASM to make it compatible with TASM 4.0 and 5.0
+- rewrote the readme.txt for Keen 1-3
+- wrote batch files for automatic compile & verify
+
+2025-10-03:
+- added makefiles and batch files to make the makefiles easy to use
+- VERIFY.BAT now uses MAKE instead of TC
+
+2025-11-07:
+- added SDL-style integer types and replaced all the normal types in the game
+  code (KEENDEF.H, KEEN*.C) with the SDL-style types
+
+2025-11-30 - 2025-12-02:
+- added defines to recreate the pre-1.31 versions
+- got correct code for Keen 1 v1.0 and v1.1 (beta is only 99% correct)
+
+2025-12-03:
+- got correct code for version 1.0 of Keen 2 and 3 and for the Keen 1 beta
+
+2025-12-06:
+- got correct code for version 1.32 and 1.34 of Keen 1
+
+2025-12-15:
+- first public release
+
+2025-12-25:
+- got correct code for version 1.3 of Keen 1
+
+2026-01-03:
+- got rid of the pseudo register hacks in the PlayAnimation code (Keen 1 beta)
+- renamed all sounds from SND_... into ...SND
+- also renamed all pics and sprites from prefix into suffix naming convention
+
+2026-05-27:
+- added support for version 1.32 of Keen 2 and 3 (counterparts to Keen 1 v1.34)
+- a few code changes were required because these don't use jump optimization
+
+2026-05-28:
+- added support for version 1.1 of Keen 2 and 3 (counterparts to Keen 1 v1.3)
