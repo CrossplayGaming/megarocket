@@ -330,6 +330,51 @@ static void pull_notice(const char *msg)
 	present(g_notice_ren, g_notice_tex);
 }
 
+/* Blocking, dismissible error screen.
+ *
+ * A launch that fails silently is indistinguishable from a broken launcher:
+ * the player presses Play, nothing happens, and there is no way to find out
+ * why.  stderr is no help -- this is a windowed SDL app with no console
+ * attached, so anything printed there is discarded.  Every failure the player
+ * can actually hit needs to say what happened and what to do about it. */
+static void error_notice(const char *title, const char *msg, const char *detail)
+{
+	SDL_Event ev;
+	int waiting = 1;
+
+	if (!g_notice_ren)
+	{
+		fprintf(stderr, "%s: %s%s%s\n", title, msg,
+		        detail && detail[0] ? " - " : "", detail ? detail : "");
+		return;
+	}
+
+	starfield();
+	text_big_centred(cw / 2, 8, "MEGAROCKET", 14);
+	text_centred(cw / 2, ch / 2 - 24, title, 12);
+	text_centred(cw / 2, ch / 2 - 8, msg, 14);
+	if (detail && detail[0])
+		text_centred(cw / 2, ch / 2 + 8, detail, 7);
+	text_centred(cw / 2, ch / 2 + 28, "PRESS ANY KEY OR BUTTON", 8);
+	present(g_notice_ren, g_notice_tex);
+
+	while (waiting)
+	{
+		while (SDL_PollEvent(&ev))
+		{
+			if (ev.type == SDL_KEYDOWN || ev.type == SDL_CONTROLLERBUTTONDOWN)
+				waiting = 0;
+			else if (ev.type == SDL_QUIT)
+			{
+				/* Re-post it: dismissing the error must not swallow a quit. */
+				SDL_PushEvent(&ev);
+				waiting = 0;
+			}
+		}
+		SDL_Delay(16);
+	}
+}
+
 /* run one engine in art-dump mode and wait for it (bounded) */
 static void art_pull(const Slot *s)
 {
@@ -739,7 +784,28 @@ static void launch(const Slot *s)
 	}
 	else
 	{
-		fprintf(stderr, "launch failed (%lu): %s\n", GetLastError(), cmd);
+		/* Name the actual cause. These are the three the player can really
+		 * hit: the game folder was moved or never installed, or an antivirus
+		 * quarantined the engine exe. */
+		DWORD err = GetLastError();
+		char detail[160];
+		const char *why;
+
+		switch (err)
+		{
+		case ERROR_FILE_NOT_FOUND:
+			why = "THE GAME PROGRAM IS MISSING"; break;
+		case ERROR_PATH_NOT_FOUND:
+			why = "THE GAME FOLDER IS MISSING"; break;
+		case ERROR_ACCESS_DENIED:
+			why = "WINDOWS BLOCKED IT (ANTIVIRUS?)"; break;
+		default:
+			why = "WINDOWS REFUSED TO START IT"; break;
+		}
+		snprintf(detail, sizeof(detail), "%s  (ERROR %lu)", s->exe,
+		         (unsigned long)err);
+		fprintf(stderr, "launch failed (%lu): %s\n", (unsigned long)err, cmd);
+		error_notice("COULD NOT START THE GAME", why, detail);
 	}
 #else
 	char cmd[1024];
