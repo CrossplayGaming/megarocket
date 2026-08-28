@@ -6,8 +6,9 @@ build/
 */.cxx/
 
 # Junctions/symlinks to source trees (created per-machine)
-omnispeak/jni/SDL
-omnispeak/jni/omnispeak
+*/jni/SDL
+*/jni/omnispeak
+*/jni/keen13port
 
 # SDL's Java glue, copied per-machine from the SDL source tree
-omnispeak/src/main/java/org/
+*/src/main/java/org/

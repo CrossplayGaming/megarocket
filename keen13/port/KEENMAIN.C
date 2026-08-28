@@ -73,8 +73,9 @@ exittype LevelDone;
 Sint16 numobj;
 objtype objlist[MAXOBJECTS];
 
-// unused dummy variables:
-static ControlStruct ctrl, lastctrl;
+// unused dummy variables (non-static: KEENDEF.H declares them extern,
+// and clang rejects a static definition after an extern declaration):
+ControlStruct ctrl, lastctrl;
 static Sint16 keensleft, SNDstarter;
 
 /*

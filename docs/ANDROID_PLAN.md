@@ -120,8 +120,32 @@ design exactly. Engine exit → process dies → launcher resumes.
 - Verified on emulator: APK installs, Keen 4 data pushed to
   `/sdcard/Android/data/com.megarocket.omnispeak/files/`, game boots through
   terminator intro into the demo loop **with the widescreen compositor active**.
-- NOT yet: Keen 5/6 data smoke test (same engine; low risk), keen13 module
-  (phase 2 part 2), audio verification on-device, touch controls (phase 6).
+- NOT yet: Keen 5/6 data smoke test (same engine; low risk), audio
+  verification on-device, touch controls (phase 6).
+
+**2026-08-28 — Phase 2 (part 2): Keen 1-3 runs on Android, widescreen.**
+- `android/keen13` module: ONE APK, three SDL activities (Keen1/2/3Activity),
+  each in its own `android:process` loading its own episode library — this
+  validates the activity-per-process model phase 3's launcher shell needs.
+- keen13 port made clang/bionic-clean (all in this repo, `android` branch):
+  `<io.h>` guarded MSVC-only; compat layer grew a POSIX branch (filelength/
+  strupr/itoa/ltoa via k13_ helpers, S_IREAD/S_IWRITE, `inp` mapping) and
+  prototypes for the port-provided functions the reconstruction calls
+  implicitly (bioskey, printscan, K13_QLoad*, harderr...); port-I/O prototypes
+  after IDLIB.H's #undef block; KEENMAIN's dummy ctrl/lastctrl de-static'd;
+  `-fcommon` on Android targets (the reconstruction relies on tentative-
+  definition merging, Turbo C/MSVC semantics).
+- Android entry: `k13_android.c` wraps the Borland-style `void main` (renamed
+  k13_realmain) in an exported SDL_main that chdirs to app storage first, so
+  every relative fopen in the engine works unchanged.
+- Desktop verified after every shared-source change: MSVC rebuild clean, all
+  three keen13 replay gates PASS (741/589/596 frames).
+- On emulator: Keen 1 demo loop in widescreen (boot-time LZEXE rip of the
+  user's KEEN1.EXE works on ARM); Keen 2 boots to the Apogee intro via its own
+  activity/library. Keen 3 not yet smoked (same pattern).
+- Desktop keen13 builds: note the PATH cmake 4.4 fails to reconfigure the
+  existing build dir — use the VS BuildTools cmake (as build_megarocket.ps1
+  does).
 
 ## Notes
 

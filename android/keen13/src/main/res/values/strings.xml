@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Keen 1-3 (Megarocket)</string>
+    <string name="keen1_name">Keen 1 (Megarocket)</string>
+    <string name="keen2_name">Keen 2 (Megarocket)</string>
+    <string name="keen3_name">Keen 3 (Megarocket)</string>
+</resources>

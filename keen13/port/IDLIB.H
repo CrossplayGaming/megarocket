@@ -44,7 +44,9 @@ typedef int32_t Sint32;
 #include <fcntl.h>
 #include <stdlib.h>
 #include <alloc.h>
-#include <io.h>
+#ifdef _MSC_VER
+#include <io.h>	/* MSVC only; POSIX equivalents come from k13_compat.h */
+#endif
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -88,6 +90,12 @@ char extern ch,str[80];		// scratch variables
 #undef inportb
 #undef outport
 #undef outportb
+
+/* With the compat macros gone, these resolve to idlib13's real functions;
+ * prototypes for compilers that reject implicit declarations. */
+void outportb(unsigned port, unsigned char value);
+void outport(unsigned port, unsigned value);
+unsigned char inportb(unsigned port);
 
 typedef void _seg * memptr;
 

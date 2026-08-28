@@ -1,0 +1,36 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace = "com.megarocket.keen13"
+    compileSdkVersion 35
+    ndkVersion "29.0.14206865"
+    defaultConfig {
+        applicationId "com.megarocket.keen13"
+        minSdkVersion 21
+        targetSdkVersion 35
+        versionCode 1
+        versionName "0.9.1"
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_PLATFORM=android-21", "-DANDROID_STL=c++_static"
+                targets "SDL2", "keen13", "keen13_ep2", "keen13_ep3"
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path 'jni/CMakeLists.txt'
+        }
+    }
+    lint {
+        abortOnError = false
+    }
+}

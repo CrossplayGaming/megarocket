@@ -33,4 +33,5 @@ keenlauncher.cfg
 /launcher/keenlauncher.cfg
 /keen13/port/captures/
 /keen13/port/*.txt
+!/keen13/port/CMakeLists.txt
 /keen13/art_test*.png

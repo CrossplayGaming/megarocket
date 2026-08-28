@@ -57,6 +57,60 @@ the Free Software Foundation; either version 2 of the License, or
 #ifndef O_RDONLY
 #define O_RDONLY _O_RDONLY
 #endif
+#else
+/* POSIX libcs (incl. Android's bionic): open/read/write/lseek/unlink are
+ * native; supply the Turbo RTL leftovers they don't have. */
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+#ifndef S_IREAD
+#define S_IREAD S_IRUSR
+#define S_IWRITE S_IWUSR
+#endif
+/* Turbo/MSVC byte port read; only the joystick poll uses it. Expands at
+ * the callsite, after IDLIB.H has replaced the port-I/O macros with
+ * idlib13's real functions — so this resolves to the real inportb. */
+#define inp(port) inportb(port)
+static inline long k13_filelength(int fd)
+{
+	long pos = lseek(fd, 0, SEEK_CUR);
+	long end = lseek(fd, 0, SEEK_END);
+	lseek(fd, pos, SEEK_SET);
+	return end;
+}
+/* function-like on purpose: 'filelength' is also a struct field name */
+#define filelength(fd) k13_filelength(fd)
+static inline char *strupr(char *s)
+{
+	for (char *p = s; *p; p++)
+		if (*p >= 'a' && *p <= 'z')
+			*p += 'A' - 'a';
+	return s;
+}
+static inline char *k13_numtoa(long value, char *str, int radix)
+{
+	char tmp[36];
+	int i = 0, neg = (value < 0 && radix == 10);
+	unsigned long v = neg ? (unsigned long)-value : (unsigned long)value;
+	do
+	{
+		int d = (int)(v % (unsigned)radix);
+		tmp[i++] = (char)(d < 10 ? '0' + d : 'a' + d - 10);
+		v /= (unsigned)radix;
+	} while (v);
+	char *out = str;
+	if (neg)
+		*out++ = '-';
+	while (i)
+		*out++ = tmp[--i];
+	*out = '\0';
+	return str;
+}
+#define itoa(v, s, r) k13_numtoa((v), (s), (r))
+#define ltoa(v, s, r) k13_numtoa((v), (s), (r))
 #endif
 
 /* ---- Far-heap runtime + real-mode memory model ----
@@ -167,6 +221,19 @@ int k13_getch(void);
 #define ltoa _ltoa
 #define ultoa _ultoa
 #endif
+
+/* ---- Port-provided functions the game calls without prototypes ----
+ * Turbo C and MSVC C tolerated implicit declarations; modern clang
+ * requires these. Definitions live in idlib13.c / k13_quicksave.inc /
+ * IDLIBC.C. */
+int bioskey(int cmd);
+void printscan(int sc);
+int K13_QLoadPending(void);
+void K13_QLoadRequest(void);
+void K13_QLoadApply(void);
+/* DOS critical-error handlers; no-ops in the port */
+void harderr(void *handler);
+void hardresume(int rescode);
 
 /* Turbo C's getvect/setvect (interrupt vectors) are handled by idlib13. */
 typedef void (*k13_intvec_t)(void);
