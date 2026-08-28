@@ -1,0 +1,13 @@
+# Per-machine wiring — see README.md
+local.properties
+.gradle/
+build/
+*/build/
+*/.cxx/
+
+# Junctions/symlinks to source trees (created per-machine)
+omnispeak/jni/SDL
+omnispeak/jni/omnispeak
+
+# SDL's Java glue, copied per-machine from the SDL source tree
+omnispeak/src/main/java/org/

@@ -106,6 +106,23 @@ design exactly. Engine exit → process dies → launcher resumes.
 - NOT yet exercised on Android: actual level gameplay/input, audio, lifecycle
   (pause/resume), touch controls (none exist yet — phase 6).
 
+**2026-08-28 — Phase 2 (part 1): Keen 4-6 (omnispeak) runs on Android, widescreen.**
+- `android/` Gradle project created in this repo (branch `android`): top-level
+  build files + `omnispeak` application module (SDL2 activity, CMake wiring).
+  Per-machine junctions and SDL Java copy documented in `android/README.md`.
+- SDL2 2.32.10 source at `deps\SDL2-2.32.10-src` (official, downloaded under the
+  user's standing build-deps approval).
+- Omnispeak fork changes (CrossplayGaming/omnispeak@cdb8e65): CMakeLists in-tree
+  SDL2 target + Android shared-lib/SDL_main mode; id_fs.c defaults paths to
+  SDL_AndroidGetExternalStoragePath() on Android (permissionless, adb-pushable).
+  Desktop verified: all four Keen 4 replay gates bit-identical after the change.
+- First build compiled CLEAN across all four ABIs — zero portability errors.
+- Verified on emulator: APK installs, Keen 4 data pushed to
+  `/sdcard/Android/data/com.megarocket.omnispeak/files/`, game boots through
+  terminator intro into the demo loop **with the widescreen compositor active**.
+- NOT yet: Keen 5/6 data smoke test (same engine; low risk), keen13 module
+  (phase 2 part 2), audio verification on-device, touch controls (phase 6).
+
 ## Notes
 
 - refkeen is SDL3, the rest SDL2 — both support Android; the APK carries both.

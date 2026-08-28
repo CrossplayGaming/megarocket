@@ -1,0 +1,36 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace = "com.megarocket.omnispeak"
+    compileSdkVersion 35
+    ndkVersion "29.0.14206865"
+    defaultConfig {
+        applicationId "com.megarocket.omnispeak"
+        minSdkVersion 21
+        targetSdkVersion 35
+        versionCode 1
+        versionName "0.9.1"
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_PLATFORM=android-21", "-DANDROID_STL=c++_static", "-DRENDERER=sdl2"
+                targets "SDL2", "omnispeak"
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path 'jni/CMakeLists.txt'
+        }
+    }
+    lint {
+        abortOnError = false
+    }
+}
