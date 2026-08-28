@@ -83,8 +83,28 @@ design exactly. Engine exit → process dies → launcher resumes.
   defined in both desktop and unified builds — no-op on Windows).
 - Result: `gradlew assembleDebug` -> 27 MB APK, all four ABIs, all seven
   `BE_ST_KL_*` compositor symbols confirmed present in libreflectionhle.so.
-- NOT yet done: run on a device (first light proper), Windows desktop rebuild +
-  replay gate re-run after the guard change (should be a no-op; verify anyway).
+- Desktop no-op after the guard change verified: Windows rebuild passes the
+  Dreams replay gate (494 frames bit-identical). Fork fixes pushed
+  (CrossplayGaming/ReflectionHLE@71708ac).
+
+**2026-08-28 — FIRST LIGHT: Keen Dreams runs on Android.**
+- Standing emulator infrastructure installed (user-requested, works headlessly
+  for remote sessions): SDK `emulator` package + `system-images;android-35;
+  google_apis;x86_64`, AVD **`megarocket_test`** (Pixel 5 profile, Android 15).
+  Boot with `emulator -avd megarocket_test -gpu swiftshader_indirect -no-audio`;
+  drive via adb (`input tap/swipe/keyevent`, `exec-out screencap`).
+  Gotchas hit: sdkmanager.bat needs JAVA_HOME (Android Studio jbr) and exits 0
+  even on failure; Git Bash mangles `/sdcard` paths (set MSYS_NO_PATHCONV=1).
+- APK installed; storage granted via
+  `appops set com.reflectionhle MANAGE_EXTERNAL_STORAGE allow` (emulator only —
+  real users go through the app's own permission flow, which was verified too).
+- Game data pushed to `/sdcard/kdreams` (kdreams.exe + 3 .kdr), detected via the
+  in-app browser as "Keen Dreams EGA v1.00" (same kdreamse100 as the replay
+  gate). Game boots: Softdisk screen -> title/credits, rendered INSIDE the
+  fork's framed widescreen backdrop — the BE_ST_KL_* compositor path works on
+  mobile GLES. Screenshots delivered in-session.
+- NOT yet exercised on Android: actual level gameplay/input, audio, lifecycle
+  (pause/resume), touch controls (none exist yet — phase 6).
 
 ## Notes
 
