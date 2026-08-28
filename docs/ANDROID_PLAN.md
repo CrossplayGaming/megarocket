@@ -147,6 +147,30 @@ design exactly. Engine exit → process dies → launcher resumes.
   existing build dir — use the VS BuildTools cmake (as build_megarocket.ps1
   does).
 
+**2026-08-28 — Phase 3: the launcher shell runs on Android. Verified end-to-end.**
+- New `android/megarocket` module: ONE APK, applicationId `com.megarocket` —
+  MegarocketActivity (the shell, launcher.c as an SDL library) plus
+  OmnispeakActivity (:keen46, episode via intent extra → /EPISODE /GAMEPATH
+  /USERPATH args) and Keen1/2/3Activity (:keen1/2/3, per-episode K13_CWD env).
+  All engines share ONE files dir mirroring the desktop tree
+  (`files/rt`, `files/keen13/gamedata{,2,3}`) — which is also what makes
+  detection possible under scoped storage.
+- launcher.c Android support (#ifdef'd): root = external-files dir + chdir;
+  detect() checks data only (engines are in the APK; Dreams slot = is the
+  ReflectionHLE app installed, via JNI); launch() = JNI → launchSlot() →
+  Intent. "Blocks while the game runs" maps to activity pause/resume; a
+  game's exit(0) kills only its own process.
+- Dreams slot launches the separate com.reflectionhle app (manifest needs
+  the <queries> package entry for visibility).
+- Verified on emulator: all 7 slots READY; Keen 1 launched from the shell;
+  launcher resumed cleanly after backgrounding (no GL loss); Keen 4 launched
+  with correct episode selection. Desktop: launcher + omnispeak rebuilt,
+  replay gates bit-identical, launcher/keenlauncher.exe refreshed.
+- NOT yet: in-game-quit → launcher return flow (needs deep menu keyevents or
+  hands-on), art pull on Android (phase 5; text tiles show), touch controls
+  (phase 6 — launcher itself is keyboard/pad-driven; tiles need tap support),
+  Dreams data unification, app icon.
+
 ## Notes
 
 - refkeen is SDL3, the rest SDL2 — both support Android; the APK carries both.

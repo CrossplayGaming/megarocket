@@ -29,6 +29,10 @@
 #ifdef _WIN32
 #include <windows.h>
 #endif
+#ifdef __ANDROID__
+#include <jni.h>
+#include <unistd.h>
+#endif
 
 /* ------------------------------------------------------------------ canvas */
 
@@ -290,6 +294,22 @@ static int file_exists(const char *path)
 	return 1;
 }
 
+#ifdef __ANDROID__
+/* The Dreams slot is the separate ReflectionHLE app (SDL3, own package);
+ * ask the Java side whether it is installed. */
+static int android_dreams_installed(void)
+{
+	JNIEnv *env = (JNIEnv *)SDL_AndroidGetJNIEnv();
+	jobject act = (jobject)SDL_AndroidGetActivity();
+	jclass cls = (*env)->GetObjectClass(env, act);
+	jmethodID mid = (*env)->GetMethodID(env, cls, "isDreamsInstalled", "()Z");
+	jboolean ok = (*env)->CallBooleanMethod(env, act, mid);
+	(*env)->DeleteLocalRef(env, act);
+	(*env)->DeleteLocalRef(env, cls);
+	return ok ? 1 : 0;
+}
+#endif
+
 /* A slot is playable only if BOTH its runtime and its data are present --
  * reporting "ready" and then failing to start would be worse than greying it
  * out, and it is the data half that is usually missing. */
@@ -298,10 +318,23 @@ static void detect(void)
 	int i;
 	for (i = 0; i < NSLOTS; i++)
 	{
+#ifdef __ANDROID__
+		/* The engines are built into the APK, so only the player's data
+		 * can be missing -- except Dreams, which is its own app. */
+		char data[768];
+		if (!strcmp(slots[i].dir, "keendreams/game"))
+		{
+			slots[i].available = android_dreams_installed();
+			continue;
+		}
+		snprintf(data, sizeof(data), "%s/%s/%s", root, slots[i].dir, slots[i].needs);
+		slots[i].available = file_exists(data);
+#else
 		char exe[768], data[768];
 		snprintf(exe, sizeof(exe), "%s/%s/%s", root, slots[i].dir, slots[i].exe);
 		snprintf(data, sizeof(data), "%s/%s/%s", root, slots[i].dir, slots[i].needs);
 		slots[i].available = file_exists(exe) && file_exists(data);
+#endif
 	}
 }
 
@@ -807,6 +840,21 @@ static void launch(const Slot *s)
 		fprintf(stderr, "launch failed (%lu): %s\n", (unsigned long)err, cmd);
 		error_notice("COULD NOT START THE GAME", why, detail);
 	}
+#elif defined(__ANDROID__)
+	/* The engines live in this APK as activities in their own processes.
+	 * Android's version of "block while the game runs" is that this
+	 * activity is paused while the game's activity is in front; when the
+	 * game exits, its process dies and this one resumes right here. */
+	JNIEnv *env = (JNIEnv *)SDL_AndroidGetJNIEnv();
+	jobject act = (jobject)SDL_AndroidGetActivity();
+	jclass cls = (*env)->GetObjectClass(env, act);
+	jmethodID mid = (*env)->GetMethodID(env, cls, "launchSlot", "(I)Z");
+	jboolean ok = (*env)->CallBooleanMethod(env, act, mid, (jint)(s - slots));
+	(*env)->DeleteLocalRef(env, act);
+	(*env)->DeleteLocalRef(env, cls);
+	if (!ok)
+		error_notice("COULD NOT START THE GAME",
+		             "IT IS NOT INSTALLED ON THIS DEVICE", s->exe);
 #else
 	char cmd[1024];
 	snprintf(cmd, sizeof(cmd), "cd \"%s/%s\" && ./%s %s", root, s->dir, s->exe, s->args);
@@ -1129,6 +1177,15 @@ int main(int argc, char **argv)
 	Uint32 stick_repeat = 0;      /* when a held stick may move again */
 	Uint32 input_ready = 0;       /* ignore input until this time */
 
+#ifdef __ANDROID__
+	/* All game data lives under the app's external-files dir, mirroring
+	 * the desktop collection layout (rt, keen13/gamedata...); it needs
+	 * no runtime permission and is adb-pushable.  chdir there so
+	 * keenlauncher.cfg lands beside the data. */
+	(void)i;
+	snprintf(root, sizeof(root), "%s", SDL_AndroidGetExternalStoragePath());
+	chdir(root);
+#else
 	/* the launcher lives in <root>/launcher, and the games sit beside it */
 	snprintf(root, sizeof(root), "%s", argv[0]);
 	for (i = (int)strlen(root) - 1; i > 0; i--)
@@ -1142,6 +1199,7 @@ int main(int argc, char **argv)
 	strncat(root, "/..", sizeof(root) - strlen(root) - 1);
 	if (getenv("KEEN_ROOT"))
 		snprintf(root, sizeof(root), "%s", getenv("KEEN_ROOT"));
+#endif
 
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0)
 	{

@@ -5,17 +5,26 @@ project(keenlauncher C)
 # (already vendored in deps/) and a baked bitmap font, nothing else -- see the
 # header comment in launcher.c for why there is no widget toolkit here.
 
-find_package(SDL2 REQUIRED)
+if(ANDROID)
+	# The shell as an SDL activity library.  launcher.c includes SDL.h
+	# before defining main, so SDL's Android main-renaming applies and
+	# the library exports SDL_main for SDLActivity to call.
+	add_library(megarocket_launcher SHARED launcher.c)
+	set_property(TARGET megarocket_launcher PROPERTY C_STANDARD 99)
+	target_link_libraries(megarocket_launcher PRIVATE SDL2)
+else()
+	find_package(SDL2 REQUIRED)
 
-add_executable(keenlauncher WIN32 launcher.c)
-set_property(TARGET keenlauncher PROPERTY C_STANDARD 99)
-target_link_libraries(keenlauncher PRIVATE SDL2::SDL2 SDL2::SDL2main)
+	add_executable(keenlauncher WIN32 launcher.c)
+	set_property(TARGET keenlauncher PROPERTY C_STANDARD 99)
+	target_link_libraries(keenlauncher PRIVATE SDL2::SDL2 SDL2::SDL2main)
 
-if(MSVC)
-	target_compile_definitions(keenlauncher PRIVATE _CRT_SECURE_NO_WARNINGS)
+	if(MSVC)
+		target_compile_definitions(keenlauncher PRIVATE _CRT_SECURE_NO_WARNINGS)
+	endif()
+
+	# keep SDL2.dll next to the exe so the launcher runs from its own folder
+	add_custom_command(TARGET keenlauncher POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+			$<TARGET_FILE:SDL2::SDL2> $<TARGET_FILE_DIR:keenlauncher>)
 endif()
-
-# keep SDL2.dll next to the exe so the launcher runs from its own folder
-add_custom_command(TARGET keenlauncher POST_BUILD
-	COMMAND ${CMAKE_COMMAND} -E copy_if_different
-		$<TARGET_FILE:SDL2::SDL2> $<TARGET_FILE_DIR:keenlauncher>)

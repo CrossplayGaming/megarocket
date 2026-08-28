@@ -9,6 +9,7 @@ build/
 */jni/SDL
 */jni/omnispeak
 */jni/keen13port
+*/jni/launcher
 
 # SDL's Java glue, copied per-machine from the SDL source tree
 */src/main/java/org/

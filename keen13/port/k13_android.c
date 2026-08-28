@@ -16,7 +16,12 @@ void k13_realmain(int argc, char **argv);
 
 int SDL_main(int argc, char *argv[])
 {
-	const char *storagePath = SDL_AndroidGetExternalStoragePath();
+	/* The launcher APK hosts all three episodes in one package sharing one
+	 * files dir; each episode activity sets K13_CWD to its own game folder.
+	 * Standalone (engine-only APK) falls back to the files dir itself. */
+	const char *storagePath = getenv("K13_CWD");
+	if (!storagePath)
+		storagePath = SDL_AndroidGetExternalStoragePath();
 	if (storagePath)
 		chdir(storagePath);
 	k13_realmain(argc, argv);
