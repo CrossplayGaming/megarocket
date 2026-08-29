@@ -171,6 +171,31 @@ design exactly. Engine exit → process dies → launcher resumes.
   (phase 6 — launcher itself is keyboard/pad-driven; tiles need tap support),
   Dreams data unification, app icon.
 
+**2026-08-28 — Phase 6: touch controls + carousel UI. Verified on emulator.**
+- Launcher (launcher.c, shared source, desktop unchanged): tap/click support
+  (mouse events; Android synthesises them from touch), with present()-matched
+  letterbox-offset mapping; Android back button = ESC; tapping the title strip
+  opens Help.
+- **Carousel mode** (user-requested small-screen UI): one horizontal row,
+  selection centred with ease animation, swipe-to-browse with snap, tap to
+  select/play. Default on Android; desktop keeps the grid; KEEN_CAROUSEL=1/0
+  overrides (works with KEEN_SHOT for headless layout review). Tile drawing
+  refactored into draw_tile() shared by both modes, thumb blit bounds-checked
+  for edge-clipped tiles.
+- **In-game touch overlay** — pure Java, zero engine changes: TouchOverlay
+  view over the SDL surface injects Android key events via SDLActivity's
+  onNativeKeyDown/Up. D-pad (multi-touch, 8-way) left; JUMP(Ctrl) POGO(Alt)
+  FIRE(Space) right; ESC/ENTER top corners. EngineActivity base adds it to
+  all four game activities. Dreams needs none (refkeen ships its own touch UI).
+- Verified: tap-select/tap-play in both layouts; swipe scroll + snap;
+  overlay renders over Keen 4 and its ENTER/ESC drive omnispeak's menus
+  (key injection proven); Keen 4 launched from a carousel tap.
+- Emulator gotcha hit: the AVD resumed an old default_boot snapshot and the
+  pushed game data "vanished" — snapshot timelines can roll back /sdcard.
+  Boot with -no-snapshot-save consistently, or repush data after restores.
+- NOT yet: overlay auto-hide when a controller is present; button layout
+  tuning wants real thumbs on real glass (deferred to hands-on testing).
+
 ## Notes
 
 - refkeen is SDL3, the rest SDL2 — both support Android; the APK carries both.

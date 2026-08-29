@@ -965,6 +965,89 @@ static void tile_face(int i, int cx, int cy, int chosen)
 
 /* ------------------------------------------------- how-to / about pages */
 
+/* One game tile, shared by the grid and the carousel.  The thumb blit is
+ * bounds-checked so a tile may hang partly off the canvas edge. */
+static void draw_tile(int i, int cx, int cy, int chosen)
+{
+	int fill;
+	char num[8];
+
+	bevel(cx, cy, TILE_W, TILE_H, chosen ? 7 : 6);
+	/* an unavailable game is dimmed but still legible -- it has to read as
+	   "coming", not as a rendering fault */
+	fill = slots[i].available ? (chosen ? 1 : 0) : 8;
+	bar(cx, cy, TILE_W, TILE_H, fill);
+
+	if (slots[i].available && tile_style() == 0 && slots[i].thumb)
+	{
+		/* the game's own title screen fills the tile */
+		int ax, ay;
+
+		for (ay = 0; ay < TILE_H; ay++)
+			for (ax = 0; ax < TILE_W; ax++)
+			{
+				int dx = cx + ax, dy = cy + ay;
+				if (dx >= 0 && dx < cw && dy >= 0 && dy < ch)
+					canvas[dy * cw + dx] =
+						slots[i].thumb[ay * TILE_W + ax];
+			}
+		if (chosen)
+		{
+			bar(cx, cy + TILE_H - 12, TILE_W, 12, 1);
+			text_centred(cx + TILE_W / 2, cy + TILE_H - 10,
+			             "> PLAY <", 14);
+		}
+	}
+	else if (slots[i].available)
+		tile_face(i, cx, cy, chosen);
+
+	snprintf(num, sizeof(num), "%d", i + 1);
+	text(cx + 3, cy + 3, num, slots[i].available ? 15 : 7);
+
+	if (!slots[i].available)
+	{
+		text_centred(cx + TILE_W / 2, cy + 14, slots[i].title, 15);
+		text_centred(cx + TILE_W / 2, cy + 32, "COMING", 0);
+		text_centred(cx + TILE_W / 2, cy + 42, "SOON", 0);
+	}
+}
+
+/* ---- carousel: one horizontal row, selection centred, swipe to browse ----
+ * The default on touch-first screens (Android); the desktop keeps its grid.
+ * KEEN_CAROUSEL=1/0 overrides either way (and lets KEEN_SHOT render it). */
+static int ui_carousel;
+static float car_x;            /* scroll position, in tile-index units */
+static int car_dragging;       /* finger down, row follows it */
+static float car_drag_x;       /* car_x when the drag started */
+static int car_drag_startpx;   /* canvas x where the drag started */
+static int car_drag_moved;     /* farthest the finger travelled (canvas px) */
+
+#define CAR_SPACING (TILE_W + TILE_BEVEL * 2 + 10)
+
+static void draw_carousel(int sel)
+{
+	int cy = 46 + ((ch - 62 - 46) - TILE_H) / 2;
+	int i;
+
+	if (!car_dragging)
+	{
+		/* ease toward the selection, then settle exactly on it */
+		float d = (float)sel - car_x;
+		car_x += d * 0.25f;
+		if (d > -0.005f && d < 0.005f)
+			car_x = (float)sel;
+	}
+
+	for (i = 0; i < NSLOTS; i++)
+	{
+		int cx = cw / 2 - TILE_W / 2
+		         + (int)(((float)i - car_x) * CAR_SPACING
+		                 + (((float)i >= car_x) ? 0.5f : -0.5f));
+		if (cx > -TILE_W - TILE_BEVEL && cx < cw + TILE_BEVEL)
+			draw_tile(i, cx, cy, i == sel);
+	}
+}
+
 static int ui_page; /* 0 = games, 1 = how to, 2 = about */
 
 static void draw_page_frame(const char *title)
@@ -1047,16 +1130,6 @@ static void draw(int sel, int launching)
 		return;
 	}
 
-	const int cols = 4, gapx = 12, gapy = 20;
-	/* centre the two rows in whatever vertical space is left between the
-	   title block and the footer, so a tall window spreads out rather than
-	   leaving a gap at the bottom */
-	const int gridh = 2 * TILE_H + gapy + TILE_BEVEL;
-	int starty = 46 + ((ch - 62 - 46) - gridh) / 2;
-
-	/* never let the top row's bevel ride up into the title block */
-	if (starty < 46)
-		starty = 46;
 	int i;
 
 	if (bg_have)
@@ -1067,56 +1140,36 @@ static void draw(int sel, int launching)
 	text_big_centred(cw / 2, 8, "MEGAROCKET", 14);
 	text_centred(cw / 2, 28, "THE COMPLETE COLLECTION", 7);
 
-	for (i = 0; i < NSLOTS; i++)
+	if (ui_carousel)
+		draw_carousel(sel);
+	else
 	{
-		int row = i / cols;
-		int col = i % cols;
-		/* how many tiles share this row, so a short last row centres instead
-		   of hanging off to the left */
-		int inrow = NSLOTS - row * cols;
-		int cx, cy, chosen, fill;
-		char num[8];
+		const int cols = 4, gapx = 12, gapy = 20;
+		/* centre the two rows in whatever vertical space is left between
+		   the title block and the footer, so a tall window spreads out
+		   rather than leaving a gap at the bottom */
+		const int gridh = 2 * TILE_H + gapy + TILE_BEVEL;
+		int starty = 46 + ((ch - 62 - 46) - gridh) / 2;
 
-		if (inrow > cols)
-			inrow = cols;
-		cx = (cw - (inrow * TILE_W + (inrow - 1) * gapx)) / 2
-		     + col * (TILE_W + gapx);
-		cy = starty + row * (TILE_H + gapy + TILE_BEVEL);
-		chosen = (i == sel);
+		/* never let the top row's bevel ride up into the title block */
+		if (starty < 46)
+			starty = 46;
 
-		bevel(cx, cy, TILE_W, TILE_H, chosen ? 7 : 6);
-		/* an unavailable game is dimmed but still legible -- it has to read as
-		   "coming", not as a rendering fault */
-		fill = slots[i].available ? (chosen ? 1 : 0) : 8;
-		bar(cx, cy, TILE_W, TILE_H, fill);
-
-		if (slots[i].available && tile_style() == 0 && slots[i].thumb)
+		for (i = 0; i < NSLOTS; i++)
 		{
-			/* the game's own title screen fills the tile */
-			int ax, ay;
+			int row = i / cols;
+			int col = i % cols;
+			/* how many tiles share this row, so a short last row centres
+			   instead of hanging off to the left */
+			int inrow = NSLOTS - row * cols;
+			int cx, cy;
 
-			for (ay = 0; ay < TILE_H; ay++)
-				for (ax = 0; ax < TILE_W; ax++)
-					canvas[(cy + ay) * cw + cx + ax] =
-						slots[i].thumb[ay * TILE_W + ax];
-			if (chosen)
-			{
-				bar(cx, cy + TILE_H - 12, TILE_W, 12, 1);
-				text_centred(cx + TILE_W / 2, cy + TILE_H - 10,
-				             "> PLAY <", 14);
-			}
-		}
-		else if (slots[i].available)
-			tile_face(i, cx, cy, chosen);
-
-		snprintf(num, sizeof(num), "%d", i + 1);
-		text(cx + 3, cy + 3, num, slots[i].available ? 15 : 7);
-
-		if (!slots[i].available)
-		{
-			text_centred(cx + TILE_W / 2, cy + 14, slots[i].title, 15);
-			text_centred(cx + TILE_W / 2, cy + 32, "COMING", 0);
-			text_centred(cx + TILE_W / 2, cy + 42, "SOON", 0);
+			if (inrow > cols)
+				inrow = cols;
+			cx = (cw - (inrow * TILE_W + (inrow - 1) * gapx)) / 2
+			     + col * (TILE_W + gapx);
+			cy = starty + row * (TILE_H + gapy + TILE_BEVEL);
+			draw_tile(i, cx, cy, i == sel);
 		}
 	}
 
@@ -1128,6 +1181,9 @@ static void draw(int sel, int launching)
 
 	if (launching)
 		text_centred(cw / 2, ch - 22, "STARTING...", 15);
+	else if (ui_carousel)
+		text_centred(cw / 2, ch - 22,
+		             "SWIPE BROWSE   TAP PLAY   TAP TITLE FOR HELP", 7);
 	else
 		text_centred(cw / 2, ch - 22,
 		             "ARROWS MOVE   ENTER PLAY   TAB HELP   ESC QUIT", 7);
@@ -1139,6 +1195,68 @@ static void draw(int sel, int launching)
  * scale, centred.  Because the logical size was derived from the window,
  * the destination normally covers it exactly -- any leftover is at most a
  * scale-1 sliver of black, and never a stretched image. */
+/* Which tile a canvas-space point lands on, or -1.  Mirrors the layout of
+ * whichever mode is active (including the bevel border, which reads as part
+ * of the tile and makes a friendlier touch target). */
+static int tile_hit(int x, int y)
+{
+	int i;
+
+	if (ui_carousel)
+	{
+		int cy = 46 + ((ch - 62 - 46) - TILE_H) / 2;
+
+		if (y < cy - TILE_BEVEL || y >= cy + TILE_H + TILE_BEVEL)
+			return -1;
+		for (i = 0; i < NSLOTS; i++)
+		{
+			int cx = cw / 2 - TILE_W / 2
+			         + (int)(((float)i - car_x) * CAR_SPACING
+			                 + (((float)i >= car_x) ? 0.5f : -0.5f));
+			if (x >= cx - TILE_BEVEL && x < cx + TILE_W + TILE_BEVEL)
+				return i;
+		}
+		return -1;
+	}
+
+	{
+		const int cols = 4, gapx = 12, gapy = 20;
+		const int gridh = 2 * TILE_H + gapy + TILE_BEVEL;
+		int starty = 46 + ((ch - 62 - 46) - gridh) / 2;
+
+		if (starty < 46)
+			starty = 46;
+		for (i = 0; i < NSLOTS; i++)
+		{
+			int row = i / cols;
+			int col = i % cols;
+			int inrow = NSLOTS - row * cols;
+			int cx, cy;
+
+			if (inrow > cols)
+				inrow = cols;
+			cx = (cw - (inrow * TILE_W + (inrow - 1) * gapx)) / 2
+			     + col * (TILE_W + gapx);
+			cy = starty + row * (TILE_H + gapy + TILE_BEVEL);
+			if (x >= cx - TILE_BEVEL && x < cx + TILE_W + TILE_BEVEL &&
+			    y >= cy - TILE_BEVEL && y < cy + TILE_H + TILE_BEVEL)
+				return i;
+		}
+	}
+	return -1;
+}
+
+/* Window coords -> canvas coords, mirroring present()'s centred blit. */
+static void mouse_to_canvas(SDL_Window *win, int mx, int my, int *ox, int *oy)
+{
+	int winw, winh, scale;
+
+	SDL_GetWindowSize(win, &winw, &winh);
+	scale = canvas_fit(winw, winh);
+	*ox = (mx - (winw - cw * scale) / 2) / scale;
+	*oy = (my - (winh - ch * scale) / 2) / scale;
+}
+
 static void present(SDL_Renderer *ren, SDL_Texture *tex)
 {
 	int winw, winh, scale;
@@ -1185,6 +1303,7 @@ int main(int argc, char **argv)
 	(void)i;
 	snprintf(root, sizeof(root), "%s", SDL_AndroidGetExternalStoragePath());
 	chdir(root);
+	ui_carousel = 1; /* touch-first: one swipeable row */
 #else
 	/* the launcher lives in <root>/launcher, and the games sit beside it */
 	snprintf(root, sizeof(root), "%s", argv[0]);
@@ -1200,6 +1319,8 @@ int main(int argc, char **argv)
 	if (getenv("KEEN_ROOT"))
 		snprintf(root, sizeof(root), "%s", getenv("KEEN_ROOT"));
 #endif
+	if (getenv("KEEN_CAROUSEL"))
+		ui_carousel = atoi(getenv("KEEN_CAROUSEL"));
 
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0)
 	{
@@ -1258,6 +1379,7 @@ int main(int argc, char **argv)
 			fclose(cf);
 		}
 	}
+	car_x = (float)sel; /* open with the carousel already centred */
 
 	/* KEEN_SHOT=<file>: render one frame to a PPM and quit, so the layout can
 	 * be reviewed without a human at the screen */
@@ -1343,6 +1465,7 @@ int main(int argc, char **argv)
 				switch (ev.key.keysym.scancode)
 				{
 				case SDL_SCANCODE_ESCAPE:
+				case SDL_SCANCODE_AC_BACK: /* Android back button */
 					if (ui_page)
 						ui_page = 0;
 					else
@@ -1387,6 +1510,86 @@ int main(int argc, char **argv)
 						running = 0;
 					break;
 				default: break;
+				}
+				break;
+			case SDL_MOUSEBUTTONDOWN:
+				/* tap/click: first touch selects a tile, a touch on the
+				 * selected tile plays it (Android touches arrive here as
+				 * synthesised mouse events).  In carousel mode the press
+				 * only ARMS a gesture; release decides tap vs swipe. */
+				if (ev.button.button == SDL_BUTTON_LEFT)
+				{
+					int mx, my, hit;
+
+					if (ui_page)
+					{
+						ui_page = 0;
+						break;
+					}
+					mouse_to_canvas(win, ev.button.x, ev.button.y, &mx, &my);
+					if (my < 40)
+					{
+						ui_page = 1; /* the title strip doubles as Help */
+						break;
+					}
+					if (ui_carousel)
+					{
+						car_dragging = 1;
+						car_drag_x = car_x;
+						car_drag_startpx = mx;
+						car_drag_moved = 0;
+						break;
+					}
+					hit = tile_hit(mx, my);
+					if (hit >= 0)
+					{
+						if (hit == sel)
+							fire = 1;
+						else
+							sel = hit;
+					}
+				}
+				break;
+			case SDL_MOUSEMOTION:
+				if (ui_carousel && car_dragging)
+				{
+					int mx, my, dx, adx;
+
+					mouse_to_canvas(win, ev.motion.x, ev.motion.y, &mx, &my);
+					dx = mx - car_drag_startpx;
+					adx = dx < 0 ? -dx : dx;
+					if (adx > car_drag_moved)
+						car_drag_moved = adx;
+					car_x = car_drag_x - (float)dx / CAR_SPACING;
+					if (car_x < 0.0f)
+						car_x = 0.0f;
+					if (car_x > (float)(NSLOTS - 1))
+						car_x = (float)(NSLOTS - 1);
+					sel = (int)(car_x + 0.5f);
+				}
+				break;
+			case SDL_MOUSEBUTTONUP:
+				if (ui_carousel && car_dragging &&
+				    ev.button.button == SDL_BUTTON_LEFT)
+				{
+					int mx, my;
+
+					car_dragging = 0;
+					mouse_to_canvas(win, ev.button.x, ev.button.y, &mx, &my);
+					if (car_drag_moved < 6)
+					{
+						/* a tap, not a swipe */
+						int hit = tile_hit(mx, my);
+						if (hit >= 0)
+						{
+							if (hit == sel)
+								fire = 1;
+							else
+								sel = hit;
+						}
+					}
+					else
+						sel = (int)(car_x + 0.5f); /* snap to nearest */
 				}
 				break;
 			case SDL_CONTROLLERDEVICEADDED:
@@ -1442,6 +1645,7 @@ int main(int argc, char **argv)
 			SDL_PumpEvents();
 			SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
 			stick_dir = 0;
+			car_dragging = 0;
 			input_ready = SDL_GetTicks() + 400;
 
 			/* That drain also dropped any pad added/removed events from while

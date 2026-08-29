@@ -7,7 +7,7 @@ import android.system.Os;
 
 import org.libsdl.app.SDLActivity;
 
-public class Keen3Activity extends SDLActivity {
+public class Keen3Activity extends EngineActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         try {

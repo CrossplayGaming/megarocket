@@ -4,7 +4,7 @@ import java.io.File;
 
 import org.libsdl.app.SDLActivity;
 
-public class OmnispeakActivity extends SDLActivity {
+public class OmnispeakActivity extends EngineActivity {
     @Override
     protected String[] getLibraries() {
         return new String[] {
