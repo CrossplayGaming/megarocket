@@ -92,10 +92,27 @@ static void cls(int colour)
 		canvas[i] = ega[colour & 15];
 }
 
+/* All drawing lands on draw_dst: normally the canvas, but the carousel
+ * redirects it to a small scratch buffer to render a tile it then blits
+ * back enlarged (so every tile style scales without duplicate code). */
+static Uint32 *draw_dst;
+static int draw_dst_w, draw_dst_h;
+
+static void px_raw(int x, int y, Uint32 argb)
+{
+	if (draw_dst)
+	{
+		if (x >= 0 && x < draw_dst_w && y >= 0 && y < draw_dst_h)
+			draw_dst[y * draw_dst_w + x] = argb;
+		return;
+	}
+	if (x >= 0 && x < cw && y >= 0 && y < ch)
+		canvas[y * cw + x] = argb;
+}
+
 static void px(int x, int y, int colour)
 {
-	if (x >= 0 && x < cw && y >= 0 && y < ch)
-		canvas[y * cw + x] = ega[colour & 15];
+	px_raw(x, y, ega[colour & 15]);
 }
 
 static void bar(int x, int y, int w, int h, int colour)
@@ -303,6 +320,20 @@ static int android_dreams_installed(void)
 	jobject act = (jobject)SDL_AndroidGetActivity();
 	jclass cls = (*env)->GetObjectClass(env, act);
 	jmethodID mid = (*env)->GetMethodID(env, cls, "isDreamsInstalled", "()Z");
+	jboolean ok = (*env)->CallBooleanMethod(env, act, mid);
+	(*env)->DeleteLocalRef(env, act);
+	(*env)->DeleteLocalRef(env, cls);
+	return ok ? 1 : 0;
+}
+
+/* Playing an empty slot opens the system folder picker; the Java side
+ * copies recognised files in while the shell keeps running. */
+static int android_import_games(void)
+{
+	JNIEnv *env = (JNIEnv *)SDL_AndroidGetJNIEnv();
+	jobject act = (jobject)SDL_AndroidGetActivity();
+	jclass cls = (*env)->GetObjectClass(env, act);
+	jmethodID mid = (*env)->GetMethodID(env, cls, "importGames", "()Z");
 	jboolean ok = (*env)->CallBooleanMethod(env, act, mid);
 	(*env)->DeleteLocalRef(env, act);
 	(*env)->DeleteLocalRef(env, cls);
@@ -985,12 +1016,8 @@ static void draw_tile(int i, int cx, int cy, int chosen)
 
 		for (ay = 0; ay < TILE_H; ay++)
 			for (ax = 0; ax < TILE_W; ax++)
-			{
-				int dx = cx + ax, dy = cy + ay;
-				if (dx >= 0 && dx < cw && dy >= 0 && dy < ch)
-					canvas[dy * cw + dx] =
-						slots[i].thumb[ay * TILE_W + ax];
-			}
+				px_raw(cx + ax, cy + ay,
+				       slots[i].thumb[ay * TILE_W + ax]);
 		if (chosen)
 		{
 			bar(cx, cy + TILE_H - 12, TILE_W, 12, 1);
@@ -1022,12 +1049,49 @@ static float car_drag_x;       /* car_x when the drag started */
 static int car_drag_startpx;   /* canvas x where the drag started */
 static int car_drag_moved;     /* farthest the finger travelled (canvas px) */
 
-#define CAR_SPACING (TILE_W + TILE_BEVEL * 2 + 10)
+/* Carousel tiles are drawn double size: the single row exists to make the
+ * selections bigger and more readable, not merely to line them up. */
+#define CAR_MULT 2
+#define CAR_TILE_W (TILE_W * CAR_MULT)
+#define CAR_TILE_H (TILE_H * CAR_MULT)
+#define CAR_BEVEL (TILE_BEVEL * CAR_MULT)
+#define CAR_SPACING (CAR_TILE_W + CAR_BEVEL * 2 + 14)
+
+/* Render the tile at 1x into a scratch buffer, then blit it back magnified
+ * with hard pixel doubling -- same chunky look, every style covered. */
+static void draw_tile_big(int i, int cx, int cy, int chosen)
+{
+	static Uint32 scratch[(TILE_W + 2 * TILE_BEVEL) * (TILE_H + 2 * TILE_BEVEL)];
+	const int sw = TILE_W + 2 * TILE_BEVEL, sh = TILE_H + 2 * TILE_BEVEL;
+	int sx, sy;
+
+	draw_dst = scratch;
+	draw_dst_w = sw;
+	draw_dst_h = sh;
+	draw_tile(i, TILE_BEVEL, TILE_BEVEL, chosen);
+	draw_dst = NULL;
+
+	for (sy = 0; sy < sh; sy++)
+		for (sx = 0; sx < sw; sx++)
+		{
+			Uint32 c = scratch[sy * sw + sx];
+			int bx = cx - CAR_BEVEL + sx * CAR_MULT;
+			int by = cy - CAR_BEVEL + sy * CAR_MULT;
+			int mx, my;
+
+			for (my = 0; my < CAR_MULT; my++)
+				for (mx = 0; mx < CAR_MULT; mx++)
+					px_raw(bx + mx, by + my, c);
+		}
+}
 
 static void draw_carousel(int sel)
 {
-	int cy = 46 + ((ch - 62 - 46) - TILE_H) / 2;
+	int cy = 46 + ((ch - 62 - 46) - CAR_TILE_H) / 2;
 	int i;
+
+	if (cy < 46 + CAR_BEVEL)
+		cy = 46 + CAR_BEVEL;
 
 	if (!car_dragging)
 	{
@@ -1040,11 +1104,11 @@ static void draw_carousel(int sel)
 
 	for (i = 0; i < NSLOTS; i++)
 	{
-		int cx = cw / 2 - TILE_W / 2
+		int cx = cw / 2 - CAR_TILE_W / 2
 		         + (int)(((float)i - car_x) * CAR_SPACING
 		                 + (((float)i >= car_x) ? 0.5f : -0.5f));
-		if (cx > -TILE_W - TILE_BEVEL && cx < cw + TILE_BEVEL)
-			draw_tile(i, cx, cy, i == sel);
+		if (cx > -CAR_TILE_W - CAR_BEVEL && cx < cw + CAR_BEVEL)
+			draw_tile_big(i, cx, cy, i == sel);
 	}
 }
 
@@ -1071,8 +1135,13 @@ static void draw_howto(void)
 		lx = 8;
 
 	text(lx, y, "ADDING YOUR GAMES", 14); y += 13;
+#ifdef __ANDROID__
+	text(lx, y, "Tap an empty game and pick the folder holding your", 7); y += 10;
+	text(lx, y, "original files; they copy in and light up READY:", 7); y += 12;
+#else
 	text(lx, y, "Copy each game's original files into its folder next", 7); y += 10;
 	text(lx, y, "to this launcher; it lights up READY right away:", 7); y += 12;
+#endif
 	for (i = 0; i < NSLOTS; i++)
 	{
 		char line[96];
@@ -1204,16 +1273,18 @@ static int tile_hit(int x, int y)
 
 	if (ui_carousel)
 	{
-		int cy = 46 + ((ch - 62 - 46) - TILE_H) / 2;
+		int cy = 46 + ((ch - 62 - 46) - CAR_TILE_H) / 2;
 
-		if (y < cy - TILE_BEVEL || y >= cy + TILE_H + TILE_BEVEL)
+		if (cy < 46 + CAR_BEVEL)
+			cy = 46 + CAR_BEVEL;
+		if (y < cy - CAR_BEVEL || y >= cy + CAR_TILE_H + CAR_BEVEL)
 			return -1;
 		for (i = 0; i < NSLOTS; i++)
 		{
-			int cx = cw / 2 - TILE_W / 2
+			int cx = cw / 2 - CAR_TILE_W / 2
 			         + (int)(((float)i - car_x) * CAR_SPACING
 			                 + (((float)i >= car_x) ? 0.5f : -0.5f));
-			if (x >= cx - TILE_BEVEL && x < cx + TILE_W + TILE_BEVEL)
+			if (x >= cx - CAR_BEVEL && x < cx + CAR_TILE_W + CAR_BEVEL)
 				return i;
 		}
 		return -1;
@@ -1618,7 +1689,16 @@ int main(int argc, char **argv)
 		}
 
 		if (fire && !slots[sel].available)
+		{
+#ifdef __ANDROID__
+			/* offer the folder picker; the periodic re-detect below
+			 * lights the slot up as soon as its files land */
+			if (!android_import_games())
+				ui_page = 1;
+#else
 			ui_page = 1; /* the How To page says exactly where files go */
+#endif
+		}
 
 		if (fire && slots[sel].available)
 		{
@@ -1664,6 +1744,32 @@ int main(int argc, char **argv)
 					break;
 				}
 		}
+
+#ifdef __ANDROID__
+		/* Files can appear behind our back (the import copies in the
+		 * background; another app may add data): re-check cheaply every
+		 * couple of seconds and refresh the shell when anything changed. */
+		{
+			static Uint32 next_detect;
+			if (now >= next_detect)
+			{
+				int before[NSLOTS];
+				int changed = 0;
+				for (i = 0; i < NSLOTS; i++)
+					before[i] = slots[i].available;
+				detect();
+				for (i = 0; i < NSLOTS; i++)
+					if (before[i] != slots[i].available)
+						changed = 1;
+				if (changed)
+				{
+					art_refresh();
+					bg_scan();
+				}
+				next_detect = now + 2000;
+			}
+		}
+#endif
 
 		draw(sel, launching);
 		present(ren, tex);

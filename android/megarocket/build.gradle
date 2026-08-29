@@ -33,4 +33,25 @@ android {
     lint {
         abortOnError = false
     }
+    sourceSets {
+        main {
+            assets.srcDirs += "$buildDir/generated/omniassets"
+        }
+    }
+}
+
+/* Bundle Omnispeak's own public metadata (the same files the desktop dist
+ * places in rt/ by constructive copy) so the APK is self-sufficient; the
+ * launcher extracts them to files/rt on first run.  Copied from the
+ * junctioned engine tree at build time -- nothing new is committed. */
+task copyOmniAssets(type: Copy) {
+    from 'jni/omnispeak/data/keen4'
+    from 'jni/omnispeak/data/keen5'
+    from 'jni/omnispeak/data/keen6e14'
+    into "$buildDir/generated/omniassets/rt"
+}
+preBuild.dependsOn copyOmniAssets
+
+dependencies {
+    implementation "androidx.documentfile:documentfile:1.0.1"
 }

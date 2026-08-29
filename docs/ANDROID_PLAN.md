@@ -196,6 +196,32 @@ design exactly. Engine exit → process dies → launcher resumes.
 - NOT yet: overlay auto-hide when a controller is present; button layout
   tuning wants real thumbs on real glass (deferred to hands-on testing).
 
+**2026-08-28 — Phase 4: data import + self-sufficient APK. Verified end-to-end.**
+- Playing an empty slot now opens the system folder picker (SAF, no
+  permissions): Java walks the chosen tree, routes recognised files into the
+  collection layout (.CK1-3 + KEEN?.EXE -> keen13/gamedata* uppercased,
+  .CK4-6 -> rt, .kdr/kdreams.exe -> keendreams/game), copying in a background
+  thread with retries; the launcher re-detects every 2s so slots light up
+  live. How-To's first lines describe the tap-to-import flow on Android.
+- Omnispeak's public metadata now ships IN the APK (gradle copies it from the
+  junctioned engine tree into generated assets at build time — constructive
+  copy, nothing new committed) and self-extracts to files/rt on first run.
+  The APK is fully self-sufficient: install, import your files, play.
+- Carousel tiles are now DOUBLE size (the row exists to make selections big
+  and readable): tiles render 1x into a scratch buffer and blit back pixel-
+  doubled, so art/text/badges all scale; hit-testing and spacing follow.
+- Fixed: SDL overrides the manifest's landscape on cold boot (resizable
+  window -> sensor-any) — setOrientationBis is now pinned to sensor-landscape
+  in both activity bases. Found only on a cold-booted emulator; warm sessions
+  had inherited landscape.
+- Verified with a wiped app + files staged in Download/MyKeenFiles: picker ->
+  grant -> Keen 1 lights up in-place seconds later. (Test-harness note: adb
+  pushes into fresh /sdcard dirs can silently drop files — verify staging
+  with ls, not push exit codes.)
+- NOT yet: an "import" affordance when slots are already lit (re-import works
+  by tapping any remaining empty slot); import progress feedback (copies are
+  near-instant for these file sizes).
+
 ## Notes
 
 - refkeen is SDL3, the rest SDL2 — both support Android; the APK carries both.
