@@ -304,15 +304,28 @@ void CalibrateKeys (void)
     select = ch - '0';
     Print ("\n\rPress the new key:");
     ClearKeys ();
+#ifdef K13_PORT
+    /* The original wait could not be refused: it spun until SOME key went
+       down, which trapped anyone holding only a controller (and bound
+       whatever the pad's menu translation pressed).  The port's bind wait
+       accepts Esc -- the pad's cancel included -- and gives up on its own
+       after a few seconds, keeping the old key. */
+    {
+      extern int K13_KeyBindWait(int timeout_ms, void (*tick)(int));
+
+      new = K13_KeyBindWait(7000, 0);
+    }
+    ClearKeys();
+    Print("\r                  ");
+    if (new <= 0 || new == 0x2A)	/* cancelled (or left shift, as ever) */
+    {
+      ch = '0';
+      continue;
+    }
+#else
     new=-1;
     while (!keydown[++new])
     {
-#ifdef K13_PORT
-      /* DOS filled keydown[] from the INT 9 ISR while this spun; our
-         equivalent is the event pump, so let it run once per sweep */
-      if (new >= 0x79)
-        K13_Idle();
-#endif
       if (new==0x79)
         new=-1;
       else if (new==0x29)
@@ -320,6 +333,7 @@ void CalibrateKeys (void)
     }
     ClearKeys();
     Print("\r                  ");
+#endif
     if (select<8)
       key[select]=new;
     if (select==8)
@@ -1554,9 +1568,76 @@ int Input(char *string,int max)
 {
 	char key;
 	int count=0,loop;
+#ifdef K13_PORT
+	/* Arcade-style letter entry so a pad (whose presses arrive as arrow /
+	   Enter / Esc keys) can type: up/down spins a letter in place, right
+	   commits it and moves on, left rubs one out, Enter accepts the name
+	   (committing any letter still spinning).  Keyboard typing untouched. */
+	static const char k13_cyc[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789.-!";
+#define K13_NCYC ((int)(sizeof(k13_cyc) - 1))
+	int k13_ci = -1;	/* index into k13_cyc, -1 = nothing spinning */
+	int k13_raw, k13_scan;
+#endif
 
 	do {
+#ifdef K13_PORT
+		k13_raw = Get();
+		key = toupper(k13_raw & 0xff);
+		k13_scan = (k13_raw >> 8) & 0xFF;
+		/* Get() blanks the cell it blinked on; put the spinner back */
+		if (k13_ci >= 0)
+			DRAWCHAR(sx, sy, k13_cyc[k13_ci]);
+		if (k13_scan == 0x48 || k13_scan == 0x50)	/* up/down: spin */
+		{
+			if (count < max)
+			{
+				if (k13_ci < 0)
+					k13_ci = 0;
+				else if (k13_scan == 0x48)
+					k13_ci = (k13_ci + 1) % K13_NCYC;
+				else
+					k13_ci = (k13_ci + K13_NCYC - 1) % K13_NCYC;
+				DRAWCHAR(sx, sy, k13_cyc[k13_ci]);
+			}
+			key = 0;
+		}
+		else if (k13_scan == 0x4D)	/* right: commit the letter */
+		{
+			if (k13_ci >= 0 && count < max)
+			{
+				*(string + count++) = k13_cyc[k13_ci];
+				sx++;
+				k13_ci = -1;
+			}
+			key = 0;
+		}
+		else if (k13_scan == 0x4B)	/* left: erase */
+		{
+			if (k13_ci >= 0)
+			{
+				DRAWCHAR(sx, sy, BLANKCHAR);
+				k13_ci = -1;
+			}
+			else if (count > 0)
+				key = 8;	/* fall through to the backspace path */
+			else
+				key = 0;
+		}
+		else if (key == 13 && k13_ci >= 0 && count < max)
+		{
+			*(string + count++) = k13_cyc[k13_ci];	/* accept mid-spin */
+			sx++;
+			k13_ci = -1;
+		}
+		else if (k13_ci >= 0 && key >= ' ' && key <= 'z')
+		{
+			/* typed over a spinning letter: drop the spinner first */
+			DRAWCHAR(sx, sy, BLANKCHAR);
+			k13_ci = -1;
+		}
+#else
 		key=toupper(Get()&0xff);
+#endif
 		if ((key==127 || key==8)&&count>0)
 		{
 			count--;

@@ -392,6 +392,46 @@ void ShowScoreScreen(void)
 
 void SaveMenu(void)
 {
+#ifdef K13_PORT
+	/* Keen Launcher: the digits-only prompt is now a cursor list, so a pad
+	   (or touch arrows) can pick a slot; pressing 1-9 still works through
+	   the hotkeys, and the files stay byte-identical SAVED1-9. */
+	Sint16 pick = 0;
+	char filename[13];
+
+	if (!canSave)
+	{
+		ExpWin(22, 3);
+		Print("You can SAVE the game\n");
+		Print("ONLY on the World Map!\n");
+		Print("    press a key:");
+		ClearKeys();
+		Ack();
+		return;
+	}
+
+	for (;;)
+	{
+		char labels[9][20];
+		const char *items[9];
+		Sint16 i;
+
+		for (i = 0; i < 9; i++)
+		{
+			sprintf(filename, "SAVED%d.%s", i + 1, _extension);
+			sprintf(labels[i], "Game %d  %s", i + 1,
+			        access(filename, 0) == 0 ? "SAVED" : "-");
+			items[i] = labels[i];
+		}
+		pick = (Sint16)K13_PickMenu("Save which position?", items,
+		                            "123456789", 9, pick);
+		if (pick < 0)
+			return;
+		sprintf(filename, "SAVED%d.%s", pick + 1, _extension);
+		if (access(filename, 0) != 0 || K13_Confirm("Overwrite it?"))
+			break;
+	}
+#else
 	Sint16 save = 0;
 	char c;
 	char filename[13] = "SAVED?.";
@@ -435,7 +475,7 @@ void SaveMenu(void)
 			{
 				c = toupper(Get() & 0xFF);
 			} while(c != CHAR_ESCAPE && c != 'Y' && c != 'N');
-			
+
 			if (c == CHAR_ESCAPE)
 			{
 				return;
@@ -451,6 +491,7 @@ void SaveMenu(void)
 			save++;
 		}
 	} while (save == 0);
+#endif
 
 	// prepare gamestate and save it:
 	gamestate.worldoriginx = worldCamX;
@@ -487,11 +528,37 @@ boolean RestoreMenu(void)
 	char c;
 	Sint32 size;
 	char filename[13] = "SAVED?.";
+#ifdef K13_PORT
+	Sint16 pick = 0;
+#endif
 
 	DrawChar(sx, sy*8, ' ');	// erase cursor from Main Menu
 
 	do
 	{
+#ifdef K13_PORT
+		/* cursor list instead of digits-only, same as SaveMenu */
+		{
+			char labels[9][20];
+			const char *items[9];
+			Sint16 i;
+
+			for (i = 0; i < 9; i++)
+			{
+				sprintf(filename, "SAVED%d.%s", i + 1, _extension);
+				sprintf(labels[i], "Game %d  %s", i + 1,
+				        access(filename, 0) == 0 ? "SAVED" : "-");
+				items[i] = labels[i];
+			}
+			pick = (Sint16)K13_PickMenu("Continue which game?", items,
+			                            "123456789", 9, pick);
+			if (pick < 0)
+				return false;
+			sprintf(filename, "SAVED%d.%s", pick + 1, _extension);
+			size = Verify(filename);
+		}
+		{
+#else
 		ExpWin(WINW, 2);
 		oldx = sx;	// not sure why these are here...
 		oldy = sy;
@@ -516,6 +583,7 @@ boolean RestoreMenu(void)
 			filename[5] = c;
 			strcat(filename, _extension);
 			size = Verify(filename);
+#endif
 
 			if (!size)
 			{
@@ -645,6 +713,70 @@ boolean K13_Confirm(char *question)
 /*
 =====================
 =
+= K13_PickMenu  (Keen Launcher port)
+=
+= The port's answer to every "press 1-9" / "press Y or D or T" prompt: the
+= same choices as a cursor-driven list in the game's own window chrome, so
+= a pad (or a touch tap through the overlay's arrows) can answer anything.
+= The original single-key answers stay wired up through `hotkeys`.
+=
+=====================
+*/
+
+int K13_PickMenu(const char *title, const char *const *items,
+                 const char *hotkeys, int nitems, int pos)
+{
+	Sint16 basex, basey, i, key, scan, w, l;
+	char ch;
+
+	w = (Sint16)strlen(title);
+	for (i = 0; i < nitems; i++)
+	{
+		l = (Sint16)(strlen(items[i]) + 3);
+		if (l > w)
+			w = l;
+	}
+	ClearKeys();
+	ExpWin((Sint16)(w + 1), (Sint16)(nitems + 2));
+	basex = sx;
+	basey = sy;
+	Print((char *)title);
+	for (i = 0; i < nitems; i++)
+	{
+		sx = (Sint16)(basex + 3);
+		sy = (Sint16)(basey + 2 + i);
+		Print((char *)items[i]);
+	}
+	if (pos < 0 || pos >= nitems)
+		pos = 0;
+	for (;;)
+	{
+		/* the blinking caret from Get() is the cursor, id-style */
+		sx = (Sint16)(basex + 1);
+		sy = (Sint16)(basey + 2 + pos);
+		key = Get();
+		scan = (key >> 8) & 0xFF;
+		ch = (char)toupper(key & 0xFF);
+
+		if (scan == 0x48)	/* up */
+			pos = (pos == 0) ? (Sint16)(nitems - 1) : (Sint16)(pos - 1);
+		else if (scan == 0x50)	/* down */
+			pos = (pos == nitems - 1) ? 0 : (Sint16)(pos + 1);
+		else if (ch == CHAR_ESCAPE)
+			return -1;
+		else if (ch == CHAR_ENTER || ch == ' ')
+			return pos;
+		else if (hotkeys)
+			for (i = 0; i < nitems; i++)
+				if (hotkeys[i] && hotkeys[i] != ' ' && ch == hotkeys[i])
+					return i;
+	}
+}
+
+
+/*
+=====================
+=
 = ControlsMenu  (Keen Launcher port)
 =
 = Rebinding for the keyboard fire control and the four pad actions, drawn
@@ -667,7 +799,18 @@ static void ControlsMenuDraw(int page, int animate);
 
 void ControlsMenu(void)
 {
-	ControlsMenuDraw(0, 1);
+	/* land on the page for the controls in the player's hands: pad
+	   plugged in -> the gamepad page, else the keyboard page */
+	ControlsMenuDraw(K13_PadAttached() ? 1 : 0, 1);
+}
+
+/* countdown digit for the bind prompts, drawn where the caller parked it */
+static Sint16 k13_bw_x, k13_bw_y;
+static void BindTickDraw(int secs_left)
+{
+	if (secs_left < 0 || secs_left > 9)
+		return;
+	DrawChar(k13_bw_x, (Sint16)(k13_bw_y * 8), (char)('0' + secs_left));
 }
 
 #define CTL_KEYSCR 0	/* opens the original keyboard screen */
@@ -724,7 +867,6 @@ static void ControlsMenuDraw(int page, int animate)
 	Sint16 pos = 0, key, scan;
 	Sint16 done = 0;
 	Sint16 basex, basey, i;
-	Sint16 prompt;
 
 	if (animate)
 		ExpWin(29, 18);
@@ -732,7 +874,6 @@ static void ControlsMenuDraw(int page, int animate)
 		CenterWindow(29, 18);
 	basex = sx;
 	basey = sy;
-	prompt = (Sint16)(basey + 17);
 	Print(page ? "    CONTROLS 2/2: GAMEPAD" : "    CONTROLS 1/2: KEYBOARD");
 
 	for (i = 0; i < nitems; i++)
@@ -825,50 +966,84 @@ static void ControlsMenuDraw(int page, int animate)
 				ControlsMenuDraw(page, 0);
 				return;
 			}
-			else if (items[pos].kind == CTL_KEY)
+			else if (items[pos].kind == CTL_KEY ||
+			         items[pos].kind == CTL_PAD)
 			{
+				/* Every row opens the same tiny action menu, so REBIND,
+				   ADD and CLEAR are all visible choices a pad can make --
+				   no more hidden Del-to-clear or un-cancellable prompts. */
+				static const char *keyacts[3] = {"Rebind", "Clear", "Back"};
+				static const char *padacts[4] =
+					{"Rebind", "Add 2nd bind", "Clear", "Back"};
+				int ispad = (items[pos].kind == CTL_PAD);
+				int act, clear = 0;
 				Sint16 code;
 
-				sx = (Sint16)(basex + 1); sy = prompt;
-				Print("Key.. (Del clears)");
-				code = (Sint16)K13_KeyBindWait();
-				if (code == -3 && items[pos].code != K13_KEY_QUIT)
-					K13_SetKeyBind(items[pos].code, 0);	/* cleared */
-				else if (code > 0)
-					K13_BindKey(items[pos].code, code);
-				sx = (Sint16)(basex + 1); sy = prompt;
-				Print("                     ");
-			}
-			else
-			{
-				Sint16 code;
-
-				/* primary first, then an optional alternate, so a pad can
-				   keep both a face button and a shoulder for one action */
-				sx = (Sint16)(basex + 1); sy = prompt;
-				Print("Pad btn.. (Del clears)");
-				code = (Sint16)K13_PadBindWait();
-				ClearKeys();	/* drop menu keys the press synthesized */
-				if (code == -2)
+				act = K13_PickMenu(items[pos].label + 2,
+				                   ispad ? padacts : keyacts,
+				                   ispad ? "RAC " : "RC ",
+				                   ispad ? 4 : 3, 0);
+				if (!ispad && act == 1)
+					act = 2;	/* keyboard has no alternate slot */
+				if (act == 2)
+					clear = 1;
+				else if (act == 0 || act == 1)
 				{
-					sx = (Sint16)(basex + 1); sy = prompt;
-					Print("No pad connected.    ");
-					Get();
+					/* capture in a prompt that cancels ITSELF: with the
+					   pad translation paused so any button is bindable,
+					   the countdown is the pad's way out */
+					ExpWin(25, 1);
+					if (ispad)
+						Print("Pad button? cancel in ");
+					else
+						Print("New key?    cancel in ");
+					k13_bw_x = sx;
+					k13_bw_y = sy;
+					if (ispad)
+						code = (Sint16)K13_PadBindWait(7000, BindTickDraw);
+					else
+						code = (Sint16)K13_KeyBindWait(7000, BindTickDraw);
+					ClearKeys();
+					if (code == -2)
+					{
+						ExpWin(17, 1);
+						Print("No pad connected.");
+						Get();
+					}
+					else if (code == -3)
+						clear = 1;	/* Backspace/Del still clears */
+					else if (code >= 0 && ispad)
+					{
+						if (act == 0)
+						{
+							/* Rebind = this button and ONLY this button;
+							   Add keeps the old primary as the alternate */
+							K13_SetBind(items[pos].code, 0, -1);
+							K13_SetBind(items[pos].code, 1, -1);
+						}
+						K13_BindPad(items[pos].code, code);
+					}
+					else if (code > 0 && !ispad)
+						K13_BindKey(items[pos].code, code);
 				}
-				else if (code == -3)
+				if (clear)
 				{
-					K13_SetBind(items[pos].code, 0, -1);	/* cleared */
-					K13_SetBind(items[pos].code, 1, -1);
+					if (ispad)
+					{
+						K13_SetBind(items[pos].code, 0, -1);
+						K13_SetBind(items[pos].code, 1, -1);
+					}
+					else
+					{
+						/* Esc must always answer prompts, so clearing the
+						   quit key falls back to Esc instead of nothing */
+						K13_SetKeyBind(items[pos].code,
+						    items[pos].code == K13_KEY_QUIT ? 0x01 : 0);
+					}
 				}
-				else if (code >= 0)
-				{
-					/* ONE press per bind: new button becomes primary, the
-					   old primary becomes the alternate.  Bind again to add
-					   or promote another -- no forced second prompt. */
-					K13_BindPad(items[pos].code, code);
-				}
-				sx = (Sint16)(basex + 1); sy = prompt;
-				Print("                      ");
+				K13_ConfigSave();
+				ControlsMenuDraw(page, 0);
+				return;
 			}
 		}
 	} while (!done);
@@ -876,6 +1051,22 @@ static void ControlsMenuDraw(int page, int animate)
 	K13_ConfigSave();
 }
 
+
+/* why the Galaxy rows read N/A, instead of a mute shrug */
+static void GalaxyHint(void)
+{
+	ExpWin(25, 3);
+	Print("Borrows Keen 4 + 5\n");
+#ifdef __ANDROID__
+	Print("sounds. Play those two\n");
+	Print("once to turn this on!");
+#else
+	Print("sounds. Install those\n");
+	Print("two to turn this on!");
+#endif
+	ClearKeys();
+	Get();
+}
 
 static void OptionsMenuDraw(int animate);
 
@@ -886,7 +1077,7 @@ void OptionsMenu(void)
 
 static void OptionsMenuDraw(int animate)
 {
-#define OPT_ITEMS 11
+#define OPT_ITEMS 12
 	Sint16 pos = 0, i, key, scan;
 	Sint16 done = 0;
 	Sint16 basex, basey;
@@ -895,7 +1086,7 @@ static void OptionsMenuDraw(int animate)
 	/* draw the window ONCE; only cursor + values update below (the
 	   original menus never re-run the ExpWin expand animation) */
 	if (animate)
-		ExpWin(26, 15);
+		ExpWin(26, 16);
 	else
 	{
 		/* Back-navigation from a BIGGER window (Controls is 33x18): repaint
@@ -907,7 +1098,7 @@ static void OptionsMenuDraw(int animate)
 		RF_ForceRefresh();
 		if (level == TITLEMAP)
 			DrawMainMenuScreen();
-		CenterWindow(26, 15);
+		CenterWindow(26, 16);
 	}
 	basex = sx;
 	basey = sy;
@@ -919,10 +1110,11 @@ static void OptionsMenuDraw(int animate)
 	sx = basex; sy = basey + 6; Print("   Confirm quicksv");
 	sx = basex; sy = basey + 7; Print("   Fullscreen");
 	sx = basex; sy = basey + 8; Print("   Score box");
-	sx = basex; sy = basey + 9; Print("   Galaxy sfx");
-	sx = basex; sy = basey + 10; Print("   Galaxy tunes");
-	sx = basex; sy = basey + 11; Print("   Quit game");
-	sx = basex; sy = basey + 12; Print("   Exit");
+	sx = basex; sy = basey + 9; Print("   Sounds");
+	sx = basex; sy = basey + 10; Print("   Galaxy sfx");
+	sx = basex; sy = basey + 11; Print("   Galaxy tunes");
+	sx = basex; sy = basey + 12; Print("   Quit game");
+	sx = basex; sy = basey + 13; Print("   Exit");
 
 	do
 	{
@@ -930,7 +1122,7 @@ static void OptionsMenuDraw(int animate)
 
 		/* refresh the value column in place (no window redraw); it starts
 		   clear of the longest label so nothing gets clipped */
-		for (i = 2; i <= 10; i++)
+		for (i = 2; i <= 11; i++)
 		{
 			sx = basex + 19; sy = basey + i; Print("      ");
 		}
@@ -951,11 +1143,13 @@ static void OptionsMenuDraw(int animate)
 		sx = basex + 19; sy = basey + 8;
 		Print(K13_GetScoreBox() ? "ON" : "OFF");
 		sx = basex + 19; sy = basey + 9;
+		Print(soundmode ? "ON" : "OFF");
+		sx = basex + 19; sy = basey + 10;
 		if (!K13_GalaxyAvail())
 			Print("N/A");
 		else
 			Print(K13_GetGalaxySfx() ? "ON" : "OFF");
-		sx = basex + 19; sy = basey + 10;
+		sx = basex + 19; sy = basey + 11;
 		if (!K13_GalaxyMusAvail())
 			Print("N/A");
 		else
@@ -1017,21 +1211,36 @@ static void OptionsMenuDraw(int animate)
 			case 6:	/* persistent HUD, 4-6 style; also bindable in-game */
 				K13_SetScoreBox(!K13_GetScoreBox());
 				break;
-			case 7:	/* Keen 4-6 AdLib sound effects (needs sfx46/) */
+			case 7:	/* master sound toggle (the F2 prompt, pad-friendly) */
+				soundmode = soundmode ? off : spkr;
+				break;
+			case 8:	/* Keen 4-6 AdLib sound effects (needs sfx46/) */
 				if (K13_GalaxyAvail())
 					K13_SetGalaxySfx(!K13_GetGalaxySfx());
+				else
+				{
+					GalaxyHint();
+					OptionsMenuDraw(0);
+					return;
+				}
 				break;
-			case 8:	/* Keen 4-6 music (needs sfx46/*.imf) */
+			case 9:	/* Keen 4-6 music (needs sfx46/*.imf) */
 				if (K13_GalaxyMusAvail())
 					K13_SetGalaxyMus(!K13_GetGalaxyMus());
+				else
+				{
+					GalaxyHint();
+					OptionsMenuDraw(0);
+					return;
+				}
 				break;
-			case 9:	/* quit the game outright (pad/touch friendly: the
+			case 10: /* quit the game outright (pad/touch friendly: the
 				   confirm answers to Enter/Esc, no typed letters) */
 				if (K13_Confirm("Quit the game?"))
 					Quit("");
 				OptionsMenuDraw(0);	/* repaint after the prompt */
 				return;
-			case 10:
+			case 11:
 				done = 1;
 				break;
 			}

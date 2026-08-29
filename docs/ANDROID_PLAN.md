@@ -338,6 +338,59 @@ functional pad-only, and touch-only):
 - Still open from this round: keen13 high-score letter entry via pad
   (Enter dismisses as-is).
 
+**2026-08-29 — Hands-on round 3: the full pad-accessibility audit (all engines).**
+- Audited every menu/prompt in all four codebases for controller-only
+  operation (agents swept omnispeak, refkeen, launcher; keen13 by hand).
+- keen13 (PC + Android alike):
+  - SaveMenu/RestoreMenu digit prompts ("1-9 or ESC") are now cursor
+    lists via the new K13_PickMenu (id-window chrome, arrows/Enter/Esc,
+    original digit/letter hotkeys preserved). Slot rows show SAVED/-.
+  - AskQuit's "(D)os or (T)itle" and the F2 "Sound (Y/N)?" letter
+    prompts became pickers too; the hub gained a "Sounds" toggle row and
+    the Galaxy N/A rows explain themselves when selected.
+  - Controls rows open a Rebind / Add 2nd bind / Clear / Back action
+    menu (the hidden Del-to-clear and forced-alternate flow is gone);
+    bind capture prompts show a countdown and SELF-CANCEL (7s), the pad
+    translation pauses during capture so every button is bindable, and
+    K13_KeyBindWait accepts the pad's synthetic Esc. Opens on the
+    gamepad page when a pad is attached. CalibrateKeys' inner wait uses
+    the same cancellable capture; F4/JOYCONF now opens the Controls
+    screen (the DOS port-calibration screen could trap a pad).
+  - Input() (high-score names): dpad up/down spins a letter, right
+    commits, left erases, Enter accepts — pad text entry everywhere.
+  - QUICKSAVE FIX (user-reported: pickups reappearing): v1 never saved
+    the map planes, but pickups/switches/doors are SETTILE edits, so a
+    quickload resurrected every collected item (fresh ReadLevel) or kept
+    post-save edits (in-place). QUICKSAV.CKx v2 round-trips both planes;
+    old v1 files read as "no quicksave yet". QS self-test PASS.
+  - Galaxy WAVs on Android: SDL_LoadWAV reads RELATIVE paths from APK
+    assets (fopen doesn't) — that's why sfx was N/A while tunes worked.
+    k13_gal_load now builds absolute paths from getcwd.
+- omnispeak (fork @f232f9e): title-screen pad press reaches the menu;
+  HELP is a main-menu item (disabled on CK6) and the help system is pad
+  navigable; US_LineInput types by pad (fixes save names, high scores,
+  and Keen 6's creature question blocking pad-only starts); Paddle War
+  exits on pogo; joy-bind prompt self-cancels (7s); DEAD ZONE / MOTION
+  MODE cfg actually wired (menu wrote keys nothing read; defaults were
+  enum indices). Android: first Keen 4/5 boot renders sfx46_k4/_k5
+  beside the game data (art-pull pattern).
+- refkeen (fork @6b24af0): KL_BindMenu + quicksave prompts push the menu
+  controller mapping (A=Enter/B=Esc/dpad=arrows); bind capture uses an
+  all-zero mapping (everything bindable) + 7s self-cancel, rejects
+  Back/Guide/Start; funckeys overlay maps Y=F9 (quickload had no route).
+- Launcher: sfx_refresh is cross-platform — on Android it fans the
+  engine-rendered caches (rt/sfx46_k4|5) into the three keen13 dirs at
+  boot and after every game exit; error_notice dismisses by tap.
+- Verified on emulator end-to-end: hub (12 rows incl. Sounds), N/A hint
+  window, Rebind mini-menu, "cancel in N" countdown, save list SAVED
+  status, Keen 4 first-boot render (58 files) -> launcher fan-out ->
+  Keen 1 shows Galaxy sfx/tunes OFF (toggleable); Keen 4 menu shows
+  HELP and it opens. Desktop: all replay gates PASS on fresh binaries
+  (K1-3, K4 x4 demos, Dreams), quicksave self-test PASS.
+- Not emulator-testable (needs a physical pad): actual pad button
+  presses through the new flows — first hands-on pass should try
+  rebinding, save/load lists, help, and Dreams F6/F5/F9 from the pad.
+
 ## Notes
 
 - refkeen is SDL3, the rest SDL2 — both support Android; the APK carries both.

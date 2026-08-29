@@ -527,8 +527,16 @@ int K13_GetFullscreen(void);
 void K13_SetFullscreen(int on);
 void K13_SetQSConfirm(int on);
 const char *K13_PadBindName(int code);
-int K13_PadBindWait(void);
-int K13_KeyBindWait(void);
+int K13_PadAttached(void);
+int K13_PadBindWait(int timeout_ms, void (*tick)(int secs_left));
+int K13_KeyBindWait(int timeout_ms, void (*tick)(int secs_left));
+/* A small cursor-driven list menu in the game's own window style: arrows
+ * move, Enter picks (returns the index), Esc backs out (returns -1).
+ * `hotkeys` (optional) maps one uppercase letter/digit per item, so the
+ * original one-key answers keep working.  Fully pad-navigable, since the
+ * pad already speaks arrows/Enter/Esc in menus. */
+int K13_PickMenu(const char *title, const char *const *items,
+                 const char *hotkeys, int nitems, int pos);
 #endif
 
 extern boolean cheatmode;

@@ -479,6 +479,19 @@ void AskQuit(void)
 	ClearKeys();
 	if (level == TITLEMAP)
 	{
+#ifdef K13_PORT
+		/* pad answers too: its confirm arrives as Enter, cancel as Esc */
+		Sint16 key = 0;
+
+		ExpWin(12, 1);
+		Print("Quit (Y/N)?");
+		key = Get();
+		ch = toupper(key & 0xFF);
+		if (ch == 'Y' || ((key >> 8) & 0xFF) == 0x1C)
+		{
+			Quit("");
+		}
+#else
 		ExpWin(12, 1);
 		Print("Quit (Y/N)?");
 		ch = toupper(Get());
@@ -486,9 +499,25 @@ void AskQuit(void)
 		{
 			Quit("");
 		}
+#endif
 	}
 	else
 	{
+#ifdef K13_PORT
+		/* the D/T letter prompt as a cursor list a pad can answer; the
+		   original letters still work as hotkeys, Esc still cancels */
+		static const char *items[2] = {"Quit to Title", "Quit to Desktop"};
+
+		switch (K13_PickMenu("Quit?", items, "TD", 2, 0))
+		{
+		case 0:
+			resetgame = true;
+			break;
+		case 1:
+			Quit("");
+			break;
+		}
+#else
 		ExpWin(20, 2);
 		Print("Quit to (D)os or\n");
 		Print("(T)itle:");
@@ -501,6 +530,7 @@ void AskQuit(void)
 		{
 			resetgame = true;
 		}
+#endif
 	}
 }
 
@@ -798,6 +828,24 @@ boolean DoFkeys(void)
 		PauseSound();
 #endif
 		ClearKeys();
+#ifdef K13_PORT
+		/* the Y/N letter prompt as a list, so a pad can answer; Y and N
+		   remain hotkeys, Esc backs out with no change */
+		{
+			static const char *items[2] = {"Sound on", "Sound off"};
+
+			switch (K13_PickMenu("Sound?", items, "YN", 2,
+			                     soundmode ? 0 : 1))
+			{
+			case 0:
+				soundmode = spkr;
+				break;
+			case 1:
+				soundmode = off;
+				break;
+			}
+		}
+#else
 		ExpWin(13, 1);
 		Print("Sound (Y/N)?");
 		ch = toupper(Get());
@@ -809,6 +857,7 @@ boolean DoFkeys(void)
 		{
 			soundmode = 1;
 		}
+#endif
 		i++;
 		break;
 
@@ -834,7 +883,16 @@ boolean DoFkeys(void)
 		PauseSound();
 #endif
 		ClearKeys();
+#ifdef K13_PORT
+		/* Real controllers are configured on the Controls screen; the
+		   original screen calibrates a DOS game port that isn't there,
+		   and its "press button 1" wait could trap a pad with no
+		   escape.  F4 now opens the working screen instead. */
+		ControlsMenu();
+		RF_ForceRefresh();
+#else
 		CalibrateJoy(1);
+#endif
 		i++;
 		break;
 

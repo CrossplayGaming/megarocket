@@ -18,9 +18,14 @@
 	via the generated registry in k13_thinktable.inc.  An unknown pointer
 	aborts the save instead of writing a file that would crash on load.
 
-	The map itself is not saved: nothing in the act code writes to mapplane,
-	because doors and bridges are pobjs drawn over the map rather than tile
-	edits.
+	THE MAP PLANES ARE SAVED TOO (v2).  v1 assumed nothing writes to
+	mapplane, which is wrong: the act code edits tiles constantly --
+	collected bonus items are BLANKED TILES (KEENACTS.C GotBonus), and
+	switches, keycard doors, melted ice blocks and the Keen 2 city
+	machines are all SETTILE calls.  Restoring objects over a freshly
+	ReadLevel'd map resurrected every pickup (and re-locked every door);
+	restoring over the live map kept edits made AFTER the save.  Both
+	planes now round-trip, so the level comes back tile-exact.
 
 	NOTE pobjs go through the same registry.  An earlier guess that their
 	think could be rebuilt from the `type` field is wrong: POBJ_BRIDGE runs
@@ -30,7 +35,7 @@
 */
 
 #define K13_QS_MAGIC "K13QSAVE"
-#define K13_QS_VERSION 1
+#define K13_QS_VERSION 2
 
 typedef struct
 {
@@ -152,6 +157,19 @@ int K13_QuickSave(void)
 	}
 
 	K13_RndSave(f);
+
+	/* the map planes, exactly as the level stands: blanked pickups, thrown
+	   switches, opened doors and all (see the header comment) */
+	{
+		Sint16 minfo[2];
+
+		minfo[0] = levelheader->planes;
+		minfo[1] = 0;
+		fwrite(minfo, sizeof(minfo[0]), 2, f);
+		fwrite(&levelheader->planesize, sizeof(levelheader->planesize), 1, f);
+		for (i = 0; i < levelheader->planes; i++)
+			fwrite(mapplane[i], 1, (size_t)levelheader->planesize, f);
+	}
 	fclose(f);
 	return 1;
 }
@@ -213,6 +231,23 @@ int K13_QuickLoad(void)
 	}
 
 	K13_RndLoad(f);
+
+	/* map planes: the caller has this level's map loaded (same level, or
+	   the pending-apply path right after ReadLevel), so the geometry always
+	   matches -- the check is pure defensiveness against a truncated file */
+	{
+		Sint16 minfo[2];
+		Uint16 psize;
+
+		if (fread(minfo, sizeof(minfo[0]), 2, f) == 2 &&
+		    fread(&psize, sizeof(psize), 1, f) == 1 &&
+		    minfo[0] == levelheader->planes &&
+		    psize == levelheader->planesize)
+		{
+			for (i = 0; i < minfo[0]; i++)
+				fread(mapplane[i], 1, (size_t)psize, f);
+		}
+	}
 	fclose(f);
 	numobj = hdr[3];
 	return 1;

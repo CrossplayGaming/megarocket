@@ -32,6 +32,7 @@
 #ifdef __ANDROID__
 #include <jni.h>
 #include <unistd.h>
+#include <sys/stat.h>	/* mkdir, for the sfx46 fan-out */
 #endif
 
 /* ------------------------------------------------------------------ canvas */
@@ -407,7 +408,10 @@ static void error_notice(const char *title, const char *msg, const char *detail)
 	{
 		while (SDL_PollEvent(&ev))
 		{
-			if (ev.type == SDL_KEYDOWN || ev.type == SDL_CONTROLLERBUTTONDOWN)
+			/* a tap counts too -- on a phone with no pad connected this
+			   screen would otherwise be undismissable */
+			if (ev.type == SDL_KEYDOWN || ev.type == SDL_CONTROLLERBUTTONDOWN ||
+			    ev.type == SDL_MOUSEBUTTONDOWN || ev.type == SDL_FINGERDOWN)
 				waiting = 0;
 			else if (ev.type == SDL_QUIT)
 			{
@@ -731,40 +735,63 @@ static int copy_file_once(const char *src, const char *dst)
 	return 1;
 }
 
-static void sfx_refresh(void)
+static void make_dir(const char *path)
 {
 #ifdef _WIN32
+	CreateDirectoryA(path, NULL);
+#else
+	mkdir(path, 0775);
+#endif
+}
+
+static void sfx_refresh(void)
+{
+#if defined(_WIN32) || defined(__ANDROID__)
 	/* source slots: 3 = Keen 4, 4 = Keen 5 (the rt omnispeak install) */
 	static const struct
 	{
 		int slot;
 		int episode;
-		const char *cache;    /* dump cache under keen13/ */
+		const char *cache;    /* dump cache location */
 		const char *prefix;   /* file prefix in each game's sfx46/ */
 	} srcs[2] = {
+#ifdef __ANDROID__
+		/* Android has no hidden windows to dump in: the ENGINE renders
+		   these into its own folder the first time Keen 4 / 5 is played
+		   (see the omnispeak fork's first-boot pull), and this stage
+		   just fans the finished files out to the Keen 1-3 dirs. */
+		{3, 4, "rt/sfx46_k4", "k4"},
+		{4, 5, "rt/sfx46_k5", "k5"},
+#else
 		{3, 4, "keen13/sfx46_k4", "k4"},
 		{4, 5, "keen13/sfx46_k5", "k5"},
+#endif
 	};
 	static const char *dests[3] = {
 		"keen13/gamedata/sfx46", "keen13/gamedata2/sfx46",
 		"keen13/gamedata3/sfx46"
 	};
 	int si, di, n;
-	char path[900], dst[900], args[256];
+	char path[900], dst[900];
 
 	for (si = 0; si < 2; si++)
 	{
 		if (!slots[srcs[si].slot].available)
 			continue;
+#ifndef __ANDROID__
 		snprintf(path, sizeof(path), "%s/%s", root, srcs[si].cache);
-		CreateDirectoryA(path, NULL);
+		make_dir(path);
+#endif
 		/* dump once per install: the first MUSIC track is the freshness
 		   marker -- it is written by the second of the two dump runs, so
 		   a cache interrupted between them still completes next boot */
 		snprintf(path, sizeof(path), "%s/%s/m00.imf", root, srcs[si].cache);
 		if (!file_exists(path))
 		{
-			char note[96];
+#ifdef __ANDROID__
+			continue;	/* the engine has not rendered this set yet */
+#else
+			char note[96], args[256];
 
 			snprintf(note, sizeof(note),
 			         "RENDERING GALAXY AUDIO FROM YOUR KEEN %d FILES",
@@ -778,11 +805,14 @@ static void sfx_refresh(void)
 			         "/EPISODE %d /MUSDUMP \"%s/%s\" /WINDOWED",
 			         srcs[si].episode, root, srcs[si].cache);
 			run_tool(slots[srcs[si].slot].dir, slots[srcs[si].slot].exe, args);
+			if (!file_exists(path))
+				continue;	/* dump failed; leave the dests alone */
+#endif
 		}
 		for (di = 0; di < 3; di++)
 		{
 			snprintf(dst, sizeof(dst), "%s/%s", root, dests[di]);
-			CreateDirectoryA(dst, NULL);
+			make_dir(dst);
 			for (n = 0; n < 100; n++)
 			{
 				snprintf(path, sizeof(path), "%s/%s/g%02d.wav", root,

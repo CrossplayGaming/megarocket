@@ -29,6 +29,9 @@ the Free Software Foundation; either version 2 of the License, or
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifdef __ANDROID__
+#include <unistd.h>	/* getcwd, for absolute Galaxy-audio paths */
+#endif
 
 #ifdef K13_WITH_SDL
 #include "SDL.h"
@@ -2380,10 +2383,23 @@ static SDL_AudioDeviceID k13_audiodev_fwd(void)
 static void k13_gal_load(void)
 {
 	int i, j;
+	char pre[420] = "";
+
+#ifdef __ANDROID__
+	/* SDL_RWFromFile reads RELATIVE paths out of the APK's assets on
+	   Android, so SDL_LoadWAV("sfx46/...") never finds these -- they sit
+	   beside the game data on storage.  fopen (the music probe below)
+	   uses the working directory and is unaffected; make the WAV paths
+	   absolute so both look in the same place. */
+	if (getcwd(pre, sizeof(pre) - 2))
+		strcat(pre, "/");
+	else
+		pre[0] = 0;
+#endif
 
 	for (i = 0; i < K13_GAL_COUNT; i++)
 	{
-		char path[64];
+		char path[512];
 		SDL_AudioSpec spec;
 		Uint8 *buf;
 		Uint32 blen;
@@ -2401,7 +2417,8 @@ static void k13_gal_load(void)
 			k13_gal_map[i].len = k13_gal_map[j].len;
 			continue;
 		}
-		SDL_snprintf(path, sizeof(path), "sfx46/%s.wav", k13_gal_map[i].wav);
+		SDL_snprintf(path, sizeof(path), "%ssfx46/%s.wav", pre,
+		             k13_gal_map[i].wav);
 		if (!SDL_LoadWAV(path, &spec, &buf, &blen))
 			continue;
 		if (spec.freq != 48000 || spec.channels != 1 ||
@@ -2764,6 +2781,7 @@ static void k13_pad_poll(void)
 /* menu/dialog code reads keys, not ControlPlayer, so translate pad edges
  * into synthetic DOS key events (arrows / enter / esc) */
 static int k13_pad_menu_fresh; /* set on the gameplay->menu transition */
+static int k13_pad_capture;    /* a bind prompt owns raw pad presses */
 
 static void k13_pad_menu_edges(void)
 {
@@ -3056,8 +3074,12 @@ static void k13_pump(void)
 	else if (!k13_world_live || k13_dialog_active)
 	{
 		/* only translate the pad to menu keys OUTSIDE live gameplay --
-		   in menus and in-game popups. During play the blend drives it. */
-		k13_pad_menu_edges();
+		   in menus and in-game popups. During play the blend drives it.
+		   While a bind prompt is capturing raw pad presses the translation
+		   pauses, so EVERY button (B/Start/Back included) is bindable
+		   instead of answering the prompt as Enter or Esc. */
+		if (!k13_pad_capture)
+			k13_pad_menu_edges();
 	}
 	else
 	{
@@ -3106,15 +3128,34 @@ const char *K13_PadBindName(int code)
 	return "NONE";
 }
 
-/* wait for a pad press; returns its binding code, -1 if the player
- * cancelled with ESC, or -2 when no controller is connected */
-int K13_PadBindWait(void)
+int K13_PadAttached(void)
 {
 #ifdef K13_WITH_SDL
-	int i;
+	return k13_pad != NULL;
+#else
+	return 0;
+#endif
+}
+
+/* wait for a pad press; returns its binding code, -1 if the player
+ * cancelled (ESC or the countdown ran out), -2 when no controller is
+ * connected, or -3 to clear the binding (Backspace/Del).
+ *
+ * While this waits the pad->menu-key translation is OFF, so any button
+ * at all can be bound -- including the ones that normally mean Enter and
+ * Esc in menus.  Because that removes the pad's own way to back out, the
+ * prompt self-cancels after `timeout_ms`; `tick` (optional) is called
+ * once per remaining second so the caller can show the countdown. */
+int K13_PadBindWait(int timeout_ms, void (*tick)(int secs_left))
+{
+#ifdef K13_WITH_SDL
+	int i, ret = -1;
+	Uint32 t0;
+	int last_secs = -1;
 
 	if (!k13_pad)
 		return -2;
+	k13_pad_capture = 1;
 	/* let go of whatever opened this prompt first */
 	for (;;)
 	{
@@ -3126,42 +3167,77 @@ int K13_PadBindWait(void)
 		if (!any)
 			break;
 		if (keydown[0x01])
-			return -1;
+			goto out;
 	}
 	ClearKeys();
+	t0 = SDL_GetTicks();
 	for (;;)
 	{
+		int left = timeout_ms - (int)(SDL_GetTicks() - t0);
+		int secs = (left + 999) / 1000;
+
+		if (left <= 0)
+			goto out;                     /* timed out: cancel */
+		if (tick && secs != last_secs)
+		{
+			tick(secs);
+			last_secs = secs;
+		}
 		K13_Idle();
 		if (!k13_pad)
-			return -2;
-		if (keydown[0x01] || (NBKscan & 0x7F) == 0x01)
 		{
-			ClearKeys();
-			return -1;
+			ret = -2;
+			goto out;
 		}
+		if (keydown[0x01] || (NBKscan & 0x7F) == 0x01)
+			goto out;                     /* keyboard Esc */
 		if (keydown[0x0E] || keydown[0x53])
 		{
-			ClearKeys();
-			return -3;   /* Backspace/Del: clear the binding */
+			ret = -3;                     /* Backspace/Del: clear */
+			goto out;
 		}
 		for (i = 0; i < SDL_CONTROLLER_BUTTON_MAX; i++)
 			if (k13_pad_read(i))
-				return i;
+			{
+				ret = i;
+				goto out;
+			}
 		if (k13_pad_read(K13_PAD_LTRIG))
-			return K13_PAD_LTRIG;
+		{
+			ret = K13_PAD_LTRIG;
+			goto out;
+		}
 		if (k13_pad_read(K13_PAD_RTRIG))
-			return K13_PAD_RTRIG;
+		{
+			ret = K13_PAD_RTRIG;
+			goto out;
+		}
 	}
+out:
+	ClearKeys();
+	k13_pad_capture = 0;
+	/* the press that answered this prompt may still be held: make the
+	   menu translation re-prime its edge trackers so it cannot double
+	   as an Enter or Esc in the menu underneath */
+	k13_pad_menu_fresh = 1;
+	return ret;
 #else
+	(void)timeout_ms;
+	(void)tick;
 	return -2;
 #endif
 }
 
-/* wait for a key; returns its DOS scan code, or -1 on ESC */
-int K13_KeyBindWait(void)
+/* wait for a key; returns its DOS scan code, -1 on ESC (the pad's menu
+ * cancel counts) or when the countdown runs out, -3 on Backspace/Del.
+ * The timeout matters here too: with only a controller in hand there is
+ * no key to press, and no way to make one appear. */
+int K13_KeyBindWait(int timeout_ms, void (*tick)(int secs_left))
 {
 #ifdef K13_WITH_SDL
 	int sc;
+	Uint32 t0;
+	int last_secs = -1;
 
 	/* wait for the key that opened this prompt to come up first, or its
 	   auto-repeat would bind itself a moment later */
@@ -3175,9 +3251,25 @@ int K13_KeyBindWait(void)
 			break;
 	}
 	ClearKeys();
+	t0 = SDL_GetTicks();
 	for (;;)
 	{
+		int left = timeout_ms - (int)(SDL_GetTicks() - t0);
+		int secs = (left + 999) / 1000;
+
+		if (left <= 0)
+			return -1;
+		if (tick && secs != last_secs)
+		{
+			tick(secs);
+			last_secs = secs;
+		}
 		K13_Idle();
+		if ((NBKscan & 0x7F) == 0x01)
+		{
+			ClearKeys();
+			return -1;   /* pad cancel arrives as a synthetic Esc */
+		}
 		for (sc = 1; sc < 128; sc++)
 		{
 			if (!keydown[sc])
@@ -3191,6 +3283,8 @@ int K13_KeyBindWait(void)
 		}
 	}
 #else
+	(void)timeout_ms;
+	(void)tick;
 	return -1;
 #endif
 }
