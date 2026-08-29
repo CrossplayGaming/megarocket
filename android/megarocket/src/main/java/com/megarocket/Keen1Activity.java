@@ -14,6 +14,8 @@ public class Keen1Activity extends EngineActivity {
             Os.setenv("K13_CWD",
                 new File(getExternalFilesDir(null), "keen13/gamedata").getAbsolutePath(),
                 true);
+            Os.setenv("K13_ARTDUMP", "title_art.ppm", true);
+            Os.setenv("K13_ARTDUMP_STAY", "1", true);
         } catch (Exception e) {
             /* fall back to the engine's default (files-dir root) */
         }

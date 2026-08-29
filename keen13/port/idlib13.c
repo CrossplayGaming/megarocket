@@ -4009,10 +4009,24 @@ static void k13_present(void)
 
 		if (e && level == TITLEMAP && originx == 2 * TILEGLOBAL)
 		{
-			static int settle;
+			static int settle, done;
 
-			if (++settle >= 45)
+			/* K13_ARTDUMP_STAY=1 (Android): no hidden windows there, so
+			   the first natural run doubles as the art pull -- dump only
+			   if the file is missing, and keep playing instead of
+			   exiting. */
+			if (!done && getenv("K13_ARTDUMP_STAY"))
 			{
+				FILE *probe = fopen(e, "rb");
+				if (probe)
+				{
+					fclose(probe);
+					done = 1;
+				}
+			}
+			if (!done && ++settle >= 45)
+			{
+				done = 1;
 				k13_dump_screen(e);
 				/* also drop this episode's backdrop tile as a 16x16 PPM,
 				   for the launcher's own background */
@@ -4053,7 +4067,8 @@ static void k13_present(void)
 				}
 				fprintf(stderr, "K13 ARTDUMP: %s\n", e);
 				fflush(stderr);
-				exit(0);
+				if (!getenv("K13_ARTDUMP_STAY"))
+					exit(0);
 			}
 		}
 	}

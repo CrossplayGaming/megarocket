@@ -1733,7 +1733,15 @@ void SaveCtrls (void)
 
 #define LZW_STACKSIZE 4002
 
+#ifdef K13_PORT
+/* Keen Launcher port: the decoder's shifts rely on a bit buffer of EXACTLY
+ * 32 bits ('code = buffer >> (32-codelen)', overflow discarded on '<<=').
+ * Turbo C and MSVC longs are 32-bit; LP64 targets (Android) are not, and a
+ * 64-bit buffer feeds garbage bits into every extracted code. */
+Uint32 lzw_bitbuffer;
+#else
 unsigned long lzw_bitbuffer;
+#endif
 int lzw_codelen, lzw_maxcodelen, lzw_bitsavail, lzw_extrabits;
 unsigned lzw_maxcode, lzw_tablesize;
 char huge *lzw_dest;
@@ -1757,11 +1765,14 @@ void huge * bloadinLZW(char *filename)
 	complength = 0;
 
 	handle = open(filename, O_BINARY);	// BUG? result isn't checked!
-	read(handle, &length, sizeof(length));
 #ifdef K13_PORT
-	/* Keen Launcher port: the file field is a 16-bit DOS int */
+	/* Keen Launcher port: the file fields are a 32-bit DOS long and a
+	 * 16-bit DOS int.  sizeof(long) is 8 on LP64 targets (Android), which
+	 * read garbage into length AND swallowed the next field. */
+	{ Sint32 len32 = 0; read(handle, &len32, 4); length = len32; }
 	{ Sint16 mcl16 = 0; read(handle, &mcl16, 2); lzw_maxcodelen = mcl16; }
 #else
+	read(handle, &length, sizeof(length));
 	read(handle, &lzw_maxcodelen, sizeof(lzw_maxcodelen));
 #endif
 	close(handle);	// BUG? why close and then re-open the file?

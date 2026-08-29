@@ -222,6 +222,37 @@ design exactly. Engine exit → process dies → launcher resumes.
   by tapping any remaining empty slot); import progress feedback (copies are
   near-instant for these file sizes).
 
+**2026-08-28 — Phase 5: title-art pull on Android + two LP64 crash fixes.**
+- Design: no hidden windows on Android, so each game's FIRST NATURAL RUN
+  doubles as the art pull. Omnispeak decodes title art + backdrop tile at
+  boot if missing (ck_main, Android-guarded; fork @). keen13 gains
+  K13_ARTDUMP_STAY=1: dump at the title screen only if the file is missing,
+  then keep playing instead of exiting (env set by the Keen1-3 activities).
+  The launcher refreshes art/backdrop when its window regains focus — on
+  Android launch() returns immediately, so "after a game" = focus-gained.
+- Note: launcher tiles use the user-chosen text style (tile_style()==3);
+  the pull's visible payoff is the game-data BACKDROP pattern (and art is
+  banked for style 0). Verified: Keen 1's night-sky tile behind the shell.
+- **Two real LP64 bugs found via a SIGSEGV in Keen 1 on Android** (long is
+  8 bytes on Android, 4 on MSVC/DOS; desktop could never see either):
+  1) bloadinLZW read a 32-bit DOS length field with sizeof(long) — garbage
+     length AND misplaced file cursor;
+  2) LZW_ReadCode's bit buffer relies on being EXACTLY 32 bits (code =
+     buffer >> (32-len); overflow discarded on <<=) — 64-bit long fed
+     garbage bits into every code -> wild table index -> crash. Buffer is
+     now Uint32 under K13_PORT.
+  Desktop rebuilt after each; keen13 replay gates bit-identical (3x PASS).
+  The standalone-APK Keen 1 success earlier was luck (allocation layout).
+- Verified on emulator: Keen 1 runs to title (fully rendered), dumps art +
+  backdrop, keeps playing; Keen 4 dumps at boot; launcher backdrop switches
+  to game art. Dropbox APK refreshed with the fixed build.
+- Emulator-driving lesson: blind coordinate taps compound (picker opened
+  twice mid-test); prefer keyevents + force-stop/cold-start for determinism.
+- PENDING (important): run the keen13 replay gates ON-DEVICE — LP64 long
+  arithmetic could shift sim behavior on Android in other places; the
+  KL_REPLAY/checksum harness is the honest check (needs an env hook in the
+  activities or a debug intent extra).
+
 ## Notes
 
 - refkeen is SDL3, the rest SDL2 — both support Android; the APK carries both.

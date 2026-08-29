@@ -1663,6 +1663,20 @@ int main(int argc, char **argv)
 						sel = (int)(car_x + 0.5f); /* snap to nearest */
 				}
 				break;
+#ifdef __ANDROID__
+			case SDL_WINDOWEVENT:
+				/* launch() returns immediately here (the game is another
+				 * activity), so the after-a-game refresh belongs at the
+				 * moment this window comes back to the front -- that is
+				 * when freshly pulled title art can first exist */
+				if (ev.window.event == SDL_WINDOWEVENT_FOCUS_GAINED)
+				{
+					detect();
+					art_refresh();
+					bg_scan();
+				}
+				break;
+#endif
 			case SDL_CONTROLLERDEVICEADDED:
 				if (!pad)
 					pad = SDL_GameControllerOpen(ev.cdevice.which);
