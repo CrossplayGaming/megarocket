@@ -886,7 +886,7 @@ void OptionsMenu(void)
 
 static void OptionsMenuDraw(int animate)
 {
-#define OPT_ITEMS 10
+#define OPT_ITEMS 11
 	Sint16 pos = 0, i, key, scan;
 	Sint16 done = 0;
 	Sint16 basex, basey;
@@ -895,17 +895,19 @@ static void OptionsMenuDraw(int animate)
 	/* draw the window ONCE; only cursor + values update below (the
 	   original menus never re-run the ExpWin expand animation) */
 	if (animate)
-		ExpWin(26, 14);
+		ExpWin(26, 15);
 	else
 	{
 		/* Back-navigation from a BIGGER window (Controls is 33x18): repaint
 		   the underlying screen first, or the old window's border sticks out
 		   around this smaller one -- the "overlapping windows" bug.  Must
 		   FORCE the refresh: the adaptive tile pass skips tiles it believes
-		   unchanged, leaving slivers of the old window. */
+		   unchanged, leaving slivers of the old window.  In-game (the pause
+		   menu path) the level view is the underlay, not the main menu. */
 		RF_ForceRefresh();
-		DrawMainMenuScreen();
-		CenterWindow(26, 14);
+		if (level == TITLEMAP)
+			DrawMainMenuScreen();
+		CenterWindow(26, 15);
 	}
 	basex = sx;
 	basey = sy;
@@ -919,7 +921,8 @@ static void OptionsMenuDraw(int animate)
 	sx = basex; sy = basey + 8; Print("   Score box");
 	sx = basex; sy = basey + 9; Print("   Galaxy sfx");
 	sx = basex; sy = basey + 10; Print("   Galaxy tunes");
-	sx = basex; sy = basey + 11; Print("   Exit");
+	sx = basex; sy = basey + 11; Print("   Quit game");
+	sx = basex; sy = basey + 12; Print("   Exit");
 
 	do
 	{
@@ -1022,7 +1025,13 @@ static void OptionsMenuDraw(int animate)
 				if (K13_GalaxyMusAvail())
 					K13_SetGalaxyMus(!K13_GetGalaxyMus());
 				break;
-			case 9:
+			case 9:	/* quit the game outright (pad/touch friendly: the
+				   confirm answers to Enter/Esc, no typed letters) */
+				if (K13_Confirm("Quit the game?"))
+					Quit("");
+				OptionsMenuDraw(0);	/* repaint after the prompt */
+				return;
+			case 10:
 				done = 1;
 				break;
 			}

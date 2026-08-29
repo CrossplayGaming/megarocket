@@ -315,6 +315,29 @@ functional pad-only, and touch-only):
   keyevents (opened New-folder dialogs twice); force-stop
   com.google.android.documentsui is the reliable escape hatch.
 
+**2026-08-29 — Hands-on round 2 (Keen 1 on-phone): pause hub + audio latency.**
+- Controller quit/rebind gap closed: the port's Options hub (view size,
+  smoothing, CONTROLS REBINDING, galaxy audio) now doubles as the in-game
+  pause menu — in-game F3/KEYCONF opens it (replacing the original
+  CalibrateKeys screen), it gained a pad/touch-friendly "Quit game" item
+  (K13_Confirm: Enter/Esc, no typed letters), and the pad's START opens it
+  during live play (edge-triggered, routed through the rebindable KEYCONF
+  key). Mid-game the hub repaints over the level view (DrawMainMenuScreen
+  only at TITLEMAP). Menu edge-trackers now PRIME on the gameplay->menu
+  transition so a held button cannot answer a prompt it just opened.
+  Verified on emulator: hub over the Mars map, Quit game -> confirm ->
+  game exits -> launcher is the resumed activity (finally witnessing the
+  in-game-quit return flow). Desktop: 3x replay gates bit-identical.
+- Constant audio latency (Keen 1, likely all SDL2 engines on Android):
+  SDL2's AAudio backend never requests LOW_LATENCY (SDL3's does) AND SDL2
+  ranks openslES above AAudio. Fixes: android/patch-sdl2-lowlatency.ps1
+  backports the LOW_LATENCY request into the vendored SDL2 (symbol load +
+  both stream-open sites), and EngineActivity sets
+  SDL_AUDIODRIVER=AAudio,openslES. Latency judgment needs the user's
+  device (emulator audio timing is meaningless).
+- Still open from this round: keen13 high-score letter entry via pad
+  (Enter dismisses as-is).
+
 ## Notes
 
 - refkeen is SDL3, the rest SDL2 — both support Android; the APK carries both.

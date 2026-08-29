@@ -817,7 +817,15 @@ boolean DoFkeys(void)
 		PauseSound();
 #endif
 		ClearKeys();
+#ifdef K13_PORT
+		/* the port's full Options hub doubles as the in-game pause menu:
+		   view size, controls REBINDING, and a pad-friendly Quit -- all
+		   reachable mid-game (the pad's START opens this) */
+		OptionsMenu();
+		RF_ForceRefresh();
+#else
 		CalibrateKeys();
+#endif
 		i++;
 		break;
 

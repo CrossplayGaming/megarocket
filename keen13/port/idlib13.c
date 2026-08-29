@@ -2739,15 +2739,50 @@ static void k13_pad_poll(void)
 			}
 		}
 #undef K13_NPADACT
+
+		/* START during live play opens the Options hub (the pause menu:
+		   view size, controls rebinding, quit).  In menus and dialogs the
+		   same button stays Enter via the menu-edge translation, and the
+		   hub key itself remains rebindable like everything else. */
+		{
+			static int pstart_game;
+
+			if (k13_pad_start && !pstart_game &&
+			    k13_world_live && !k13_dialog_active)
+			{
+				int sc = K13_GetKeyBind(K13_KEY_KEYCONF);
+
+				if (sc <= 0 || sc >= 128)
+					sc = K13_SYNTH_SCAN(K13_KEY_KEYCONF);
+				NBKscan = (Uint8)(sc | 0x80);
+			}
+			pstart_game = k13_pad_start;
+		}
 	}
 }
 
 /* menu/dialog code reads keys, not ControlPlayer, so translate pad edges
  * into synthetic DOS key events (arrows / enter / esc) */
+static int k13_pad_menu_fresh; /* set on the gameplay->menu transition */
+
 static void k13_pad_menu_edges(void)
 {
 	static int px, py, pb1, pb2, pstart, pback;
 	int i;
+
+	if (k13_pad_menu_fresh)
+	{
+		/* prime the edge trackers with the held state, so a button still
+		   pressed from gameplay cannot answer the prompt it just opened */
+		k13_pad_menu_fresh = 0;
+		px = (k13_pad_x != 0);
+		py = (k13_pad_y != 0);
+		pb1 = (k13_pad_b1 || k13_pad_start);
+		pb2 = (k13_pad_b2 || k13_pad_back);
+		pstart = k13_pad_start;
+		pback = k13_pad_back;
+		return;
+	}
 	struct { int now, *prev, sc; } edges[] = {
 		{ k13_pad_x < 0, &px, 0x4B }, { k13_pad_x > 0, &px, 0x4D },
 		{ k13_pad_y < 0, &py, 0x48 }, { k13_pad_y > 0, &py, 0x50 },
@@ -3023,6 +3058,12 @@ static void k13_pump(void)
 		/* only translate the pad to menu keys OUTSIDE live gameplay --
 		   in menus and in-game popups. During play the blend drives it. */
 		k13_pad_menu_edges();
+	}
+	else
+	{
+		/* live gameplay: next menu/dialog frame must prime its edge
+		   trackers before acting (see k13_pad_menu_edges) */
+		k13_pad_menu_fresh = 1;
 	}
 }
 
