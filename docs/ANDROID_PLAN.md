@@ -253,6 +253,37 @@ design exactly. Engine exit → process dies → launcher resumes.
   KL_REPLAY/checksum harness is the honest check (needs an env hook in the
   activities or a debug intent extra).
 
+**2026-08-28 — Hands-on feedback round 1 (user, on-phone with Backbone).**
+Gameplay reported working well. Fixes/deliverables:
+- TouchOverlay hides itself while any real external controller (Bluetooth /
+  Backbone / USB — SOURCE_GAMEPAD|JOYSTICK, non-virtual) is attached, via an
+  InputManager listener; reappears on disconnect. Verified visible-without-
+  pad on the emulator; the hide path needs the user's Backbone (emulator
+  cannot fake a physical pad).
+- Dropbox kit: added the ReflectionHLE debug APK (Dreams is its own app —
+  without it the Dreams tile stays dark; the .kdr data was already in the
+  kit) and a PHONE SETUP README covering both APKs + the import flow.
+
+**No-keyboard/no-mouse completeness audit** (user requirement: EVERYTHING
+functional pad-only, and touch-only):
+- Launcher: full pad coverage (dpad/stick browse, A play, B quit/back,
+  shoulders cycle Help/About); touch: tap/swipe/title-tap. Import uses the
+  system picker: dpad-navigable in DocumentsUI, touch always available.
+- Keen 1-3: gameplay binds (jump/pogo/fire + status/qsave/qload/help/sound/
+  savemenu/quit/scorebox) all pad-bindable; menus via injected scancodes
+  (dpad->arrows, Start->Enter, Back->ESC); "press a key" screens accept any
+  injected key. KNOWN MINOR: high-score name entry has no pad letters —
+  Start (Enter) dismisses with the name as-is.
+- Keen 4-6: full in_joy_* bindings incl. menu button, quicksave/load;
+  US_LineInput (save names, high scores) already maps pad A=Enter (accept
+  default/current name), B=Escape; IN_StartTextInput triggers SDL text
+  input, which on Android raises the soft keyboard for touch users. VERIFY
+  ON DEVICE: soft keyboard actually appearing over the save dialog.
+- Dreams (refkeen): upstream ships pad support and its own on-screen
+  keyboard/UI.
+- Overlay (touch-only path): dpad + JUMP/POGO/FIRE + ESC/ENTER covers every
+  gameplay and menu interaction the engines expose.
+
 ## Notes
 
 - refkeen is SDL3, the rest SDL2 — both support Android; the APK carries both.

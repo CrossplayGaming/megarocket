@@ -3,6 +3,8 @@ package com.megarocket;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.hardware.input.InputManager;
+import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -15,7 +17,7 @@ import org.libsdl.app.SDLActivity;
  * SDLActivity's native hooks, so the engines see a keyboard and need no
  * changes.  Keys match the engines' shipped defaults: Ctrl = jump,
  * Alt = pogo, Space = fire. */
-public class TouchOverlay extends View {
+public class TouchOverlay extends View implements InputManager.InputDeviceListener {
 
     private static final int NBTN = 5;
     private static final int[] BTN_KEY = {
@@ -50,6 +52,60 @@ public class TouchOverlay extends View {
         stroke.setColor(0x66ffffff);
         label.setColor(0x99ffffff);
         label.setTextAlign(Paint.Align.CENTER);
+    }
+
+    /* The overlay exists for bare touchscreens: any real external
+     * controller (Bluetooth pad, Backbone, USB) replaces it, so hide
+     * while one is attached and come back when it goes away. */
+    private static boolean gamepadPresent() {
+        for (int id : InputDevice.getDeviceIds()) {
+            InputDevice d = InputDevice.getDevice(id);
+            if (d == null || d.isVirtual())
+                continue;
+            int src = d.getSources();
+            if ((src & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
+                || (src & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK)
+                return true;
+        }
+        return false;
+    }
+
+    private void syncToControllers() {
+        setVisibility(gamepadPresent() ? GONE : VISIBLE);
+    }
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        InputManager im = (InputManager)
+            getContext().getSystemService(Context.INPUT_SERVICE);
+        if (im != null)
+            im.registerInputDeviceListener(this, null);
+        syncToControllers();
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        InputManager im = (InputManager)
+            getContext().getSystemService(Context.INPUT_SERVICE);
+        if (im != null)
+            im.unregisterInputDeviceListener(this);
+        super.onDetachedFromWindow();
+    }
+
+    @Override
+    public void onInputDeviceAdded(int deviceId) {
+        syncToControllers();
+    }
+
+    @Override
+    public void onInputDeviceRemoved(int deviceId) {
+        syncToControllers();
+    }
+
+    @Override
+    public void onInputDeviceChanged(int deviceId) {
+        syncToControllers();
     }
 
     @Override
