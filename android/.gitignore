@@ -15,3 +15,4 @@ build/
 
 # SDL's Java glue, copied per-machine from the SDL source tree
 */src/main/java/org/
+android/icon-preview.png
