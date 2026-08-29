@@ -14,8 +14,8 @@ android {
         versionName "0.9.1"
         externalNativeBuild {
             cmake {
-                arguments "-DANDROID_PLATFORM=android-21", "-DANDROID_STL=c++_static", "-DRENDERER=sdl2"
-                targets "SDL2", "megarocket_launcher", "omnispeak", "keen13", "keen13_ep2", "keen13_ep3"
+                arguments "-DANDROID_PLATFORM=android-21", "-DANDROID_STL=c++_static", "-DRENDERER=sdl2", "-DBUILD_UNIFIED=OFF"
+                targets "SDL2", "SDL3-shared", "megarocket_launcher", "omnispeak", "keen13", "keen13_ep2", "keen13_ep3", "reflection-kdreams"
             }
         }
     }

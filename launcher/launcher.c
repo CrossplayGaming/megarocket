@@ -312,20 +312,6 @@ static int file_exists(const char *path)
 }
 
 #ifdef __ANDROID__
-/* The Dreams slot is the separate ReflectionHLE app (SDL3, own package);
- * ask the Java side whether it is installed. */
-static int android_dreams_installed(void)
-{
-	JNIEnv *env = (JNIEnv *)SDL_AndroidGetJNIEnv();
-	jobject act = (jobject)SDL_AndroidGetActivity();
-	jclass cls = (*env)->GetObjectClass(env, act);
-	jmethodID mid = (*env)->GetMethodID(env, cls, "isDreamsInstalled", "()Z");
-	jboolean ok = (*env)->CallBooleanMethod(env, act, mid);
-	(*env)->DeleteLocalRef(env, act);
-	(*env)->DeleteLocalRef(env, cls);
-	return ok ? 1 : 0;
-}
-
 /* Playing an empty slot opens the system folder picker; the Java side
  * copies recognised files in while the shell keeps running. */
 static int android_import_games(void)
@@ -350,14 +336,9 @@ static void detect(void)
 	for (i = 0; i < NSLOTS; i++)
 	{
 #ifdef __ANDROID__
-		/* The engines are built into the APK, so only the player's data
-		 * can be missing -- except Dreams, which is its own app. */
+		/* Every engine -- Dreams included -- is built into the APK, so
+		 * only the player's data can be missing. */
 		char data[768];
-		if (!strcmp(slots[i].dir, "keendreams/game"))
-		{
-			slots[i].available = android_dreams_installed();
-			continue;
-		}
 		snprintf(data, sizeof(data), "%s/%s/%s", root, slots[i].dir, slots[i].needs);
 		slots[i].available = file_exists(data);
 #else

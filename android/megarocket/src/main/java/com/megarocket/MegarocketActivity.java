@@ -6,7 +6,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 
@@ -84,10 +83,7 @@ public class MegarocketActivity extends SDLActivity {
             intent.putExtra("episode", slot + 1);
             break;
         case 6:
-            /* Keen Dreams is the separate ReflectionHLE app */
-            intent = new Intent();
-            intent.setClassName("com.reflectionhle",
-                                "com.reflectionhle.ReflectionHLEActivity");
+            intent = new Intent(this, DreamsActivity.class);
             break;
         default:
             return false;
@@ -96,15 +92,6 @@ public class MegarocketActivity extends SDLActivity {
             startActivity(intent);
             return true;
         } catch (Exception e) {
-            return false;
-        }
-    }
-
-    public boolean isDreamsInstalled() {
-        try {
-            getPackageManager().getPackageInfo("com.reflectionhle", 0);
-            return true;
-        } catch (PackageManager.NameNotFoundException e) {
             return false;
         }
     }

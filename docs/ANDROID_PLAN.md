@@ -284,6 +284,37 @@ functional pad-only, and touch-only):
 - Overlay (touch-only path): dpad + JUMP/POGO/FIRE + ESC/ENTER covers every
   gameplay and menu interaction the engines expose.
 
+**2026-08-29 — Dreams unification: ONE APK, all seven games. Verified.**
+- SDL2 and SDL3 Java glue coexist in the Megarocket APK: SDL3's glue is
+  package-renamed to org.libsdl3.app by android/patch-sdl3-java-package.ps1
+  (Java package/imports + the five JNI class-path strings in
+  SDL_android.c), applied once to the vendored deps tree; the refkeen
+  standalone project uses the same renamed glue.
+- DreamsActivity (:dreams process) extends the SDL3 glue, chdirs the engine
+  into files/keendreams/game via RHLE_CWD, and passes the DESKTOP
+  launcher's exact invocation (-gamever kdreamse100 -cfgdir cfg -datadir
+  data) -> refkeen's 'Local' current-dir scan finds the imported files and
+  boots STRAIGHT into the game: no refkeen menus, no All-Files permission,
+  no picker. Stubs requestReadExternalStoragePermission (returns 0; data
+  is app-local).
+- refkeen fork (@31c7ee0): enable CMDLINE on Android; RHLE_CWD chdir at
+  main; fix target_link_libraries keyword order on the never-before-used
+  non-unified Android path. Megarocket builds refkeen with
+  -DBUILD_UNIFIED=OFF so reflection-kdreams is its own shared lib.
+- Launcher: Dreams slot now detects DATA (egagraph.kdr) like every slot;
+  the separate-app package check and <queries> are gone; the importer's
+  .kdr routing feeds it. launchSlot -> internal DreamsActivity.
+- Verified on emulator: Dreams tile lit from data, boots to Softdisk
+  screen and full title/credits with the widescreen frame; Keen 1 (SDL2)
+  still launches from the same session (KEEN1-OK). Desktop Dreams replay
+  gate: PASS 494 frames.
+- APK now carries 8 native libs (~2 SDL runtimes) — 76 files; debug size
+  grew accordingly (SDL3 ~3.1MB/abi). Dropbox: single-APK story, separate
+  ReflectionHLE APK removed from the kit.
+- Emulator-driving note (again): the system folder picker eats blind
+  keyevents (opened New-folder dialogs twice); force-stop
+  com.google.android.documentsui is the reliable escape hatch.
+
 ## Notes
 
 - refkeen is SDL3, the rest SDL2 — both support Android; the APK carries both.
