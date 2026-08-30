@@ -29,7 +29,21 @@ Build "$root\refkeen"     "Release"        "Keen Dreams engine (refkeen)"
 Build "$root\launcher"    "Release"        "Megarocket launcher"
 
 Write-Host "== assembling $dist"
-if (Test-Path $dist) { Remove-Item -Recurse -Force $dist }
+if (Test-Path $dist) {
+    # The user's Steam shortcut points INTO this tree and they have copied
+    # their game files (and so their saves) into it.  A dist that contains
+    # game data is somebody's live install: refuse to delete it rather than
+    # silently eat their saves.  Point the shortcut at another copy (e.g.
+    # F:\Dropbox\Megarocket) or move the data out to rebuild here.
+    $inhabited = Get-ChildItem -Recurse -File $dist -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match "^(KEEN[123]\.EXE|kdreams\.exe)$" -or
+                       $_.Extension -match "^\.(ck[1-6]|kdr)$" -and
+                       $_.Name -notmatch "^(ACTION|EPISODE|AUDINFOE|GFXINFOE|MAPINFO|TERMINFO|GFXCHUNK|AUDIOHHD|AUDIODCT|EGADICT|EGAHEAD|STRINGS)" }
+    if ($inhabited) {
+        throw "dist contains GAME DATA (someone plays from it) -- refusing to wipe $dist"
+    }
+    Remove-Item -Recurse -Force $dist
+}
 $dirs = @(
     "$dist\launcher",
     "$dist\keen13\gamedata", "$dist\keen13\gamedata2", "$dist\keen13\gamedata3",

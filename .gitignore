@@ -35,3 +35,9 @@ keenlauncher.cfg
 /keen13/port/*.txt
 !/keen13/port/CMakeLists.txt
 /keen13/art_test*.png
+
+# Steam artwork: outputs derive from the user's title-art dumps (personal
+# library art, not for redistribution); only the builder + readme are tracked
+/Steam Artwork/*
+!/Steam Artwork/build-configs/
+!/Steam Artwork/README - Steam Artwork.txt
