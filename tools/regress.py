@@ -377,6 +377,32 @@ def shell10a():
     return code
 
 
+def save01v():
+    """Keen 1's save file: the port saves on the world map in the same session as the
+    original did in DOSBox (keen1_savetest_a) and writes the identical 92 bytes."""
+    import gdtest
+    import shutil
+    from fit_keys import SCANCODES
+    cfg = common.config()
+    original = Path(cfg["oracle_runs"]) / "keen1_savetest_a" / "game" / "SAVED1.CK1"
+    if not original.exists():
+        print("  COULD-NOT-RUN: no oracle run keen1_savetest_a")
+        return common.COULD_NOT_RUN
+    case = json.loads((Path(__file__).parent / "cases" / "keen1" / "savetest.json").read_text())
+    spec = ",".join(f"{t - 0.956 + 0.17:.4f}:{SCANCODES[k]}:{h}" for t, k, h in case["held"])
+    save = Path(cfg["oracle_runs"]).parent / "port_runs" / "save01v"
+    shutil.rmtree(save, ignore_errors=True)
+    code, _ = gdtest.run("simv01_boot", ["--game=keen1", "--seconds=17", f"--out={save}_frames", f"--keys_after_intro={spec}",
+                                         f"--save={save}"], timeout=600.0, quiet=True)
+    mine = save / "SAVED1.CK1"
+    if not mine.exists():
+        print("  the port wrote no save")
+        return common.FAIL
+    same = mine.read_bytes() == original.read_bytes()
+    print(f"  port {mine.stat().st_size} bytes, original {original.stat().st_size}: {'identical' if same else 'DIFFERENT'}")
+    return common.PASS if same else common.FAIL
+
+
 def harn05a():
     """The Vorticons determinism harness: two runs of the same inputs give the same state hash
     at every frame; a skipped random draw is reported at its frame; the hash covers the variables."""
@@ -403,6 +429,7 @@ CHECKS = {
     "HARN-05a": (harn05a, "fast"),
     "TIME-V1": (timev1, "fast"),
     "SHELL-10a": (shell10a, "fast"),
+    "SAVE-01V": (save01v, "fast"),
     "SIM-V-02": (simv02, "slow"),
 }
 

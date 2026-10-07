@@ -57,11 +57,64 @@ SAVE_SEED = []      # --save_seed for a case with an "overrides" folder of saves
 
 
 def run_port(game, keys, after, out):
+    """Runs the port; returns the display index of the first intro frame (for timing mismatches)."""
     spec = ",".join(f"{t:.4f}:{SCANCODES[k]}:{h}" for t, k, h in keys)
     shutil.rmtree(out, ignore_errors=True)
-    subprocess.run([sys.executable, "tools/gdtest.py", "simv01_boot", "--", f"--game={game}", "--seconds=120",
-                    f"--out={out}", f"--keys_after_intro={spec}", f"--refreshes_after_intro={after - 10}"] + EXTRA_OPTS + SAVE_SEED,
-                   capture_output=True, text=True)
+    r = subprocess.run([sys.executable, "tools/gdtest.py", "simv01_boot", "--", f"--game={game}", "--seconds=120",
+                        f"--out={out}", f"--keys_after_intro={spec}", f"--refreshes_after_intro={after - 10}"] + EXTRA_OPTS + SAVE_SEED,
+                       capture_output=True, text=True)
+    total = re.search(r"(\d+) displays,", r.stdout)
+    later = re.search(r"intro mark at [\d.]+ s, (\d+) displays after it", r.stdout)
+    return int(total.group(1)) - int(later.group(1)) if total and later else 0
+
+
+def mismatch_time(out, oracle, intro_display):
+    """Seconds after the first intro frame at which the first mismatching picture starts in the port."""
+    k, _, port, orc, start = timing_score.score(out, oracle, transient=True)
+    full = timing_score.pictures(frames.Sequence(Path(out)), False)
+    disp = sum(n for _, n in full[:start + k])
+    longest = max(port[k][1] if k < len(port) else 0, orc[k][1] if k < len(orc) else 0)
+    return (disp - intro_display) / 70.086, (disp + longest - intro_display) / 70.086
+
+
+def targeted(game, keys, after, out, oracle, step, rng, window):
+    """Repeatedly: find the first mismatch, try moving each press or release that
+    falls in the `window` seconds before it, keep the best single change."""
+    intro_display = run_port(game, keys, after, out)
+    best, note = score(out, oracle)
+    print(f"as given: {note}")
+    rounds = 0
+    while best != 10 ** 9 and rounds < 40:
+        rounds += 1
+        t_mis, t_end = mismatch_time(out, oracle, intro_display)
+        cands = []
+        for i, (t, k, h) in enumerate(keys):
+            if t_mis - window <= t <= t_end + 0.1:
+                cands.append((i, 0))
+            if t_mis - window <= t + h <= t_end + 0.1:
+                cands.append((i, 2))
+        print(f"round {rounds}: mismatch in the picture at {t_mis:.3f}-{t_end:.3f} s after the intro; trying {[(i, 'press' if f == 0 else 'release') for i, f in cands]}")
+        top = (best, None, note)
+        for i, field in cands:
+            for d in sorted(range(-rng, rng + 1), key=abs):
+                if d == 0:
+                    continue
+                trial = [k[:] for k in keys]
+                trial[i][field] = round(trial[i][field] + d * step, 4)
+                if field == 2 and trial[i][2] <= 0.01:
+                    continue
+                run_port(game, trial, after, out)
+                s, n2 = score(out, oracle)
+                if s > top[0]:
+                    top = (s, trial, n2)
+        if top[1] is None:
+            print(f"  no single move helps; stopping at {note}")
+            break
+        keys = top[1]
+        best, note = top[0], top[2]
+        intro_display = run_port(game, keys, after, out)
+        print(f"  kept: {note}")
+    return keys, best
 
 
 def score(out, oracle):
@@ -90,6 +143,9 @@ def main():
                     help="start from the case's scripted keys or from the fitted .port.json")
     ap.add_argument("--timing", action="store_true", help="score pictures and their durations, not order alone")
     ap.add_argument("--fixed", default="", help="runner options for every run, e.g. timer_offset=-1392640,vbl_period=17024000")
+    ap.add_argument("--delay", type=float, default=0.0, help="--start case: seconds the posted keys are assumed to land late (0.17 is typical)")
+    ap.add_argument("--targeted", action="store_true", help="move only the presses and releases just before each mismatch, repeatedly")
+    ap.add_argument("--window", type=float, default=1.5, help="--targeted: seconds before a mismatch whose key events are tried")
     args = ap.parse_args()
     global TIMING, EXTRA_OPTS
     TIMING = args.timing
@@ -102,13 +158,20 @@ def main():
     if case.get("overrides"):
         SAVE_SEED = [f"--save_seed={(common.ROOT / case['overrides']).as_posix()}"]
     intro_s, after = intro_of(oracle)
-    keys = [[t - intro_s, k, h] for t, k, h in case["held"]]
+    keys = [[t - intro_s + args.delay, k, h] for t, k, h in case["held"]]
     target = Path(__file__).parent / "cases" / args.game / f"{args.case}.port.json"
     if args.start == "port":
         keys = [list(k) for k in json.loads(target.read_text(encoding="utf-8"))["keys_after_intro"]]
     which = [int(i) for i in args.keys.split(",")] if args.keys else range(len(keys))
     print(f"recording's first intro frame {intro_s:.3f} s in; {after} refreshes follow; {len(keys)} keys")
     out = Path(cfg["oracle_runs"]).parent / "port_runs" / f"fitkeys_{args.game}_{args.case}"
+    if args.targeted:
+        keys, best_score = targeted(args.game, keys, after, out, oracle, step, args.range, args.window)
+        fitted = {"keys_after_intro": [[round(t, 4), k, h] for t, k, h in keys], "refreshes_after_intro": after,
+                  "result": "PASS" if best_score == 10 ** 9 else f"first difference at picture {best_score}"}
+        target.write_text(json.dumps(fitted, indent=1), encoding="utf-8")
+        print("wrote", target, fitted["result"])
+        return
     run_port(args.game, keys, after, out)
     best_score, note = score(out, oracle)
     print(f"as scripted: {note}")
