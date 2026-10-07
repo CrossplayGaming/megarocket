@@ -139,6 +139,16 @@ const SETS: Array = [
 			"KDREAMS.EXE": [77694, "36a22dbd3119c0b4cdff7adaf50a8abc3b11c21f7bc0d4d7c0d5dbf7b347e3ae"],
 		},
 	},
+	{
+		"id": "kdreams", "title": "Keen Dreams", "version": "v1.93 EGA", "engine": "dreams", "exe": "KDREAMS.EXE",
+		"files": {
+			"KDREAMS.AUD": [3498, "b21ccdbb07428ada4e967e6148f7b470b2924f0b2b9a80871873f2ba73d4fc02"],
+			"KDREAMS.CMP": [14620, "88b766389b0a40084f566ae1d333282f5016ab71283aff58e50dd262a1718b85"],
+			"KDREAMS.EGA": [213045, "b37744937f21aa071328b71ee56dd582e035c3eae46440f161dc4ac1afa5ad83"],
+			"KDREAMS.EXE": [80715, "e4d39895561aa6854a52fdfe90ac2d9de47ca296deee7f2900918db34605780d"],
+			"KDREAMS.MAP": [65674, "971b062a1b842f1f708013e05638c1c9eee808991ff40ba4a6b4f1bb88b15bb4"],
+		},
+	},
 ]
 
 ## Releases this program recognises and does not read: [game id, name, file, size, CRC-32].
@@ -147,7 +157,6 @@ const UNSUPPORTED: Array = [
 	["kdreams", "Keen Dreams CGA v1.05", "KDREAMS.EXE", 78253, 0x5AF7CE2B],
 	["kdreams", "Keen Dreams EGA v1.13 (shareware)", "KDREAMS.EXE", 81619, 0x9DCE0A39],
 	["kdreams", "Keen Dreams EGA v1.20", "KDREAMS.EXE", 81519, 0xF36F0EDF],
-	["kdreams", "Keen Dreams EGA v1.93", "KDREAMS.EXE", 80715, 0x3D0CD9ED],
 	["kdreams", "Keen Dreams 2015 (Steam)", "KDREAMS.EGA", 213221, 0xEE1024B9],
 ]
 
@@ -158,6 +167,6 @@ const REMEDY: Dictionary = {
 	"keen4": "Megarocket reads Commander Keen 4 v1.4 EGA (Steam): KEEN4E.EXE with its data files beside it, as sold on Steam.",
 	"keen5": "Megarocket reads Commander Keen 5 v1.4 EGA (Steam): KEEN5E.EXE with its data files beside it, as sold on Steam.",
 	"keen6": "Megarocket reads Commander Keen 6 v1.0 EGA: KEEN6C.EXE with its data files beside it, as sold on Steam.",
-	"kdreams": "Megarocket reads the registered v1.00 EGA release: KDREAMS.EXE (77,694 bytes) with AUDIO, EGAGRAPH and GAMEMAPS .KDR beside it.",
+	"kdreams": "Megarocket reads Keen Dreams EGA v1.00 (KDREAMS.EXE with AUDIO, EGAGRAPH and GAMEMAPS .KDR beside it) and EGA v1.93, the DOS release in the Steam Definitive Edition's DOS/EGA folder.",
 }
 

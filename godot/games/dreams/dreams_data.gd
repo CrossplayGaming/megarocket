@@ -8,18 +8,39 @@
 # dictionaries and headers) with its depklite.
 class_name DreamsData
 extends RefCounted
-## Keen Dreams' files (EGA v1.00): the player's EGAGRAPH.KDR, GAMEMAPS.KDR,
-## AUDIO.KDR and KDREAMS.EXE, whose unpacked image holds the Huffman
-## dictionaries, chunk headers, map headers, texts and tile info the engine
-## compiled in. Read into plain arrays; nothing here touches the engine.
+## Keen Dreams' files, EGA v1.00 or EGA v1.93 (the release in the
+## Definitive Edition's DOS folder): the graphics, maps and sounds files and
+## KDREAMS.EXE, whose unpacked image holds the Huffman dictionaries, chunk
+## headers, map headers, texts and tile info the engine compiled in; v1.93
+## also its title picture in KDREAMS.CMP. v1.93's graphics and sounds are
+## v1.00's files renamed; its maps, texts and map headers are its own. Read
+## into plain arrays; nothing here touches the engine.
 
-const IMAGE_SIZE: int = 175424 - 0x1A00       # the unpacked program, per ReflectionHLE
-# {name: [offset into the unpacked image, size]} for EGA v1.00
-const EMBEDDED: Dictionary = {
-	"AUDIODCT": [0x28984, 1024], "AUDIOHHD": [0x1F370, 340], "CONTEXT": [0x1F4D0, 4759],
-	"EGADICT": [0x28188, 1024], "EGAHEAD": [0x19610, 12068], "GAMETEXT": [0x20770, 4686],
-	"MAPDICT": [0x28588, 1020], "MAPHEAD": [0x1C540, 11824], "PIRACY": [0x14970, 4001],
-	"STORY": [0x219C0, 2487],
+# Per version, ReflectionHLE's be_gamedefs_kdreams.h: the files, how the
+# program is packed, and {name: [offset into the unpacked image, size, CRC-32]}.
+const VERSIONS: Dictionary = {
+	"e100": {
+		"name": "EGA v1.00", "graphics": "EGAGRAPH.KDR", "maps": "GAMEMAPS.KDR", "audio": "AUDIO.KDR",
+		"packer": "pklite", "image_size": 175424 - 0x1A00,
+		"embedded": {
+			"AUDIODCT": [0x28984, 1024, 0x8B6116D7], "AUDIOHHD": [0x1F370, 340, 0x499E0CBF],
+			"CONTEXT": [0x1F4D0, 4759, 0x5BAE2337], "EGADICT": [0x28188, 1024, 0xA69AF202],
+			"EGAHEAD": [0x19610, 12068, 0xB9D789EE], "GAMETEXT": [0x20770, 4686, 0x046C5328],
+			"MAPDICT": [0x28588, 1020, 0x8AA7334B], "MAPHEAD": [0x1C540, 11824, 0x4B9C9EBE],
+			"PIRACY": [0x14970, 4001, 0x94458DEF], "STORY": [0x219C0, 2487, 0xED0EA5FE],
+		},
+	},
+	"e193": {
+		"name": "EGA v1.93", "graphics": "KDREAMS.EGA", "maps": "KDREAMS.MAP", "audio": "KDREAMS.AUD",
+		"packer": "lzexe", "image_size": 213200 - 0x1C00,
+		"embedded": {
+			"AUDIODCT": [0x29FBA, 1024, 0x8B6116D7], "AUDIOHHD": [0x21990, 340, 0x499E0CBF],
+			"CONTEXT": [0x21AF0, 1283, 0x5A33439D], "EGADICT": [0x297BE, 1024, 0xA69AF202],
+			"EGAHEAD": [0x1BC30, 12068, 0xB9D789EE], "GAMETEXT": [0x22000, 4256, 0xBFE72F94],
+			"MAPDICT": [0x29BBE, 1020, 0x6BB0DE32], "MAPHEAD": [0x1EB60, 11824, 0x2B821E29],
+			"STORY": [0x230A0, 2526, 0xCAFC1D15],
+		},
+	},
 }
 # graphkdr.h
 const NUMCHUNKS: int = 3016
@@ -63,7 +84,11 @@ var tileinfo: PackedByteArray = PackedByteArray()
 var game_text: PackedByteArray = PackedByteArray()
 var context_text: PackedByteArray = PackedByteArray()
 var story_text: PackedByteArray = PackedByteArray()
-var piracy_screen: PackedByteArray = PackedByteArray()
+var piracy_screen: PackedByteArray = PackedByteArray()   # v1.00 only
+## "e100" or "e193", set by load_game.
+var version: String = ""
+## v1.93: the title picture (SoftLib.load_lib_shape of TITLESCR.LBM in KDREAMS.CMP).
+var title_shape: Dictionary = {}
 
 
 static func u16(b: PackedByteArray, o: int) -> int:
@@ -106,11 +131,15 @@ func _read(name: String) -> PackedByteArray:
 
 
 func _embedded(name: String) -> PackedByteArray:
-	var e: Array = EMBEDDED[name]
+	var e: Array = VERSIONS[version].embedded[name]
 	if e[0] + e[1] > image.size():
 		_fail("KDREAMS.EXE: %s lies past the end of the unpacked program" % name)
 		return PackedByteArray()
-	return image.slice(e[0], e[0] + e[1])
+	var bytes: PackedByteArray = image.slice(e[0], e[0] + e[1])
+	if GameFinder.crc32(bytes) != e[2]:
+		_fail("KDREAMS.EXE: its %s is not Keen Dreams %s's (another version of the program?)" % [name, VERSIONS[version].name])
+		return PackedByteArray()
+	return bytes
 
 
 func _dict(name: String) -> PackedInt32Array:
@@ -127,12 +156,20 @@ func _dict(name: String) -> PackedInt32Array:
 func load_game(game_dir: String) -> bool:
 	dir = game_dir
 	error = ""
+	# the version by its files: v1.93 names them KDREAMS.EGA/.MAP/.AUD
+	version = "e193" if FileAccess.file_exists(_game_path("KDREAMS.EGA")) else "e100"
+	var v: Dictionary = VERSIONS[version]
 	var exe: PackedByteArray = _read("KDREAMS.EXE")
 	if exe.is_empty():
 		return false
-	image = PkLite.unpack(exe, IMAGE_SIZE)
-	if image.is_empty():
-		return _fail("KDREAMS.EXE: %s (not the EGA v1.00 program?)" % PkLite.error)
+	if v.packer == "pklite":
+		image = PkLite.unpack(exe, v.image_size)
+		if image.is_empty():
+			return _fail("KDREAMS.EXE: %s (not the %s program?)" % [PkLite.error, v.name])
+	else:
+		image = LzExe.unpack(exe)
+		if image.is_empty():
+			return _fail("KDREAMS.EXE: %s (not the %s program?)" % [LzExe.error, v.name])
 	_gr_dict = _dict("EGADICT")
 	_map_dict = _dict("MAPDICT")
 	_au_dict = _dict("AUDIODCT")
@@ -142,19 +179,25 @@ func load_game(game_dir: String) -> bool:
 	game_text = _embedded("GAMETEXT")
 	context_text = _embedded("CONTEXT")
 	story_text = _embedded("STORY")
-	piracy_screen = _embedded("PIRACY")
+	piracy_screen = _embedded("PIRACY") if version == "e100" else PackedByteArray()
 	if error != "":
 		return false
 	if _gr_starts.size() != (NUMCHUNKS + 1) * 4:
 		return _fail("KDREAMS.EXE: EGAHEAD is %d bytes, want %d" % [_gr_starts.size(), (NUMCHUNKS + 1) * 4])
-	_gr_file = _read("EGAGRAPH.KDR")
-	_maps_file = _read("GAMEMAPS.KDR")
-	_au_file = _read("AUDIO.KDR")
+	_gr_file = _read(v.graphics)
+	_maps_file = _read(v.maps)
+	_au_file = _read(v.audio)
 	if error != "":
 		return false
+	if version == "e193":
+		title_shape = SoftLib.load_lib_shape(_read("KDREAMS.CMP"), "TITLESCR.LBM")
+		if error != "":
+			return false
+		if title_shape.is_empty():
+			return _fail("KDREAMS.CMP: " + SoftLib.error)
 	var last: int = u32(_gr_starts, NUMCHUNKS * 4)
 	if last != _gr_file.size():
-		return _fail("EGAGRAPH.KDR: %d bytes, but the program's header ends it at %d -- another version of the game" % [_gr_file.size(), last])
+		return _fail("%s: %d bytes, but the program's header ends it at %d -- another version of the game" % [v.graphics, _gr_file.size(), last])
 	rle_tag = u16(_map_head, 0)
 	tileinfo = _map_head.slice(502)
 	# every map the header lists must lie inside GAMEMAPS: a map "missing"
@@ -164,7 +207,7 @@ func load_game(game_dir: String) -> bool:
 		if off == 0xFFFFFFFF or off < 8:
 			continue
 		if off + _map_head[402 + i] > _maps_file.size():
-			return _fail("GAMEMAPS.KDR: map %d's header at %d lies past the end of the %d-byte file" % [i, off, _maps_file.size()])
+			return _fail("%s: map %d's header at %d lies past the end of the %d-byte file" % [v.maps, i, off, _maps_file.size()])
 	# tables: chunks 0, 1, 2 (Huffman, explicit length ignored: sizes are known)
 	var pt: PackedByteArray = _table(STRUCTPIC, NUMPICS * 4)
 	var pmt: PackedByteArray = _table(STRUCTPICM, NUMPICS * 4)   # the original expands NUMPICS entries here (a vanilla slip)

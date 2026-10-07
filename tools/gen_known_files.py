@@ -24,6 +24,9 @@ SETS = [
     ("keen5", "Commander Keen 5: The Armageddon Machine", "v1.4 EGA (Steam)", "galaxy", "KEEN5E.EXE"),
     ("keen6", "Commander Keen 6: Aliens Ate My Babysitter!", "v1.0 EGA", "galaxy", "KEEN6C.EXE"),
     ("kdreams", "Keen Dreams", "v1.00 EGA (registered)", "dreams", "KDREAMS.EXE"),
+    # the DOS release in the Definitive Edition's DOS\EGA folder (Steam)
+    ("kdreams", "Keen Dreams", "v1.93 EGA", "dreams", "KDREAMS.EXE",
+     "kdreams193", ["KDREAMS.AUD", "KDREAMS.CMP", "KDREAMS.EGA", "KDREAMS.EXE", "KDREAMS.MAP"]),
 ]
 
 # Files in game_data that are not part of the game (patchers, notes).
@@ -36,11 +39,10 @@ UNSUPPORTED = [
     ("kdreams", "Keen Dreams CGA v1.05", "KDREAMS.EXE", 78253, 0x5AF7CE2B),
     ("kdreams", "Keen Dreams EGA v1.13 (shareware)", "KDREAMS.EXE", 81619, 0x9DCE0A39),
     ("kdreams", "Keen Dreams EGA v1.20", "KDREAMS.EXE", 81519, 0xF36F0EDF),
-    ("kdreams", "Keen Dreams EGA v1.93", "KDREAMS.EXE", 80715, 0x3D0CD9ED),
     ("kdreams", "Keen Dreams 2015 (Steam)", "KDREAMS.EGA", 213221, 0xEE1024B9),
 ]
 REMEDY = {
-    "kdreams": "Megarocket reads the registered v1.00 EGA release: KDREAMS.EXE (77,694 bytes) with AUDIO, EGAGRAPH and GAMEMAPS .KDR beside it.",
+    "kdreams": "Megarocket reads Keen Dreams EGA v1.00 (KDREAMS.EXE with AUDIO, EGAGRAPH and GAMEMAPS .KDR beside it) and EGA v1.93, the DOS release in the Steam Definitive Edition's DOS/EGA folder.",
 }
 
 
@@ -58,9 +60,14 @@ def main():
     out.append("## remedy to name for each game.")
     out.append("")
     out.append("const SETS: Array = [")
-    for gid, title, version, engine, exe in SETS:
-        folder = root / gid
-        files = sorted(p for p in folder.iterdir() if p.is_file() and p.name.upper() not in IGNORE)
+    for entry in SETS:
+        gid, title, version, engine, exe = entry[:5]
+        folder = root / (entry[5] if len(entry) > 5 else gid)
+        only = set(entry[6]) if len(entry) > 6 else None
+        files = sorted(p for p in folder.iterdir() if p.is_file() and p.name.upper() not in IGNORE
+                       and (only is None or p.name.upper() in only))
+        if only is not None and len(files) != len(only):
+            raise SystemExit(f"{folder}: want {sorted(only)}, found {[p.name for p in files]}")
         if not files:
             raise SystemExit(f"no files in {folder}")
         out.append("\t{")
@@ -80,7 +87,12 @@ def main():
     out.append("]")
     out.append("")
     out.append("const REMEDY: Dictionary = {")
-    for gid, title, version, engine, exe in SETS:
+    seen = set()
+    for entry in SETS:
+        gid, title, version, engine, exe = entry[:5]
+        if gid in seen:
+            continue
+        seen.add(gid)
         if gid in REMEDY:
             text = REMEDY[gid]
         else:

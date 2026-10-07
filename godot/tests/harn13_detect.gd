@@ -149,7 +149,7 @@ func _fixtures_and_identification() -> void:
 	f2.unsupported_table = [["kdreams", "Keen Dreams EGA v9.99 (fixture)", "KDREAMS.EXE", fake.size(), GameFinder.crc32(fake)]]
 	r = by_id(f2.identify(dreams_other), "kdreams")
 	t.ok("a recognised unsupported Dreams release is named with the remedy (%s)" % r.get("message", ""),
-		r.get("status", "") == GameFinder.STATUS_UNSUPPORTED and r.message.contains("v9.99") and r.message.contains("not supported") and r.message.contains("KDREAMS.EXE (77,694 bytes)"))
+		r.get("status", "") == GameFinder.STATUS_UNSUPPORTED and r.message.contains("v9.99") and r.message.contains("not supported") and r.message.contains("v1.00") and r.message.contains("v1.93"))
 	r = by_id(finder.identify(dreams_other), "kdreams")
 	t.ok("the same folder with the real table is Keen Dreams, unrecognised", r.get("status", "") == GameFinder.STATUS_UNRECOGNISED)
 

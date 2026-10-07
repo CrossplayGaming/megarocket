@@ -23,6 +23,8 @@ const STATUS_UNRECOGNISED: String = "unrecognised"
 const STEAM_KEEN_FOLDER: String = "steamapps/common/Commander Keen"
 const STEAM_KEEN_SUBFOLDERS: PackedStringArray = ["base1", "base2", "base3", "base4", "base5"]
 const STEAM_DREAMS_FOLDER: String = "steamapps/common/Keen Dreams"
+## The Definitive Edition keeps the DOS releases in DOS/EGA (v1.93) and DOS/CGA.
+const STEAM_DREAMS_DE_FOLDER: String = "steamapps/common/Commander Keen in Keen Dreams DE/DOS"
 
 ## How the registry is read (Windows). Tests replace it with a fake.
 ## steam_path_reader() -> String; gog_games_reader() -> Array of {name, path}.
@@ -240,6 +242,9 @@ func scan_steam(steam_root: String = "") -> Array:
 		var dreams: String = lib.path_join(STEAM_DREAMS_FOLDER)
 		if DirAccess.dir_exists_absolute(dreams):
 			found.append_array(scan_folder(dreams, 1))
+		var dreams_de: String = lib.path_join(STEAM_DREAMS_DE_FOLDER)
+		if DirAccess.dir_exists_absolute(dreams_de):
+			found.append_array(scan_folder(dreams_de, 1))
 	return found
 
 

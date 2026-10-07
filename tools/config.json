@@ -71,6 +71,18 @@
         "*.KDR"
       ],
       "rate_hz": 70.086
+    },
+    "kdreams193": {
+      "exe": "KDREAMS.EXE",
+      "engine": "dreams",
+      "files": [
+        "KDREAMS.EXE",
+        "KDREAMS.AUD",
+        "KDREAMS.CMP",
+        "KDREAMS.EGA",
+        "KDREAMS.MAP"
+      ],
+      "rate_hz": 70.086
     }
   }
 }
