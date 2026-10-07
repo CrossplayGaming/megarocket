@@ -16,5 +16,10 @@ __pycache__/
 /omnispeak/
 /omnispeak-ref/
 /refkeen/
-/Godot/
+# the engine lives inside the project folder (same folder as godot/ on this
+# case-insensitive disk): ignore the downloads and the built library only
+/godot/4.*/
+/godot/templates/
+/godot/bin/*.dll
+/godot/bin/*.so
 /Steam Artwork/

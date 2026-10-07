@@ -49,7 +49,7 @@ Quality priorities, in order:
 | `omnispeak` / `omnispeak-ref` | David Gow's pixel-perfect, bug-for-bug reimplementation of Keen 4–6 (GPL v2); `-ref` is the pristine upstream, `omnispeak` the Megarocket fork. | The specification for Keen 4–6 (there is no released original source). Ported function by function. Its `data/` metadata (action tables, chunk indices) is engine-own public data and may be bundled. |
 | `refkeen` (`src/kdreams`) and id Software's released Keen Dreams source | The original Keen Dreams C source (GPL v2 release, 2014) as carried in ReflectionHLE. | The specification for Keen Dreams. |
 | `keen6/keen6.conf`, Steam `dosbox.conf`/`keen4.conf` | How the games are sold today. | Oracle settings start from these. |
-| Player's own game files | Keen 1–3 v1.31 (Steam), Keen 4/5 v1.4 (Steam `base4`/`base5`), Keen 6 v1.0 EGA (patched to v1.4 with the official `6keen14` patch for the oracle), Keen Dreams (`keendreams/game`). SHA-256 of each executable recorded in `docs/REFERENCES.md`. | Run in DOSBox as the oracle; read at run time by the port. Never copied into the repository. |
+| Player's own game files | Keen 1–3 v1.31 (Steam), Keen 4/5 v1.4 (Steam `base4`/`base5`), Keen 6 v1.0 EGA (run as is by the oracle; the port reads its three version tables from the executable), Keen Dreams (`keendreams/game`). SHA-256 of each executable recorded in `docs/REFERENCES.md`. | Run in DOSBox as the oracle; read at run time by the port. Never copied into the repository. |
 
 ## Fidelity line
 
@@ -120,7 +120,7 @@ user decides.
 | Steam installs found automatically (library folders read from Steam's own `libraryfolders.vdf`, every drive) | required | Zero-effort setup for the common case | automated test (fixture library) | project |
 | GOG installs found automatically (registry and default folders) | required | Same | automated test | project |
 | A folder the player points at is scanned recursively for any of the seven games, in any mix | required | Collections, ZIPs they unpacked, old CD copies | automated test | project |
-| Every supported version identified by checksum and named; unsupported versions (shareware, CGA, pre-patch Keen 6) named plainly with what to do | required | Wrong data otherwise fails confusingly deep in play | automated test | catalog |
+| Every supported version identified by checksum and named; unsupported versions (shareware, CGA) named plainly with what to do | required | Wrong data otherwise fails confusingly deep in play | automated test | catalog |
 | Per-game status, never all-or-nothing; a game can be added later | required | Most people own some of the seven | automated test | catalog |
 | Re-detection after the player fixes something, without restarting | required | Setup is a loop, not a step | automated test | catalog |
 | Game folders are never written to | required | Steam verifies files; GOG folders may be read-only | automated test | project |
@@ -336,7 +336,7 @@ Each gets its own blueprint pass before it is built.
 | Subtitles | No speech. |
 | Colour-blind palette | Deferred to the replacement-art phase. |
 | Shareware and CGA versions | Detected and named at start-up; support deferred. |
-| Keen 6 v1.5 | Deferred; v1.4 first (the patch the user has). v1.5 is a small delta once v1.4 passes. |
+| Keen 6 v1.5 | Deferred; v1.0 (the user's copy, tables from its executable) and v1.4 (omnispeak's headers) first. v1.5 is a small delta after that. |
 | Megarocket save/config import | Deferred; port-own formats, one known user. |
 | macOS, web | Deferred. Design keeps them possible. Android is NOT deferred. |
 | New artwork itself | Deferred to v1.5 (replacement packs). The loading mechanism is in scope for v1.0. |

@@ -1,0 +1,15 @@
+; The native sound-chip library (source in native/d2opl, built by
+; tools/build_native.py). Without it the games run without AdLib sound.
+
+[configuration]
+
+entry_symbol = "d2opl_init"
+compatibility_minimum = "4.7"
+reloadable = false
+
+[libraries]
+
+windows.x86_64 = "res://bin/d2opl.windows.x86_64.dll"
+linux.x86_64 = "res://bin/libd2opl.linux.x86_64.so"
+android.arm64 = "res://bin/libd2opl.android.arm64.so"
+android.x86_64 = "res://bin/libd2opl.android.x86_64.so"

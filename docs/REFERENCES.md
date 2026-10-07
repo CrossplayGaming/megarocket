@@ -24,13 +24,17 @@ the program finds them in Steam/GOG installs or a chosen folder at run time.
 | Keen 3 | 1.31 (Steam) | `KEEN3.EXE` (61,599) | `ce240fee9e23e0c3` | `keen13/gamedata3`, Steam `base3` |
 | Keen 4 | 1.4 EGA (Steam) | `Keen4e.exe` (105,108) | `bdbb46746e02c0dd` | Steam `base4` |
 | Keen 5 | 1.4 EGA (Steam) | `Keen5e.exe` (106,417) | `77f687268be09763` | Steam `base5` |
-| Keen 6 | **1.0 EGA, executable and data** (banner says v1.0; the v1.4 headers do not fit its EGAGRAPH) | `KEEN6C.EXE` (104,938) | `050dadf0c1902fcf` | `keen6/game`, `keen6patch` (official `6keen14.exe` patch, a Windows GUI program) |
+| Keen 6 | 1.0 EGA, executable and data (data dated 15 Nov 1991, executable 12 Jan 1992); supported by reading its three version tables from the executable | `KEEN6C.EXE` (104,938) | `050dadf0c1902fcf` | `Documents\SPLATTER` (the original), `keen6/game`, `keen6patch` |
 | Keen Dreams | registered 1.00 (per Megarocket's `-gamever kdreamse100`) | `kdreams.exe` (77,694) | `36a22dbd3119c0b4` | `keendreams/game` |
 
-**Keen 6 note.** Omnispeak and the port target v1.4. Everything on this machine is v1.0 (Megarocket
-played Keen 6 under DOSBox for exactly this reason). `6keen14.exe` is a Windows GUI patcher: the user
-runs it on a copy of the v1.0 files and the result is the v1.4 set (J-16). Until then the Keen 6 units
-are blocked. Keen 6 v1.5 is deferred.
+**Keen 6 note.** Omnispeak ships headers for v1.4 and v1.5 only; the user's copy is v1.0, and the
+official `6keen14.exe` patcher rejects this pressing as "unknown version" (the file is untouched: it is
+byte-identical to the original in `Documents\SPLATTER`). Megarocket established in July 2026 that v1.0
+differs from v1.4 in exactly three tables (EGAHEAD, EGADICT, MAPHEAD) and that v1.4's chunk numbering,
+actions, strings and tile info replay v1.0's own demo bit-exactly. The loader therefore identifies the
+executable by checksum (`GalData.KNOWN_EXES`), unpacks it and takes the three tables from the load image
+at 0x1FB20, 0x35D12 and 0x23C50. A v1.4 or v1.5 copy loads through omnispeak's headers as before. The
+oracle runs the v1.0 executable, so Keen 6 fidelity is to v1.0. Keen 6 v1.5 is deferred.
 
 ## The oracle
 
