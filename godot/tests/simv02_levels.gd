@@ -52,10 +52,10 @@ func _episode(root: String, game: String, seconds: float) -> void:
 	vm.on_display = func() -> void:
 		displays[0] += 1
 		if displays[0] == shot_at[0] and shots != "" and vm.card.video_mode == EgaCard.MODE_EGA:
-			var img: Image = Image.create_from_data(320, 200, false, Image.FORMAT_RGB8, vm.card.picture_rgb())
+			var img: Image = Image.create_from_data(320, 200, false, Image.FORMAT_RGB8, vm.card.frame_rgb())
 			img.save_png(shots.path_join(shot_at[1]))
 		if displays[0] % 8 == 0 and vm.card.video_mode == EgaCard.MODE_EGA:
-			pictures[hash(vm.card.compose())] = true
+			pictures[hash(vm.card.frame_pixels)] = true
 	vm.on_limit = func() -> void:
 		g.exited = true
 	var report: Array = []

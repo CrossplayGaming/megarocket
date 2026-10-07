@@ -717,11 +717,17 @@ func ShowLives() -> void:
 	PlaySound(SND.KEENSLEFTSND)
 
 
+## Turbo C's loop: about 13 instructions a tile looked at (the far-pointer
+## GETTILE with its multiply, the compare, the loop).
 func GetPlayerPosition() -> PackedInt32Array:
+	var looked: int = 0
 	for y: int in range(mapheight):
 		for x: int in range(mapwwide):
+			looked += 1
 			if GETTILE(x, y, 1) == 255:
+				vm.instructions(looked * 13)
 				return PackedInt32Array([TILE_TO_GLOBAL(x), TILE_TO_GLOBAL(y)])
+	vm.instructions(looked * 13)
 	return PackedInt32Array([0, 0])
 
 

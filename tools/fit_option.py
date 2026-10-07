@@ -34,7 +34,7 @@ def run_args(game, case, seconds):
         extra.append(f"--save_seed={(common.ROOT / spec['overrides']).as_posix()}")
     if port_case.exists():
         pc = json.loads(port_case.read_text(encoding="utf-8"))
-        extra = [f"--keys_after_intro={','.join(f'{t:.4f}:{SCANCODES[k]}:{h}' for t, k, h in pc['keys_after_intro'])}",
+        extra += [f"--keys_after_intro={','.join(f'{t:.4f}:{SCANCODES[k]}:{h}' for t, k, h in pc['keys_after_intro'])}",
                  f"--refreshes_after_intro={pc['refreshes_after_intro'] - 10}"]
         seconds = 120
     return extra, seconds
@@ -79,7 +79,7 @@ def main():
         subprocess.run([sys.executable, "tools/gdtest.py", "simv01_boot", "--", f"--game={args.game}", f"--seconds={seconds}",
                         f"--out={out}"] + opts + extra, capture_output=True, text=True)
         try:
-            s, note, _, _, _ = timing_score.score(out, oracle, args.tolerance)
+            s, note, _, _, _ = timing_score.score(out, oracle, args.tolerance, transient=True)
         except Exception as err:    # a run that produced nothing
             s, note = -1, str(err)[-100:]
         print(f"  {args.option} = {value:10.4f} ({raw:12d}): {s:5d}  {note}", flush=True)

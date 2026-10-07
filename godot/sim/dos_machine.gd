@@ -36,7 +36,16 @@ var now: int = 0
 var next_vbl: int = 0
 var last_vbl: int = -(1 << 60)
 var vbl_count: int = 0
-var _display_due: int = RETRACE_LEN     # the start of active display after a retrace
+## The beam: mode 0Dh on a VGA has 449 scan lines a refresh, the vertical
+## retrace beginning at line 412, so the first visible line comes 37 lines
+## after the retrace begins; each picture row is two scan lines. The frame is
+## captured in bands of BAND_ROWS rows, each when the beam reaches it (DOSBox
+## draws a frame line by line the same way), and handed over after the last.
+const LINES_PER_REFRESH: int = 449
+const LINES_AFTER_RETRACE: int = 449 - 412
+const BAND_ROWS: int = 4
+var _display_due: int = 1 << 62     # the next band of rows the beam reaches
+var _band: int = 0
 
 ## Timer channel 0: what it counts from (0x10000 = the PC's own 18.2 Hz).
 var pit0_reload: int = 0x10000
@@ -211,10 +220,20 @@ func _run_to(target: int) -> void:
 			next_vbl = t + vbl_period
 			_display_due = t + RETRACE_LEN
 			card.latch_start()    # the CRTC takes the start address as the retrace begins
+			_band = 0
+			_display_due = t + _line_units() * LINES_AFTER_RETRACE
 		elif t == _display_due:
-			_display_due = 1 << 62
-			if on_display.is_valid():
-				on_display.call()
+			if _band == 0:
+				card.begin_frame()
+			var y0: int = _band * BAND_ROWS
+			card.scan_rows(y0, y0 + BAND_ROWS)
+			_band += 1
+			if y0 + BAND_ROWS >= EgaCard.HEIGHT:
+				_display_due = 1 << 62
+				if on_display.is_valid():
+					on_display.call()
+			else:
+				_display_due = t + _line_units() * 2 * BAND_ROWS
 		elif t == next_tick:
 			tick_count += 1
 			next_tick = t + pit0_reload * UNIT
@@ -264,6 +283,10 @@ func instructions(n: int) -> void:
 	cpu_work(units)
 
 
+func _line_units() -> int:
+	return vbl_period / LINES_PER_REFRESH
+
+
 func in_retrace() -> bool:
 	return now >= last_vbl and now - last_vbl < RETRACE_LEN
 
@@ -301,7 +324,7 @@ func poll() -> void:
 func snapshot() -> Dictionary:
 	return {
 		"card": card.snapshot(), "now": now, "next_vbl": next_vbl, "last_vbl": last_vbl, "vbl_count": vbl_count,
-		"display_due": _display_due, "instr_rem": _instr_rem, "pit0_reload": pit0_reload, "next_tick": next_tick, "tick_count": tick_count,
+		"display_due": _display_due, "band": _band, "instr_rem": _instr_rem, "pit0_reload": pit0_reload, "next_tick": next_tick, "tick_count": tick_count,
 		"pit0_low": _pit0_low, "pit0_expect_high": _pit0_expect_high, "pit2_count": pit2_count,
 		"pit2_low": _pit2_low, "pit2_expect_high": _pit2_expect_high, "port61": port61,
 		"key_index": _key_index, "port60": port60, "charged": _charged_accesses,
@@ -316,6 +339,7 @@ func restore(s: Dictionary) -> void:
 	last_vbl = s.last_vbl
 	vbl_count = s.vbl_count
 	_display_due = s.display_due
+	_band = s.band
 	pit0_reload = s.pit0_reload
 	next_tick = s.next_tick
 	tick_count = s.tick_count

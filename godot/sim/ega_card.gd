@@ -435,22 +435,33 @@ func split_row() -> int:
 func compose() -> PackedByteArray:
 	var out: PackedByteArray = PackedByteArray()
 	out.resize(WIDTH * HEIGHT)
+	compose_rows(out, 0, HEIGHT)
+	return out
+
+
+## Rows y0..y1-1 of the picture into `out` (WIDTH bytes a row), from the
+## memory and registers as they are now: the beam draws a frame row by row,
+## and a row shows what the memory held when the beam reached it.
+func compose_rows(out: PackedByteArray, y0: int, y1: int) -> void:
 	if video_mode != MODE_EGA:
-		return out
+		for i: int in range(y0 * WIDTH, y1 * WIDTH):
+			out[i] = 0
+		return
 	var stride: int = line_width()
-	var pan: int = atc[ATR_PELPAN] & 7
 	var split: int = split_row()
-	var base: int = display_start
-	var position: int = 0
-	for y: int in range(HEIGHT):
-		if y == split:
+	for y: int in range(y0, y1):
+		var pan: int = atc[ATR_PELPAN] & 7
+		var address: int
+		if y >= split:
 			# The split screen: the rows below the line compare are shown from
 			# address 0, and with the pel-panning-compatibility bit set the
 			# panning is dropped for them too.
-			base = 0
+			address = ((y - split) * stride) & 0xFFFF
 			if atc[ATR_MODE] & 0x20:
 				pan = 0
-		var address: int = base
+		else:
+			address = (display_start + y * stride) & 0xFFFF
+		var position: int = y * WIDTH
 		if pan == 0:
 			for i: int in range(40):
 				var a: int = (address + i) & 0xFFFF
@@ -472,7 +483,35 @@ func compose() -> PackedByteArray:
 						| (((_spread[plane2[a]] >> drop) | (_spread[plane2[b]] << keep)) << 2)
 						| (((_spread[plane3[a]] >> drop) | (_spread[plane3[b]] << keep)) << 3))
 				position += 8
-		base = (base + stride) & 0xFFFF
+
+
+## The frame the beam is drawing: begun when the first visible line is
+## scanned, filled band by band (DosMachine), finished at the last row.
+var frame_pixels: PackedByteArray = PackedByteArray()
+var frame_palette: PackedByteArray = PackedByteArray()
+
+
+func begin_frame() -> void:
+	if frame_pixels.size() != WIDTH * HEIGHT:
+		frame_pixels.resize(WIDTH * HEIGHT)
+	frame_palette = palette_rgb()
+
+
+func scan_rows(y0: int, y1: int) -> void:
+	compose_rows(frame_pixels, y0, y1)
+
+
+## The finished frame as 320x200 RGB.
+func frame_rgb() -> PackedByteArray:
+	var out: PackedByteArray = PackedByteArray()
+	out.resize(WIDTH * HEIGHT * 3)
+	var o: int = 0
+	for i: int in range(WIDTH * HEIGHT):
+		var c: int = frame_pixels[i] * 3
+		out[o] = frame_palette[c]
+		out[o + 1] = frame_palette[c + 1]
+		out[o + 2] = frame_palette[c + 2]
+		o += 3
 	return out
 
 
@@ -532,6 +571,7 @@ func snapshot() -> Dictionary:
 		"crtc_index": crtc_index, "crtc": crtc.duplicate(), "display_start": display_start,
 		"dac": dac.duplicate(), "dac_write_index": dac_write_index, "dac_component": dac_component,
 		"video_mode": video_mode, "status_reads": _status_reads,
+		"frame_pixels": frame_pixels.duplicate(), "frame_palette": frame_palette.duplicate(),
 	}
 
 

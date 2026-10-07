@@ -43,11 +43,11 @@ func _init() -> void:
 	# loading the sprites (the "one moment" picture stays 32 refreshes in the
 	# recording) and the four text files before the first fade (5 timer tics).
 	# (Drawing is charged by instruction count; these are the file work.)
-	# Entering the world map: 11.5 ms more than the map's expansion (fitted on
-	# the new-game recording: anything from 5 to 18 ms holds the black pause
-	# at 20 refreshes; not yet explained by instruction counts).
+	# Entering the world map: 3.65 ms more than the map's expansion and (on a
+	# new game) GetPlayerPosition's scan; the new-game recording allows 3.3-16
+	# and the Continue Game recordings 0-4 once the scan is counted.
 	costs = {"loadgraphics": 21 * DosMachine.VBL_PERIOD, "demoloop_load": 5 * 8192 * DosMachine.UNIT,
-		"worldmap_load": 13721593,
+		"worldmap_load": 4355114,
 		# each map frame's C code before its refresh (ControlMapKeen, the
 		# clipping, placing the sprite, the key checks): 0.16 ms, fitted (0.13-0.19 pass)
 		"mapframe": 190909,
