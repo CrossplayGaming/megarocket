@@ -242,6 +242,17 @@ def data01d():
     return common.PASS
 
 
+def sim02():
+    """The emulated EGA card against golden pictures worked out from the EGA specification, and
+    compose() against a one-pixel-at-a-time reading over random states."""
+    import gdtest
+    code, out = gdtest.run("sim02_ega_card", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "differs" in line:
+            print("  " + line.strip())
+    return code
+
+
 CHECKS = {
     "HARN-01a": (harn01a, "slow"),
     "HARN-03a": (harn03a, "fast"),
@@ -251,6 +262,7 @@ CHECKS = {
     "DATA-01V": (data01v, "fast"),
     "DATA-01G": (data01g, "slow"),
     "DATA-01D": (data01d, "fast"),
+    "SIM-02": (sim02, "fast"),
 }
 
 
