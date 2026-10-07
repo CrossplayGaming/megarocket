@@ -344,10 +344,10 @@ def _timing_case(game, case, seconds):
 
 def timev1():
     """The Vorticons port's timing against DOSBox, refresh for refresh: the Keen 1 boot (30 s)
-    and title (50 s, through the id and high-score screens) recordings and Keen 2's title, every picture lasting
+    and title (50 s, through the id and high-score screens) recordings and Keen 2's and Keen 3's titles, every picture lasting
     exactly as many refreshes as in the recording (instruction-counted drawing, fitted phase/rate)."""
     results = [_timing_case("keen1", "boot", 33), _timing_case("keen1", "title", 53), _timing_case("keen1", "newgame", 120),
-               _timing_case("keen2", "title", 53)]
+               _timing_case("keen2", "title", 53), _timing_case("keen3", "title", 53)]
     return common.COULD_NOT_RUN if common.COULD_NOT_RUN in results else max(results)
 
 

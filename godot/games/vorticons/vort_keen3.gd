@@ -70,8 +70,11 @@ func _init() -> void:
 	for i: int in range(NUMWARPS):
 		warps.append([0, 0, 0])
 	# Fitted on keen3_title_a (see Keen 2's): where the sprite loading ends
-	# within a refresh, and the timer's phase.
-	costs = {"loadgraphics": round(21.05 * DosMachine.VBL_PERIOD), "demoloop_load": 5 * 8192 * DosMachine.UNIT}
+	# within a refresh, and the timer's phase. The title screen has no
+	# animated tiles, so the tic count itself first shows at the id screen's
+	# border: that pinned the timer's start to 21.5312 refreshes, one tic
+	# after an equally good-looking 21.05.
+	costs = {"loadgraphics": round(21.5312 * DosMachine.VBL_PERIOD), "demoloop_load": 5 * 8192 * DosMachine.UNIT}
 	dosbox_timing.timer_offset = -4453955
 
 

@@ -1536,10 +1536,16 @@ func RndT() -> int:
 
 # ------------------------------------------------------------- misc video
 
+## v1.31's WaitVBL: per refresh, wait out any retrace, wait for the next
+## one to begin, then spin `mov bx,100 / dec bx / jnz` (about 200
+## instructions, 10 us at DOSBox's speed) before looking again.
 func WaitVBL(number: int) -> void:
 	if exited:
 		return
-	vm.wait_vbl(number)
+	for i: int in range(number):
+		vm.wait_retrace_end()
+		vm.wait_retrace_start()
+		vm.instructions(203)
 
 
 ## Read/write mode 0 on one plane.
