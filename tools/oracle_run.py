@@ -108,6 +108,7 @@ c:
 exit
 """
 
+DOSBOX_KEY_NAME = {"ctrl": "lctrl", "alt": "lalt", "shift": "lshift"}
 SPARE_HOST_KEYS = [("f5", 62), ("f6", 63), ("f7", 64), ("f1", 58), ("f2", 59), ("f3", 60), ("f4", 61)]
 
 
@@ -301,7 +302,10 @@ def _run(game, case, run_name, spec, opl, wave, show):
                 return common.COULD_NOT_RUN, run_dir
             host_key_for[game_key] = SPARE_HOST_KEYS[len(host_key_for)]
     mapper = run_dir / "oracle.map"
-    mapper.write_text(MAPPER + "".join(f'key_{k} "key {scan}"\n' for k, (_, scan) in host_key_for.items()),
+    # DOSBox's mapper spells a few keys differently from the cases (left Ctrl
+    # and Alt): key_ctrl does not exist there, so a held Ctrl was never bound
+    # and never reached the game (found 2026-10-07)
+    mapper.write_text(MAPPER + "".join(f'key_{DOSBOX_KEY_NAME.get(k, k)} "key {scan}"\n' for k, (_, scan) in host_key_for.items()),
                       encoding="ascii")
     autotype = ""
     if spec["keys"]:
