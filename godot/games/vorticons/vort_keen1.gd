@@ -38,6 +38,11 @@ func _init() -> void:
 	deadobj = ep1_deadobj
 	classes = {"volatileobj": volatileobj, "shotobj": shotobj, "enemyshotobj": enemyshotobj,
 		"splashobj": splashobj, "deadobj": deadobj}
+	# Processor time the original spends where the port does the work at once,
+	# fitted against DOSBox recordings of this game (tools/fit_costs.py):
+	# loading the sprites (the "one moment" picture stays 32 refreshes in the
+	# recording) and the four text files before the first fade (5 timer tics).
+	costs = {"loadgraphics": 21 * DosMachine.VBL_PERIOD, "demoloop_load": 5 * 8192 * DosMachine.UNIT}
 
 
 func LoadLevel(number: int) -> void:

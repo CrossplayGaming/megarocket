@@ -62,8 +62,11 @@ var speaker_events: PackedInt64Array = PackedInt64Array()
 var record_speaker: bool = false
 
 ## The keyboard: a timed script of scancodes (bit 7 set = release), and the
-## last code on port 60h.
+## last code on port 60h. Keys may be timed from a mark the program sets
+## (the first intro frame, say), the same moment a recording is timed from.
 var key_events: Array = []              # [[time_units, scancode], ...] in time order
+var marks: Dictionary = {}              # name -> time units
+var keys_after_mark: Array = []         # [[mark, seconds after it, scancode, hold seconds], ...]
 var _key_index: int = 0
 var port60: int = 0
 
@@ -87,9 +90,28 @@ func seconds() -> float:
 
 ## A key pressed at `at` seconds for `hold` seconds.
 func add_key(at: float, scancode: int, hold: float = 0.1) -> void:
-	key_events.append([seconds_to_units(at), scancode & 0x7F])
-	key_events.append([seconds_to_units(at + hold), (scancode & 0x7F) | 0x80])
+	_add_key_units(seconds_to_units(at), scancode, hold)
+
+
+func _add_key_units(at_units: int, scancode: int, hold: float) -> void:
+	key_events.append([at_units, scancode & 0x7F])
+	key_events.append([at_units + seconds_to_units(hold), (scancode & 0x7F) | 0x80])
 	key_events.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+
+
+## A key pressed `after` seconds past the moment the program marks `mark`.
+func add_key_after(mark: String, after: float, scancode: int, hold: float = 0.1) -> void:
+	keys_after_mark.append([mark, after, scancode, hold])
+
+
+## The program notes a moment by name; keys timed from it are scheduled now.
+func mark(name: String) -> void:
+	if marks.has(name):
+		return
+	marks[name] = now
+	for k: Array in keys_after_mark:
+		if k[0] == name:
+			_add_key_units(now + seconds_to_units(k[1]), k[2], k[3])
 
 
 # -------------------------------------------------------------------- ports

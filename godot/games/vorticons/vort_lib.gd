@@ -1224,6 +1224,7 @@ func LoadGraphics() -> void:
 	# display the "ONE MOMENT" pic while the remaining graphics load
 	DrawPic(15, 76, onemomen_pic())
 	vm.out16(GC_INDEX, GC_MODE)
+	cost("loadgraphics")    # the sprite file's expansion and shifting, the sound file
 
 	var spritesize: int = data.spritesize
 	var src: PackedByteArray = data.sprite_planes

@@ -132,6 +132,7 @@ func DrawIdScreen() -> void:
 	RF_Clear()
 	RF_Refresh()
 	RF_Refresh()
+	cost("drawidscreen")    # two pages of text and the logo drawn character by character
 	uservect = &""
 	ClearKeys()
 
@@ -424,6 +425,7 @@ func DrawIntroPics() -> void:
 
 
 func ShowApogeeIntro() -> void:
+	vm.mark("intro")
 	originx = X_APOGEE
 	originy = Y_APOGEE
 	var towait: int = 300

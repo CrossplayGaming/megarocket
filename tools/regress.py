@@ -11,8 +11,10 @@ missing oracle recordings, a broken test script) is reported separately and
 makes the whole run fail, because an unrun check proves nothing.
 """
 
+import subprocess
 import sys
 import time
+from pathlib import Path
 
 import common
 import frames
@@ -264,6 +266,49 @@ def data02():
     return code
 
 
+def _intro_refreshes(run_dir):
+    """How many refreshes a Keen 1-3 recording holds from its first intro picture
+    (the first with a few hundred lit pixels: the stars) to its end, and that picture's index."""
+    import numpy as np
+    seq = frames.Sequence(Path(run_dir) / "frames")
+    reps = [seq.repeats(i) for i in range(len(seq))]
+    for i in range(len(seq)):
+        lit = int((np.frombuffer(seq.frame(i), np.uint8).reshape(200, 320, 3).max(axis=2) > 0).sum())
+        if 100 < lit < 1000:
+            return i, sum(reps[i:])
+    return None, 0
+
+
+def simv01():
+    """The Vorticons port's Keen 1 boot (intro, title) against the oracle's 30 s recording:
+    the same pictures in the same order, by the comparator's rules."""
+    import gdtest
+    import shutil
+    cfg = common.config()
+    oracle = Path(cfg["oracle_runs"]) / "keen1_boot_a"
+    if not (oracle / "frames" / "frames.json").exists():
+        print("  COULD-NOT-RUN: no decoded oracle run keen1_boot_a")
+        return common.COULD_NOT_RUN
+    intro, after = _intro_refreshes(oracle)
+    if intro is None:
+        print("  COULD-NOT-RUN: the recording's first intro picture was not found")
+        return common.COULD_NOT_RUN
+    out = Path(cfg["oracle_runs"]).parent / "port_runs" / "keen1_boot"
+    shutil.rmtree(out, ignore_errors=True)
+    code, text = gdtest.run("simv01_boot", ["--game=keen1", "--seconds=40", f"--out={out}", f"--refreshes_after_intro={after - 10}"],
+                            timeout=600.0, quiet=True)
+    for line in text.splitlines():
+        if "keen1:" in line or "FAIL" in line:
+            print("  " + line.strip())
+    if code != common.PASS:
+        return code
+    r = subprocess.run([sys.executable, str(Path(__file__).parent / "compare_frames.py"), "port", str(out), str(oracle)],
+                       capture_output=True, text=True)
+    for line in r.stdout.splitlines()[-3:]:
+        print("  " + line.strip())
+    return common.PASS if "PASS" in r.stdout else common.FAIL
+
+
 CHECKS = {
     "HARN-01a": (harn01a, "slow"),
     "HARN-03a": (harn03a, "fast"),
@@ -275,6 +320,7 @@ CHECKS = {
     "DATA-01D": (data01d, "fast"),
     "SIM-02": (sim02, "fast"),
     "DATA-02": (data02, "fast"),
+    "SIM-V-01": (simv01, "fast"),
 }
 
 

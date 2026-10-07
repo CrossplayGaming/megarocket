@@ -1,0 +1,4 @@
+{"seconds": 25, "keys": "", "cycles": 20000,
+ "held": [[1.956, "enter", 0.2], [3.956, "enter", 0.2], [6.956, "right", 1.5], [8.756, "down", 0.35], [9.456, "ctrl", 0.2],
+          [11.956, "right", 3.0], [12.956, "ctrl", 0.3], [15.956, "left", 2.0], [16.956, "ctrl", 0.3]],
+ "note": "held times are 0.956 s after the recording's start = the first intro frame (66-67 refreshes in); the port times the same keys from its intro mark"}

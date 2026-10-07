@@ -35,6 +35,10 @@ func _init() -> void:
 	for spec: String in str(opts.get("keys", "")).split(",", false):
 		var parts: PackedStringArray = spec.split(":")
 		vm.add_key(float(parts[0]), int(parts[1]), float(parts[2]) if parts.size() > 2 else 0.1)
+	# keys timed from the first intro frame: <seconds after it>:<scancode>:<hold>
+	for spec: String in str(opts.get("keys_after_intro", "")).split(",", false):
+		var parts: PackedStringArray = spec.split(":")
+		vm.add_key_after("intro", float(parts[0]), int(parts[1]), float(parts[2]) if parts.size() > 2 else 0.1)
 	var writer: FrameWriter = FrameWriter.new()
 	if not writer.open(out):
 		t.blocked("cannot write " + out + ": " + writer.error)
@@ -42,16 +46,30 @@ func _init() -> void:
 		return
 	var card: EgaCard = vm.card
 	var written: Array = [0]
+	# the run may end a given number of displayed refreshes after the first
+	# intro frame, the way a recording of the same length does
+	var after_intro: Array = [int(opts.get("refreshes_after_intro", "-1"))]
+	var mark_written: Array = [-1]
+	var stopped: Array = [false]
 	vm.on_display = func() -> void:
-		if card.video_mode == EgaCard.MODE_EGA:
+		if card.video_mode == EgaCard.MODE_EGA and not stopped[0]:
 			writer.add_indexed(card.compose(), card.palette_rgb(), "P")
 			written[0] += 1
+			if mark_written[0] < 0 and vm.marks.has("intro"):
+				mark_written[0] = written[0]
+			if after_intro[0] >= 0 and vm.marks.has("intro"):
+				after_intro[0] -= 1
+				if after_intro[0] < 0:
+					# the run is over: nothing drawn while the program unwinds is recorded
+					stopped[0] = true
+					g.exited = true
+					vm.limit_fired = true
 	vm.time_limit = DosMachine.seconds_to_units(seconds)
 	vm.timer_offset = int(opts.get("timer_offset", "0"))
 	vm.vga_access_units = int(opts.get("vga_cost", "0"))
 	for spec: String in str(opts.get("costs", "")).split(",", false):
 		var kv: PackedStringArray = spec.split("=")
-		g.costs[kv[0]] = int(kv[1])
+		g.costs[kv[0]] = int(kv[1])    # overrides the game's fitted values
 	vm.on_limit = func() -> void:
 		g.exited = true
 	var t0: int = Time.get_ticks_msec()
@@ -60,6 +78,8 @@ func _init() -> void:
 	writer.close({"game": game, "seconds": seconds, "kinds": [], "level_starts": [0]})
 	print("  %s: %.1f s of game time in %.1f s, %d displays, %d distinct pictures, exit '%s'" %
 		[game, vm.seconds(), wall, written[0], writer._index.size(), g.exit_message])
+	if vm.marks.has("intro"):
+		print("  intro mark at %.3f s, %d displays after it" % [float(vm.marks["intro"]) / (DosMachine.PIT_HZ * DosMachine.UNIT), written[0] - mark_written[0]])
 	t.ok("the run reached the time limit without the program quitting on its own", g.exit_message == "" and vm.limit_fired)
 	t.ok("pictures were written", written[0] > 100)
 	# break the cycles between the machine's handlers and the game
