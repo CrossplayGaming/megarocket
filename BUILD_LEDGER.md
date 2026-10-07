@@ -74,7 +74,7 @@ game named in the evidence; where behaviour differs per engine, there is a row p
 | HARN-02b | A Dreams demo written by the tool plays in the original the same way. | spec | As above | HARN-01a | blocked | | | Input |
 | HARN-02c | A Vorticons timed-key script typed into DOSBox produces a run whose distinct-frame sequence is reproducible across two runs. | spec | Run twice, compare | HARN-01a | blocked | | | Input |
 | HARN-03a | The port's frame writer produces a frame store the comparator reads back pixel for pixel, with level starts and picture kinds intact; a store with one pixel changed has a different digest for that frame only. | spec | Round trip of a generated pattern, written by Godot and read by Python | | verified | `python tools/regress.py HARN-03a` PASS 2026-10-06: 12 written pictures read back as 9 entries identical to the pattern; planted pixel found in that picture only | 1 | Game loop |
-| HARN-04a | The comparator reports zero differences for a sequence against itself and names the exact frame when one pixel is altered. | spec | Self-test with planted fault | HARN-01a | blocked | | | Game loop |
+| HARN-04a | The comparator reports zero differences for a sequence against itself and names the exact frame when one pixel is altered, when a frame is skipped, invented, or wrong first, when the port ends early, and when a held picture's length is wrong; a declared in-between picture is accepted. | spec | Self-test with planted faults over two decoded Keen 1 boot runs | HARN-01a | verified | `python tools/regress.py HARN-04a` PASS 2026-10-06: 344 long-lasting pictures of run A found in order in run B; 14 planted cases each fail and are named. | 2 | Game loop |
 | HARN-05a | The determinism harness reports the frame of divergence when a random draw is deliberately skipped, in each engine. | spec | Self-test with planted fault | SIM-V-01, SIM-G-01, SIM-D-01 | blocked | | | Game loop |
 | HARN-06a | A still capture of each original's main menu is reproducible across two runs. | spec | Run twice, compare | HARN-01a | blocked | | | Menus |
 | HARN-07a | DOSBox OPL capture of a Galaxy song decodes to the song's writes in order; speaker-port capture of a Vorticons effect decodes to its frequency sequence; the comparator flags one altered write. | spec | Self-test with planted fault | HARN-01a | blocked | | | Audio |
@@ -82,7 +82,7 @@ game named in the evidence; where behaviour differs per engine, there is a row p
 | HARN-09a | The path walker reports a soft-lock when a back-out is deliberately disabled, reports a screen a pad alone cannot leave, and reports a function (a planted keyboard-only hot-key) a pad alone cannot trigger. It enumerates functions from the engines' own tables, so a new screen cannot be added without the walker seeing it. | spec | Self-test with three planted faults | SHELL-02 | blocked | | | Menus (A16) |
 | HARN-10a | Input generator writes random and scripted streams the demo tools accept, reproducibly from a seed. | spec | Self-test | HARN-02a | blocked | | | Input |
 | HARN-11a | Bounds check fails on an element deliberately placed off-screen at a phone aspect. | spec | Self-test with planted fault | SHELL-01 | blocked | | | HUD |
-| HARN-12a | Clean-tree check fails when a game file is staged under another name or embedded in an APK. | spec | Self-test with planted fault | | ready | | | Distribution |
+| HARN-12a | Clean-tree check fails when a game file is staged under another name or embedded in another file; the repository scans clean. | spec | Self-test with planted fault | | verified | `python tools/regress.py HARN-12a` 2026-10-06: renamed KEEN4E.EXE, a bare LEVEL01.CK1 and one embedded in padding each found and attributed; clean and blank files pass; 26 tracked files clean against 96 originals. The first scan FOUND the reference folders (keen13/gamedata etc.) tracked with the user's game files inside: they are now gitignored and untracked. APK scanning comes with HARN-15. | 1 | Distribution |
 | HARN-13a | Detection fixtures reproduce a Steam library across two drives, a GOG install, a loose folder with three games, and an Android import tree; the detector names every version in each, and a planted wrong version is named as wrong. | spec | Self-test | | ready | | | Launcher |
 | HARN-14a | Session comparison of the original's title loop against itself passes; against a run with one key one second late, fails naming the screen. | spec | Self-test | HARN-01a | blocked | | | Menus |
 | HARN-15a | Headless export produces a Windows build and an APK; the APK boots on the emulator to the launcher; a feature deliberately removed from the Android export is named by the parity list. | spec | Self-test with planted gap | SHELL-01, NATIVE-01 | blocked | | | Distribution |
@@ -92,7 +92,7 @@ game named in the evidence; where behaviour differs per engine, there is a row p
 
 | ID | Claim | Class | Check | Needs | Status | Evidence | Att | From |
 |---|---|---|---|---|---|---|---|---|
-| NATIVE-01 | `d2opl` builds for Windows x86_64, Linux x86_64 and Android arm64-v8a + x86_64 from one CMake file, and a GDScript call renders one second of a known register script to identical samples on all of them. | spec | Build matrix + sample hash | | ready | | | A14 |
+| NATIVE-01 | `d2opl` builds for Windows x86_64 and Android arm64-v8a + x86_64 (Linux through WSL on demand) from one script, and the chip's self-test renders a fixed register script to the same sample fingerprint with every host compiler; a planted one-step change to the chip is noticed. | spec | `python tools/build_native.py` then `--selftest` | | verified | 2026-10-06: d2opl.windows.x86_64.dll 127,857 B, libd2opl.android.arm64.so 13,968 B, libd2opl.android.x86_64.so 14,040 B; fingerprint 63356381a88ce505 from gcc -O2 and -O0; planted change noticed. Not yet run ON Android (needs the emulator up; AND-01 re-runs it there). | 1 | A14 |
 
 ### DATA — reading the original files
 
@@ -282,3 +282,5 @@ growing as units verify).
 
 | ID | Attempts | Cause | Note |
 |---|---|---|---|
+| HARN-01a | 2 | bad-check | The two-runs-agree check compared the recording's first and last pictures, whose hold counts come from where recording started and stopped, not from the game; they are now left out. |
+| HARN-04a | 2 | bad-check | Same edge: the comparator's end rule (R3) and the self-test's stand-in both counted the recording's cut last picture; timed runs end at an arbitrary refresh, so the last recorded picture now says nothing. |

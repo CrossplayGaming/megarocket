@@ -135,9 +135,42 @@ def harn03a():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def harn04a():
+    """The frame comparator's self-test on two decoded oracle runs of the same case."""
+    import compare_frames
+    root = common.config()["oracle_runs"]
+    for run in ("keen1_boot_a", "keen1_boot_b"):
+        if not (root / run / "frames" / "frames.json").exists():
+            print(f"COULD-NOT-RUN: {run} is not decoded (python tools/regress.py HARN-01a makes it)")
+            return common.COULD_NOT_RUN
+    return compare_frames.selftest("keen1_boot_a", "keen1_boot_b")
+
+
+def harn12a():
+    import check_clean
+    code = check_clean.selftest()
+    if code != common.PASS:
+        return code
+    return check_clean.check()[0]
+
+
+def native01():
+    import subprocess
+    import sys as _sys
+    for args in (["tools/build_native.py"], ["tools/build_native.py", "--selftest"]):
+        done = subprocess.run([_sys.executable, *args], cwd=str(common.ROOT), capture_output=True, text=True)
+        print(done.stdout.rstrip())
+        if done.returncode != 0:
+            return done.returncode
+    return common.PASS
+
+
 CHECKS = {
     "HARN-01a": (harn01a, "slow"),
     "HARN-03a": (harn03a, "fast"),
+    "HARN-04a": (harn04a, "fast"),
+    "HARN-12a": (harn12a, "fast"),
+    "NATIVE-01": (native01, "fast"),
 }
 
 

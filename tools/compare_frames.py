@@ -156,8 +156,10 @@ LONG_LIVED = 4          # refreshes: a picture up this long is certainly a finis
 
 
 def _long_lived(seq):
-    """The pictures a run showed for LONG_LIVED refreshes or more, from gameplay on."""
-    idx = settled(seq, LONG_LIVED)
+    """The pictures a run showed for LONG_LIVED refreshes or more, from gameplay on.
+    The recording's last picture is cut by where recording stopped, so it is
+    left out, as the first one is by gameplay_start."""
+    idx = [i for i in settled(seq, LONG_LIVED) if i != len(seq) - 1]
     start = gameplay_start(seq, idx)
     if start is None:
         return None
@@ -347,7 +349,9 @@ def compare_port(port, oracle, out_dir=None, check_extras=True, check_end=True):
             next_first = (port.digests[levels[level + 1][0][0]]
                           if level + 1 < len(levels) and levels[level + 1] else None)
             k = o + 1
-            while k < len(o_digest):
+            # The recording's last picture is cut by where recording stopped
+            # (timed runs), so it can say nothing about the game going on.
+            while k < len(o_digest) - 1:
                 got = o_digest[k]
                 if got == port.digests[last_index] or got in last_intermediates:
                     k += 1
@@ -381,7 +385,7 @@ def compare_port(port, oracle, out_dir=None, check_extras=True, check_end=True):
 
 def _stand_in_port(seq, least=SETTLED):
     """A stand-in for port output: one oracle run's own long-lasting frames of the first level."""
-    idx = settled(seq, least)
+    idx = [i for i in settled(seq, least) if i != len(seq) - 1]
     start = gameplay_start(seq, idx)
     chosen = []
     for i in idx[start:]:
