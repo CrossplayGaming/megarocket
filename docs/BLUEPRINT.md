@@ -49,7 +49,7 @@ Quality priorities, in order:
 | `omnispeak` / `omnispeak-ref` | David Gow's pixel-perfect, bug-for-bug reimplementation of Keen 4–6 (GPL v2); `-ref` is the pristine upstream, `omnispeak` the Megarocket fork. | The specification for Keen 4–6 (there is no released original source). Ported function by function. Its `data/` metadata (action tables, chunk indices) is engine-own public data and may be bundled. |
 | `refkeen` (`src/kdreams`) and id Software's released Keen Dreams source | The original Keen Dreams C source (GPL v2 release, 2014) as carried in ReflectionHLE. | The specification for Keen Dreams. |
 | `keen6/keen6.conf`, Steam `dosbox.conf`/`keen4.conf` | How the games are sold today. | Oracle settings start from these. |
-| Player's own game files | Keen 1–3 v1.31 (Steam), Keen 4/5 v1.4 (Steam `base4`/`base5`), Keen 6 v1.0 EGA (run as is by the oracle; the port reads its three version tables from the executable), Keen Dreams (`keendreams/game`). SHA-256 of each executable recorded in `docs/REFERENCES.md`. | Run in DOSBox as the oracle; read at run time by the port. Never copied into the repository. |
+| Player's own game files | Keen 1–3 v1.31 (Steam), Keen 4/5 v1.4 (Steam `base4`/`base5`), Keen 6 v1.0 EGA (run as is by the oracle; the port reads its three version tables from the executable), Keen Dreams v1.00 (`keendreams/game`) and the 2015 Steam release (supported in v1.0, J-17). SHA-256 of each executable recorded in `docs/REFERENCES.md`. | Run in DOSBox as the oracle; read at run time by the port. Never copied into the repository. |
 
 ## Fidelity line
 
@@ -88,6 +88,7 @@ Everything here is a feature. An audit must not flag it as a deviation.
 - First-run setup that finds the games in Steam and GOG installs automatically, or lets the player browse to a folder; per-game status; re-detects without a restart; never writes into the game folders.
 - Gamepad support everywhere, including rebinding, hot-plugging, and text entry (save names, high scores, Keen 6's creature answer) on a d-pad — a gate on every screen-bearing unit (ledger A16), not a feature added after.
 - Android build from the same project: touch overlay (d-pad plus buttons, per-engine layouts), game import through the system folder picker into the app's own storage, landscape lock, audio at low latency.
+- Export for Android (Windows launcher): once any game is found, one button writes a folder (or ZIP) of the found games' files, organised and labelled, that the Android app imports in one pick and runs straight away (user, 2026-10-07).
 - Fixed-rate simulation independent of machine speed.
 - Window, borderless and fullscreen; integer and fit scaling; native resolution.
 - Classic / Enhanced presets per game and globally. Classic = original rates, original bugs, original view, speaker audio; Enhanced = the fixes, widescreen, smooth motion, native resolution.
@@ -130,6 +131,7 @@ user decides.
 | Every error names what happened and the next step; a log file exists and its location is shown | required | Diagnosability for other people's installs | automated test | catalog |
 | Version shown in the UI | required | Bug reports | automated test | catalog |
 | Android: games imported through the system folder picker (or a ZIP) into app storage; per-file progress; a failed copy is retried and reported | required | Phones have no Steam folder to scan | automated test (fixture tree) + manual | project |
+| Windows: "Export for Android" on the launcher, available once at least one game is found: writes one folder (or one ZIP) holding exactly the recognised files of every found game, organised per game with a manifest, which the Android app takes in one pick and plays at once | required | Getting the user's own files onto a phone is the hardest step of the Android setup (user, 2026-10-07) | automated test (export then import round trip, fixture and emulator) + manual on the user's phone | user |
 | Android: the on-screen controls hide when any physical controller is connected and return when it leaves | required | Backbone-style play | manual checklist | project |
 | Android: back gesture/button maps to Esc everywhere; the app never exits on it without the game's own quit prompt | required | Accidental exits lose progress | automated test (path walk) | project |
 | Android: install on a phone with no prior data, grant nothing, run | required | Cold start on the other platform | manual checklist | catalog |
