@@ -41,7 +41,8 @@ func _init() -> void:
 	# Fitted on keen2_title_a: the sprite loading ends 21.6 refreshes after
 	# the ONE MOMENT picture (only the part within a refresh shows: it places
 	# the timer's start against the refresh), and the timer's own phase.
-	costs = {"loadgraphics": 367727040, "demoloop_load": 5 * 8192 * DosMachine.UNIT}
+	costs = {"loadgraphics": 367727040, "demoloop_load": 5 * 8192 * DosMachine.UNIT,
+		"worldmap_load": 13721593, "mapframe": 190909, "levelframe": 334091}    # Keen 1's, until fitted here
 	dosbox_timing.timer_offset = -2539712
 
 

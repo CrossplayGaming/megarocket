@@ -6,12 +6,12 @@
    0.2
   ],
   [
-   3.17,
+   3.1558,
    "enter",
    0.2
   ],
   [
-   6.17,
+   6.1558,
    "right",
    1.5
   ],
@@ -86,7 +86,7 @@
    0.3
   ],
   [
-   31.214,
+   31.1998,
    "ctrl",
    0.3
   ],
@@ -96,11 +96,11 @@
    0.3
   ],
   [
-   34.214,
+   34.1998,
    "ctrl",
    0.3
   ]
  ],
  "refreshes_after_intro": 2768,
- "result": "first difference at picture 30"
+ "result": "first difference at picture 681"
 }
