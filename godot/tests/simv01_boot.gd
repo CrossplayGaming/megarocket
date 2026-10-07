@@ -33,6 +33,13 @@ func _init() -> void:
 	g.data = data
 	g.trace_frames = OS.has_environment("MR_TRACE")
 	g.save_dir = opts.get("save", OS.get_temp_dir().path_join("mr_vort_save_%d" % Time.get_ticks_usec()))
+	# a case's saved games (its oracle "overrides" folder) go into a fresh save folder
+	if opts.has("save_seed"):
+		DirAccess.make_dir_recursive_absolute(g.save_dir)
+		var seed_dir: DirAccess = DirAccess.open(str(opts["save_seed"]))
+		if seed_dir != null:
+			for f: String in seed_dir.get_files():
+				seed_dir.copy(str(opts["save_seed"]).path_join(f), g.save_dir.path_join(f))
 	for spec: String in str(opts.get("keys", "")).split(",", false):
 		var parts: PackedStringArray = spec.split(":")
 		vm.add_key(float(parts[0]), int(parts[1]), float(parts[2]) if parts.size() > 2 else 0.1)

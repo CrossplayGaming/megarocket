@@ -36,7 +36,7 @@ import timing_score
 FRAME_SECONDS = 6 * 8192 / 1193182.0     # one game frame: six timer tics
 REFRESH_SECONDS = 1 / 70.086               # one display refresh; keys in a WaitVBL-driven screen land on these
 SCANCODES = {"enter": 28, "esc": 1, "space": 57, "ctrl": 29, "alt": 56, "up": 72, "down": 80, "left": 75, "right": 77,
-             "tab": 15, "lshift": 42, "f1": 59, "f2": 60, "f3": 61, "f4": 62, "f5": 63, "y": 21, "n": 49, "d": 32, "t": 20}
+             "tab": 15, "1": 2, "lshift": 42, "f1": 59, "f2": 60, "f3": 61, "f4": 62, "f5": 63, "y": 21, "n": 49, "d": 32, "t": 20}
 
 
 def intro_of(run_dir):
@@ -53,11 +53,14 @@ EXTRA_OPTS = []     # runner options every run gets (--fixed)
 TIMING = False      # score by pictures and durations (tools/timing_score.py) instead of order alone
 
 
+SAVE_SEED = []      # --save_seed for a case with an "overrides" folder of saves
+
+
 def run_port(game, keys, after, out):
     spec = ",".join(f"{t:.4f}:{SCANCODES[k]}:{h}" for t, k, h in keys)
     shutil.rmtree(out, ignore_errors=True)
     subprocess.run([sys.executable, "tools/gdtest.py", "simv01_boot", "--", f"--game={game}", "--seconds=120",
-                    f"--out={out}", f"--keys_after_intro={spec}", f"--refreshes_after_intro={after - 10}"] + EXTRA_OPTS,
+                    f"--out={out}", f"--keys_after_intro={spec}", f"--refreshes_after_intro={after - 10}"] + EXTRA_OPTS + SAVE_SEED,
                    capture_output=True, text=True)
 
 
@@ -95,6 +98,9 @@ def main():
     cfg = common.config()
     oracle = Path(args.oracle or Path(cfg["oracle_runs"]) / f"{args.game}_{args.case}_a")
     case = json.loads((Path(__file__).parent / "cases" / args.game / f"{args.case}.json").read_text())
+    global SAVE_SEED
+    if case.get("overrides"):
+        SAVE_SEED = [f"--save_seed={(common.ROOT / case['overrides']).as_posix()}"]
     intro_s, after = intro_of(oracle)
     keys = [[t - intro_s, k, h] for t, k, h in case["held"]]
     target = Path(__file__).parent / "cases" / args.game / f"{args.case}.port.json"

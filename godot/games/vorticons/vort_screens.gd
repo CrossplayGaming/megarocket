@@ -279,7 +279,7 @@ func RestoreMenu() -> bool:
 			Print("  That game hasn't\n")
 			Print("  been saved yet!:")
 			Get()
-		elif bytes.size() == 88:
+		elif bytes.size() == VortMain.GameState.SIZE:
 			gamestate.from_bytes(bytes)
 			restoredGame = true
 			return true

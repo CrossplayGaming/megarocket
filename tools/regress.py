@@ -331,6 +331,9 @@ def _timing_case(game, case, seconds):
         args = [f"--game={game}", "--seconds=120", f"--out={out}",
                 "--keys_after_intro=" + ",".join(f"{t:.4f}:{SCANCODES[k]}:{h}" for t, k, h in pc["keys_after_intro"]),
                 f"--refreshes_after_intro={pc['refreshes_after_intro'] + 20}"]
+        spec = json.loads((Path(__file__).parent / "cases" / game / f"{case}.json").read_text())
+        if spec.get("overrides"):
+            args.append(f"--save_seed={(common.ROOT / spec['overrides']).as_posix()}")
     code, text = gdtest.run("simv01_boot", args, timeout=900.0, quiet=True)
     if code != common.PASS:
         for line in text.splitlines():

@@ -205,6 +205,7 @@ class PObj:
 
 
 class GameState:
+	const SIZE: int = 92
 	var gotJoystick: bool = false
 	var gotVacuum: bool = false
 	var gotEverclear: bool = false
@@ -226,7 +227,9 @@ class GameState:
 		leveldone.resize(NUMLEVELS)
 		leveldone.fill(false)
 
-	## The original's 88-byte file layout (word-aligned Turbo C structs).
+	## The original's file layout: sizeof(gametype) is 92 bytes (two-byte
+	## booleans and words, four-byte longs, no padding), as a save the original
+	## wrote in DOSBox shows (oracle run keen1_savetest_a).
 	func to_bytes() -> PackedByteArray:
 		var b: PackedByteArray = PackedByteArray()
 		for v: bool in [gotJoystick, gotVacuum, gotEverclear, gotPogo, gotBattery]:
@@ -248,7 +251,7 @@ class GameState:
 		return b
 
 	func from_bytes(b: PackedByteArray) -> bool:
-		if b.size() != 88:
+		if b.size() != SIZE:
 			return false
 		var o: int = 0
 		gotJoystick = _r16(b, o) != 0

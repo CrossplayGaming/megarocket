@@ -29,6 +29,9 @@ TICK_UNITS = 8192 * 1000
 def run_args(game, case, seconds):
     port_case = Path(__file__).parent / "cases" / game / f"{case}.port.json"
     extra = []
+    spec = json.loads((Path(__file__).parent / "cases" / game / f"{case}.json").read_text())
+    if spec.get("overrides"):
+        extra.append(f"--save_seed={(common.ROOT / spec['overrides']).as_posix()}")
     if port_case.exists():
         pc = json.loads(port_case.read_text(encoding="utf-8"))
         extra = [f"--keys_after_intro={','.join(f'{t:.4f}:{SCANCODES[k]}:{h}' for t, k, h in pc['keys_after_intro'])}",
