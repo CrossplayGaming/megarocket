@@ -1,0 +1,7 @@
+{"seconds": 40, "keys": "", "cycles": 20000,
+ "held": [[1.956, "enter", 0.2], [3.956, "enter", 0.2], [6.956, "right", 1.5], [8.756, "down", 0.35],
+          [11.956, "right", 3.0], [15.456, "ctrl", 0.2], [15.956, "ctrl", 0.2], [16.456, "ctrl", 0.2],
+          [19.0, "right", 4.0], [20.0, "ctrl", 0.3], [21.5, "ctrl", 0.3], [23.5, "right", 3.0], [24.5, "ctrl", 0.3],
+          [27.0, "left", 1.0], [28.5, "ctrl", 0.3], [29.5, "right", 5.0], [30.5, "ctrl", 0.3], [32.0, "ctrl", 0.3],
+          [33.5, "ctrl", 0.3], [35.0, "ctrl", 0.3]],
+ "note": "new game, walk to Border Village, enter it, run right jumping. Held times are seconds after the recording's start; the first intro frame is 0.956 s in."}

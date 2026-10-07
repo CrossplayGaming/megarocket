@@ -362,6 +362,18 @@ def simv02():
     return code
 
 
+def shell10a():
+    """Export for Android (core): the found games' release files, exactly, one folder per game,
+    with a manifest; sources untouched; re-export keeps, repairs, refuses a damaged source;
+    the ZIP both ways; the finder recognises what was exported."""
+    import gdtest
+    code, out = gdtest.run("shell10_export", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "every game" in line:
+            print("  " + line.strip())
+    return code
+
+
 def harn05a():
     """The Vorticons determinism harness: two runs of the same inputs give the same state hash
     at every frame; a skipped random draw is reported at its frame; the hash covers the variables."""
@@ -387,6 +399,7 @@ CHECKS = {
     "SIM-V-01": (simv01, "fast"),
     "HARN-05a": (harn05a, "fast"),
     "TIME-V1": (timev1, "fast"),
+    "SHELL-10a": (shell10a, "fast"),
     "SIM-V-02": (simv02, "slow"),
 }
 
