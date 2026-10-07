@@ -221,6 +221,27 @@ def data01g():
     return common.PASS
 
 
+def data01d():
+    """The Keen Dreams loader (PKLITE-unpacked executable, embedded headers) and damaged copies refused."""
+    import gdtest
+    code, out = gdtest.run("data01_dreams", timeout=900.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "digests" in line or "maps:" in line or "checks" in line or "unpacked" in line:
+            print("  " + line.strip())
+    if code != common.PASS:
+        return code
+    for victim in ("EGAGRAPH.KDR", "GAMEMAPS.KDR", "AUDIO.KDR", "KDREAMS.EXE"):
+        code, out = gdtest.run("data01_dreams", [f"--plant={victim}"], timeout=600.0, quiet=True)
+        if code != common.PASS:
+            print(f"  planted damage in {victim}: NOT refused by name")
+            for line in out.splitlines():
+                if "FAIL" in line:
+                    print("    " + line.strip())
+            return common.FAIL
+    print("  planted damage in four file kinds: each refused by name")
+    return common.PASS
+
+
 CHECKS = {
     "HARN-01a": (harn01a, "slow"),
     "HARN-03a": (harn03a, "fast"),
@@ -229,6 +250,7 @@ CHECKS = {
     "NATIVE-01": (native01, "fast"),
     "DATA-01V": (data01v, "fast"),
     "DATA-01G": (data01g, "slow"),
+    "DATA-01D": (data01d, "fast"),
 }
 
 
