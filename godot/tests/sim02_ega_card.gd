@@ -256,8 +256,16 @@ func _start_and_pages() -> void:
 	c.mem_write(0x2000, 0xFF)      # page 1, row 0
 	reg(c, EgaCard.CRTC_INDEX, EgaCard.CRTC_STARTHIGH, 0)
 	reg(c, EgaCard.CRTC_INDEX, EgaCard.CRTC_STARTLOW, 80)
+	c.latch_start()
 	t.eq("CRTC start 80 shows memory row 2 as row 0", eight(c.compose(), 0, 0), [2, 2, 2, 2, 2, 2, 2, 2])
+	reg(c, EgaCard.CRTC_INDEX, EgaCard.CRTC_STARTLOW, 0)
+	t.eq("a start address written after the retrace began is not shown yet", eight(c.compose(), 0, 0), [2, 2, 2, 2, 2, 2, 2, 2])
+	c.latch_start()
+	t.eq("it shows once the next retrace latches it", eight(c.compose(), 0, 0), [0, 0, 0, 0, 0, 0, 0, 0])
+	reg(c, EgaCard.CRTC_INDEX, EgaCard.CRTC_STARTLOW, 80)
+	c.latch_start()
 	c.bios_set_active_page(1)
+	c.latch_start()
 	t.eq("BIOS page 1 is start address 2000h", c.start_address(), 0x2000)
 	var pic: PackedByteArray = c.compose()
 	t.eq("page 1 shows its own memory", eight(pic, 0, 0), [2, 2, 2, 2, 2, 2, 2, 2])
@@ -281,6 +289,7 @@ func _split_screen() -> void:
 	c.mem_write(0x2000, 0xFF)      # page 1 row 0
 	c.mem_write(0x2000 + 100 * 40, 0xFF)   # page 1 row 100
 	c.bios_set_active_page(1)
+	c.latch_start()
 	# Line compare for picture row 100: the VGA double-scans, so 200.
 	reg(c, EgaCard.CRTC_INDEX, EgaCard.CRTC_LINECOMPARE, 200)
 	reg(c, EgaCard.CRTC_INDEX, EgaCard.CRTC_OVERFLOW, 0x01)
@@ -320,6 +329,7 @@ func _edges() -> void:
 	t.eq("address 0 untouched by the write past the end", c.mem_read(0), 0)
 	reg(c, EgaCard.CRTC_INDEX, EgaCard.CRTC_STARTHIGH, 0xFF)
 	reg(c, EgaCard.CRTC_INDEX, EgaCard.CRTC_STARTLOW, 0xF8)
+	c.latch_start()
 	c.mem_write(0, 0xFF)
 	var pic: PackedByteArray = c.compose()
 	t.ok("the picture wraps round the 64 KiB window", eight(pic, 56, 0) == [1, 1, 1, 1, 1, 1, 1, 1] and eight(pic, 64, 0) == [1, 1, 1, 1, 1, 1, 1, 1])
@@ -349,6 +359,7 @@ func _snapshot() -> void:
 	c.mem_write(0x4000 + 123, 0x5A)
 	c.mem_read(0x4000 + 123)
 	c.bios_set_active_page(2)
+	c.latch_start()
 	var before: PackedByteArray = c.compose()
 	var s: Dictionary = c.snapshot()
 	var d: EgaCard = card()
@@ -368,7 +379,7 @@ static func reference_compose(c: EgaCard) -> PackedByteArray:
 	var pan: int = c.atc[EgaCard.ATR_PELPAN] & 7
 	var compare: int = c.crtc[EgaCard.CRTC_LINECOMPARE] | ((c.crtc[EgaCard.CRTC_OVERFLOW] & 0x10) << 4) | ((c.crtc[EgaCard.CRTC_MAXSCANLINE] & 0x40) << 3)
 	var split: int = (compare + 1) / 2
-	var start: int = (c.crtc[EgaCard.CRTC_STARTHIGH] << 8) | c.crtc[EgaCard.CRTC_STARTLOW]
+	var start: int = c.display_start
 	for y: int in range(200):
 		var row_start: int
 		var row_pan: int = pan

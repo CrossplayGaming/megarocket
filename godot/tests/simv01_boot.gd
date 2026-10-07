@@ -28,9 +28,10 @@ func _init() -> void:
 		t.finish(self)
 		return
 	var vm: DosMachine = DosMachine.new()
-	var g: VortKeen1 = VortKeen1.new()
+	var g: VortActs = VortKeen3.new() if game == "keen3" else (VortKeen2.new() if game == "keen2" else VortKeen1.new())
 	g.vm = vm
 	g.data = data
+	g.trace_frames = OS.has_environment("MR_TRACE")
 	g.save_dir = opts.get("save", OS.get_temp_dir().path_join("mr_vort_save_%d" % Time.get_ticks_usec()))
 	for spec: String in str(opts.get("keys", "")).split(",", false):
 		var parts: PackedStringArray = spec.split(":")
@@ -55,6 +56,8 @@ func _init() -> void:
 		if card.video_mode == EgaCard.MODE_EGA and not stopped[0]:
 			writer.add_indexed(card.compose(), card.palette_rgb(), "P")
 			written[0] += 1
+			if written[0] == 1 and OS.has_environment("MR_TRACE"):
+				print("TRACE first_display vbl=%d" % vm.vbl_count)
 			if mark_written[0] < 0 and vm.marks.has("intro"):
 				mark_written[0] = written[0]
 			if after_intro[0] >= 0 and vm.marks.has("intro"):
@@ -65,7 +68,16 @@ func _init() -> void:
 					g.exited = true
 					vm.limit_fired = true
 	vm.time_limit = DosMachine.seconds_to_units(seconds)
-	vm.timer_offset = int(opts.get("timer_offset", "0"))
+	# the oracle's fitted timing unless an option overrides a part of it
+	var timing: Dictionary = {}
+	for k: String in ["cycles", "vbl_period", "timer_offset"]:
+		if opts.has(k):
+			timing[k] = int(opts[k])
+	g.apply_dosbox_timing(timing)
+	if g.trace_frames:
+		var used: Dictionary = g.dosbox_timing.duplicate()
+		used.merge(timing, true)
+		print("TRACE timing " + JSON.stringify(used))
 	vm.vga_access_units = int(opts.get("vga_cost", "0"))
 	for spec: String in str(opts.get("costs", "")).split(",", false):
 		var kv: PackedStringArray = spec.split("=")

@@ -555,6 +555,7 @@ func ReadLevel(number: int) -> void:
 	if raw.is_empty() or expanded.is_empty():
 		Quit("Error loading " + name + ": " + data.error)
 		return
+	vm.instructions(_rlew_instructions(raw))
 	var top: int = (BIGBUFFERSIZE - 1) - raw.size()
 	for i: int in range(raw.size()):
 		if top + i < BIGBUFFERSIZE:
@@ -579,6 +580,29 @@ func ReadLevel(number: int) -> void:
 	originymax = TILE_TO_GLOBAL(lh_height - PORTTILESHIGH - 1) + 8 * PIXGLOBAL
 	playerxmax = TILE_TO_GLOBAL(lh_width - 3)
 	playerymax = TILE_TO_GLOBAL(lh_height)
+
+
+## IDLIBC's RLEWExpand compiled by Turbo C with far pointers: about 13
+## instructions a literal word, 20 to start a run and 7 a word of it.
+func _rlew_instructions(raw: PackedByteArray) -> int:
+	if raw.size() < 4:
+		return 0
+	var out_words: int = (raw[0] | (raw[1] << 8) | (raw[2] << 16) | (raw[3] << 24)) / 2
+	var i: int = 4
+	var made: int = 0
+	var n: int = 0
+	while made < out_words and i + 1 < raw.size():
+		var value: int = raw[i] | (raw[i + 1] << 8)
+		i += 2
+		if value != 0xFEFE:
+			n += 13
+			made += 1
+		else:
+			var count: int = raw[i] | (raw[i + 1] << 8) if i + 1 < raw.size() else 0
+			i += 4
+			n += 20 + 7 * count
+			made += count
+	return n
 
 
 func AskQuit() -> void:
@@ -854,6 +878,27 @@ func Quit(error: String) -> void:
 
 
 ## The program's start: everything main() does before DemoLoop.
+## The machine the oracle recordings were made on, fitted to them
+## (tools/timing_score.py, tools/fit_option.py; see the ledger's A17):
+## DOSBox Staging's normal core at a fixed 20000 instructions a
+## millisecond, its refresh period in thousandths of a timer cycle, and the
+## phase of the timer the program reprograms against the refresh.
+var dosbox_timing: Dictionary = {"cycles": 20000, "vbl_period": 17024400, "timer_offset": -1442892}
+
+
+## Puts the machine on the oracle's timing (a test or a faithful-timing option).
+func apply_dosbox_timing(overrides: Dictionary = {}) -> void:
+	var tm: Dictionary = dosbox_timing.duplicate()
+	tm.merge(overrides, true)
+	vm.set_cycles(int(tm.cycles))
+	vm.vbl_period = int(tm.vbl_period)
+	vm.timer_offset = int(tm.timer_offset)
+
+
+## Tests only: called in place of DemoLoop once the program has started up.
+var after_startup: Callable = Callable()
+
+
 func main() -> void:
 	# "Joystick not detected"
 	var xy: PackedInt32Array = ReadJoystick(1)
@@ -911,6 +956,9 @@ func main() -> void:
 	cyclespeed = 7
 	timecount = 0
 	lasttimecount = 0
+	if after_startup.is_valid():
+		after_startup.call()    # a test drives the game from here instead of the demo loop
+		return
 	DemoLoop()
 
 

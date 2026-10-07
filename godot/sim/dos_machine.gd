@@ -25,6 +25,8 @@ const UNIT: int = 1000
 ## 1193182 * 1000 / 70.086 refreshes a second, the rate DOSBox reports for
 ## mode 0Dh ("70.086 Hz" in its log).
 const VBL_PERIOD: int = 17024567
+## The refresh period in use (a fitting knob; the constant is the nominal 70.086 Hz).
+var vbl_period: int = VBL_PERIOD
 ## The vertical retrace lasts about two scan lines of the 449 in a frame.
 const RETRACE_LEN: int = 76000
 
@@ -206,8 +208,9 @@ func _run_to(target: int) -> void:
 		if t == next_vbl:
 			last_vbl = t
 			vbl_count += 1
-			next_vbl = t + VBL_PERIOD
+			next_vbl = t + vbl_period
 			_display_due = t + RETRACE_LEN
+			card.latch_start()    # the CRTC takes the start address as the retrace begins
 		elif t == _display_due:
 			_display_due = 1 << 62
 			if on_display.is_valid():
@@ -236,6 +239,29 @@ func cpu_work(units: int) -> void:
 	_settle()
 	if units > 0:
 		_run_to(now + units)
+
+
+## The emulated processor's speed: DOSBox at a fixed cycle count runs that
+## many instructions per millisecond, one cycle each (a REP string
+## instruction one per repetition). 0 leaves instruction time out.
+var cycles_per_ms: int = 0
+var _instr_rem: int = 0    # thousandths of a unit carried between calls
+
+
+func set_cycles(per_ms: int) -> void:
+	cycles_per_ms = per_ms
+	_instr_rem = 0
+
+
+## `n` instructions of the original's code: their time at the set speed.
+func instructions(n: int) -> void:
+	if cycles_per_ms <= 0 or n <= 0:
+		return
+	# n / cycles_per_ms milliseconds, a millisecond being PIT_HZ * UNIT / 1000 units
+	var total: int = n * PIT_HZ * UNIT + _instr_rem
+	var units: int = total / cycles_per_ms / 1000
+	_instr_rem = total - units * cycles_per_ms * 1000
+	cpu_work(units)
 
 
 func in_retrace() -> bool:
@@ -275,7 +301,7 @@ func poll() -> void:
 func snapshot() -> Dictionary:
 	return {
 		"card": card.snapshot(), "now": now, "next_vbl": next_vbl, "last_vbl": last_vbl, "vbl_count": vbl_count,
-		"display_due": _display_due, "pit0_reload": pit0_reload, "next_tick": next_tick, "tick_count": tick_count,
+		"display_due": _display_due, "instr_rem": _instr_rem, "pit0_reload": pit0_reload, "next_tick": next_tick, "tick_count": tick_count,
 		"pit0_low": _pit0_low, "pit0_expect_high": _pit0_expect_high, "pit2_count": pit2_count,
 		"pit2_low": _pit2_low, "pit2_expect_high": _pit2_expect_high, "port61": port61,
 		"key_index": _key_index, "port60": port60, "charged": _charged_accesses,
@@ -285,6 +311,7 @@ func snapshot() -> Dictionary:
 func restore(s: Dictionary) -> void:
 	card.restore(s.card)
 	now = s.now
+	_instr_rem = s.instr_rem
 	next_vbl = s.next_vbl
 	last_vbl = s.last_vbl
 	vbl_count = s.vbl_count

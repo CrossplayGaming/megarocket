@@ -80,6 +80,7 @@ func WorldMap() -> void:
 	ClearKeys()
 	RF_ForceRefresh()
 	ReadLevel(WORLDMAP)
+	cost("worldmap_load")    # fitting hook: time DOSBox spends entering the map not yet modelled
 	if episode == 3:
 		_spawn_messie()
 	if not restoredGame:
@@ -988,6 +989,7 @@ func DrawMainMenuScreen() -> void:
 	DrawTitleScreen()
 	uservect = &"DrawMainMenu"
 	RF_Refresh()
+	cost("drawmainmenu")    # three page draws with the title picture and the window
 	uservect = &""
 
 

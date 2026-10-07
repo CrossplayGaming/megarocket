@@ -1,0 +1,51 @@
+{
+ "keys_after_intro": [
+  [
+   1.1664,
+   "enter",
+   0.2
+  ],
+  [
+   3.0,
+   "enter",
+   0.2
+  ],
+  [
+   6.157,
+   "right",
+   1.5
+  ],
+  [
+   7.9427,
+   "down",
+   0.3785
+  ],
+  [
+   8.5,
+   "ctrl",
+   0.2
+  ],
+  [
+   11.1713,
+   "right",
+   3.0
+  ],
+  [
+   11.9144,
+   "ctrl",
+   0.3
+  ],
+  [
+   15.0285,
+   "left",
+   2.0
+  ],
+  [
+   16.0,
+   "ctrl",
+   0.3
+  ]
+ ],
+ "refreshes_after_intro": 1717,
+ "result": "first difference at game frame 161"
+}

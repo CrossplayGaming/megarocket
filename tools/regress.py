@@ -309,6 +309,59 @@ def simv01():
     return common.PASS if "PASS" in r.stdout else common.FAIL
 
 
+def _timing_case(game, case, seconds):
+    """Run the port from power-on for a recording's case and score it refresh for refresh."""
+    import gdtest
+    import shutil
+    import timing_score
+    cfg = common.config()
+    oracle = Path(cfg["oracle_runs"]) / f"{game}_{case}_a"
+    if not (oracle / "frames" / "frames.json").exists():
+        print(f"  COULD-NOT-RUN: no decoded oracle run {game}_{case}_a")
+        return common.COULD_NOT_RUN
+    out = Path(cfg["oracle_runs"]).parent / "port_runs" / f"timing_{game}_{case}"
+    shutil.rmtree(out, ignore_errors=True)
+    code, text = gdtest.run("simv01_boot", [f"--game={game}", f"--seconds={seconds}", f"--out={out}"], timeout=900.0, quiet=True)
+    if code != common.PASS:
+        for line in text.splitlines():
+            if "FAIL" in line or "ERROR" in line:
+                print("  " + line.strip())
+        return code
+    k, note, port, orc, _ = timing_score.score(out, oracle)
+    print(f"  {game} {case}: {note} (recording: {len(orc) - 1} complete pictures)")
+    return common.PASS if k >= len(orc) - 1 else common.FAIL
+
+
+def timev1():
+    """The Vorticons port's timing against DOSBox, refresh for refresh: the Keen 1 boot (30 s)
+    and title (50 s, through the id and high-score screens) recordings and Keen 2's title, every picture lasting
+    exactly as many refreshes as in the recording (instruction-counted drawing, fitted phase/rate)."""
+    results = [_timing_case("keen1", "boot", 33), _timing_case("keen1", "title", 53), _timing_case("keen2", "title", 53)]
+    return common.COULD_NOT_RUN if common.COULD_NOT_RUN in results else max(results)
+
+
+def simv02():
+    """Every level of Keen 1, 2 and 3, the world maps, the status and ordering screens and the
+    endings run to a time limit under scripted play without a script error."""
+    import gdtest
+    code, out = gdtest.run("simv02_levels", ["--games=keen1,keen2,keen3", "--seconds=12"], timeout=1800.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
+def harn05a():
+    """The Vorticons determinism harness: two runs of the same inputs give the same state hash
+    at every frame; a skipped random draw is reported at its frame; the hash covers the variables."""
+    import gdtest
+    code, out = gdtest.run("harn05_determinism", ["--seconds=18", "--plant=900"], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line:
+            print("  " + line.strip())
+    return code
+
+
 CHECKS = {
     "HARN-01a": (harn01a, "slow"),
     "HARN-03a": (harn03a, "fast"),
@@ -321,6 +374,9 @@ CHECKS = {
     "SIM-02": (sim02, "fast"),
     "DATA-02": (data02, "fast"),
     "SIM-V-01": (simv01, "fast"),
+    "HARN-05a": (harn05a, "fast"),
+    "TIME-V1": (timev1, "fast"),
+    "SIM-V-02": (simv02, "slow"),
 }
 
 

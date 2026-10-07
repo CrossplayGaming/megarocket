@@ -14,6 +14,7 @@ Usage:
 The range is in timer tics (8192 clock cycles each, 1000 units a cycle).
 """
 import argparse
+import json
 import re
 import shutil
 import subprocess
@@ -42,6 +43,15 @@ def main():
     oracle = args.oracle or str(Path(cfg["oracle_runs"]) / f"{args.game}_{args.case}_a")
     case = common.load_case(args.game, args.case) if hasattr(common, "load_case") else None
     seconds = args.seconds or (case["seconds"] if case else 30)
+    # a case whose keys were fitted (tools/fit_keys.py) runs with those keys and its length
+    port_case = Path(__file__).parent / "cases" / args.game / f"{args.case}.port.json"
+    extra = []
+    if port_case.exists():
+        pc = json.loads(port_case.read_text(encoding="utf-8"))
+        from fit_keys import SCANCODES
+        extra = [f"--keys_after_intro={','.join(f'{t:.4f}:{SCANCODES[k]}:{h}' for t, k, h in pc['keys_after_intro'])}",
+                 f"--refreshes_after_intro={pc['refreshes_after_intro'] - 10}"]
+        seconds = 120
     results = []
     n = int(round((args.hi - args.lo) / args.step)) + 1
     for k in range(n):
@@ -51,7 +61,7 @@ def main():
         shutil.rmtree(out, ignore_errors=True)
         costs = f"{args.cost}={units}" + ("," + args.fixed if args.fixed else "")
         subprocess.run([sys.executable, "tools/gdtest.py", "simv01_boot", "--", f"--game={args.game}", f"--seconds={seconds}",
-                        f"--out={out}", f"--costs={costs}"], capture_output=True, text=True)
+                        f"--out={out}", f"--costs={costs}"] + extra, capture_output=True, text=True)
         c = subprocess.run([sys.executable, "tools/compare_frames.py", "port", str(out), oracle], capture_output=True, text=True)
         m = re.search(r"game frame (\d+) of (\d+)", c.stdout)
         if "PASS" in c.stdout:

@@ -132,7 +132,7 @@ func DrawIdScreen() -> void:
 	RF_Clear()
 	RF_Refresh()
 	RF_Refresh()
-	cost("drawidscreen")    # two pages of text and the logo drawn character by character
+	cost("drawidscreen")    # 0 since drawing is charged by instruction count; kept as a fitting hook
 	uservect = &""
 	ClearKeys()
 

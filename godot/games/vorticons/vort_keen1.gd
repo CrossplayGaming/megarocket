@@ -42,7 +42,12 @@ func _init() -> void:
 	# fitted against DOSBox recordings of this game (tools/fit_costs.py):
 	# loading the sprites (the "one moment" picture stays 32 refreshes in the
 	# recording) and the four text files before the first fade (5 timer tics).
-	costs = {"loadgraphics": 21 * DosMachine.VBL_PERIOD, "demoloop_load": 5 * 8192 * DosMachine.UNIT}
+	# (Drawing is charged by instruction count; these are the file work.)
+	# Entering the world map: 11.5 ms more than the map's expansion (fitted on
+	# the new-game recording: anything from 5 to 18 ms holds the black pause
+	# at 20 refreshes; not yet explained by instruction counts).
+	costs = {"loadgraphics": 21 * DosMachine.VBL_PERIOD, "demoloop_load": 5 * 8192 * DosMachine.UNIT,
+		"worldmap_load": 13721593}
 
 
 func LoadLevel(number: int) -> void:

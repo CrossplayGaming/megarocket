@@ -405,6 +405,18 @@ func start_address() -> int:
 	return ((crtc[CRTC_STARTHIGH] << 8) | crtc[CRTC_STARTLOW]) & 0xFFFF
 
 
+## The start address the next picture is scanned from. The CRTC takes the
+## start address registers at the beginning of each vertical retrace, so a
+## write made during or after the retrace shows one picture later; the pel
+## panning is taken at the retrace's end. The machine calls this at every
+## retrace start; a program working the card alone calls it itself.
+var display_start: int = 0
+
+
+func latch_start() -> void:
+	display_start = start_address()
+
+
 ## Bytes from one row to the next (twice the CRTC offset register).
 func line_width() -> int:
 	return crtc[CRTC_OFFSET] * 2
@@ -428,7 +440,7 @@ func compose() -> PackedByteArray:
 	var stride: int = line_width()
 	var pan: int = atc[ATR_PELPAN] & 7
 	var split: int = split_row()
-	var base: int = start_address()
+	var base: int = display_start
 	var position: int = 0
 	for y: int in range(HEIGHT):
 		if y == split:
@@ -517,7 +529,7 @@ func snapshot() -> Dictionary:
 		"seq_index": seq_index, "map_mask": map_mask,
 		"gc_index": gc_index, "gc": gc.duplicate(),
 		"atc_index": atc_index, "atc_expect_data": atc_expect_data, "atc": atc.duplicate(),
-		"crtc_index": crtc_index, "crtc": crtc.duplicate(),
+		"crtc_index": crtc_index, "crtc": crtc.duplicate(), "display_start": display_start,
 		"dac": dac.duplicate(), "dac_write_index": dac_write_index, "dac_component": dac_component,
 		"video_mode": video_mode, "status_reads": _status_reads,
 	}
@@ -541,6 +553,7 @@ func restore(s: Dictionary) -> void:
 	atc = s.atc.duplicate()
 	crtc_index = s.crtc_index
 	crtc = s.crtc.duplicate()
+	display_start = s.display_start
 	dac = s.dac.duplicate()
 	dac_write_index = s.dac_write_index
 	dac_component = s.dac_component

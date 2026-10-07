@@ -288,6 +288,72 @@ func _init() -> void:
 	bigbuffer.resize(0x10000)
 
 
+# ----------------------------------------------------------- state, hash
+
+## Properties that are wiring or constant tables, not simulation state.
+const NOT_STATE: PackedStringArray = ["vm", "data", "save_dir", "dos_time", "costs", "exit_message", "episode", "P", "S", "SND", "classes"]
+
+
+## Every variable of the program, by name, as plain values: the whole
+## simulation state (A7), the machine's included.
+func state_snapshot() -> Dictionary:
+	var out: Dictionary = {}
+	for prop: Dictionary in get_property_list():
+		if (prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE) == 0 or NOT_STATE.has(prop.name):
+			continue
+		out[prop.name] = _plain(get(prop.name))
+	out["__machine"] = vm.snapshot()
+	return out
+
+
+static func _plain(v: Variant) -> Variant:
+	match typeof(v):
+		TYPE_OBJECT:
+			if v.has_method("to_dict"):
+				return v.to_dict()
+			return null
+		TYPE_ARRAY:
+			var a: Array = []
+			for e: Variant in v:
+				a.append(_plain(e))
+			return a
+		TYPE_DICTIONARY:
+			var d: Dictionary = {}
+			for k: Variant in v:
+				d[k] = _plain(v[k])
+			return d
+		TYPE_STRING_NAME:
+			return String(v)
+	return v
+
+
+## A digest of the state: the same program state gives the same hash.
+func state_hash() -> String:
+	var h: HashingContext = HashingContext.new()
+	h.start(HashingContext.HASH_SHA256)
+	h.update(var_to_bytes(state_snapshot()))
+	return h.finish().hex_encode().substr(0, 16)
+
+
+## Puts a snapshot back. Objects in lists are rebuilt in place.
+func state_restore(snap: Dictionary) -> void:
+	for prop: Dictionary in get_property_list():
+		if (prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE) == 0 or NOT_STATE.has(prop.name) or not snap.has(prop.name):
+			continue
+		var cur: Variant = get(prop.name)
+		var val: Variant = snap[prop.name]
+		if typeof(cur) == TYPE_OBJECT and cur != null and cur.has_method("from_dict"):
+			cur.from_dict(val)
+		elif typeof(cur) == TYPE_ARRAY and val is Array and cur.size() > 0 and typeof(cur[0]) == TYPE_OBJECT:
+			for i: int in range(mini(cur.size(), val.size())):
+				cur[i].from_dict(val[i])
+		elif typeof(cur) == TYPE_STRING_NAME:
+			set(prop.name, StringName(val))
+		else:
+			set(prop.name, val)
+	vm.restore(snap["__machine"])
+
+
 # ---------------------------------------------------------------- helpers
 
 static func s16(v: int) -> int:
@@ -696,6 +762,7 @@ func CRTCstart(start: int) -> void:
 
 ## DrawChar: xcoord in bytes, ycoord in pixels; an 8x8 character through the latches.
 func DrawChar(xcoord: int, ycoord: int, charnum: int) -> void:
+	vm.instructions(50)    # IDASM's DrawChar: 8 rows of movsb/add, set-up and the call
 	var es: int = seg_addr(screenseg, 0)
 	var di: int = (xcoord + ylookup[ycoord]) & 0xFFFF
 	vm.out16(GC_INDEX, GC_MODE | (1 << 8))
@@ -709,6 +776,9 @@ func DrawChar(xcoord: int, ycoord: int, charnum: int) -> void:
 ## DrawTile: a 16x16 tile through the latches, or, with the sign bit set, a
 ## masked tile merged plane by plane (the mask is the tile that follows it).
 func DrawTile(xcoord: int, ycoord: int, tilenum: int) -> void:
+	# IDASM's DrawTile: 16 rows of two movsb (about 84 with set-up), or the
+	# masked path's four planes of 16 eleven-instruction rows
+	vm.instructions(84 if (tilenum & 0x8000) == 0 else 782)
 	var es: int = seg_addr(screenseg, 0)
 	var di: int = (xcoord + ylookup[ycoord]) & 0xFFFF
 	if (tilenum & 0x8000) == 0:     # the sign bit of the original's 16-bit number marks a masked tile
@@ -743,6 +813,7 @@ func DrawTile(xcoord: int, ycoord: int, tilenum: int) -> void:
 ## DrawPic: xcoord in bytes, ycoord in pixels; a picture through the latches.
 func DrawPic(xcoord: int, ycoord: int, picnum: int) -> void:
 	var p: Dictionary = pictable[picnum]
+	vm.instructions(40 + p.h * (7 + p.w))    # IDASM's DrawPic: per line six instructions and a rep movsb
 	var es: int = seg_addr(screenseg, 0)
 	vm.out8(SC_INDEX, SC_MAPMASK)
 	vm.out8(SC_INDEX + 1, 15)
@@ -763,6 +834,10 @@ func DrawPic(xcoord: int, ycoord: int, picnum: int) -> void:
 ## one of the four shifts) is merged into each plane under its mask.
 func DrawSprite(xcoord: int, ycoord: int, spritenum: int) -> void:
 	var e: Dictionary = spritetable[spritenum]
+	# IDASM's DrawSprite: four planes of EGAone..EGAeight, each row four
+	# instructions a word (or odd byte) and three for the loop
+	@warning_ignore("integer_division")
+	vm.instructions(45 + 4 * (19 + int(e.h) * (4 * ((int(e.w) + 1) / 2) + 3)))
 	var blockdest: int = (xcoord + ylookup[ycoord]) & 0xFFFF
 	var blockheight: int = e.h
 	var blocksource: int = e.shape
@@ -852,6 +927,7 @@ func _draw_page(page1: bool) -> void:
 	var bx: int = (mapplane[0] + ((((originy >> 8) & 0xFFFF) >> 4) * mapbwide) + ((((originx >> 8) & 0xFFFF) >> 4) << 1)) & 0xFFFF
 	var tileoff: int = 0
 	var drawoff: int = 0
+	var drawn: int = 0
 	for ty: int in range(PORTTILESHIGH):
 		for tx: int in range(PORTTILESWIDE):
 			var o: int = (bx + tileoff) & 0xFFFF
@@ -864,6 +940,7 @@ func _draw_page(page1: bool) -> void:
 					oldtiles[idx] = si
 				else:
 					oldtiles2[idx] = si
+				drawn += 1
 				# DrawTile16
 				var s: int = tileptr + si
 				var di: int = (es + 0x604 + drawoff) & 0xFFFF
@@ -876,9 +953,20 @@ func _draw_page(page1: bool) -> void:
 			drawoff += 2
 		bx += mapwidthextra
 		drawoff += 16 * SCREENWIDTH - 2 * PORTTILESWIDE
+	# the unwound DrawPage: five instructions to look at a tile, three more
+	# and DrawTile16's 53 to copy one, one per row, two to set up and return
+	vm.instructions(PORTTILESWIDE * PORTTILESHIGH * 5 + drawn * 56 + PORTTILESHIGH + 3)
+
+
+## Tests only: print each refresh's start and start-address write time (the
+## lead analysis of A17); set by the runner.
+var trace_frames: bool = false
 
 
 func VidRefresh() -> void:
+	if trace_frames:
+		var unit: float = DosMachine.PIT_HZ * DosMachine.UNIT
+		print("TRACE start t=%.6f last_vbl=%.6f" % [vm.now / unit, vm.last_vbl / unit])
 	VidInitDraw()
 	vm.out16(GC_INDEX, GC_MODE | (1 << 8))
 	screenofs = 0
@@ -898,6 +986,9 @@ func VidRefresh() -> void:
 	screenseg = saved
 	if uservect != &"":
 		call(uservect)
+	if trace_frames:
+		var unit: float = DosMachine.PIT_HZ * DosMachine.UNIT
+		print("TRACE refresh t=%.6f timecount=%d next_tick=%.6f next_vbl=%.6f vbl=%d" % [vm.now / unit, timecount, vm.next_tick / unit, vm.next_vbl / unit, vm.vbl_count])
 	# set CRTC start, wait for the end of a retrace, set it again, wait for
 	# the next retrace, then the panning
 	_set_crtc_start()
