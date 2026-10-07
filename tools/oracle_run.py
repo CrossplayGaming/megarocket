@@ -27,6 +27,7 @@ so AUTOTYPE's timing (good to a few hundredths of a second) is good enough.
 A case is tools/cases/<game>/<name>.json:
 
     {"seconds": 45, "keys": "", "key_wait": 3, "key_pace": 0.5,
+     "prekeys": [[6.0, "enter", 0.2]],      posted before the first picture (start-up screens)
      "held": [[12.0, "esc", 0.3]], "may_exit": false, "cycles": 20000}
 
 Usage: python tools/oracle_run.py <game> <case> [--as NAME] [--opl] [--wave] [--show]
@@ -140,6 +141,8 @@ def load_case(game, case):
     spec.setdefault("key_wait", 3)
     spec.setdefault("key_pace", 0.5)
     spec.setdefault("held", [])
+    spec.setdefault("prekeys", [])      # keys posted BEFORE the first picture: [[seconds after the window, key, hold]]
+    spec.setdefault("press_until_picture", None)   # {"key": "enter", "from": 8.0, "every": 1.5}: tap until the first picture
     spec.setdefault("may_exit", False)
     spec.setdefault("cycles", DEFAULT_CYCLES)
     spec.setdefault("overrides", None)
@@ -286,8 +289,12 @@ def _run(game, case, run_name, spec, opl, wave, show):
         return common.COULD_NOT_RUN, run_dir
 
     held = [tuple(h) for h in spec["held"]]
+    prekeys = [tuple(h) for h in spec["prekeys"]]
+    pup = spec["press_until_picture"]
+    if pup:
+        prekeys = prekeys + [(pup["from"], pup["key"], 0.3)]
     host_key_for = {}
-    for _, game_key, _ in held:
+    for _, game_key, _ in held + prekeys:
         if game_key not in host_key_for:
             if len(host_key_for) == len(SPARE_HOST_KEYS):
                 print(f"COULD-NOT-RUN: more than {len(SPARE_HOST_KEYS)} different held keys")
@@ -328,10 +335,44 @@ def _run(game, case, run_name, spec, opl, wave, show):
     if hwnd is None:
         return fail(common.COULD_NOT_RUN, "COULD-NOT-RUN: DOSBox window never appeared")
 
-    # 1. The game's first picture: its first entry into the EGA mode.
+    # 1. The game's first picture: its first entry into the EGA mode. Keys the
+    # start-up screens need (the "Ready - Press a Key" hardware detection of
+    # Galaxy and Dreams) are posted to DOSBox's window meanwhile; they reach
+    # the emulated keyboard controller like real key presses, which Dreams'
+    # own keyboard handler needs (DOSBox's AUTOTYPE did not wake it).
     want = MODE_OF[entry["engine"]]
-    if not _wait(lambda: want in log.modes(), 40, proc):
-        return fail(common.COULD_NOT_RUN, f"COULD-NOT-RUN: the game never entered mode {want}")
+    opened = time.time()
+    pending = []
+    for at, game_key, how_long in prekeys:
+        pending.append((at, 0, host_key_for[game_key][0]))
+        pending.append((at + how_long, 1, host_key_for[game_key][0]))
+    pending.sort()
+    while want not in log.modes():
+        if proc.poll() is not None or time.time() - opened > 40:
+            return fail(common.COULD_NOT_RUN, f"COULD-NOT-RUN: the game never entered mode {want}")
+        if pup and not pending and time.time() - opened >= pup["from"]:
+            # The start-up screens eat a key pressed while hardware detection
+            # is still running (Dreams, up to ~12 s in) and wait for ever
+            # afterwards, so the key is tapped again every so often until the
+            # first picture appears; the mode is checked before every tap.
+            at = time.time() - opened + pup["every"]
+            pending = [(at, 0, host_key_for[pup["key"]][0]), (at + 0.3, 1, host_key_for[pup["key"]][0])]
+        while pending and time.time() - opened >= pending[0][0]:
+            _, is_release, host_key = pending.pop(0)
+            (winkeys.key_up if is_release else winkeys.key_down)(hwnd, host_key)
+            if not is_release:
+                print(f"  posted {host_key} at {time.time() - opened:.1f} s after the window")
+        time.sleep(0.02)
+    # A key pressed just before the first picture must still be released:
+    # left down, the game would see it held for the whole run (found on
+    # 2026-10-06: Keen 4 sat on a menu with Enter held, 27 distinct pictures
+    # in 75 s instead of the intro and demo).
+    for _, is_release, host_key in pending:
+        if is_release:
+            time.sleep(0.3)
+            winkeys.key_up(hwnd, host_key)
+    pending = []
+    print(f"  first picture (mode {want}) {time.time() - opened:.1f} s after the window")
     # 2. Start recording; retry until DOSBox confirms.
     for _ in range(10):
         winkeys.tap(hwnd, "f8")

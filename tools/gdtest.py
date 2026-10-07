@@ -57,7 +57,7 @@ def run(test, extra=(), timeout=120.0, quiet=False, project=None):
         refresh_class_cache(cfg)
     cmd = [str(cfg["godot"]), "--headless", "--path", str(project or common.ROOT / "godot"),
            "--script", f"res://tests/{test}.gd", "--",
-           *extra]
+           f"--game_data={cfg['game_data']}", *extra]
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
                               encoding="utf-8", errors="replace")

@@ -165,12 +165,41 @@ def native01():
     return common.PASS
 
 
+def data01v():
+    """The Vorticons loader over Keen 1-3, damaged copies refused by name, and
+    the GDScript LZEXE unpacker agreeing with the Python one on every program."""
+    import hashlib
+    import gdtest
+    import unlzexe
+    code, out = gdtest.run("data01_vorticons", timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "digests" in line or "unpacked program" in line or "checks" in line:
+            print("  " + line.strip())
+    if code != common.PASS:
+        return code
+    for game in ("keen2", "keen3"):
+        exe = [p for p in common.game_files(game) if p.suffix.upper() == ".EXE"][0]
+        want = hashlib.sha1(unlzexe.unpack(exe.read_bytes())).hexdigest()[:12]
+        if f"{game} unpacked program" not in out or want not in out:
+            print(f"  {game}: the GDScript unpacker's image digest is not {want} (Python's)")
+            return common.FAIL
+    print("  unpacked programs: GDScript and Python agree")
+    for victim in ("EGALATCH.CK1", "LEVEL01.CK1", "EGAHEAD.CK1", "SOUNDS.CK1", "EGASPRIT.CK1"):
+        code, out = gdtest.run("data01_vorticons", [f"--plant={victim}"], timeout=300.0, quiet=True)
+        if code != common.PASS:
+            print(f"  planted damage in {victim}: NOT refused by name")
+            return common.FAIL
+    print("  planted damage in five file kinds: each refused by name")
+    return common.PASS
+
+
 CHECKS = {
     "HARN-01a": (harn01a, "slow"),
     "HARN-03a": (harn03a, "fast"),
     "HARN-04a": (harn04a, "fast"),
     "HARN-12a": (harn12a, "fast"),
     "NATIVE-01": (native01, "fast"),
+    "DATA-01V": (data01v, "fast"),
 }
 
 
