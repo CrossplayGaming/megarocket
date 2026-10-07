@@ -201,7 +201,9 @@ def data01v():
 def data01g():
     """The Galaxy loader over Keen 4-6 with omnispeak's metadata, and damaged copies refused by name."""
     import gdtest
-    code, out = gdtest.run("data01_galaxy", timeout=1800.0, quiet=True)
+    # Keen 6: the user's copy is v1.0, which omnispeak's v1.4 headers do not
+    # describe (DATA-01G6 waits on the official 6KEEN14 patch being run).
+    code, out = gdtest.run("data01_galaxy", ["--games=keen4,keen5"], timeout=1800.0, quiet=True)
     for line in out.splitlines():
         if "FAIL" in line or "digests" in line or "maps:" in line or "checks" in line:
             print("  " + line.strip())

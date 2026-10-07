@@ -24,13 +24,13 @@ the program finds them in Steam/GOG installs or a chosen folder at run time.
 | Keen 3 | 1.31 (Steam) | `KEEN3.EXE` (61,599) | `ce240fee9e23e0c3` | `keen13/gamedata3`, Steam `base3` |
 | Keen 4 | 1.4 EGA (Steam) | `Keen4e.exe` (105,108) | `bdbb46746e02c0dd` | Steam `base4` |
 | Keen 5 | 1.4 EGA (Steam) | `Keen5e.exe` (106,417) | `77f687268be09763` | Steam `base5` |
-| Keen 6 | 1.0 EGA, data patched to 1.4 | `KEEN6C.EXE` (104,938) | `050dadf0c1902fcf` | `keen6/game`, `keen6patch` (official `6keen14.exe` patch) |
+| Keen 6 | **1.0 EGA, executable and data** (banner says v1.0; the v1.4 headers do not fit its EGAGRAPH) | `KEEN6C.EXE` (104,938) | `050dadf0c1902fcf` | `keen6/game`, `keen6patch` (official `6keen14.exe` patch, a Windows GUI program) |
 | Keen Dreams | registered 1.00 (per Megarocket's `-gamever kdreamse100`) | `kdreams.exe` (77,694) | `36a22dbd3119c0b4` | `keendreams/game` |
 
-**Keen 6 oracle note.** Omnispeak and the port target v1.4; the data in `F:\KeenLauncher\rt` was
-already patched to 1.4 for Megarocket, but no v1.4 *executable* exists on disk (`rt/KEEN6C.EXE` is
-the 1.0 file). Running `6keen14.exe` in DOSBox over a scratch copy produces the v1.4 executable the
-oracle needs. First deliverable of HARN-01 for Keen 6. Keen 6 v1.5 is deferred.
+**Keen 6 note.** Omnispeak and the port target v1.4. Everything on this machine is v1.0 (Megarocket
+played Keen 6 under DOSBox for exactly this reason). `6keen14.exe` is a Windows GUI patcher: the user
+runs it on a copy of the v1.0 files and the result is the v1.4 set (J-16). Until then the Keen 6 units
+are blocked. Keen 6 v1.5 is deferred.
 
 ## The oracle
 
