@@ -1,0 +1,68 @@
+{
+ "stages": [
+  {"key": "files", "label": "Reads your game files"},
+  {"key": "runs", "label": "Game runs in Megarocket"},
+  {"key": "matches", "label": "Proven against the original"},
+  {"key": "extras", "label": "Menus, options, cheats"},
+  {"key": "android", "label": "On Android"}
+ ],
+ "games": [
+  {"id": "keen1", "name": "Keen 1", "full": "Marooned on Mars",
+   "files": ["DATA-01V", "DATA-02"], "runs": ["SIM-V-01a", "SIM-V-01"], "matches": ["TIME-V1", "REPLAY-V1"],
+   "extras": ["MENU-01", "CHEAT-01", "SCR-01"], "android": ["AND-01", "AND-02"],
+   "notes": {"matches": "Title, menu and world map match to the refresh; first level being matched now"}},
+  {"id": "keen2", "name": "Keen 2", "full": "The Earth Explodes",
+   "files": ["DATA-01V", "DATA-02"], "runs": ["SIM-V-02"], "matches": ["TIME-V1", "REPLAY-V2"],
+   "extras": ["MENU-01", "CHEAT-01", "SCR-01"], "android": ["AND-01", "AND-02"],
+   "notes": {"runs": "Every level plays", "matches": "Title sequence matches to the refresh; levels next"}},
+  {"id": "keen3", "name": "Keen 3", "full": "Keen Must Die!",
+   "files": ["DATA-01V", "DATA-02"], "runs": ["SIM-V-02"], "matches": ["TIME-V1", "REPLAY-V3"],
+   "extras": ["MENU-01", "CHEAT-01", "SCR-01"], "android": ["AND-01", "AND-02"],
+   "notes": {"runs": "Every level plays", "matches": "Title sequence matches to the refresh; levels next"}},
+  {"id": "keen4", "name": "Keen 4", "full": "Secret of the Oracle",
+   "files": ["DATA-01G", "DATA-02"], "runs": ["SIM-G-01"], "matches": ["REPLAY-G4"],
+   "extras": ["MENU-02", "CHEAT-01", "SCR-01"], "android": ["AND-01", "AND-02"], "notes": {}},
+  {"id": "keen5", "name": "Keen 5", "full": "The Armageddon Machine",
+   "files": ["DATA-01G", "DATA-02"], "runs": ["SIM-G-01"], "matches": ["REPLAY-G5"],
+   "extras": ["MENU-02", "CHEAT-01", "SCR-01"], "android": ["AND-01", "AND-02"], "notes": {}},
+  {"id": "keen6", "name": "Keen 6", "full": "Aliens Ate My Babysitter!",
+   "files": ["DATA-01G6", "DATA-02"], "runs": ["SIM-G-01"], "matches": ["REPLAY-G6"],
+   "extras": ["MENU-02", "CHEAT-01", "SCR-01"], "android": ["AND-01", "AND-02"],
+   "notes": {"files": "Your v1.0 copy, read as it is"}},
+  {"id": "kdreams", "name": "Keen Dreams", "full": "",
+   "files": ["DATA-01D", "DATA-02", "DATA-01D2"], "runs": ["SIM-D-01"], "matches": ["REPLAY-D"],
+   "extras": ["MENU-03", "CHEAT-01", "SCR-01"], "android": ["AND-01", "AND-02"],
+   "notes": {"files": "v1.00 read; the 2015 Steam release waits for its files"}}
+ ],
+ "areas": {
+  "HARN": "Test tools",
+  "DATA": "Reading game files",
+  "SIM": "Game engines",
+  "TIME": "Timing against the originals",
+  "REPLAY": "Matching the originals",
+  "SCREENS": "Original screens and menus",
+  "MENU": "Added options screens",
+  "CHEAT": "Cheat menu",
+  "FIX": "Bug-fix toggles",
+  "SHELL": "Launcher and settings",
+  "SAVE": "Saves and high scores",
+  "AUDIO": "Sound and music",
+  "REND": "Display options",
+  "ANDROID": "Android",
+  "DIST": "Release",
+  "V15": "Version 1.5 goals"
+ },
+ "needs_you": [
+  {"what": "Install Keen Dreams from Steam, if you own it", "why": "Supporting the 2015 Steam release needs its files on this PC; none were found."},
+  {"what": "Look and sound decisions, later", "why": "Widescreen HUD placement, the sound of each engine, the added options screens and smooth motion are yours to judge once there is a build to see and hear."}
+ ],
+ "milestones": [
+  {"date": "2026-10-07", "text": "Export for Android: the files of every found game copied into one folder or ZIP for the phone (the button comes with the launcher)"},
+  {"date": "2026-10-07", "text": "Keen 3's title sequence matches the original to the refresh"},
+  {"date": "2026-10-07", "text": "Keen 1's new game and world-map walk match the original to the refresh"},
+  {"date": "2026-10-07", "text": "Keen 2 and Keen 3 ported; every level of all three episodes plays"},
+  {"date": "2026-10-07", "text": "Keen 1's and Keen 2's title sequences match the original to the refresh"},
+  {"date": "2026-10-07", "text": "Keen 1 boots and plays in Megarocket, intro to first level"},
+  {"date": "2026-10-06", "text": "All seven games' files found and read: Steam, GOG, folders and ZIPs"}
+ ]
+}
