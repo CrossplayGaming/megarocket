@@ -1191,6 +1191,7 @@ func LevelLoop(currentlevel: int) -> int:
 			var pob: PObj = pobjlist[i]
 			if pob.type != POBJ_NOTHING:
 				call(pob.think, pob)
+		cost("levelframe")    # the frame's C code before the refresh (thinks, contacts, placement), not yet counted
 		RF_Refresh()
 		ctrl2 = ctrl.duplicate()
 		if episode == 3 and showbossintro and currentlevel == 16:

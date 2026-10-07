@@ -47,7 +47,10 @@ func _init() -> void:
 	# the new-game recording: anything from 5 to 18 ms holds the black pause
 	# at 20 refreshes; not yet explained by instruction counts).
 	costs = {"loadgraphics": 21 * DosMachine.VBL_PERIOD, "demoloop_load": 5 * 8192 * DosMachine.UNIT,
-		"worldmap_load": 13721593}
+		"worldmap_load": 13721593,
+		# each map frame's C code before its refresh (ControlMapKeen, the
+		# clipping, placing the sprite, the key checks): 0.16 ms, fitted (0.13-0.19 pass)
+		"mapframe": 190909}
 
 
 func LoadLevel(number: int) -> void:

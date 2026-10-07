@@ -167,6 +167,7 @@ func WorldMap() -> void:
 			ControlMapKeen(ControlPlayer(1), ob)
 			if episode == 3:
 				_place_messie(anim)
+			cost("mapframe")    # the map frame's C code before the refresh, not yet counted
 			RF_Refresh()
 			HandleUserKeys()
 			worldkeenx = ob.x

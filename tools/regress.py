@@ -11,6 +11,7 @@ missing oracle recordings, a broken test script) is reported separately and
 makes the whole run fail, because an unrun check proves nothing.
 """
 
+import json
 import subprocess
 import sys
 import time
@@ -321,7 +322,16 @@ def _timing_case(game, case, seconds):
         return common.COULD_NOT_RUN
     out = Path(cfg["oracle_runs"]).parent / "port_runs" / f"timing_{game}_{case}"
     shutil.rmtree(out, ignore_errors=True)
-    code, text = gdtest.run("simv01_boot", [f"--game={game}", f"--seconds={seconds}", f"--out={out}"], timeout=900.0, quiet=True)
+    args = [f"--game={game}", f"--seconds={seconds}", f"--out={out}"]
+    port_case = Path(__file__).parent / "cases" / game / f"{case}.port.json"
+    if port_case.exists():
+        # a session with keys: the keys fitted to the recording, run past its end
+        from fit_keys import SCANCODES
+        pc = json.loads(port_case.read_text(encoding="utf-8"))
+        args = [f"--game={game}", "--seconds=120", f"--out={out}",
+                "--keys_after_intro=" + ",".join(f"{t:.4f}:{SCANCODES[k]}:{h}" for t, k, h in pc["keys_after_intro"]),
+                f"--refreshes_after_intro={pc['refreshes_after_intro'] + 20}"]
+    code, text = gdtest.run("simv01_boot", args, timeout=900.0, quiet=True)
     if code != common.PASS:
         for line in text.splitlines():
             if "FAIL" in line or "ERROR" in line:
@@ -336,7 +346,8 @@ def timev1():
     """The Vorticons port's timing against DOSBox, refresh for refresh: the Keen 1 boot (30 s)
     and title (50 s, through the id and high-score screens) recordings and Keen 2's title, every picture lasting
     exactly as many refreshes as in the recording (instruction-counted drawing, fitted phase/rate)."""
-    results = [_timing_case("keen1", "boot", 33), _timing_case("keen1", "title", 53), _timing_case("keen2", "title", 53)]
+    results = [_timing_case("keen1", "boot", 33), _timing_case("keen1", "title", 53), _timing_case("keen1", "newgame", 120),
+               _timing_case("keen2", "title", 53)]
     return common.COULD_NOT_RUN if common.COULD_NOT_RUN in results else max(results)
 
 
