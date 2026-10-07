@@ -74,6 +74,8 @@ func _init() -> void:
 		if opts.has(k):
 			timing[k] = int(opts[k])
 	g.apply_dosbox_timing(timing)
+	if opts.has("dos_ticks"):
+		g.dos_ticks = int(opts["dos_ticks"])
 	if g.trace_frames:
 		var used: Dictionary = g.dosbox_timing.duplicate()
 		used.merge(timing, true)

@@ -180,6 +180,25 @@ var data: VortData
 var save_dir: String = ""
 ## The DOS clock the random generators are seeded from: [hour, minute, second, hundredths].
 var dos_time: PackedInt32Array = [0, 0, 0, 0]
+## The BIOS tick count the program finds when it reads the DOS clock at start
+## (InitRndT/InitRnd seed from it). The oracle sets DOSBox's clock to
+## midnight before the game runs, so this is the same every run of a game;
+## fitted per game. -1 keeps `dos_time` as given.
+var dos_ticks: int = -1
+
+
+## DOSBox's INT 21h AH=2Ch: the BIOS ticks as hours, minutes, seconds, hundredths.
+func _dos_clock() -> PackedInt32Array:
+	if dos_ticks < 0:
+		return dos_time
+	var t: int = int(100.0 / (float(DosMachine.PIT_HZ) / 65536.0) * float(dos_ticks))
+	var hh: int = t % 100
+	t /= 100
+	var s: int = t % 60
+	t /= 60
+	var m: int = t % 60
+	t /= 60
+	return PackedInt32Array([t % 24, m, s, hh])
 ## Where the original spends processor time the port does not, named, in
 ## clock units; fitted against the oracle's recordings.
 var costs: Dictionary = {}
@@ -291,7 +310,7 @@ func _init() -> void:
 # ----------------------------------------------------------- state, hash
 
 ## Properties that are wiring or constant tables, not simulation state.
-const NOT_STATE: PackedStringArray = ["vm", "data", "save_dir", "dos_time", "costs", "exit_message", "episode", "P", "S", "SND", "classes"]
+const NOT_STATE: PackedStringArray = ["vm", "data", "save_dir", "dos_time", "dos_ticks", "costs", "exit_message", "episode", "P", "S", "SND", "classes"]
 
 
 ## Every variable of the program, by name, as plain values: the whole
@@ -1481,8 +1500,9 @@ func InitRnd(randomize: bool) -> void:
 	indexi = 17 * 2
 	indexj = 5 * 2
 	if randomize:
-		var dx: int = ((dos_time[2] & 0xFF) << 8) | (dos_time[3] & 0xFF)
-		var cx: int = ((dos_time[0] & 0xFF) << 8) | (dos_time[1] & 0xFF)
+		var clock: PackedInt32Array = _dos_clock()
+		var dx: int = ((clock[2] & 0xFF) << 8) | (clock[3] & 0xFF)
+		var cx: int = ((clock[0] & 0xFF) << 8) | (clock[1] & 0xFF)
 		RndArray[16] = dx
 		dx ^= cx
 		RndArray[4] = dx
@@ -1526,7 +1546,7 @@ func Rnd(maxval: int) -> int:
 
 
 func InitRndT(randomize: bool) -> void:
-	rndindex = (dos_time[3] & 0xFF) if randomize else 0
+	rndindex = (_dos_clock()[3] & 0xFF) if randomize else 0
 
 
 func RndT() -> int:

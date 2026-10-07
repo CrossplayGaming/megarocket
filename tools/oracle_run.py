@@ -101,6 +101,7 @@ oplmode = auto
 pcspeaker = true
 
 [autoexec]
+time 00:00:00
 mount c "{game}"
 c:
 {autotype}
