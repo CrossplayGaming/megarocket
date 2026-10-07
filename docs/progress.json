@@ -48,7 +48,7 @@
     "AND-02"
    ],
    "notes": {
-    "matches": "Title, menu, world map and a stretch of Border Village match to the refresh; 15 more levels to record"
+    "matches": "Title, menu, world map and 9 of 16 levels match to the refresh; 7 levels still being matched"
    }
   },
   {
@@ -240,6 +240,10 @@
   }
  ],
  "milestones": [
+  {
+   "date": "2026-10-07",
+   "text": "Nine of Keen 1's 16 levels now match the original to the refresh (entering the level, running, jumping, creatures, shots)"
+  },
   {
    "date": "2026-10-07",
    "text": "Keen 1's Border Village matches the original to the refresh: walk in, run, jump, Yorps and Gargs"
