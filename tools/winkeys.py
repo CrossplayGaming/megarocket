@@ -1,0 +1,98 @@
+# Copyright (C) 2026 the Megarocket contributors; adapted from the Sidescroller Recomps
+# project (Copyright (C) 2026 its contributors), GPL v2 or later. See LICENSE.md.
+"""Find a process's window and post key presses to it without needing focus (Windows only)."""
+
+import ctypes
+import time
+from ctypes import wintypes
+
+user32 = ctypes.WinDLL("user32", use_last_error=True)
+
+WM_CLOSE = 0x0010
+WM_KEYDOWN = 0x0100
+WM_KEYUP = 0x0101
+
+# Virtual key, scancode
+KEYS = {
+    "ctrl": (0x11, 0x1D),
+    "alt": (0x12, 0x38),
+    "enter": (0x0D, 0x1C),
+    "space": (0x20, 0x39),
+    "esc": (0x1B, 0x01),
+    "f1": (0x70, 0x3B),
+    "f2": (0x71, 0x3C),
+    "f3": (0x72, 0x3D),
+    "f4": (0x73, 0x3E),
+    "f5": (0x74, 0x3F),
+    "f6": (0x75, 0x40),
+    "f7": (0x76, 0x41),
+    "f8": (0x77, 0x42),
+    "f9": (0x78, 0x43),
+    "f10": (0x79, 0x44),
+    "f11": (0x7A, 0x57),
+    "f12": (0x7B, 0x58),
+    "up": (0x26, 0x48),
+    "down": (0x28, 0x50),
+    "left": (0x25, 0x4B),
+    "right": (0x27, 0x4D),
+}
+
+_EnumWindowsProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+user32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+
+
+def windows_of(pid):
+    found = []
+
+    def visit(hwnd, _):
+        owner = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
+        if owner.value == pid and user32.IsWindowVisible(hwnd):
+            length = user32.GetWindowTextLengthW(hwnd)
+            title = ctypes.create_unicode_buffer(length + 1)
+            user32.GetWindowTextW(hwnd, title, length + 1)
+            found.append((hwnd, title.value))
+        return True
+
+    user32.EnumWindows(_EnumWindowsProc(visit), 0)
+    return found
+
+
+def wait_for_window(pid, timeout=30.0):
+    end = time.time() + timeout
+    while time.time() < end:
+        wins = windows_of(pid)
+        if wins:
+            return wins[0][0]
+        time.sleep(0.2)
+    return None
+
+
+def key_down(hwnd, name):
+    vk, scan = KEYS[name]
+    user32.PostMessageW(hwnd, WM_KEYDOWN, vk, 1 | (scan << 16))
+
+
+def key_up(hwnd, name):
+    vk, scan = KEYS[name]
+    user32.PostMessageW(hwnd, WM_KEYUP, vk, 1 | (scan << 16) | (0xC0 << 24))
+
+
+def tap(hwnd, name, hold=0.15):
+    key_down(hwnd, name)
+    time.sleep(hold)
+    key_up(hwnd, name)
+
+
+def chord(hwnd, modifier, name, hold=0.15):
+    key_down(hwnd, modifier)
+    time.sleep(0.05)
+    key_down(hwnd, name)
+    time.sleep(hold)
+    key_up(hwnd, name)
+    time.sleep(0.05)
+    key_up(hwnd, modifier)
+
+
+def close(hwnd):
+    user32.PostMessageW(hwnd, WM_CLOSE, 0, 0)

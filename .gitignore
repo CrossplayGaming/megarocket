@@ -1,0 +1,20 @@
+game_data/
+.godot/
+godot/bin/*.TMP
+oracle_runs/
+scratch/
+tools/__pycache__/
+tools/_duke_*
+__pycache__/
+
+# Reference material copied from Megarocket: other projects' sources, and the
+# user's own game files inside them. Not part of this repository.
+/keen13/
+/keen6/
+/keen6patch/
+/keendreams/
+/omnispeak/
+/omnispeak-ref/
+/refkeen/
+/Godot/
+/Steam Artwork/

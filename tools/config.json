@@ -1,0 +1,76 @@
+{
+  "dosbox": "F:/Zoom Games/Duke Nukem II/DOSBOX/dosbox.exe",
+  "godot": "Godot/4.7.2/Godot_v4.7.2-stable_win64_console.exe",
+  "game_data": "game_data",
+  "oracle_runs": "F:/KeenReworkWork/oracle_runs",
+  "gcc": "C:/msys64/mingw64/bin/gcc.exe",
+  "drivers_that_must_be_stopped": [
+    "ElgatoUsbAudio"
+  ],
+  "fast_cores": "0xFFFF",
+  "games": {
+    "keen1": {
+      "exe": "KEEN1.EXE",
+      "engine": "vorticons",
+      "files": [
+        "KEEN1.EXE",
+        "*.CK1"
+      ],
+      "rate_hz": 70.086
+    },
+    "keen2": {
+      "exe": "KEEN2.EXE",
+      "engine": "vorticons",
+      "files": [
+        "KEEN2.EXE",
+        "*.CK2"
+      ],
+      "rate_hz": 70.086
+    },
+    "keen3": {
+      "exe": "KEEN3.EXE",
+      "engine": "vorticons",
+      "files": [
+        "KEEN3.EXE",
+        "*.CK3"
+      ],
+      "rate_hz": 70.086
+    },
+    "keen4": {
+      "exe": "KEEN4E.EXE",
+      "engine": "galaxy",
+      "files": [
+        "KEEN4E.EXE",
+        "*.CK4"
+      ],
+      "rate_hz": 70.086
+    },
+    "keen5": {
+      "exe": "KEEN5E.EXE",
+      "engine": "galaxy",
+      "files": [
+        "KEEN5E.EXE",
+        "*.CK5"
+      ],
+      "rate_hz": 70.086
+    },
+    "keen6": {
+      "exe": "KEEN6C.EXE",
+      "engine": "galaxy",
+      "files": [
+        "KEEN6C.EXE",
+        "*.CK6"
+      ],
+      "rate_hz": 70.086
+    },
+    "kdreams": {
+      "exe": "KDREAMS.EXE",
+      "engine": "dreams",
+      "files": [
+        "KDREAMS.EXE",
+        "*.KDR"
+      ],
+      "rate_hz": 70.086
+    }
+  }
+}
