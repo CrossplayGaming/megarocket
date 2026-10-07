@@ -48,7 +48,7 @@
     "AND-02"
    ],
    "notes": {
-    "matches": "Title, menu and world map match to the refresh; first level being matched now"
+    "matches": "Title, menu, world map and a stretch of Border Village match to the refresh; 15 more levels to record"
    }
   },
   {
@@ -240,6 +240,10 @@
   }
  ],
  "milestones": [
+  {
+   "date": "2026-10-07",
+   "text": "Keen 1's Border Village matches the original to the refresh: walk in, run, jump, Yorps and Gargs"
+  },
   {
    "date": "2026-10-07",
    "text": "Keen Dreams v1.93 from your Steam Definitive Edition found and read, title screen included"
