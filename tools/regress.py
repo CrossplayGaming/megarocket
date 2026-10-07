@@ -56,8 +56,13 @@ def harn01a():
         # The first and last pictures are cut by where the recording starts
         # and stops (a few refreshes either way), so their hold counts are
         # not the game's; they are left out of the comparison.
-        held_a = [a.digest(i) for i in range(1, len(a) - 1) if a.repeats(i) >= 3]
-        held_b = [b.digest(i) for i in range(1, len(b) - 1) if b.repeats(i) >= 3]
+        # Pictures up four refreshes or more count (compare_frames.LONG_LIVED):
+        # a picture caught for two refreshes in one run is caught for three
+        # in the other, at the mercy of where refreshes fall, as the Duke
+        # project found; Dreams' intro animation (two refreshes a frame)
+        # showed exactly that on 2026-10-06.
+        held_a = [a.digest(i) for i in range(1, len(a) - 1) if a.repeats(i) >= 4]
+        held_b = [b.digest(i) for i in range(1, len(b) - 1) if b.repeats(i) >= 4]
         same = held_a == held_b
         length_ok = abs(a.raw_frames - b.raw_frames) <= 3
         unique = len(set(held_a))
@@ -193,6 +198,27 @@ def data01v():
     return common.PASS
 
 
+def data01g():
+    """The Galaxy loader over Keen 4-6 with omnispeak's metadata, and damaged copies refused by name."""
+    import gdtest
+    code, out = gdtest.run("data01_galaxy", timeout=1800.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "digests" in line or "maps:" in line or "checks" in line:
+            print("  " + line.strip())
+    if code != common.PASS:
+        return code
+    for victim in ("EGAGRAPH.CK4", "GAMEMAPS.CK4", "AUDIO.CK4"):
+        code, out = gdtest.run("data01_galaxy", [f"--plant={victim}"], timeout=600.0, quiet=True)
+        if code != common.PASS:
+            print(f"  planted damage in {victim}: NOT refused by name")
+            for line in out.splitlines():
+                if "FAIL" in line:
+                    print("    " + line.strip())
+            return common.FAIL
+    print("  planted damage in three file kinds: each refused by name")
+    return common.PASS
+
+
 CHECKS = {
     "HARN-01a": (harn01a, "slow"),
     "HARN-03a": (harn03a, "fast"),
@@ -200,6 +226,7 @@ CHECKS = {
     "HARN-12a": (harn12a, "fast"),
     "NATIVE-01": (native01, "fast"),
     "DATA-01V": (data01v, "fast"),
+    "DATA-01G": (data01g, "slow"),
 }
 
 
