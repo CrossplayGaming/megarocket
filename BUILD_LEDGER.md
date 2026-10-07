@@ -274,14 +274,14 @@ walk, SAVE round trips, AUDIO comparisons, REND equality, HARN-12 clean tree, HA
 check. One command: `python tools/regress.py` (to be written as HARN-01a's first deliverable,
 growing as units verify).
 
-## Session handoff — 2026-10-07 (evening)
+## Session handoff — 2026-10-07 (night)
 
-Completed this session: TIME-V1 (Keen 1's 30 s and 50 s recordings match every picture's duration), SIM-V-02 (Keen 2 and 3 episode classes; every level of all three episodes runs), HARN-04t (timing scorer), HARN-17 (level sweep). Tools: `tools/timing_score.py`, `tools/fit_timing.py` (solves refresh period and timer phase from per-frame lead bounds, several recordings at once), `tools/fit_option.py` (sweep any runner option or named cost by the timing score), `tools/fit_keys.py --timing --refreshes` (presses and releases).
-In progress: REPLAY-V1 — the new-game session (menu and world map) matches refresh for refresh and is in TIME-V1; next are level cases (record sessions that walk into Border Village and other levels, fit their keys, then the `levelframe` cost). Keen 2's and Keen 3's titles match in full and are in TIME-V1.
-Blocked: NATIVE-01's Android self-test run — on an emulator being up (AND-01). NATIVE-01's Windows build fails while another Godot process holds the DLL; run it alone.
-Regression: `python tools/regress.py --fast` (now includes TIME-V1); SIM-V-02 in --full.
-Next: finish REPLAY-V1 (key fit), then Keen 2/3 timing (REPLAY-V2/V3 groundwork), then level cases per episode, then SIM-G-01. J-17 (Keen Dreams 2015 on Steam) waits for the user.
-Notes: oracle recordings live in F:\KeenReworkWork\oracle_runs; `oracle_run.py` names a run <game>_<case> unless `--as <game>_<case>_a` is given (the decoder and the tools expect the `_a`). DOSBox: never run two oracle processes at once. A frame whose start-address write lands within a few microseconds of a retrace can still slip a refresh; the drawing model is good to roughly tens of instructions.
+Completed today: TIME-V1 (refresh-exact against Keen 1's boot, title and new game, Keen 2's and Keen 3's titles), SIM-V-02 (Keen 2 and 3 episode classes; every level runs), SHELL-10a (Export for Android core), HARN-04t, HARN-17. User decisions 2026-10-07: J-17 resolved (support Keen Dreams 2015 in v1.0: DATA-01D2, blocked on its files not being on this machine); Export for Android added (SHELL-10a verified, SHELL-10 the button and flow, blocked on SHELL-01 and AND-02).
+In progress: REPLAY-V1 — level cases. keen1_level1_a recorded (new game, walk to Border Village, enter, run and jump for ~20 s); its keys are being fitted (`tools/cases/keen1/level1.port.json`); then the `levelframe` cost (the level loop's per-frame C code) gets fitted the way `mapframe` was.
+Blocked: NATIVE-01's Android self-test run (AND-01 emulator). DATA-01D2 (Dreams 2015 files). SHELL-10 (launcher screen SHELL-01; AND-02).
+Regression: `python tools/regress.py --fast` passes (12 checks incl. TIME-V1 and SHELL-10a); SIM-V-02 in --full.
+Next: finish the Border Village case; then one recorded level per episode for Keen 2 and 3 (REPLAY-V2/V3); then SIM-G-01 (Galaxy). The launcher screen (SHELL-01) unblocks the export button and the rest of SHELL.
+Notes: oracle recordings in F:\KeenReworkWork\oracle_runs; `oracle_run.py ... --as <game>_<case>_a`. Rehearse a key script on the port before recording it (the port now predicts the original closely). Fitting tools: timing_score, fit_timing (phase/rate from lead bounds), fit_option (any knob), fit_keys --timing --refreshes (presses and releases; refit after each fix, it is greedy).
 
 ## Calibration log
 
