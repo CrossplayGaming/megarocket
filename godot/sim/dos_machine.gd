@@ -38,6 +38,15 @@ var _display_due: int = RETRACE_LEN     # the start of active display after a re
 
 ## Timer channel 0: what it counts from (0x10000 = the PC's own 18.2 Hz).
 var pit0_reload: int = 0x10000
+## Added to the first tic after the program sets the timer: where in a refresh
+## period the timer's phase falls. On the original machine it is however long
+## loading took; the oracle's value is found by sweeping (see REPLAY-V1).
+var timer_offset: int = 0
+## What each access to the card (a port write, a byte read or written) costs
+## the processor, in units; fitted against the oracle. Charged, for all the
+## accesses since the last wait, when the program next waits.
+var vga_access_units: int = 0
+var _charged_accesses: int = 0
 var next_tick: int = 0x10000 * UNIT
 var tick_count: int = 0
 var _pit0_low: int = 0
@@ -100,7 +109,7 @@ func out8(port: int, value: int) -> void:
 				if pit0_reload == 0:
 					pit0_reload = 0x10000
 				_pit0_expect_high = false
-				next_tick = now + pit0_reload * UNIT
+				next_tick = now + pit0_reload * UNIT + timer_offset
 			else:
 				_pit0_low = value
 				_pit0_expect_high = true
@@ -148,8 +157,24 @@ func _note_speaker() -> void:
 
 # --------------------------------------------------------------------- time
 
+## The processor time of the card accesses made since the last wait.
+func _settle() -> void:
+	var pending: int = card.accesses - _charged_accesses
+	if pending > 0:
+		_charged_accesses = card.accesses
+		if vga_access_units > 0:
+			_run_to(now + pending * vga_access_units)
+
+
 ## Everything that falls due up to `target`, in time order, then now = target.
 func advance_to(target: int) -> void:
+	_settle()
+	_run_to(target)
+
+
+func _run_to(target: int) -> void:
+	if target < now:
+		return
 	while true:
 		var t_key: int = key_events[_key_index][0] if _key_index < key_events.size() else (1 << 62)
 		var t: int = mini(mini(next_tick, next_vbl), mini(t_key, _display_due))
@@ -182,19 +207,30 @@ func advance_to(target: int) -> void:
 	now = target
 
 
+## Time the original's processor spent on work the port does at once (file
+## loading, decompression): the clock runs on while nothing else happens.
+## The amounts are fitted against the oracle (see the engine's `costs`).
+func cpu_work(units: int) -> void:
+	_settle()
+	if units > 0:
+		_run_to(now + units)
+
+
 func in_retrace() -> bool:
 	return now >= last_vbl and now - last_vbl < RETRACE_LEN
 
 
 ## Wait for the end of a retrace if one is on (the "test al,8 / jnz" loop).
 func wait_retrace_end() -> void:
+	_settle()
 	if in_retrace():
-		advance_to(last_vbl + RETRACE_LEN)
+		_run_to(last_vbl + RETRACE_LEN)
 
 
 ## Wait for the next retrace to begin (the "test al,8 / jz" loop).
 func wait_retrace_start() -> void:
-	advance_to(next_vbl)
+	_settle()
+	_run_to(next_vbl)
 
 
 ## The library's WaitVBL: `n` times, let any retrace end, then wait for the next.
@@ -207,8 +243,9 @@ func wait_vbl(n: int) -> void:
 ## A busy loop with nothing to wait on but the next thing that happens: the
 ## next timer tic, refresh or key. Used where the program spins reading keys.
 func poll() -> void:
+	_settle()
 	var t_key: int = key_events[_key_index][0] if _key_index < key_events.size() else (1 << 62)
-	advance_to(mini(mini(next_tick, next_vbl), mini(t_key, _display_due)))
+	_run_to(mini(mini(next_tick, next_vbl), mini(t_key, _display_due)))
 
 
 # ----------------------------------------------------------------- snapshot
@@ -219,7 +256,7 @@ func snapshot() -> Dictionary:
 		"display_due": _display_due, "pit0_reload": pit0_reload, "next_tick": next_tick, "tick_count": tick_count,
 		"pit0_low": _pit0_low, "pit0_expect_high": _pit0_expect_high, "pit2_count": pit2_count,
 		"pit2_low": _pit2_low, "pit2_expect_high": _pit2_expect_high, "port61": port61,
-		"key_index": _key_index, "port60": port60,
+		"key_index": _key_index, "port60": port60, "charged": _charged_accesses,
 	}
 
 
@@ -241,3 +278,4 @@ func restore(s: Dictionary) -> void:
 	port61 = s.port61
 	_key_index = s.key_index
 	port60 = s.port60
+	_charged_accesses = s.get("charged", card.accesses)

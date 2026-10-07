@@ -84,6 +84,9 @@ var dac: PackedByteArray = PackedByteArray()     # 256 entries x 3, six bits eac
 var dac_write_index: int = 0
 var dac_component: int = 0
 var video_mode: int = MODE_TEXT
+## Every port write and memory access, counted: the machine charges them
+## the processor time the original spent on them.
+var accesses: int = 0
 ## Reads of the status register alternate the vertical-retrace bit, so a
 ## routine that waits for retrace, or for its end, returns on the next read.
 var _status_reads: int = 0
@@ -194,6 +197,7 @@ func _load_cga64() -> void:
 
 func out8(port: int, value: int) -> void:
 	value &= 0xFF
+	accesses += 1
 	match port:
 		SC_INDEX:
 			seq_index = value
@@ -262,6 +266,7 @@ func in8(port: int) -> int:
 
 ## What the processor gets when it reads a byte of video memory.
 func mem_read(address: int) -> int:
+	accesses += 1
 	if address > 0xFFFF or address < 0:
 		return 0xFF
 	latch0 = plane0[address]
@@ -293,6 +298,7 @@ func mem_read(address: int) -> int:
 
 ## What happens when the processor writes a byte to video memory.
 func mem_write(address: int, value: int) -> void:
+	accesses += 1
 	if address > 0xFFFF or address < 0:
 		return
 	value &= 0xFF
@@ -373,6 +379,7 @@ func mem_write_block(address: int, data: PackedByteArray) -> void:
 	if (gc[GC_MODE] & 3) == 0 and (gc[GC_DATAROTATE] & 0x1F) == 0 and (gc[GC_ENABLESETRESET] & 0x0F) == 0 \
 			and gc[GC_BITMASK] == 0xFF and address >= 0 and address + data.size() <= PLANE_SIZE \
 			and (map_mask == 1 or map_mask == 2 or map_mask == 4 or map_mask == 8):
+		accesses += data.size()
 		match map_mask:
 			1:
 				for i: int in range(data.size()):

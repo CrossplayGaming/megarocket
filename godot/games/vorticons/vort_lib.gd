@@ -180,9 +180,24 @@ var data: VortData
 var save_dir: String = ""
 ## The DOS clock the random generators are seeded from: [hour, minute, second, hundredths].
 var dos_time: PackedInt32Array = [0, 0, 0, 0]
+## Where the original spends processor time the port does not, named, in
+## clock units; fitted against the oracle's recordings.
+var costs: Dictionary = {}
+
+
+func cost(name: String) -> void:
+	vm.cpu_work(int(costs.get(name, 0)))
+
+
 ## Set by Quit (the original exits to DOS); every loop and wait ends.
 var exited: bool = false
 var exit_message: String = ""
+## The episode's names: pictures, sprites and sounds by the original's enum
+## names (GRAPHCKn.H, SNDSCKn.H), set by the episode class.
+var episode: int = 1
+var P: Dictionary = {}
+var S: Dictionary = {}
+var SND: Dictionary = {}
 
 # ---------------------------------------------------------------- IDLIBC.C
 
@@ -1260,9 +1275,8 @@ func LoadGraphics() -> void:
 			dest += size
 
 
-## Episode-specific: the number of the ONEMOMEN picture.
 func onemomen_pic() -> int:
-	return 14
+	return P.ONEMOMENPIC
 
 
 # ---------------------------------------------------------------- sound

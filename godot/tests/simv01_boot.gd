@@ -1,0 +1,71 @@
+# Copyright (C) 2026 the Megarocket contributors. GPL v2 or later. See LICENSE.md.
+extends SceneTree
+## SIM-V-01 / REPLAY-V1 "boot": runs the Vorticons port headless from the
+## program's start for a case's length, with the case's timed keys, and
+## writes every displayed picture to a frame store for tools/compare_frames.py
+## to hold against the oracle's recording of the same case.
+##
+## Options: --game_data=<folder> --game=keen1 --seconds=30 --out=<folder>
+##          --keys=<at:scancode:hold,...> --save=<folder for CTLPANEL/SCORES>
+
+var t: T = T.new()
+
+
+func _init() -> void:
+	var opts: Dictionary = T.options()
+	var root: String = opts.get("game_data", "")
+	var out: String = opts.get("out", "")
+	var game: String = opts.get("game", "keen1")
+	var seconds: float = float(opts.get("seconds", "30"))
+	if root == "" or out == "":
+		t.blocked("need --game_data and --out")
+		t.finish(self)
+		return
+	var data: VortData = VortData.new()
+	var ext: String = "CK" + game.substr(4, 1)
+	if not data.load_game(root.path_join(game), ext):
+		t.blocked("%s data: %s" % [game, data.error])
+		t.finish(self)
+		return
+	var vm: DosMachine = DosMachine.new()
+	var g: VortKeen1 = VortKeen1.new()
+	g.vm = vm
+	g.data = data
+	g.save_dir = opts.get("save", OS.get_temp_dir().path_join("mr_vort_save_%d" % Time.get_ticks_usec()))
+	for spec: String in str(opts.get("keys", "")).split(",", false):
+		var parts: PackedStringArray = spec.split(":")
+		vm.add_key(float(parts[0]), int(parts[1]), float(parts[2]) if parts.size() > 2 else 0.1)
+	var writer: FrameWriter = FrameWriter.new()
+	if not writer.open(out):
+		t.blocked("cannot write " + out + ": " + writer.error)
+		t.finish(self)
+		return
+	var card: EgaCard = vm.card
+	var written: Array = [0]
+	vm.on_display = func() -> void:
+		if card.video_mode == EgaCard.MODE_EGA:
+			writer.add_indexed(card.compose(), card.palette_rgb(), "P")
+			written[0] += 1
+	vm.time_limit = DosMachine.seconds_to_units(seconds)
+	vm.timer_offset = int(opts.get("timer_offset", "0"))
+	vm.vga_access_units = int(opts.get("vga_cost", "0"))
+	for spec: String in str(opts.get("costs", "")).split(",", false):
+		var kv: PackedStringArray = spec.split("=")
+		g.costs[kv[0]] = int(kv[1])
+	vm.on_limit = func() -> void:
+		g.exited = true
+	var t0: int = Time.get_ticks_msec()
+	g.main()
+	var wall: float = (Time.get_ticks_msec() - t0) / 1000.0
+	writer.close({"game": game, "seconds": seconds, "kinds": [], "level_starts": [0]})
+	print("  %s: %.1f s of game time in %.1f s, %d displays, %d distinct pictures, exit '%s'" %
+		[game, vm.seconds(), wall, written[0], writer._index.size(), g.exit_message])
+	t.ok("the run reached the time limit without the program quitting on its own", g.exit_message == "" and vm.limit_fired)
+	t.ok("pictures were written", written[0] > 100)
+	# break the cycles between the machine's handlers and the game
+	vm.int8 = Callable()
+	vm.int9 = Callable()
+	vm.on_display = Callable()
+	vm.on_limit = Callable()
+	g.vm = null
+	t.finish(self)
