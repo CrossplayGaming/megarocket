@@ -310,7 +310,7 @@ func _init() -> void:
 # ----------------------------------------------------------- state, hash
 
 ## Properties that are wiring or constant tables, not simulation state.
-const NOT_STATE: PackedStringArray = ["vm", "data", "save_dir", "dos_time", "dos_ticks", "costs", "exit_message", "episode", "P", "S", "SND", "classes"]
+const NOT_STATE: PackedStringArray = ["vm", "data", "save_dir", "dos_time", "dos_ticks", "spawn_scan_per_tile", "level_tc_shift", "costs", "exit_message", "episode", "P", "S", "SND", "classes"]
 
 
 ## Every variable of the program, by name, as plain values: the whole
@@ -1260,8 +1260,21 @@ func SaveCtrls() -> void:
 
 # ------------------------------------------------------------------ fades
 
+## INT 10h AX=1002h under DOSBox (int10_pal.cpp, INT10_SetAllPaletteRegisters):
+## one status read (ResetACTL), then 16 index/value write pairs, the border
+## pair and the closing index write: 1 read and 35 writes. DOSBox charges
+## every port access (iohandler.cpp): CPU_CycleMax / (1024 / 1.0 us) cycles a
+## read, CPU_CycleMax / (1024 / 0.75 us) a write, 19 and 14 at 20000 cycles;
+## plus the caller's register set-up, the INT, the callback and the IRET.
+const PALETTE_BIOS_INSTRUCTIONS: int = 8 + 19 + 35 * 14
+
+
 func _set_palette(table: Array) -> void:
 	vm.card.bios_set_palette(PackedByteArray(table))
+	# The time it takes: after FadeIn's last step the level loop's first frame
+	# reads timecount within microseconds, and a tic falling inside this call
+	# sets the whole level's frame clock (Keen 1 levels 3, 4, 5, 9, 13).
+	vm.instructions(PALETTE_BIOS_INSTRUCTIONS)
 
 
 func FadeIn() -> void:

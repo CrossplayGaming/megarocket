@@ -33,7 +33,7 @@
   [
    8.214,
    "ctrl",
-   0.2
+   0.1857
   ],
   [
    10.214,
@@ -41,7 +41,7 @@
    4.0
   ],
   [
-   11.214,
+   11.1998,
    "ctrl",
    0.3
   ],
@@ -102,5 +102,5 @@
   ]
  ],
  "refreshes_after_intro": 2207,
- "result": "first difference at picture 44"
+ "result": "first difference at picture 238"
 }

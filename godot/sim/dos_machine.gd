@@ -75,7 +75,15 @@ var record_speaker: bool = false
 ## The keyboard: a timed script of scancodes (bit 7 set = release), and the
 ## last code on port 60h. Keys may be timed from a mark the program sets
 ## (the first intro frame, say), the same moment a recording is timed from.
-var key_events: Array = []              # [[time_units, scancode], ...] in time order
+var key_events: Array = []              # [[time_units, scancode], ...] in time order, repeats included
+var _key_script: Array = []             # the scripted presses and releases alone
+## The keyboard's typematic repeat, as DOSBox's keyboard.cpp does it: the key
+## pressed last, while held, sends its make code again `repeat_pause_ms` after
+## the press and every `repeat_rate_ms` after that; releasing it (not another
+## key) ends the repeat. A program that clears its key table sees a held key
+## come back with the next repeat. 0 turns repeating off.
+var repeat_pause_ms: int = 500
+var repeat_rate_ms: int = 33
 var marks: Dictionary = {}              # name -> time units
 var keys_after_mark: Array = []         # [[mark, seconds after it, scancode, hold seconds], ...]
 var _key_index: int = 0
@@ -105,9 +113,39 @@ func add_key(at: float, scancode: int, hold: float = 0.1) -> void:
 
 
 func _add_key_units(at_units: int, scancode: int, hold: float) -> void:
-	key_events.append([at_units, scancode & 0x7F])
-	key_events.append([at_units + seconds_to_units(hold), (scancode & 0x7F) | 0x80])
-	key_events.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	_key_script.append([at_units, scancode & 0x7F])
+	_key_script.append([at_units + seconds_to_units(hold), (scancode & 0x7F) | 0x80])
+	_key_script.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	_expand_repeats()
+
+
+## key_events from the script: its events plus the repeats the held keys
+## send. Keys are only ever added at or after `now`, so the events already
+## delivered are unchanged and `_key_index` still counts them.
+func _expand_repeats() -> void:
+	var out: Array = []
+	var ms: int = PIT_HZ * UNIT / 1000
+	var rep_key: int = -1
+	var rep_at: int = 1 << 62
+	for e: Array in _key_script:
+		if repeat_pause_ms > 0:
+			while rep_key >= 0 and rep_at < e[0]:
+				out.append([rep_at, rep_key])
+				rep_at += repeat_rate_ms * ms
+		out.append(e)
+		var code: int = e[1]
+		if (code & 0x80) == 0:
+			rep_at = e[0] + (repeat_rate_ms if code == rep_key else repeat_pause_ms) * ms
+			rep_key = code
+		elif (code & 0x7F) == rep_key:
+			rep_key = -1
+	if repeat_pause_ms > 0 and rep_key >= 0:
+		# a key never released in the script: repeat it for the next minute
+		var until: int = rep_at + 60 * 1000 * ms
+		while rep_at < until:
+			out.append([rep_at, rep_key])
+			rep_at += repeat_rate_ms * ms
+	key_events = out
 
 
 ## A key pressed `after` seconds past the moment the program marks `mark`.

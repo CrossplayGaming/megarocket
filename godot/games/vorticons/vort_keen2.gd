@@ -48,6 +48,8 @@ func _init() -> void:
 
 func LoadLevel(number: int) -> void:
 	ReadLevel(number)
+	# the spawn pass: Turbo C's loop over every tile, GETTILE and the switch
+	vm.instructions(mapheight * mapwwide * spawn_scan_per_tile)
 	for y: int in range(mapheight):
 		for x: int in range(mapwwide):
 			match GETTILE(x, y, 1):

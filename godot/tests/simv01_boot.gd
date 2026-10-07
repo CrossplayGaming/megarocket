@@ -81,6 +81,12 @@ func _init() -> void:
 		if opts.has(k):
 			timing[k] = int(opts[k])
 	g.apply_dosbox_timing(timing)
+	if opts.has("spawn_scan"):
+		g.spawn_scan_per_tile = int(opts["spawn_scan"])
+	if opts.has("repeat_pause"):
+		vm.repeat_pause_ms = int(opts["repeat_pause"])
+	if opts.has("level_tc"):
+		g.level_tc_shift = int(opts["level_tc"])
 	if opts.has("dos_ticks"):
 		g.dos_ticks = int(opts["dos_ticks"])
 	if g.trace_frames:

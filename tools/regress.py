@@ -354,6 +354,20 @@ def timev1():
     return common.COULD_NOT_RUN if common.COULD_NOT_RUN in results else max(results)
 
 
+# Keen 1 level sessions (save on the entrance, enter, play ~20 s) that match their recordings
+# picture for picture and refresh for refresh; Border Village (level1) is in TIME-V1.
+REPLAY_V1_LEVELS = ["level02", "level06", "level07", "level08", "level11", "level12", "level15", "level16"]
+
+
+def replayv1():
+    """Keen 1's verified level sessions, run side by side: every picture and its duration
+    match the DOSBox recording (one-refresh slips that recover at the next picture pass)."""
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=len(REPLAY_V1_LEVELS)) as pool:
+        results = list(pool.map(lambda case: _timing_case("keen1", case, 120), REPLAY_V1_LEVELS))
+    return common.COULD_NOT_RUN if common.COULD_NOT_RUN in results else max(results)
+
+
 def simv02():
     """Every level of Keen 1, 2 and 3, the world maps, the status and ordering screens and the
     endings run to a time limit under scripted play without a script error."""
@@ -431,6 +445,7 @@ CHECKS = {
     "SHELL-10a": (shell10a, "fast"),
     "SAVE-01V": (save01v, "fast"),
     "SIM-V-02": (simv02, "slow"),
+    "REPLAY-V1": (replayv1, "slow"),
 }
 
 

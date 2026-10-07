@@ -1099,6 +1099,12 @@ func _lose_items(_currentlevel: int) -> void:
 	pass
 
 
+## Instructions LoadLevel's spawn pass spends on each tile of the level.
+var spawn_scan_per_tile: int = 16
+## Diagnosis only: tics added to timecount as a level starts (0 in play).
+var level_tc_shift: int = 0
+
+
 func LevelLoop(currentlevel: int) -> int:
 	var keen: Obj = objlist[0]
 	keen.obclass = keenobj
@@ -1112,6 +1118,9 @@ func LevelLoop(currentlevel: int) -> int:
 	pobjcount = 0
 	var showbossintro: bool = true
 	lastdir = 1
+	if trace_frames:
+		var unit: float = DosMachine.PIT_HZ * DosMachine.UNIT
+		print("TRACE level_start t=%.6f next_tick=%.6f last_vbl=%.6f" % [vm.now / unit, vm.next_tick / unit, vm.last_vbl / unit])
 	timecount = 0
 	lasttimecount = 0
 	tics = 0
@@ -1119,6 +1128,8 @@ func LevelLoop(currentlevel: int) -> int:
 	cheatmode = false
 	ankhtime = 0
 	LoadLevel(currentlevel)
+	timecount += level_tc_shift
+	lasttimecount += level_tc_shift
 	originx = keen.x - 10 * TILEGLOBAL
 	originy = keen.y - 5 * TILEGLOBAL
 	if originx < originxmin:
@@ -1138,10 +1149,25 @@ func LevelLoop(currentlevel: int) -> int:
 	FadeIn()
 	ox = GLOBAL_TO_TILE(originx)
 	oy = GLOBAL_TO_TILE(originy)
+	var traced_first: bool = false
 	while true:
 		RF_Clear()
+		if trace_frames and not traced_first:
+			traced_first = true
+			var unit2: float = DosMachine.PIT_HZ * DosMachine.UNIT
+			print("TRACE level_first t=%.6f next_tick=%.6f last_vbl=%.6f timecount=%d tics=%d" % [vm.now / unit2, vm.next_tick / unit2, vm.last_vbl / unit2, timecount, tics])
 		ctrl = ControlPlayer(1)
-		for i: int in range(numobj):
+		# the frame's C code before the refresh (thinks, contacts, placement), not yet
+		# counted. Charged before the thinks, not after: the creatures read timecount
+		# as they think, and in the original Keen's think alone has run by then (a
+		# tic falling inside it changes a Yorp's walk frame: Keen 1 levels 3, 4, 13).
+		cost("levelframe")
+		# `i < numobj` is tested on every pass, as in the original's for loop: an
+		# object spawned during a think (a tank's shot) is appended and thinks in
+		# the same frame. range(numobj) would fix the count at the frame's start.
+		var i: int = -1
+		while i + 1 < numobj:
+			i += 1
 			var ob: Obj = objlist[i]
 			if ob.obclass == nothing:
 				continue
@@ -1170,28 +1196,33 @@ func LevelLoop(currentlevel: int) -> int:
 					UpdateObonHitbox()
 			ob.copy_from(obon)
 		ScrollScreen()
-		for i: int in range(numobj):
+		i = 0
+		while i < numobj:    # both counts re-read each pass, as above
 			var ob: Obj = objlist[i]
 			if ob.obclass != nothing and ob.active:
-				for i2: int in range(i + 1, numobj):
+				var i2: int = i + 1
+				while i2 < numobj:
 					var ob2: Obj = objlist[i2]
 					if ob2.obclass != nothing and ob2.active and ObjectsCollide(ob, ob2):
 						call(ob.contact, ob, ob2)
 						call(ob2.contact, ob2, ob)
+					i2 += 1
+			i += 1
 		ox = GLOBAL_TO_TILE(originx)
 		oy = GLOBAL_TO_TILE(originy)
-		for i: int in range(numobj - 1, -1, -1):
-			var ob: Obj = objlist[i]
+		for j: int in range(numobj - 1, -1, -1):
+			var ob: Obj = objlist[j]
 			if ob.obclass != nothing and ob.active:
 				RF_PlaceSprite(ob.x, ob.y, ob.shapenum)
 		if episode == 3:
 			_halo()
 		PlayerCheckTiles()
-		for i: int in range(pobjcount):
+		i = 0
+		while i < pobjcount:    # re-read each pass, as above
 			var pob: PObj = pobjlist[i]
 			if pob.type != POBJ_NOTHING:
 				call(pob.think, pob)
-		cost("levelframe")    # the frame's C code before the refresh (thinks, contacts, placement), not yet counted
+			i += 1
 		RF_Refresh()
 		ctrl2 = ctrl.duplicate()
 		if episode == 3 and showbossintro and currentlevel == 16:

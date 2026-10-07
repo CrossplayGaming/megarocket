@@ -54,6 +54,7 @@ TIMING = False      # score by pictures and durations (tools/timing_score.py) in
 
 
 SAVE_SEED = []      # --save_seed for a case with an "overrides" folder of saves
+PAIRS = 0           # --pairs N: when no single move helps, try press and release moved jointly by up to N steps each
 
 
 def run_port(game, keys, after, out):
@@ -77,9 +78,13 @@ def mismatch_time(out, oracle, intro_display):
     return (disp - intro_display) / 70.086, (disp + longest - intro_display) / 70.086
 
 
+MOVES = {0: "key", 1: "press", 2: "release"}
+
+
 def targeted(game, keys, after, out, oracle, step, rng, window):
-    """Repeatedly: find the first mismatch, try moving each press or release that
-    falls in the `window` seconds before it, keep the best single change."""
+    """Repeatedly: find the first mismatch, try moving each key whole, its press
+    alone or its release alone where they fall in the `window` seconds before
+    it, keep the best single change."""
     intro_display = run_port(game, keys, after, out)
     best, note = score(out, oracle)
     print(f"as given: {note}")
@@ -91,22 +96,44 @@ def targeted(game, keys, after, out, oracle, step, rng, window):
         for i, (t, k, h) in enumerate(keys):
             if t_mis - window <= t <= t_end + 0.1:
                 cands.append((i, 0))
+                cands.append((i, 1))
             if t_mis - window <= t + h <= t_end + 0.1:
                 cands.append((i, 2))
-        print(f"round {rounds}: mismatch in the picture at {t_mis:.3f}-{t_end:.3f} s after the intro; trying {[(i, 'press' if f == 0 else 'release') for i, f in cands]}")
+        print(f"round {rounds}: mismatch in the picture at {t_mis:.3f}-{t_end:.3f} s after the intro; trying {[(i, MOVES[f]) for i, f in cands]}")
         top = (best, None, note)
         for i, field in cands:
             for d in sorted(range(-rng, rng + 1), key=abs):
                 if d == 0:
                     continue
                 trial = [k[:] for k in keys]
-                trial[i][field] = round(trial[i][field] + d * step, 4)
-                if field == 2 and trial[i][2] <= 0.01:
+                if field == 1:      # the press alone: the release stays where it landed
+                    trial[i][0] = round(trial[i][0] + d * step, 4)
+                    trial[i][2] = round(trial[i][2] - d * step, 4)
+                else:
+                    trial[i][field] = round(trial[i][field] + d * step, 4)
+                if trial[i][2] <= 0.01:
                     continue
                 run_port(game, trial, after, out)
                 s, n2 = score(out, oracle)
                 if s > top[0]:
                     top = (s, trial, n2)
+        if top[1] is None and PAIRS:
+            # no single move helps: try each key's press and release moved together, independently
+            for i in sorted({i for i, _ in cands}):
+                for dp in range(-PAIRS, PAIRS + 1):
+                    for dr in range(-PAIRS, PAIRS + 1):
+                        if dp == 0 or dr == 0 or dp == dr:
+                            continue    # those are the single moves already tried
+                        trial = [k[:] for k in keys]
+                        trial[i][0] = round(trial[i][0] + dp * step, 4)
+                        trial[i][2] = round(trial[i][2] + (dr - dp) * step, 4)
+                        if trial[i][2] <= 0.01:
+                            continue
+                        run_port(game, trial, after, out)
+                        s, n2 = score(out, oracle)
+                        if s > top[0]:
+                            top = (s, trial, n2)
+                            print(f"  pair move key {i}: press {dp:+d}, release {dr:+d}: {n2}")
         if top[1] is None:
             print(f"  no single move helps; stopping at {note}")
             break
@@ -138,6 +165,8 @@ def main():
     ap.add_argument("--range", type=int, default=3)
     ap.add_argument("--oracle", default=None)
     ap.add_argument("--refreshes", action="store_true", help="shift by display refreshes instead of game frames")
+    ap.add_argument("--step_ms", type=float, default=None,
+                    help="shift by this many milliseconds instead (a key whose repeat must land on one side of a frame's input read)")
     ap.add_argument("--keys", default=None, help="only fit these keys (comma-separated indices)")
     ap.add_argument("--start", default="case", choices=["case", "port"],
                     help="start from the case's scripted keys or from the fitted .port.json")
@@ -146,11 +175,13 @@ def main():
     ap.add_argument("--delay", type=float, default=0.0, help="--start case: seconds the posted keys are assumed to land late (0.17 is typical)")
     ap.add_argument("--targeted", action="store_true", help="move only the presses and releases just before each mismatch, repeatedly")
     ap.add_argument("--window", type=float, default=1.5, help="--targeted: seconds before a mismatch whose key events are tried")
+    ap.add_argument("--pairs", type=int, default=0, help="--targeted: when no single move helps, try each key's press and release moved jointly by up to N steps")
     args = ap.parse_args()
-    global TIMING, EXTRA_OPTS
+    global TIMING, EXTRA_OPTS, PAIRS
+    PAIRS = args.pairs
     TIMING = args.timing
     EXTRA_OPTS = [f"--{kv}" for kv in args.fixed.split(",") if kv]
-    step = REFRESH_SECONDS if args.refreshes else FRAME_SECONDS
+    step = args.step_ms / 1000.0 if args.step_ms else REFRESH_SECONDS if args.refreshes else FRAME_SECONDS
     cfg = common.config()
     oracle = Path(args.oracle or Path(cfg["oracle_runs"]) / f"{args.game}_{args.case}_a")
     case = json.loads((Path(__file__).parent / "cases" / args.game / f"{args.case}.json").read_text())
