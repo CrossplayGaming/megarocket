@@ -55,6 +55,16 @@ var sprites: Array[Dictionary] = []                 # {name, w, h, pixels, mask,
 # sounds: [{name, priority, rate, divisors: PackedInt32Array}]
 var sounds: Array[Dictionary] = []
 
+# the same graphics as the engine keeps them: the four EGALATCH planes and
+# the five EGASPRIT planes, undecoded, with the header's tables
+var latch_planes: PackedByteArray = PackedByteArray()   # 4 x latchsize
+var sprite_planes: PackedByteArray = PackedByteArray()  # 5 x spritesize
+var off_chars: int = 0
+var off_tiles: int = 0
+var off_pics: int = 0
+var pic_entries: Array[Dictionary] = []        # {w (bytes), h, shape}
+var sprite_entries: Array[Dictionary] = []     # 4 per sprite (the shifts): {w (bytes), h, shape, xl, yl, xh, yh}
+
 # text files, as loaded (PrepareText is the engine's business)
 var help_text: PackedByteArray = PackedByteArray()
 var story_text: PackedByteArray = PackedByteArray()
@@ -389,12 +399,12 @@ func _load_graphics() -> bool:
 	var picinfo_start: int = u32(head, 8)
 	var sprinfo_start: int = u32(head, 12)
 	num_chars = u16(head, 16)
-	var off_chars: int = u32(head, 18)
+	off_chars = u32(head, 18)
 	# field_16 (2) and field_18 (4) at 22..27
 	num_tiles = u16(head, 28)
-	var off_tiles: int = u32(head, 30)
+	off_tiles = u32(head, 30)
 	num_pics = u16(head, 34)
-	var off_pics: int = u32(head, 36)
+	off_pics = u32(head, 36)
 	num_sprites = s16(head, 40)
 	# offSprites at 42..45
 	compression = head.size() > 46 and head[46] != 0
@@ -416,6 +426,7 @@ func _load_graphics() -> bool:
 		return _fail("%s: %d bytes, but EGAHEAD says four planes of %d" % [latch_name, latch.size(), latchsize])
 	if off_chars + num_chars * 8 > latchsize or off_tiles + num_tiles * 32 > latchsize:
 		return _fail("%s: tiles (%d at %d) or chars (%d at %d) run past a plane of %d" % [latch_name, num_tiles, off_tiles, num_chars, off_chars, latchsize])
+	latch_planes = latch
 	# chars: 8 bytes per plane each, one byte per row
 	chars = PackedByteArray()
 	chars.resize(num_chars * 64)
@@ -430,6 +441,7 @@ func _load_graphics() -> bool:
 		for k: int in range(256):
 			tiles[t * 256 + k] = px[k]
 	pics = []
+	pic_entries = []
 	for p: int in range(num_pics):
 		var e: int = picinfo_start + p * 16
 		var w: int = s16(head, e)
@@ -439,6 +451,7 @@ func _load_graphics() -> bool:
 		if w <= 0 or h <= 0 or off_pics + shape + w * h > latchsize:
 			return _fail("EGAHEAD.%s: picture %d (%s) %dx%d at %d does not fit a plane of %d" % [ext, p, pname, w, h, shape, latchsize])
 		pics.append({"name": pname, "w": w * 8, "h": h, "pixels": unplane(latch, off_pics + shape, latchsize, w, h)})
+		pic_entries.append({"w": w, "h": h, "shape": shape})
 
 	# EGASPRIT: five planes (four colours and the mask) of spritesize bytes
 	var spr_name: String = "EGASPRIT." + ext
@@ -451,7 +464,13 @@ func _load_graphics() -> bool:
 			return false
 	if spr.size() < spritesize * 5:
 		return _fail("%s: %d bytes, but EGAHEAD says five planes of %d" % [spr_name, spr.size(), spritesize])
+	sprite_planes = spr
 	sprites = []
+	sprite_entries = []
+	for i: int in range(num_sprites * 4):
+		var e4: int = sprinfo_start + i * 32
+		sprite_entries.append({"w": s16(head, e4), "h": s16(head, e4 + 2), "shape": farptr(head, e4 + 4),
+			"xl": s16(head, e4 + 8), "yl": s16(head, e4 + 10), "xh": s16(head, e4 + 12), "yh": s16(head, e4 + 14)})
 	for i: int in range(num_sprites):
 		var e: int = sprinfo_start + i * 4 * 32       # the unshifted entry of each four
 		var w: int = s16(head, e)
