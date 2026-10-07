@@ -253,6 +253,17 @@ def sim02():
     return code
 
 
+def data02():
+    """Detection fixtures (fake Steam/GOG/loose/ZIP/read-only trees built from the development
+    copies) and the finder's identification of every release, wrong file and CGA rename over them."""
+    import gdtest
+    code, out = gdtest.run("harn13_detect", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "real Steam" in line:
+            print("  " + line.strip())
+    return code
+
+
 CHECKS = {
     "HARN-01a": (harn01a, "slow"),
     "HARN-03a": (harn03a, "fast"),
@@ -263,6 +274,7 @@ CHECKS = {
     "DATA-01G": (data01g, "slow"),
     "DATA-01D": (data01d, "fast"),
     "SIM-02": (sim02, "fast"),
+    "DATA-02": (data02, "fast"),
 }
 
 
