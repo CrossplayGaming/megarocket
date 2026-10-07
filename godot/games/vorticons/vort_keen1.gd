@@ -50,7 +50,14 @@ func _init() -> void:
 		"worldmap_load": 13721593,
 		# each map frame's C code before its refresh (ControlMapKeen, the
 		# clipping, placing the sprite, the key checks): 0.16 ms, fitted (0.13-0.19 pass)
-		"mapframe": 190909}
+		"mapframe": 190909,
+		# each level frame's C code before its refresh (the thinks and
+		# contacts, placing sprites): 0.28 ms, fitted on the Border Village
+		# recording (0.25-0.31 pass)
+		"levelframe": 334091}
+	# the BIOS tick count when the program reads the DOS clock, the oracle's
+	# clock being set to midnight before the game starts (fitted: 22)
+	dos_ticks = 22
 
 
 func LoadLevel(number: int) -> void:

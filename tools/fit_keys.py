@@ -17,6 +17,7 @@ hold]; the recording's first intro frame is found in it, and the port's keys
 are timed from the same moment.
 """
 import argparse
+import functools
 import json
 import re
 import shutil
@@ -27,6 +28,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
+print = functools.partial(print, flush=True)    # progress shows while a long fit runs
 import common
 import frames
 import timing_score
@@ -62,7 +64,7 @@ def run_port(game, keys, after, out):
 def score(out, oracle):
     if TIMING:
         try:
-            k, note, port, orc, _ = timing_score.score(out, oracle)
+            k, note, port, orc, _ = timing_score.score(out, oracle, transient=True)
         except Exception as err:
             return -1, str(err)[-100:]
         return (10 ** 9, "PASS") if k >= len(orc) - 1 else (k, note)

@@ -36,7 +36,7 @@ def pictures(seq, first_partial):
     return out
 
 
-def score(port_dir, oracle_dir, tolerance=0):
+def score(port_dir, oracle_dir, tolerance=0, transient=False):
     port = pictures(frames.Sequence(Path(port_dir)), False)
     orc = pictures(frames.Sequence(Path(oracle_dir) / "frames"), True)
     # the port's run starts at power-on; the recording a little later: drop the
@@ -46,12 +46,27 @@ def score(port_dir, oracle_dir, tolerance=0):
         return 0, "the recording's first picture is not in the port's run", port, orc, 0
     port = port[start:]
     n = min(len(port), len(orc) - 1)       # the recording's last picture is partial
+    # with `transient`, a picture may start one refresh off if the next one
+    # starts on time again (a start-address write within microseconds of a
+    # retrace: below what the timing model resolves); each is counted
+    offset = 0
+    slips = []
     for k in range(n):
         if port[k][0] != orc[k][0]:
-            return k, f"picture {k} differs", port, orc, start
-        if abs(port[k][1] - orc[k][1]) > tolerance:
+            return k, f"picture {k} differs" + _slips(slips), port, orc, start
+        if transient and offset != 0:
+            slips.append(k - 1)
+        offset += port[k][1] - orc[k][1]
+        if transient:
+            if abs(offset) > 1 or (offset != 0 and slips and slips[-1] == k - 1):
+                return k, f"picture {k} lasts {port[k][1]} refreshes in the port, {orc[k][1]} in the recording" + _slips(slips), port, orc, start
+        elif abs(port[k][1] - orc[k][1]) > tolerance:
             return k, f"picture {k} lasts {port[k][1]} refreshes in the port, {orc[k][1]} in the recording", port, orc, start
-    return n, f"all {n} pictures and their durations match", port, orc, start
+    return n, f"all {n} pictures and their durations match" + _slips(slips), port, orc, start
+
+
+def _slips(slips):
+    return f" ({len(slips)} one-refresh slip{'s' if len(slips) != 1 else ''} that recovered, at {slips[:5]})" if slips else ""
 
 
 def main():
@@ -60,8 +75,9 @@ def main():
     ap.add_argument("oracle")
     ap.add_argument("--tolerance", type=int, default=0)
     ap.add_argument("--show", type=int, default=6, help="pictures to list around the first difference")
+    ap.add_argument("--transient", action="store_true", help="pass one-refresh slips that recover at the next picture (counted)")
     args = ap.parse_args()
-    k, note, port, orc, start = score(args.port, args.oracle, args.tolerance)
+    k, note, port, orc, start = score(args.port, args.oracle, args.tolerance, args.transient)
     print(f"timing score {k}: {note}")
     lo, hi = max(k - args.show, 0), k + args.show
     tp = sum(r for _, r in port[:lo])
