@@ -284,6 +284,10 @@ func CK_QuitExit() -> void:
 
 
 func CK_MainBody(argv: PackedStringArray) -> int:
+	var defaults: Dictionary = timing_defaults()
+	for k: String in defaults:
+		if not costs.has(k):
+			costs[k] = defaults[k]
 	var argc: int = argv.size()
 	# Send the cmd-line args to the User Manager.
 	us_argv = argv
@@ -980,6 +984,7 @@ func CK_LoadLevel(doCache: bool, silent: bool) -> void:
 		CA_CacheMapFromASLEV(ck_gameState.currentLevel, us_aslevFilename)
 	else:
 		CA_CacheMap(ck_gameState.currentLevel)
+	cost("levelload")    # the rest of a level's set-up (TIME-G)
 	RF_NewMap()
 	CA_ClearMarks()
 
@@ -2951,6 +2956,10 @@ func CK_DrawTerminator() -> void:
 	# OMNISPEAK: Because we draw the title screen to both pages, we need to
 	# clear both pages, unlike in the original game.
 	VL_UpdateRect(0, 0, 21 * 16, 14 * 16)
+	# The original clears the page on display, so the black shows at the next
+	# refresh, before the level's loading box; the port shows a surface only
+	# when presented (keen4_boot_a: one black picture, TIME-G4).
+	VL_Present()
 	# VW_SetLineWidth(0x40);
 	VL_SetDefaultPalette()
 	# RF_Reset();

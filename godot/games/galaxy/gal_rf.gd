@@ -470,12 +470,14 @@ func RF_RenderTile16(x: int, y: int, tile: int) -> void:
 	if src == null:
 		return
 	VL_UnmaskedToSurface(src, 0, rf_tileBuffer, x * 16, y * 16, 16, 16)
+	cost("tile16")    # TIME-G
 
 
 func RF_RenderTile16m(x: int, y: int, tile: int) -> void:
 	if tile == 0:
 		return
 	VL_MaskedBlitToSurface(CA_GetGrChunk(int(ca_gfxInfoE.offTiles16m), tile, "Tile16m", true), 0, rf_tileBuffer, x * 16, y * 16, 16, 16)
+	cost("tile16m")    # TIME-G
 
 
 func RF_ForceRefresh() -> void:
@@ -899,6 +901,7 @@ func RFL_UpdateTiles() -> void:
 		for x: int in range(RF_BUFFER_WIDTH_TILES):
 			if RFL_IsBlockDirty(x, y, -1) == 1:
 				VL_SurfaceToScreen(rf_tileBuffer, x * 16, y * 16, x * 16, y * 16, 16, 16)
+				cost("blockcopy")    # TIME-G
 
 
 func RF_Refresh() -> void:

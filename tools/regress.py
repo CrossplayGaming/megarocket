@@ -480,6 +480,32 @@ def dist02():
     return r.returncode
 
 
+def simg01i():
+    """The Galaxy control panel: the main card draws; selection, new game, the sound card,
+    paddle war, load/save cards, options and key binding work as the C does; QUIT confirms
+    (Keen 4, 5, 6)."""
+    import gdtest
+    code, out = gdtest.run("simg01i_menus", ["--games=keen4,keen5,keen6"], timeout=1800.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
+def timeg4():
+    """Keen 4's boot against keen4_boot_a (a guard while TIME-G4 is in progress): exact to the
+    refresh through the terminator (picture 957), and from the title on (picture 1317) at least
+    741 pictures in order with no more than the known duration differences."""
+    import galaxy_boot_score
+    r = galaxy_boot_score.run("keen4", "keen4_boot_a", 75, 1317)
+    if r is None:
+        print("  COULD-NOT-RUN")
+        return 2
+    durs = [e for e in r["events"] if e[0] == "duration"]
+    print(f"  exact to picture {r['exact']}; from 1317: {r['matched']} matched, {len(durs)} durations differ")
+    return 0 if r["exact"] >= 957 and r["matched"] >= 741 and len(durs) <= 12 else 1
+
+
 def simv02():
     """Every level of Keen 1, 2 and 3, the world maps, the status and ordering screens and the
     endings run to a time limit under scripted play without a script error."""
@@ -565,6 +591,8 @@ CHECKS = {
     "SIM-G-01d": (simg01d, "slow"),
     "SIM-G-01g": (simg01g, "slow"),
     "SIM-G-01h": (simg01h, "slow"),
+    "SIM-G-01i": (simg01i, "slow"),
+    "TIME-G4": (timeg4, "slow"),
     "REPLAY-V1": (replayv1, "slow"),
     "REPLAY-V2": (replayv2, "slow"),
     "REPLAY-V3": (replayv3, "slow"),

@@ -9,6 +9,7 @@ extends SceneTree
 ## Options: --game_data=<folder> --game=keen4 --seconds=30 --out=<folder>
 ##          --keys=<at:scancode:hold,...> --args=<command line, space-separated>
 ##          --cycles= --vbl_period= --timer_offset= (the machine's timing)
+##          --costs=name=units,... (TIME-G costs over the game's own)
 
 const GAMES: Dictionary = {"keen4": "keen4", "keen5": "keen5", "keen6": "keen6e14"}
 const CLASSES: Dictionary = {"keen4": "res://games/galaxy/gal_keen4.gd",
@@ -41,6 +42,9 @@ func _init() -> void:
 	vm.set_cycles(int(opts.get("cycles", DOSBOX.cycles)))
 	vm.vbl_period = int(opts.get("vbl_period", DOSBOX.vbl_period))
 	vm.timer_offset = int(opts.get("timer_offset", DOSBOX.timer_offset))
+	for spec: String in str(opts.get("costs", "")).split(",", false):
+		var kv: PackedStringArray = spec.split("=")
+		g.costs[kv[0]] = int(kv[1])
 	for spec: String in str(opts.get("keys", "")).split(",", false):
 		var parts: PackedStringArray = spec.split(":")
 		vm.add_key(float(parts[0]), int(parts[1]), float(parts[2]) if parts.size() > 2 else 0.1)

@@ -34,6 +34,8 @@ func CA_CacheAudioChunk(chunk: int) -> void:
 	if a.is_empty():
 		return
 	CA_audio[chunk] = a
+	cost("audiochunk")    # reading and expanding it (TIME-G)
+	cost_n("audiobyte", a.size())
 
 
 ## Every sound effect of the current sound mode, cached.

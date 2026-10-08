@@ -66,9 +66,17 @@ func CK_INT(name: String, default: int) -> int:
 	return data.episode.get_int(name, default)
 
 
-## CFG_GetConfigInt: omnispeak's config file; the port runs with its defaults.
-func CFG_GetConfigInt(_name: String, default: int) -> int:
-	return default
+## omnispeak's config values the port sets (OMNISPK.CFG): the original's
+## behaviour where omnispeak adds its own. loadingDelay: omnispeak waits 10
+## tics at each step of the loading box "because loading is VERY fast on
+## omnispeak"; the original waits for its disk and decompression instead,
+## which the port charges as costs (TIME-G).
+var cfg_values: Dictionary = {"loadingDelay": 0}
+
+
+## CFG_GetConfigInt: a value set in cfg_values, else omnispeak's default.
+func CFG_GetConfigInt(name: String, default: int) -> int:
+	return int(cfg_values.get(name, default))
 
 
 ## id_cfg.c: a boolean from omnispeak's config file (GalLib's CFG_GetConfigInt
@@ -135,6 +143,31 @@ func RFL_MarkBlockDirty(_x: int, _y: int, _val: int, _page: int) -> void:
 
 func RFL_IsBlockDirty(_x: int, _y: int, _page: int) -> int:
 	return 0
+
+
+## Time the original's processor spent on work the port does at once
+## (decompression, scanning a map): named amounts in machine time units,
+## fitted against the oracle's recordings (TIME-G), charged where the work
+## happens. Not game state.
+var costs: Dictionary = {}
+
+
+func cost(name: String) -> void:
+	var units: int = int(costs.get(name, 0))
+	if units > 0:
+		vm.cpu_work(units)
+
+
+## The episode's fitted costs (TIME-G); a test's own values take precedence.
+func timing_defaults() -> Dictionary:
+	return {}
+
+
+## costs[name] for each of n things (bytes, chunks).
+func cost_n(name: String, n: int) -> void:
+	var units: int = int(costs.get(name, 0)) * n
+	if units > 0:
+		vm.cpu_work(units)
 
 
 ## ck_*/id_us: the program stops with a message.
@@ -278,6 +311,11 @@ func CA_CacheGrChunk(chunk: int) -> void:
 			Quit("Tried to expand an invalid chunk! Make sure you're using a compatible version of Keen!")
 			return
 		ca_graphChunks[chunk] = expanded
+	# reading and Huffman-expanding the chunk (TIME-G); a sprite is also shifted
+	cost("grchunk")
+	if chunk >= int(ca_gfxInfoE.offSprites) and chunk < int(ca_gfxInfoE.offSprites) + int(ca_gfxInfoE.numSprites):
+		cost("sprchunk")
+	cost_n("grbyte", data.chunk_comp_length(chunk))
 
 
 func CA_GetGrChunk(base: int, index: int, _chunkType: String, required: bool) -> Variant:
@@ -388,6 +426,8 @@ func CA_CacheMap(mapIndex: int) -> void:
 	CA_MapHeaders[mapIndex] = {"width": int(m.width), "height": int(m.height), "name": String(m.get("name", ""))}
 	for plane: int in range(CA_NUMMAPPLANES):
 		CA_mapPlanes[plane] = (m.plane[plane] as PackedInt32Array).duplicate()
+	# reading and expanding the three planes (TIME-G)
+	cost_n("mapword", int(m.width) * int(m.height))
 
 
 ## CA_TilePtrAtPos: the index of the tile's word in its plane (a C pointer).
@@ -937,6 +977,8 @@ func VL_ClearScreen(colour: int) -> void:
 	if vl_screen == null:
 		return
 	VL_ScreenRect(0, 0, vl_screen.w, vl_screen.h, colour)
+	# the original writes every byte of the EGA page (TIME-G)
+	cost_n("clearbyte", vl_screen.w * vl_screen.h / 8)
 
 
 func VL_SetMapMask(mapmask: int) -> void:
