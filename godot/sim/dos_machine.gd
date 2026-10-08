@@ -163,7 +163,7 @@ func _expand_repeats() -> void:
 			# on the tick it reaches zero, delivered `delay` later
 			var queued: int = e[0] - delay
 			var tick: int = _next_tick_ms(queued, ms, phase)
-			rep_at = tick + (repeat_pause_ms - 1) * ms + delay
+			rep_at = tick + ((repeat_rate_ms if code == rep_key else repeat_pause_ms) - 1) * ms + delay    # the key pressed again while repeating: the rate
 			rep_key = code
 		elif (code & 0x7F) == rep_key:
 			rep_key = -1

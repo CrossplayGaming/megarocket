@@ -456,7 +456,13 @@ func RF_Refresh() -> void:
 			oldtiles2[coverlist[i]] = -1
 
 
+var trace_sprites: int = 0    # tests: sprites still to print
+
+
 func RF_PlaceSprite(x: int, y: int, shapenum: int) -> bool:
+	if trace_frames and trace_sprites > 0:
+		trace_sprites -= 1
+		print("TRACE sprite x=%d y=%d sx=%d sy=%d shape=%d" % [x, y, (x - originx) >> 8, (y - originy) >> 8, shapenum])
 	var px: int = (x / PIXGLOBAL) - ((originx / PIXGLOBAL) & ~15)
 	var py: int = (y / PIXGLOBAL) - ((originy / PIXGLOBAL) & ~15)
 	if px < -32 or py < -32 or px > 336 or py > 199:

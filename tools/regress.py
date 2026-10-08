@@ -359,13 +359,33 @@ def timev1():
 REPLAY_V1_LEVELS = [f"level{n:02d}" for n in range(2, 17)]
 
 
-def replayv1():
-    """Keen 1's verified level sessions, run side by side: every picture and its duration
+REPLAY_V2_LEVELS = [f"level{n:02d}" for n in range(1, 17)]
+# Keen 3's sessions that match so far (1, 2, 8, 9 and 12 are still being fitted)
+REPLAY_V3_LEVELS = [f"level{n:02d}" for n in (3, 4, 5, 6, 7, 10, 11, 13, 14, 15, 16)]
+
+
+def _replay(game, levels):
+    """A game's verified level sessions, run side by side: every picture and its duration
     match the DOSBox recording (one-refresh slips that recover at the next picture pass)."""
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=8) as pool:
-        results = list(pool.map(lambda case: _timing_case("keen1", case, 120), REPLAY_V1_LEVELS))
+        results = list(pool.map(lambda case: _timing_case(game, case, 120), levels))
     return common.COULD_NOT_RUN if common.COULD_NOT_RUN in results else max(results)
+
+
+def replayv1():
+    """Keen 1's level sessions (levels 2-16; Border Village is in TIME-V1)."""
+    return _replay("keen1", REPLAY_V1_LEVELS)
+
+
+def replayv2():
+    """Keen 2's sixteen level sessions."""
+    return _replay("keen2", REPLAY_V2_LEVELS)
+
+
+def replayv3():
+    """Keen 3's verified level sessions."""
+    return _replay("keen3", REPLAY_V3_LEVELS)
 
 
 def simv02():
@@ -446,6 +466,8 @@ CHECKS = {
     "SAVE-01V": (save01v, "fast"),
     "SIM-V-02": (simv02, "slow"),
     "REPLAY-V1": (replayv1, "slow"),
+    "REPLAY-V2": (replayv2, "slow"),
+    "REPLAY-V3": (replayv3, "slow"),
 }
 
 

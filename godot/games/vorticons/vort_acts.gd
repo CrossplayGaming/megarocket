@@ -1164,6 +1164,7 @@ func LevelLoop(currentlevel: int) -> int:
 		RF_Clear()
 		if trace_frames and not traced_first:
 			traced_first = true
+			trace_sprites = 30
 			var unit2: float = DosMachine.PIT_HZ * DosMachine.UNIT
 			print("TRACE level_first t=%.6f next_tick=%.6f last_vbl=%.6f timecount=%d tics=%d" % [vm.now / unit2, vm.next_tick / unit2, vm.last_vbl / unit2, timecount, tics])
 		ctrl = ControlPlayer(1)
@@ -1182,6 +1183,7 @@ func LevelLoop(currentlevel: int) -> int:
 			var ob: Obj = objlist[i]
 			if ob.obclass == nothing:
 				continue
+			var updated_before: int = updated
 			obon.copy_from(ob)
 			if obon.active:
 				if i == 0 or _always_active(obon) or not RemoveInactive():
@@ -1189,6 +1191,8 @@ func LevelLoop(currentlevel: int) -> int:
 					UpdateObonHitbox()
 					obon.xmove = 0
 					obon.ymove = 0
+					if trace_frames and trace_sprites > 0:
+						print("TRACE think i=%d class=%d tc=%d t=%.6f next_tick=%.6f" % [i, obon.obclass, timecount, float(vm.now) / float(DosMachine.PIT_HZ * DosMachine.UNIT), float(vm.next_tick) / float(DosMachine.PIT_HZ * DosMachine.UNIT)])
 					call(obon.think)
 					cost("levelthink")
 					obon.x += obon.xmove
@@ -1204,12 +1208,16 @@ func LevelLoop(currentlevel: int) -> int:
 					UpdateObonHitbox()
 					obon.xmove = 0
 					obon.ymove = 0
+					if trace_frames and trace_sprites > 0:
+						print("TRACE think i=%d class=%d tc=%d t=%.6f next_tick=%.6f" % [i, obon.obclass, timecount, float(vm.now) / float(DosMachine.PIT_HZ * DosMachine.UNIT), float(vm.next_tick) / float(DosMachine.PIT_HZ * DosMachine.UNIT)])
 					call(obon.think)
 					cost("levelthink")
 					obon.x += obon.xmove
 					obon.y += obon.ymove
 					UpdateObonHitbox()
 			ob.copy_from(obon)
+			if updated == updated_before:
+				cost("levelskip")    # an object visited but not updated: RemoveInactive's bounds, or an inactive one's; 0 until fitted
 		# the rest of each updated object's time, after the updates (contacts, placing
 		# sprites); `levelthink` is the part inside the update loop, charged after each
 		# think: Keen 2's first frames show the second object updated thinking before a

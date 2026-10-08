@@ -6,7 +6,7 @@
    0.2
   ],
   [
-   2.9126,
+   2.4988,
    "down",
    0.15
   ],
@@ -102,5 +102,5 @@
   ]
  ],
  "refreshes_after_intro": 2132,
- "result": "first difference at picture 26"
+ "result": "first difference at game frame 27"
 }

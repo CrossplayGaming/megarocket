@@ -61,7 +61,10 @@ func _init() -> void:
 		# the third object updated, not the second)
 		"levelframe": 50000,
 		"levelthink": 71600,
-		"levelobject": 103400}
+		"levelobject": 103400,
+		# an object visited but not updated (asleep, or put to sleep by RemoveInactive): its
+		# copies in and out and the bounds test; Keen 2 level 7 passes from 10 to 150 us
+		"levelskip": 18000}
 	# the BIOS tick count when the program reads the DOS clock, the oracle's
 	# clock being set to midnight before the game starts (fitted: 22)
 	dos_ticks = 22
