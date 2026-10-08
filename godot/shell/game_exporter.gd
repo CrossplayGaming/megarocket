@@ -294,7 +294,7 @@ To play them on your phone:
      memory card, or any cloud folder the phone can open). The ZIP version,
      if you made one, can be copied as it is.
   2. In Megarocket on the phone, choose Import games and pick this folder
-     (or the ZIP). Every game in it is imported at once.
+     (or the folder the ZIP is in). Every game in it is imported at once.
 
 These are your own copies of the games, for your own devices. Please do not
 share them.

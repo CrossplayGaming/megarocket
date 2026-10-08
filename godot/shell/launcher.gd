@@ -53,6 +53,13 @@ var import_page: PanelContainer = null
 var import_results: Array = []
 var _import_thread: Thread = null
 var _import_label: Label = null
+## SHELL-10: the export button and page, and the export under way.
+var export_button: Button = null
+var export_page: PanelContainer = null
+var export_results: Array = []
+var export_progress: Dictionary = {}    # game id -> files written so far (the most seen)
+var _export_thread: Thread = null
+var _export_label: Label = null
 ## The how-to page (J-12), over the tiles while open.
 var howto: PanelContainer = null
 ## One sideways row (narrow or portrait windows).
@@ -99,7 +106,7 @@ func _ready() -> void:
 	var title: Label = Label.new()
 	title.text = "Megarocket"
 	title.add_theme_font_size_override("font_size", 28)
-	var top: HBoxContainer = HBoxContainer.new()
+	var top: HFlowContainer = HFlowContainer.new()    # wraps on a narrow window
 	top.add_child(title)
 	var spacer: Control = Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -113,6 +120,14 @@ func _ready() -> void:
 	add.text = "Import games" if OS.has_feature("android") else "Add a folder"
 	add.pressed.connect(_pick_folder)
 	top.add_child(add)
+	# SHELL-10: the games found here, ready for the Android app (not on Android itself)
+	export_button = Button.new()
+	export_button.name = "ExportAndroid"
+	export_button.text = "Export for Android"
+	export_button.disabled = true
+	export_button.visible = not OS.has_feature("android")
+	export_button.pressed.connect(show_export)
+	top.add_child(export_button)
 	top.add_child(howto_button)
 	column.add_child(top)
 	summary = Label.new()
@@ -265,6 +280,8 @@ func show_results(results: Array) -> void:
 	if settings != null and settings.error != "":
 		summary.text += "\n" + settings.error
 	ShellMessages.note(summary.text)
+	if export_button != null:
+		export_button.disabled = not GameExporter.can_export(found_results.values())
 
 
 ## What the finder looks for, short: the releases' executables and versions.
@@ -427,6 +444,135 @@ func close_import() -> void:
 		_scan.call_deferred()
 
 
+# ---- export for Android (SHELL-10)
+
+## The export page: where to (a folder, or one ZIP), then each game as it is
+## written and its result.
+func show_export() -> void:
+	if export_page != null or not GameExporter.can_export(found_results.values()):
+		return
+	export_page = PanelContainer.new()
+	export_page.name = "ExportPage"
+	export_page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var m: MarginContainer = MarginContainer.new()
+	for side: String in ["left", "right", "top", "bottom"]:
+		m.add_theme_constant_override("margin_" + side, 24)
+	export_page.add_child(m)
+	var col: VBoxContainer = VBoxContainer.new()
+	col.name = "Column"
+	col.add_theme_constant_override("separation", 12)
+	m.add_child(col)
+	_export_label = Label.new()
+	_export_label.name = "Progress"
+	_export_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_export_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var n: int = GameExporter.exportable(found_results.values()).size()
+	_export_label.text = ("Export the %d game%s found here for Megarocket on Android: their files go into a folder named \"%s\" " +
+		"(or one ZIP), with a note saying what to do on the phone. Your games' own folders are only read.") % [n, "" if n == 1 else "s", GameExporter.FOLDER]
+	col.add_child(_export_label)
+	var row: HBoxContainer = HBoxContainer.new()
+	row.name = "Choices"
+	for spec: Array in [["ToFolder", "To a folder", false], ["AsZip", "As a ZIP", true]]:
+		var b: Button = Button.new()
+		b.name = spec[0]
+		b.text = spec[1]
+		b.pressed.connect(_pick_export_target.bind(spec[2]))
+		row.add_child(b)
+	var back: Button = Button.new()
+	back.name = "Back"
+	back.text = "Back"
+	back.pressed.connect(close_export)
+	row.add_child(back)
+	col.add_child(row)
+	add_child(export_page)
+	_page.visible = false
+	(row.get_child(0) as Button).grab_focus()
+
+
+func _pick_export_target(as_zip: bool) -> void:
+	var fd: FileDialog = FileDialog.new()
+	fd.access = FileDialog.ACCESS_FILESYSTEM
+	if as_zip:
+		fd.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+		fd.filters = PackedStringArray(["*.zip ; ZIP"])
+		fd.current_file = GameExporter.FOLDER + ".zip"
+		fd.title = "Where to save the ZIP"
+		fd.file_selected.connect(func(path: String) -> void:
+			export_games(path, true)
+			fd.queue_free())
+	else:
+		fd.file_mode = FileDialog.FILE_MODE_OPEN_DIR
+		fd.title = "Where to put the \"%s\" folder" % GameExporter.FOLDER
+		fd.dir_selected.connect(func(dir: String) -> void:
+			export_games(dir, false)
+			fd.queue_free())
+	fd.canceled.connect(fd.queue_free)
+	add_child(fd)
+	fd.popup_centered_ratio(0.7)
+
+
+## Writes the export (into `target`, or as the ZIP `target`) on a thread.
+func export_games(target: String, as_zip: bool) -> void:
+	if export_page == null:
+		show_export()
+	if export_page == null or _export_thread != null:
+		return
+	var choices: Node = export_page.find_child("Choices", true, false)
+	if choices != null:
+		choices.queue_free()
+	export_results = []
+	export_progress = {}
+	_export_label.text = "Exporting..."
+	var games: Array = found_results.values()
+	_export_thread = Thread.new()
+	_export_thread.start(func() -> void:
+		var ex: GameExporter = GameExporter.new()
+		var progress: Callable = func(id: String, done: int, total: int) -> void:
+			_export_step.call_deferred(id, done, total)
+		var results: Array = ex.export_zip(games, target, progress) if as_zip else ex.export_folder(games, target, progress)
+		_export_done.call_deferred(results, ex.error, target))
+
+
+func _export_step(id: String, done: int, total: int) -> void:
+	export_progress[id] = maxi(int(export_progress.get(id, 0)), done)
+	if _export_label != null:
+		_export_label.text = "%s: %d of %d files" % [_title_of(id), done, total]
+
+
+func _export_done(results: Array, error: String, target: String) -> void:
+	if _export_thread != null:
+		_export_thread.wait_to_finish()
+		_export_thread = null
+	export_results = results
+	var lines: PackedStringArray = PackedStringArray()
+	if error != "":
+		lines.append(error)
+	for r: Dictionary in results:
+		lines.append(("Exported: " if r.ok else "Not exported: ") + String(r.message))
+	if error == "" and not results.is_empty():
+		lines.append(ShellMessages.say("The export is in %s" % target, "Copy it to the phone, then choose Import games there and pick it."))
+	for l: String in lines:
+		ShellMessages.note(l)
+	_export_label.text = "\n\n".join(lines)
+	var done: Button = Button.new()
+	done.name = "Done"
+	done.text = "Done"
+	done.pressed.connect(close_export)
+	_export_label.get_parent().add_child(done)
+	done.grab_focus()
+
+
+func close_export() -> void:
+	if export_page == null or _export_thread != null:
+		return
+	export_page.queue_free()
+	export_page = null
+	_export_label = null
+	_page.visible = true
+	if export_button != null:
+		export_button.grab_focus()
+
+
 # ---- the how-to page (J-12)
 
 ## Where Megarocket looks and what each game needs, in plain words.
@@ -572,6 +718,9 @@ func _exit_tree() -> void:
 	if _import_thread != null:
 		_import_thread.wait_to_finish()
 		_import_thread = null
+	if _export_thread != null:
+		_export_thread.wait_to_finish()
+		_export_thread = null
 
 
 func _tile_input(event: InputEvent, id: String) -> void:

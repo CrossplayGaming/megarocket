@@ -18,6 +18,12 @@ With --import (AND-02 on the device): the development copy of Keen 1 is pushed t
 Download/Keen1; Import games is pressed and the system picker driven by its labels (uiautomator) to
 that folder and its access granted; the app reports Keen 1 imported, the launcher then finds 1 of 7
 games, and Keen 1 starts from its tile and draws, with no errors.
+
+With --export (SHELL-10 on the device): the launcher's export of the seven development copies
+(godot/tests/make_export.gd) is pushed to the emulator's Download/Megarocket Games and imported in
+one pick; all seven come in, the launcher finds 7 of 7, and each of Keen 1-6 starts from its tile
+by keyboard (right arrow to it, Enter) after a fresh start of the app and draws, with no errors.
+(Keen Dreams plays once its engine is ported, SIM-D-01.)
 """
 import os
 import re
@@ -170,6 +176,56 @@ def import_stage(ok):
     adb("shell", "am", "force-stop", PACKAGE)
 
 
+TITLES = ["Commander Keen 1", "Commander Keen 2", "Commander Keen 3", "Commander Keen 4", "Commander Keen 5", "Commander Keen 6"]
+
+
+def export_stage(ok):
+    import gdtest
+    out = Path("F:/KeenReworkWork/android/export")
+    shutil.rmtree(out, ignore_errors=True)
+    code, text = gdtest.run("make_export", [f"--out={out.as_posix()}"], timeout=600.0, quiet=True)
+    folder = out / "Megarocket Games"
+    ok("the launcher's export of the seven games is written", code == common.PASS and (folder / "megarocket-export.json").exists())
+    adb("shell", "rm", "-rf", "/sdcard/Download/Megarocket Games")
+    adb("push", str(folder), "/sdcard/Download/", timeout=600)
+    adb("shell", "am", "force-stop", PACKAGE)
+    adb("shell", "pm", "clear", PACKAGE)
+    adb("logcat", "-c")
+    adb("shell", "am", "start", "-W", "-n", ACTIVITY)
+    wait_log(r"No games found yet", 30)
+    tap_fraction(0.728, 0.092)          # Import games
+    time.sleep(3)
+    if not visible_text("Megarocket Games"):
+        tap_text("Download")
+    picked = tap_text("Megarocket Games") and tap_text("Use this folder") and tap_text("Allow")
+    ok("the picker reached Download/Megarocket Games and its access was granted", picked)
+    log = wait_log(r"(Imported: .*\n.*){7}|Not imported", 240)
+    imported = len(re.findall(r"Imported: ", log))
+    ok(f"all seven games imported in one pick ({imported})", imported == 7 and "Not imported" not in log)
+    adb("shell", "input", "keyevent", "66")    # Done
+    log = wait_log(r"7 of 7 games found", 60)
+    ok("the launcher finds 7 of 7", "7 of 7 games found" in log)
+    for i, title in enumerate(TITLES):
+        adb("shell", "am", "force-stop", PACKAGE)
+        adb("logcat", "-c")
+        adb("shell", "am", "start", "-W", "-n", ACTIVITY)
+        wait_log(r"7 of 7 games found", 60)
+        time.sleep(2)
+        for _ in range(i):
+            adb("shell", "input", "keyevent", "22")    # right
+            time.sleep(0.3)
+        adb("shell", "input", "keyevent", "66")        # Enter
+        log = wait_log("Started " + title, 20)
+        time.sleep(10)
+        im = screenshot(Path(f"F:/KeenReworkWork/android/play_{i + 1}.png"))
+        colours = len(im.resize((160, 80)).getcolors(maxcolors=160 * 80))
+        log = adb("logcat", "-d", "-s", "godot:V").stdout
+        errors = [l for l in log.splitlines() if "SCRIPT ERROR" in l or ("E godot" in l and "ERROR:" in l) or "stopped" in l]
+        ok(f"{title} starts by keyboard and draws ({colours} colours)" + (f"; first error: {errors[0][-120:]}" if errors else ""),
+           ("Started " + title) in log and colours > 4 and not errors)
+    adb("shell", "am", "force-stop", PACKAGE)
+
+
 def main():
     checks = []
 
@@ -213,6 +269,8 @@ def main():
         ok(f"the screenshot can be read ({err})", False)
     if "--import" in sys.argv:
         import_stage(ok)
+    if "--export" in sys.argv:
+        export_stage(ok)
     print(f"{sum(checks)} of {len(checks)} checks passed")
     return 0 if all(checks) else 1
 
