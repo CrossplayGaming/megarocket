@@ -133,7 +133,7 @@
     "AND-02"
    ],
    "notes": {
-    "matches": "Boot matches the original to the refresh through the title (fizzle included), then the first demo and the story screen's timing"
+    "matches": "Boot matches to the refresh through the title and the first demo. 17 level recordings made; the level start's fade and the random seed (the DOS clock) now follow the original; level loading times being fitted"
    }
   },
   {
@@ -148,6 +148,7 @@
     "SIM-G-01"
    ],
    "matches": [
+    "TIME-G5",
     "REPLAY-G5"
    ],
    "extras": [
@@ -159,7 +160,9 @@
     "AND-01",
     "AND-02"
    ],
-   "notes": {}
+   "notes": {
+    "matches": "Boot matches the original to the refresh through the title with Keen 4's timing; 14 level recordings made"
+   }
   },
   {
    "id": "keen6",
@@ -173,6 +176,7 @@
     "SIM-G-01"
    ],
    "matches": [
+    "TIME-G6",
     "REPLAY-G6"
    ],
    "extras": [
@@ -185,7 +189,8 @@
     "AND-02"
    ],
    "notes": {
-    "files": "Your v1.0 copy, read as it is"
+    "files": "Your v1.0 copy, read as it is",
+    "matches": "Every intro picture matches; small timing wobbles in the intro (your copy is v1.0, the port's tables are v1.4); 18 level recordings made"
    }
   },
   {
@@ -237,10 +242,6 @@
  },
  "needs_you": [
   {
-   "what": "Keen Dreams: how its port handles memory (J-16)",
-   "why": "Two ways to port its memory system: like Keen 4-6 (recommended, already proven there) or the plan as first written. The Keen Dreams port starts once you choose."
-  },
-  {
    "what": "Look and sound decisions, later",
    "why": "Widescreen HUD placement, the sound of each engine, the added options screens and smooth motion are yours to judge once there is a build to see and hear."
   },
@@ -250,6 +251,10 @@
   }
  ],
  "milestones": [
+  {
+   "date": "2026-10-08",
+   "text": "Keen 4-6: every level recorded in the original; random seed and level fade-in now follow the original"
+  },
   {
    "date": "2026-10-08",
    "text": "Phones: on-screen touch controls for every game (hidden while a pad is used), and Back works as Escape"

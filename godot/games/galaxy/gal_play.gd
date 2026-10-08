@@ -980,6 +980,7 @@ func StartMusic(level: int) -> void:
 		return
 	MM_BombOnError(false)
 	CA_CacheAudioChunk(int(ca_audInfoE.startMusic) + song)
+	cost("musicload")    # TIME-G: the song's start beside its bytes (the black before a level fades in)
 	MM_BombOnError(true)
 	# TODO: FINISH THIS! (the "Insufficient memory for background music" block is #if 0)
 	SD_StartMusic(CA_audio[int(ca_audInfoE.startMusic) + song])

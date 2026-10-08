@@ -158,9 +158,21 @@ func cost(name: String) -> void:
 		vm.cpu_work(units)
 
 
-## The episode's fitted costs (TIME-G); a test's own values take precedence.
+## DOSBox time the original spends where the port does none (TIME-G), the same
+## engine code in all three episodes: fitted together on keen4_boot_a and the
+## seventeen Keen 4 level openings (tools/galaxy_calibrate.py --boot). Huffman
+## decoding per compressed (grbyte) and expanded tile (grexp) byte; a sprite's
+## shifted copies, per sprite and per byte of them; the rest of a level's set-up
+## before its box; clearing the EGA page per byte; a 16x16 tile and a masked one
+## rendered; RF_NewPosition beside its tiles; a song started and its bytes
+## expanded (the black before a level fades in follows the song's size); the
+## story crawl's tables, rows and pixels; the title picture; VW_ClearVideo. A
+## test's own values take precedence.
 func timing_defaults() -> Dictionary:
-	return {}
+	return {"grbyte": 5100, "grexp": 245, "sprchunk": 140000, "sprbyte": 56, "levelload": 74900000,
+		"clearbyte": 1200, "tile16": 20000, "tile16m": 20000, "repos": 8000000, "musicload": 7000000,
+		"audiobyte": 2900, "swrow": 210000, "swpixel": 2600, "swtables": 27000000, "swstart": 17000000,
+		"picbyte": 100, "clearvideo": 51000000}
 
 
 ## costs[name] for each of n things (bytes, chunks).
@@ -316,6 +328,8 @@ func CA_CacheGrChunk(chunk: int) -> void:
 	cost_n("grexp", data.chunk_exp_length(chunk))
 	if chunk >= int(ca_gfxInfoE.offSprites) and chunk < int(ca_gfxInfoE.offSprites) + int(ca_gfxInfoE.numSprites):
 		cost("sprchunk")
+		if costs.has("sprbyte") and ca_graphChunks[chunk] is VH_ShiftedSprite:
+			cost_n("sprbyte", (ca_graphChunks[chunk] as VH_ShiftedSprite).data.size())    # the shifted copies, by their size
 	cost_n("grbyte", data.chunk_comp_length(chunk))
 
 
@@ -1413,12 +1427,12 @@ func VH_MarkUpdateBlock(x1px: int, y1px: int, x2px: int, y2px: int) -> bool:
 	return true
 
 
-## Presents (a flip that waits for the retrace), as omnispeak does. DOS's
-## VW_UpdateScreen copies the changed blocks straight to the page on display
-## without waiting; tried 2026-10-08, it put Keen 4's countdown box (fitted with
-## this present) a refresh off (TIME-G4) and is left for the menu recordings.
+## DOS's VW_UpdateScreen: the changed blocks copied straight onto the page on
+## display, no wait for the retrace (omnispeak presents with a flip); the beam
+## shows the rows above it old until the next refresh (keen4_level08_a: the
+## level's box caught half copied when Keen dies and the level restarts).
 func VH_UpdateScreen() -> void:
-	VL_Present()
+	VL_ShowRows(0, VL_EGAVGA_GFX_HEIGHT)
 
 
 # ===================================================================== id_fs, id_ca, id_vl, id_mm, id_cfg and C library pieces the game layer needs

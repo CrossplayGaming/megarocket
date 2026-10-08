@@ -671,6 +671,7 @@ func RFL_CalcTics() -> void:
 
 
 func RF_Reposition(scrollXunit: int, scrollYunit: int) -> void:
+	cost("repos")    # TIME-G: the original's RF_NewPosition beside its tiles (origin, update arrays, anim list)
 	RFL_RemoveAnimRect(RF_UnitToTile(rf_scrollXUnit), RF_UnitToTile(rf_scrollYUnit), RF_BUFFER_WIDTH_TILES, RF_BUFFER_HEIGHT_TILES)
 	RF_RepositionLimit(scrollXunit, scrollYunit)
 	var scrollXtile: int = RF_UnitToTile(rf_scrollXUnit)

@@ -20,7 +20,7 @@ import galaxy_case
 import timing_score
 
 WORK = Path("F:/KeenReworkWork/port_runs")
-FACTORS = (0.5, 0.7, 0.85, 1.15, 1.4, 2.0)
+FACTORS = (0.5, 0.7, 0.85, 0.93, 1.07, 1.15, 1.4, 2.0)
 SECONDS = 2.2
 
 
@@ -39,10 +39,10 @@ def one(game, case, costs, tag, phase=0):
         k, note, port, orc, start = timing_score.score(out, oracle, transient=True)
     except Exception:
         return -1000, 1
-    t, n = 0, 0
-    while n < len(orc) and t < SECONDS * 70.086 - 30:
-        t += orc[n][1]
-        n += 1
+    # the opening only: the box, the fade out, the black and the first two fade-in steps; after them
+    # what is drawn follows the random seed (the DOS clock, fitted per session by fit_galaxy), not the
+    # loading costs
+    n = galaxy_case.opening_end(oracle) + 3
     # the score: minus the refreshes by which the opening's pictures are held wrong (a picture that
     # differs costs 10), so a better black counts even where an earlier picture is still off
     err = 0
@@ -55,10 +55,33 @@ def one(game, case, costs, tag, phase=0):
     return -err, (1 if err == 0 else 0)
 
 
+def boot(game, costs, tag):
+    """The boot recording (TIME-G) as one more term: every duration that differs and every picture skipped
+    after the title, and 10 for each picture before the title (1317) not matched exactly."""
+    import galaxy_boot_score
+    r = None
+    for attempt in range(2):    # a run that wrote a damaged store is run again
+        try:
+            r = galaxy_boot_score.run(game, f"{game}_boot_a", 75, 1317, costs, f"cal_{tag}")
+            break
+        except Exception as err:
+            say(f"  boot run {tag}: {str(err)[-60:]}")
+    if r is None:
+        return -100000, 0
+    err = 10 * max(0, 1317 - r["exact"]) + sum(abs(e[2] - e[3]) if e[0] == "duration" else 10 for e in r["events"])
+    return -err, (1 if err == 0 else 0)
+
+
 def objective(pool, game, cases, costs, tag, phases):
     spec = ",".join(f"{k}={int(v)}" for k, v in costs.items())
-    res = list(pool.map(lambda c: one(game, c, spec, tag, phases.get(c, 0)), cases))
+    jobs = [pool.submit(one, game, c, spec, tag, phases.get(c, 0)) for c in cases]
+    if BOOT[0]:
+        jobs.append(pool.submit(boot, game, spec, tag))
+    res = [j.result() for j in jobs]
     return sum(r[0] for r in res), len(res), sum(r[1] for r in res)
+
+
+BOOT = [False]
 
 
 def fit_phases(pool, game, cases, costs):
@@ -80,8 +103,10 @@ def main():
     ap.add_argument("--params", default="")
     ap.add_argument("--workers", type=int, default=10)
     ap.add_argument("--sweeps", type=int, default=4)
+    ap.add_argument("--boot", action="store_true", help="the boot recording (TIME-G) in the objective too")
     a = ap.parse_args()
     costs = {kv.split("=")[0]: float(kv.split("=")[1]) for kv in a.costs.split(",")}
+    BOOT[0] = a.boot
     params = a.params.split(",") if a.params else list(costs)
     root = Path(common.config()["oracle_runs"])
     cases = sorted(p.name[len(a.game) + 1:-2] for p in root.glob(f"{a.game}_level??_a") if (p / "frames" / "frames.json").exists())
@@ -99,7 +124,7 @@ def main():
             for f in FACTORS:
                 c = dict(costs)
                 # a cost at its floor (1, i.e. off) is tried at a ladder of real values
-                c[p] = round(costs[p] * f) if costs[p] > 1 else int({0.5: 2000, 0.7: 8000, 0.85: 30000, 1.15: 100000, 1.4: 300000, 2.0: 1000000}[f])
+                c[p] = round(costs[p] * f) if costs[p] > 1 else int({0.5: 2000, 0.7: 8000, 0.85: 30000, 0.93: 3000000, 1.07: 10000000, 1.15: 100000, 1.4: 300000, 2.0: 1000000}[f])
                 trials.append((f, c))
             scored = [(objective(pool, a.game, cases, c, f"{p}{f}", phases), f, c) for f, c in trials]
             (s, tot, wh), f, c = max(scored, key=lambda r: r[0][0])
