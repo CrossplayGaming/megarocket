@@ -388,6 +388,26 @@ def replayv3():
     return _replay("keen3", REPLAY_V3_LEVELS)
 
 
+REPLAY_G4_LEVELS = ["level01"]    # the verified ones; level 18 is the ending (no session)
+
+
+def _galaxy_case(game, case):
+    """One Galaxy level session (tools/galaxy_case.py): its fitted keys, timer phase and DOS clock."""
+    p = subprocess.run([sys.executable, "tools/galaxy_case.py", game, case, "--tag", "regress"],
+                       cwd=str(common.ROOT), capture_output=True, text=True, encoding="utf-8", errors="replace")
+    print("  " + (p.stdout.strip().splitlines() or ["(no output)"])[-1])
+    return p.returncode
+
+
+def replayg4():
+    """Keen 4's verified level sessions (/TEDLEVEL n): the opening's pictures in order, then from
+    the fade-in every picture and its duration (galaxy_case.level_score)."""
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(lambda case: _galaxy_case("keen4", case), REPLAY_G4_LEVELS))
+    return max(results)
+
+
 def simg01a():
     """The Galaxy library layer draws what the data says: every tile, bitmap, sprite (all
     shifts) and a font string read back from the surface as GalData decodes them; VL_Present
@@ -792,6 +812,7 @@ CHECKS = {
     "SIM-G-01h": (simg01h, "slow"),
     "SIM-G-01i": (simg01i, "slow"),
     "TIME-G4": (timeg4, "slow"),
+    "REPLAY-G4": (replayg4, "slow"),
     "REPLAY-V1": (replayv1, "slow"),
     "REPLAY-V2": (replayv2, "slow"),
     "REPLAY-V3": (replayv3, "slow"),
