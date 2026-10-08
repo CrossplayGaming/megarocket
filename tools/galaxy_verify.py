@@ -1,3 +1,4 @@
+# Copyright (C) 2026 the Megarocket contributors. GPL v2 or later. See LICENSE.md.
 """Compare the Galaxy port with omnispeak, frame by frame, over the built-in demos.
 
 omnispeak (omnispeak-ref/src) is built headless (its null video/sound/input back-ends, vanilla build) and

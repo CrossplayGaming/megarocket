@@ -472,6 +472,14 @@ def simg01h():
     return _galaxy_demos(["keen5", "keen6"])
 
 
+def dist02():
+    """Every source file carries the GPL notice; every game script names its reference."""
+    r = subprocess.run([sys.executable, "tools/check_headers.py"], cwd=common.ROOT, capture_output=True, text=True)
+    for line in r.stdout.splitlines()[-6:]:
+        print("  " + line)
+    return r.returncode
+
+
 def simv02():
     """Every level of Keen 1, 2 and 3, the world maps, the status and ordering screens and the
     endings run to a time limit under scripted play without a script error."""
@@ -553,6 +561,7 @@ CHECKS = {
     "SIM-G-01b": (simg01b, "slow"),
     "SIM-G-01c1": (simg01c1, "slow"),
     "SIM-G-01c2": (simg01c2, "slow"),
+    "DIST-02": (dist02, "fast"),
     "SIM-G-01d": (simg01d, "slow"),
     "SIM-G-01g": (simg01g, "slow"),
     "SIM-G-01h": (simg01h, "slow"),

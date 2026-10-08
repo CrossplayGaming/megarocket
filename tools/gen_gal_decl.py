@@ -1,3 +1,4 @@
+# Copyright (C) 2026 the Megarocket contributors. GPL v2 or later. See LICENSE.md.
 """Generate the forward declarations of the Galaxy port (docs/GALAXY_PLAN.md, convention 3).
 
 Every non-static function defined in omnispeak's ck_*.c and ck4/5/6_*.c files gets an untyped stub in
