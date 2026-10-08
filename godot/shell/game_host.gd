@@ -53,6 +53,12 @@ var _keys_until: int = 0              # machine time the last keys given are del
 ## SHELL-08: the pad played with (-1 none yet), and paused because it went away.
 var pad_device: int = -1
 var pad_paused: bool = false
+## AND-03: the on-screen controls, on a touch screen while no pad is in use
+## (`force_touch` shows them anyway: tests, and a player's choice later).
+var overlay: TouchOverlay = null
+var force_touch: bool = false
+## The pads connected now (Input's; a test gives its own).
+var connected_pads: Callable = func() -> Array: return Input.get_connected_joypads()
 const PAD_GONE_TEXT: String = "Controller disconnected\nReconnect it, or press any key to go on"
 
 ## sound: events gathered on the engine thread, handed over in _pace
@@ -177,6 +183,10 @@ func start(found: Dictionary) -> bool:
 		_:
 			error = ShellMessages.not_ready(_short_title(found))
 			return false
+	overlay = TouchOverlay.new(game_id)
+	overlay.send = send_key
+	add_child(overlay)
+	_update_overlay()
 	vm.on_display = _on_display
 	vm.pace = _pace
 	vm.record_speaker = true
@@ -362,7 +372,20 @@ func _on_display() -> void:
 	_mutex.unlock()
 
 
+## The overlay shows on a touch screen while no pad is in use; hiding it lets
+## go of whatever its fingers held.
+func _update_overlay() -> void:
+	if overlay == null:
+		return
+	var pad_in_use: bool = pad_device >= 0 and (connected_pads.call() as Array).has(pad_device)
+	var show: bool = TouchOverlay.wanted(force_touch or DisplayServer.is_touchscreen_available(), pad_in_use)
+	if overlay.visible and not show:
+		overlay.release_all()
+	overlay.visible = show
+
+
 func _process(_delta: float) -> void:
+	_update_overlay()
 	_mutex.lock()
 	var fresh: bool = _frame_new
 	var idx: PackedByteArray = _frame_indices

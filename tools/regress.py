@@ -663,6 +663,17 @@ def and04():
     return p.returncode
 
 
+def and03a():
+    """The touch controls: bounds at three screens, each engine's Fire, and in the host on Keen 1 the
+    touches delivered to the game as the keyboard's scan codes; hidden with a pad in use."""
+    import gdtest
+    code, out = gdtest.run("and03_touch", [], timeout=300.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def shell07():
     """One copy at a time: with a second process holding the lock the launcher waits; Enter starts it
     anyway; a stale lock is ignored; leaving removes the lock."""
@@ -769,6 +780,7 @@ CHECKS = {
     "SHELL-09": (shell09, "fast"),
     "AND-02a": (and02a, "fast"),
     "SHELL-10b": (shell10b, "fast"),
+    "AND-03a": (and03a, "fast"),
     "HOST-01": (host01, "slow"),
     "SHELL-02": (shell02, "slow"),
     "SIM-G-01d": (simg01d, "slow"),
