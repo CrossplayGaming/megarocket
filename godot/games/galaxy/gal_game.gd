@@ -2960,6 +2960,10 @@ func CK_DrawTerminator() -> void:
 	# MM_SetPurge(EXTERN_COMMANDER, 3); MM_SetPurge(EXTERN_KEEN, 3): memory only
 
 	# Restore video mode to normal
+	# DOS: VW_ClearVideo, straight into video memory when a key cut the intro
+	# short (the black shows from the refresh the beam meets it: keen4_level05_a)
+	if IN_GetLastScan() != 0 and costs.has("clearvideo"):
+		VL_ClearVideo()
 	VL_ClearScreen(0)
 	# OMNISPEAK: Because we draw the title screen to both pages, we need to
 	# clear both pages, unlike in the original game.
@@ -2984,6 +2988,9 @@ func CK_DrawTerminator() -> void:
 
 	if not terminator_complete:
 		# RF_Reset();
+		# TIME-G: DOS clears all of video memory here (VW_ClearVideo), far more
+		# than one page: the black stays up a few refreshes (keen4_level05_a)
+		cost("clearvideo")
 
 		# Display Title Screen
 		CA_CacheGrChunk(CK_CHUNKNUM("PIC_TITLESCREEN"))

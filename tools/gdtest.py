@@ -13,7 +13,9 @@ test itself is broken, which says nothing about the thing under test.
 Usage: python tools/gdtest.py <test name> [--timeout N] [-- extra args for the script]
 """
 
+import os
 import subprocess
+import time
 import sys
 
 import common
@@ -36,10 +38,29 @@ def refresh_class_cache(cfg):
     newest = max((p.stat().st_mtime for p in project.rglob("*.gd")), default=0.0)
     if cache.exists() and cache.stat().st_mtime >= newest:
         return
-    subprocess.run([str(cfg["godot"]), "--headless", "--path", str(project), "--import"],
-                   capture_output=True, timeout=300)
-    if cache.exists():
-        cache.touch()
+    # one import at a time: tests started together after an edit would otherwise
+    # all import at once and some fail (seen with parallel key-fit trials)
+    lock = project / ".godot" / "import.lock"
+    for _ in range(600):
+        try:
+            fd = os.open(str(lock), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            break
+        except FileExistsError:
+            if time.time() - lock.stat().st_mtime > 300:    # left by a run that died
+                lock.unlink(missing_ok=True)
+            time.sleep(0.5)
+    else:
+        fd = None
+    try:
+        if not (cache.exists() and cache.stat().st_mtime >= newest):
+            subprocess.run([str(cfg["godot"]), "--headless", "--path", str(project), "--import"],
+                           capture_output=True, timeout=300)
+            if cache.exists():
+                cache.touch()
+    finally:
+        if fd is not None:
+            os.close(fd)
+            lock.unlink(missing_ok=True)
 
 
 def run(test, extra=(), timeout=120.0, quiet=False, project=None):

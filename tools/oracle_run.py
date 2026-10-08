@@ -102,15 +102,19 @@ pcspeaker = true
 
 [autoexec]
 time 00:00:00
+date 01-01-1991
 mount c "{game}"
 c:
 {autotype}
-{exe}
+{exe}{args}
 exit
 """
 
 DOSBOX_KEY_NAME = {"ctrl": "lctrl", "alt": "lalt", "shift": "lshift"}
-SPARE_HOST_KEYS = [("f5", 62), ("f6", 63), ("f7", 64), ("f1", 58), ("f2", 59), ("f3", 60), ("f4", 61)]
+# host keys the held game keys are bound to: F1-F7, then the keypad (SDL scan codes 89-99)
+SPARE_HOST_KEYS = [("f5", 62), ("f6", 63), ("f7", 64), ("f1", 58), ("f2", 59), ("f3", 60), ("f4", 61),
+                   ("kp1", 89), ("kp2", 90), ("kp3", 91), ("kp4", 92), ("kp5", 93), ("kp6", 94), ("kp7", 95),
+                   ("kp8", 96), ("kp9", 97), ("kp0", 98), ("kpdot", 99)]
 
 
 def recorded_frames(video):
@@ -145,6 +149,7 @@ def load_case(game, case):
     spec.setdefault("held", [])
     spec.setdefault("prekeys", [])      # keys posted BEFORE the first picture: [[seconds after the window, key, hold]]
     spec.setdefault("press_until_picture", None)   # {"key": "enter", "from": 8.0, "every": 1.5}: tap until the first picture
+    spec.setdefault("args", "")         # the program's command line, e.g. "/TEDLEVEL 5" (Galaxy: straight into a level)
     spec.setdefault("may_exit", False)
     spec.setdefault("cycles", DEFAULT_CYCLES)
     spec.setdefault("overrides", None)
@@ -315,7 +320,7 @@ def _run(game, case, run_name, spec, opl, wave, show):
     conf.write_text(CONF.format(
         mapper=mapper.as_posix(), captures=cap_dir.as_posix(), game=str(game_dir),
         cycles=spec["cycles"], nosound="false" if (opl or wave) else "true",
-        autotype=autotype, exe=entry["exe"],
+        autotype=autotype, exe=entry["exe"], args=(" " + spec["args"]) if spec["args"] else "",
     ), encoding="ascii")
     (run_dir / "case.json").write_text(json.dumps({"game": game, "case": case, **spec}), encoding="utf-8")
 

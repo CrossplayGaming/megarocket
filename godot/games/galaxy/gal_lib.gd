@@ -1025,6 +1025,16 @@ func VL_Present() -> void:
 		vm.wait_retrace_start()
 
 
+## DOS's VW_ClearVideo: every byte of all four planes zeroed at once, the page
+## on display too, so the black shows as the beam reaches it (TIME-G).
+func VL_ClearVideo() -> void:
+	var card: EgaCard = vm.card
+	for i: int in range(4):
+		var pl: PackedByteArray = card.get("plane%d" % i)
+		pl.fill(0)
+		card.set("plane%d" % i, pl)
+
+
 ## Rows y0..y1-1 of the screen (at the scroll position), or those rows filled
 ## with `colour` (>= 0), written straight into the page on display: for what
 ## the original draws onto the page being shown, so the card shows the work
@@ -1395,6 +1405,10 @@ func VH_MarkUpdateBlock(x1px: int, y1px: int, x2px: int, y2px: int) -> bool:
 	return true
 
 
+## Presents (a flip that waits for the retrace), as omnispeak does. DOS's
+## VW_UpdateScreen copies the changed blocks straight to the page on display
+## without waiting; tried 2026-10-08, it put Keen 4's countdown box (fitted with
+## this present) a refresh off (TIME-G4) and is left for the menu recordings.
 func VH_UpdateScreen() -> void:
 	VL_Present()
 

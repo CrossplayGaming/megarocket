@@ -1780,26 +1780,24 @@ func USL_UpdateCards() -> void:
 func USL_BeginCards() -> void:
 	CA_UpLevel()
 
-	# NOTE: I'm caching more stuff here than is necessary
+	# DOS (USL_SetUpCtlPanel): the controls' and paddle war's lumps, the watch
+	# font and the menu's mask are marked and cached under the "Control Panel"
+	# box (omnispeak caches every bitmap at once, with no box; keen4_level05_a
+	# shows the box for 9 refreshes)
+	var starts: PackedInt32Array = CK_VAR_GetIntArray("lumpStarts")
+	var ends: PackedInt32Array = CK_VAR_GetIntArray("lumpEnds")
+	for lump: String in ["LUMP_CONTROLS", "LUMP_PADDLE"]:
+		var n: int = CK_INT(lump, -1)
+		if n >= 0 and n < starts.size():
+			for c: int in range(starts[n], ends[n] + 1):
+				CA_MarkGrChunk(c)
+	CA_MarkGrChunk(CK_CHUNKNUM("FON_WATCHFONT"))
+	CA_MarkGrChunk(int(ca_gfxInfoE.offMasked))    # the wristwatch screen's mask
+	CA_CacheMarks("Control Panel")
 
-	# Cache all bitmaps
-	for i: int in range(int(ca_gfxInfoE.offBitmaps), int(ca_gfxInfoE.offBitmaps) + int(ca_gfxInfoE.numBitmaps)):
-		CA_CacheGrChunk(i)
-
-	# Cache the font
-	CA_CacheGrChunk(CK_CHUNKNUM("FON_WATCHFONT"))
-
-	# Cache the wristwatch screen masked bitmap
-	CA_CacheGrChunk(int(ca_gfxInfoE.offMasked))
-
-	# Cache the tile8's
+	# the tile8's (cached since the start; no work)
 	CA_CacheGrChunk(int(ca_gfxInfoE.offTiles8))
 	CA_CacheGrChunk(int(ca_gfxInfoE.offTiles8m))
-
-	# Cache the first few sprites for paddlewar
-	# for (int i = ca_gfxInfoE.offSprites; i < (ca_gfxInfoE.offSprites + 10); ++i)
-	for i: int in range(CK_CHUNKNUM("SPR_PADDLE"), CK_CHUNKNUM("SPR_BALL3") + 1):
-		CA_CacheGrChunk(i)
 
 	CA_LoadAllSounds()
 

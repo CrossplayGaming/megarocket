@@ -35,6 +35,19 @@ KEYS = {
     "down": (0x28, 0x50),
     "left": (0x25, 0x4B),
     "right": (0x27, 0x4D),
+    # the keypad (Num Lock's virtual keys, unextended scan codes): more spare
+    # host keys for the oracle runner, SDL's KP_1..KP_0 and KP_PERIOD
+    "kp1": (0x61, 0x4F),
+    "kp2": (0x62, 0x50),
+    "kp3": (0x63, 0x51),
+    "kp4": (0x64, 0x4B),
+    "kp5": (0x65, 0x4C),
+    "kp6": (0x66, 0x4D),
+    "kp7": (0x67, 0x47),
+    "kp8": (0x68, 0x48),
+    "kp9": (0x69, 0x49),
+    "kp0": (0x60, 0x52),
+    "kpdot": (0x6E, 0x53),
 }
 
 _EnumWindowsProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)

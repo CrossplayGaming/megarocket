@@ -19,7 +19,8 @@ extends GalMenu
 ## plateaus each value sits in are in the ledger.
 func timing_defaults() -> Dictionary:
 	return {"grbyte": 3500, "grexp": 700, "sprchunk": 620000, "levelload": 80000000, "clearbyte": 1200, "tile16": 80000,
-		"swrow": 210000, "swpixel": 2600, "swtables": 46400000, "swstart": 17000000, "picbyte": 100}
+		"swrow": 210000, "swpixel": 2600, "swtables": 46400000, "swstart": 17000000, "picbyte": 100,
+		"clearvideo": 51000000}
 
 
 # ===================================================================== ck4_misc.c
