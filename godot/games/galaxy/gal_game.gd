@@ -102,7 +102,7 @@ func CK_MeasureMultiline(string: String, _w: int = 0, _h: int = 0) -> PackedInt3
 
 ## Shutdown all of the 'ID Engine' components.
 func CK_ShutdownID() -> void:
-	# CK_VERIFY_Shutdown(): ck_verify.c's checksum log, a file (not ported)
+	CK_VERIFY_Shutdown()
 	VL_DestroySurface(ck_backupSurface)
 	VL_DestroySurface(ck_statusSurface)
 	US_Shutdown()
@@ -259,7 +259,31 @@ var ck_episodeFile: String = ""    # NULL: ""
 ## name (C's argv[1..]). The file system (FS_Startup), the memory manager
 ## (MM_Startup), the config file (CFG_Startup) and the SDL window parameters are
 ## the shell's; the data are GalData's (`data`). Returns main's exit code.
+## main(): CK_MainBody, then what C's Quit does before exit() (ck_quit.c).
+## C's Quit never returns: it shuts the video down, shows the order screen
+## (for a clean quit) and calls CK_ShutdownID where it stands. The port's
+## Quit only flags it and the callers unwind, so the same tail runs here,
+## once, where the program would have ended.
 func CK_Main(argv: PackedStringArray) -> int:
+	var r: int = CK_MainBody(argv)
+	if quitting:
+		CK_QuitExit()
+	return r
+
+
+func CK_QuitExit() -> void:
+	VL_Shutdown()
+	if quit_message == "":
+		if US_TerminalOk():
+			CA_CacheGrChunk(CK_CHUNKNUM("EXTERN_ORDERSCREEN"))
+			# a 7-byte BSAVE header first; the last row is left for DOS's prompt
+			var scr: Variant = ca_graphChunks[CK_CHUNKNUM("EXTERN_ORDERSCREEN")]
+			if scr != null:
+				US_PrintB8000Text((scr as PackedByteArray).slice(7), 2000 - 80)
+	CK_ShutdownID()
+
+
+func CK_MainBody(argv: PackedStringArray) -> int:
 	var argc: int = argv.size()
 	# Send the cmd-line args to the User Manager.
 	us_argv = argv
@@ -436,7 +460,9 @@ func CK_Main(argv: PackedStringArray) -> int:
 
 	# Draw the ANSI "Press Key When Ready Screen" here
 	CK_DemoLoop()
-	CK_ShutdownID()
+	# (the demo loop ends only through Quit, whose tail CK_Main runs)
+	if not quitting:
+		CK_ShutdownID()
 	return 0
 
 

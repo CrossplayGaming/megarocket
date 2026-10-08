@@ -807,9 +807,6 @@ func _defined_after_decl(fn: StringName) -> bool:
 
 # ===================================================================== globals added by the ports
 # (a global a port needs that another C file defines: one line each, naming the C file)
-var ca_beginCacheBox: StringName = &""    # id_ca.c: the cache box callbacks (method names, &"" for NULL)
-var ca_updateCacheBox: StringName = &""   # id_ca.c
-var ca_finishCacheBox: StringName = &""   # id_ca.c
 var us_aslevFilename: String = ""         # id_us_1.c ("" for NULL)
 
 

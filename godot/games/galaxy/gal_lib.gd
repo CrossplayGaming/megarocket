@@ -308,10 +308,32 @@ func CA_MarkGrChunk(chunk: int) -> void:
 	ca_graphChunkNeeded[chunk] = ca_graphChunkNeeded[chunk] | ca_levelbit
 
 
-func CA_CacheMarks(_msg: String) -> void:
+## The cache-box callbacks (method names; &"" for NULL). GalCK and later
+## scripts set them (ck_main.c: CK_BeginCacheBox ...).
+var ca_beginCacheBox: StringName = &""
+var ca_updateCacheBox: StringName = &""
+var ca_finishCacheBox: StringName = &""
+
+
+## msg "" is C's NULL (no loading box); every real message is non-empty.
+func CA_CacheMarks(msg: String) -> void:
+	var isMessage: bool = msg != ""
+	var numChunksToCache: int = 0
+	# (marking purgeable is a memory matter the port does not have)
 	for i: int in range(ca_graphChunkNeeded.size()):
 		if (ca_graphChunkNeeded[i] & ca_levelbit) != 0 and ca_graphChunks[i] == null:
+			numChunksToCache += 1
+	if numChunksToCache == 0:
+		return
+	if isMessage and ca_beginCacheBox != &"":
+		call(ca_beginCacheBox, msg, numChunksToCache)
+	for i: int in range(ca_graphChunkNeeded.size()):
+		if (ca_graphChunkNeeded[i] & ca_levelbit) != 0 and ca_graphChunks[i] == null:
+			if isMessage and ca_updateCacheBox != &"":
+				call(ca_updateCacheBox)
 			CA_CacheGrChunk(i)
+	if isMessage and ca_finishCacheBox != &"":
+		call(ca_finishCacheBox)
 
 
 func CA_UpLevel() -> void:
@@ -1125,13 +1147,20 @@ func VH_DrawPropChar(x: int, y: int, chunk: int, c: int, colour: int) -> void:
 
 
 ## Returns [width, height] (the C version's out-parameters).
+## C leaves *height untouched for an empty string: the caller's local keeps
+## what it held, in practice the last height measured into that stack slot.
+## The port gives the last height measured.
+var vh_lastMeasuredHeight: int = 0
+
+
 func VH_MeasurePropString(string: String, chunk: int) -> PackedInt32Array:
 	var width: int = 0
-	var height: int = 0
+	var height: int = vh_lastMeasuredHeight
 	for i: int in range(string.length()):
 		var ci: Dictionary = VH_GetFontCharInfo(chunk, string.unicode_at(i) & 0xFF)
 		width = (width + ci.width) & 0xFFFF
 		height = ci.height
+	vh_lastMeasuredHeight = height
 	return PackedInt32Array([width, height])
 
 
