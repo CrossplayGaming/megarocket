@@ -21,8 +21,11 @@ const GAMES: Array = [
 ]
 const TILE_MIN: Vector2 = Vector2(200, 120)
 
-## Folders the player chose (settings); scanned with Steam and GOG.
+## Folders the player chose (settings' game_folders); scanned with Steam and GOG.
 var extra_folders: PackedStringArray = PackedStringArray()
+## The shell's settings (SHELL-05); a test gives its own file.
+var settings: Settings = null
+var settings_path: String = Settings.PATH
 ## Set false by a test that supplies results itself.
 var scan_on_ready: bool = true
 ## Make each found game's title art (J-12) on a background thread.
@@ -54,6 +57,8 @@ var _page: Control
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	settings = Settings.new(settings_path)
+	extra_folders = PackedStringArray(settings.get_value("game_folders"))
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_page = margin
@@ -75,6 +80,11 @@ func _ready() -> void:
 	howto_button.name = "HowTo"
 	howto_button.text = "How to add games"
 	howto_button.pressed.connect(show_howto)
+	var add: Button = Button.new()
+	add.name = "AddFolder"
+	add.text = "Add a folder"
+	add.pressed.connect(_pick_folder)
+	top.add_child(add)
 	top.add_child(howto_button)
 	column.add_child(top)
 	summary = Label.new()
@@ -214,6 +224,35 @@ static func _looks_for(id: String) -> String:
 	return "Looks for " + " or ".join(parts) + "."
 
 
+# ---- a folder the player chooses (SHELL-05's game_folders)
+
+func _pick_folder() -> void:
+	var fd: FileDialog = FileDialog.new()
+	fd.file_mode = FileDialog.FILE_MODE_OPEN_DIR
+	fd.access = FileDialog.ACCESS_FILESYSTEM
+	fd.title = "Choose a folder with Keen games in it"
+	fd.dir_selected.connect(func(dir: String) -> void:
+		add_folder(dir)
+		fd.queue_free())
+	fd.canceled.connect(fd.queue_free)
+	add_child(fd)
+	fd.popup_centered_ratio(0.7)
+
+
+## Remembers a folder (saved at once) and scans again. False if it was known.
+func add_folder(dir: String) -> bool:
+	var known: Array = settings.get_value("game_folders")
+	if known.has(dir):
+		return false
+	known.append(dir)
+	settings.set_value("game_folders", known)
+	settings.save()
+	extra_folders = PackedStringArray(known)
+	if scan_on_ready:
+		_scan.call_deferred()
+	return true
+
+
 # ---- the how-to page (J-12)
 
 ## Where Megarocket looks and what each game needs, in plain words.
@@ -223,7 +262,7 @@ static func howto_text() -> String:
 		"",
 		"Steam: the Commander Keen pack (Keen 1 to 5) and Keen Dreams (the Definitive Edition's DOS/EGA folder), in every Steam library on every drive.",
 		"GOG: the Keen games GOG Galaxy has installed.",
-		"A folder you choose, and the folders inside it two levels deep (to come with Settings).",
+		"A folder you choose with Add a folder, and the folders inside it two levels deep; Megarocket remembers it.",
 		"",
 		"Megarocket only reads the games' files. It never changes or adds anything in a game's folder.",
 		"",

@@ -24,6 +24,7 @@ func _run(scene: PackedScene) -> void:
 		var l: Launcher = scene.instantiate()
 		l.scan_on_ready = false
 		l.make_art = false
+		l.settings_path = OS.get_temp_dir().path_join("mr_launcher_settings_%d.cfg" % Time.get_ticks_usec())
 		root.add_child(l)
 		await process_frame
 		await process_frame
@@ -68,6 +69,11 @@ func _run(scene: PackedScene) -> void:
 		l.show_results([])
 		t.ok("a missing game's tile says what is looked for (%s)" % l._status_label(l.tiles["keen2"]).text.left(60),
 			l._status_label(l.tiles["keen2"]).text.begins_with("Not found.") and l._status_label(l.tiles["keen2"]).text.length() > 20)
+		# a chosen folder is remembered (saved at once) and scanned from then on
+		var added: bool = l.add_folder("D:/Some/Keen Folder")
+		var again: Settings = Settings.new(l.settings_path)
+		t.ok("%dx%d: a chosen folder is saved and scanned (%s); the same folder twice is one" % [win.x, win.y, l.extra_folders],
+			added and again.get_value("game_folders") == ["D:/Some/Keen Folder"] and l.extra_folders.has("D:/Some/Keen Folder") and not l.add_folder("D:/Some/Keen Folder"))
 		# the how-to page opens over the tiles, says where it looks and what each game needs, and closes
 		l.show_howto()
 		await process_frame

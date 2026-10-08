@@ -541,6 +541,17 @@ def shell02():
     return code
 
 
+def shell05():
+    """Settings persist, reset, survive damage value by value, per-game values win, and no
+    simulation script reads them (A15)."""
+    import gdtest
+    code, out = gdtest.run("shell05_settings", [], timeout=300.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def simv02():
     """Every level of Keen 1, 2 and 3, the world maps, the status and ordering screens and the
     endings run to a time limit under scripted play without a script error."""
@@ -624,6 +635,7 @@ CHECKS = {
     "SIM-G-01c2": (simg01c2, "slow"),
     "DIST-02": (dist02, "fast"),
     "SHELL-01": (shell01, "fast"),
+    "SHELL-05": (shell05, "fast"),
     "HOST-01": (host01, "slow"),
     "SHELL-02": (shell02, "slow"),
     "SIM-G-01d": (simg01d, "slow"),
