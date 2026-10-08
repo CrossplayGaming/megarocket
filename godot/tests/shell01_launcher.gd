@@ -2,8 +2,9 @@
 extends SceneTree
 ## SHELL-01: the program's main scene is the launcher, and it shows seven
 ## game tiles with the right status with no games found, some, and all; the
-## tiles lie inside the window's width at a desktop size and at a narrow one,
-## in a scroll area inside the window.
+## tiles lie in a grid inside the window's width at a desktop size, and in one
+## sideways row (the carousel, J-12) in a portrait window; the scroll area is
+## inside the window either way.
 
 var t: T = T.new()
 
@@ -47,14 +48,19 @@ func _run(scene: PackedScene) -> void:
 					found += 1
 				elif l.states[id] == "unsupported":
 					unsupported += 1
-				# every tile as wide as the window allows, none past its sides; the
-				# tiles scroll vertically inside a scroll area that is inside the window
+				# wide: every tile within the window's width, scrolling down; narrow
+				# (the carousel): one row, every tile on it, scrolling sideways
 				var tr: Rect2 = tile.get_global_rect()
-				if tr.position.x < 0 or tr.end.x > win.x or tr.size.x < 50:
+				if l.carousel:
+					if absf(tr.position.y - (l.tiles["keen1"] as Control).get_global_rect().position.y) > 0.5 or tr.size.x < 50:
+						inside = false
+				elif tr.position.x < 0 or tr.end.x > win.x or tr.size.x < 50:
 					inside = false
 			if not r.encloses(l.scroll.get_global_rect()):
 				inside = false
 			var want: Array = {"none": [0, 0], "some": [1, 1], "all": [7, 0]}[c[0]]
+			if l.carousel != (win.y > win.x):
+				inside = false    # the carousel for the portrait window only
 			t.ok("%dx%d, %s found: 7 tiles, %d found and %d unsupported (want %s), every tile inside the window (%s), summary '%s'" %
 				[win.x, win.y, c[0], found, unsupported, want, inside, l.summary.text],
 				l.tiles.size() == 7 and found == want[0] and unsupported == want[1] and inside)

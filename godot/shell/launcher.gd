@@ -36,6 +36,8 @@ var art_shown: Dictionary = {}
 var summary: Label
 var grid: GridContainer
 var scroll: ScrollContainer
+## One sideways row (narrow or portrait windows).
+var carousel: bool = false
 ## id -> the tile's PanelContainer
 var tiles: Dictionary = {}
 ## id -> "found" | "unsupported" | "missing"
@@ -74,6 +76,7 @@ func _ready() -> void:
 	scroll = ScrollContainer.new()
 	scroll.name = "Scroll"
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.add_child(grid)
 	column.add_child(scroll)
@@ -95,11 +98,29 @@ func _scan() -> void:
 
 
 ## As many columns as fit; one tile per game whatever the width.
+## Wide: as many columns as fit, scrolling down. Narrow (portrait, or under
+## two tiles across): one row, scrolling sideways, following the focused tile
+## (J-12's carousel).
 func _layout() -> void:
 	if grid == null:
 		return
 	var usable: float = max(size.x - 32.0, TILE_MIN.x)
-	grid.columns = clampi(int(usable / (TILE_MIN.x + 12.0)), 1, GAMES.size())
+	carousel = size.y > size.x or usable < 2.0 * TILE_MIN.x + 12.0
+	if carousel:
+		grid.columns = GAMES.size()
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+		scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		grid.size_flags_horizontal = Control.SIZE_FILL
+		var w: float = clampf(usable * 0.8, TILE_MIN.x, 360.0)
+		for id: String in tiles:
+			(tiles[id] as Control).custom_minimum_size = Vector2(w, TILE_MIN.y)
+	else:
+		grid.columns = clampi(int(usable / (TILE_MIN.x + 12.0)), 1, GAMES.size())
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		for id: String in tiles:
+			(tiles[id] as Control).custom_minimum_size = TILE_MIN
 
 
 func _make_tile(id: String, name_text: String, subtitle: String) -> PanelContainer:
