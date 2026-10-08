@@ -3,7 +3,7 @@
 # A port of omnispeak's ck4_misc.c, ck4_map.c and ck4_obj1-3.c, by David Gow and the Omnispeak authors,
 # GPL v2 or later. Names, order and arithmetic follow omnispeak upstream (A10).
 class_name GalKeen4
-extends GalGame
+extends GalMenu
 ## Keen 4's episode code (SIM-G-01g): the info-layer scan, the dialogs, swimming
 ## Keen, the world map's swimming and every Keen 4 creature's think, collide and
 ## draw functions. ck4_episode (ck4_misc.c's CK_EpisodeDef) is declared in

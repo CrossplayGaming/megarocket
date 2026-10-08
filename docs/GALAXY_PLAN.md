@@ -38,8 +38,8 @@ original lacks.
 ## Conventions (A10, A2, A11, A13 applied to omnispeak)
 
 1. **One class, many scripts.** `GalLib` (gal_lib.gd) extends `RefCounted`; each later script extends the one
-   before: GalLib → GalRF → GalIO → GalUS → **GalCK** → GalAct → GalPlay → GalGame → GalKeen4 / GalKeen5 /
-   GalKeen6 (each episode class extends GalGame). Each script ports whole C files, named in its header.
+   before: GalLib → GalRF → GalIO → GalUS → **GalCK** → GalAct → GalPlay → GalGame → GalMenu → GalKeen4 /
+   GalKeen5 / GalKeen6 (each episode class extends GalMenu, the control panel: id_us_2.c with ck_us_2.c). Each script ports whole C files, named in its header.
 2. **Names.** Every function, global and constant keeps omnispeak's name (`CK_PhysUpdateNormalObj`,
    `RF_PlaceSprite`, `ck_gameState`). Static helpers of a C file keep their names too, unless another C file
    has a different static function of the same name: then the later script's copy gets the C file as a suffix

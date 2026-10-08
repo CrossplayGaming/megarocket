@@ -3,7 +3,7 @@
 # A port of omnispeak's ck6_misc.c, ck6_map.c and ck6_obj1-3.c, by David Gow and the Omnispeak authors,
 # GPL v2 or later. Names, order and arithmetic follow omnispeak upstream (A10).
 class_name GalKeen6
-extends GalGame
+extends GalMenu
 ## Keen 6's episode code (SIM-G-01h).
 ##
 ## Every store wraps as its C type does (u16 for the uint16_t position and

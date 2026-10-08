@@ -5,7 +5,7 @@ extends SceneTree
 ## (file and line) above the result.
 
 const CLASSES: Array = ["res://games/galaxy/gal_ck.gd", "res://games/galaxy/gal_act.gd",
-	"res://games/galaxy/gal_play.gd", "res://games/galaxy/gal_game.gd",
+	"res://games/galaxy/gal_play.gd", "res://games/galaxy/gal_game.gd", "res://games/galaxy/gal_menu.gd",
 	"res://games/galaxy/gal_keen4.gd", "res://games/galaxy/gal_keen5.gd", "res://games/galaxy/gal_keen6.gd"]
 
 
