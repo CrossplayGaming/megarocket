@@ -19,7 +19,10 @@ func _init() -> void:
 
 
 func _run(scene: PackedScene) -> void:
-	for win: Vector2i in [Vector2i(1280, 720), Vector2i(480, 800)]:
+	t.ok("the UI's scale: a 440 dpi phone 2.75, a 120 dpi one 1, a desktop 1",
+		is_equal_approx(Launcher.scale_for(440, true), 2.75) and Launcher.scale_for(120, true) == 1.0 and Launcher.scale_for(440, false) == 1.0)
+	# a desktop window, a portrait phone, a landscape phone (2340x1080 at 2.75: short)
+	for win: Vector2i in [Vector2i(1280, 720), Vector2i(480, 800), Vector2i(851, 393)]:
 		root.size = win
 		var l: Launcher = scene.instantiate()
 		l.scan_on_ready = false
@@ -61,8 +64,8 @@ func _run(scene: PackedScene) -> void:
 			if not r.encloses(l.scroll.get_global_rect()):
 				inside = false
 			var want: Array = {"none": [0, 0], "some": [1, 1], "all": [7, 0]}[c[0]]
-			if l.carousel != (win.y > win.x):
-				inside = false    # the carousel for the portrait window only
+			if l.carousel != (win.x != 1280):
+				inside = false    # the carousel for the phones only (portrait, or too short for the grid's rows)
 			t.ok("%dx%d, %s found: 7 tiles, %d found and %d unsupported (want %s), every tile inside the window (%s), summary '%s'" %
 				[win.x, win.y, c[0], found, unsupported, want, inside, l.summary.text],
 				l.tiles.size() == 7 and found == want[0] and unsupported == want[1] and inside)

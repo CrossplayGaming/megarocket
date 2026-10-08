@@ -62,8 +62,18 @@ var host: GameHost = null
 var _page: Control
 
 
+## The UI's scale for a screen: phones and tablets by density (Android's
+## 160 dpi is 1), never below 1; desktops 1.
+static func scale_for(dpi: int, mobile: bool) -> float:
+	if not mobile or dpi <= 0:
+		return 1.0
+	return maxf(1.0, dpi / 160.0)
+
+
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	if is_inside_tree() and get_window() != null:
+		get_window().content_scale_factor = scale_for(DisplayServer.screen_get_dpi(), OS.has_feature("mobile"))
 	# the log's first line: what is running where (SHELL-09; AND-01 reads it)
 	ShellMessages.note("Megarocket %s on %s (%s), sound chip %s" % [ProjectSettings.get_setting("application/config/version", ""),
 		OS.get_name(), RenderingServer.get_current_rendering_method(), "ready" if ClassDB.class_exists("D2Opl") else "missing"])
@@ -142,14 +152,18 @@ func _scan() -> void:
 
 
 ## As many columns as fit; one tile per game whatever the width.
-## Wide: as many columns as fit, scrolling down. Narrow (portrait, or under
-## two tiles across): one row, scrolling sideways, following the focused tile
-## (J-12's carousel).
+## Wide: as many columns as fit, scrolling down. Narrow (portrait, under two
+## tiles across, or too short for the grid's rows, as a phone held sideways):
+## one row, scrolling sideways, following the focused tile (J-12's carousel).
 func _layout() -> void:
 	if grid == null:
 		return
 	var usable: float = max(size.x - 32.0, TILE_MIN.x)
-	carousel = size.y > size.x or usable < 2.0 * TILE_MIN.x + 12.0
+	# the grid's rows must fit under the header too (a landscape phone is short)
+	var columns: int = clampi(int(usable / (TILE_MIN.x + 12.0)), 1, GAMES.size())
+	var rows: int = ceili(GAMES.size() / float(columns))
+	var too_short: bool = size.y < 140.0 + rows * (TILE_MIN.y + 12.0)
+	carousel = size.y > size.x or usable < 2.0 * TILE_MIN.x + 12.0 or too_short
 	if carousel:
 		grid.columns = GAMES.size()
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
@@ -159,7 +173,7 @@ func _layout() -> void:
 		for id: String in tiles:
 			(tiles[id] as Control).custom_minimum_size = Vector2(w, TILE_MIN.y)
 	else:
-		grid.columns = clampi(int(usable / (TILE_MIN.x + 12.0)), 1, GAMES.size())
+		grid.columns = columns
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
