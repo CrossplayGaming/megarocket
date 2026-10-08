@@ -159,12 +159,14 @@ func WorldMap() -> void:
 		ClearKeys()
 		RF_ForceRefresh()
 		canSave = true
-		var anim: int = 0
+		var anim: int = map_anim0    # the original's `anim` is never initialised: the stack's leftover (fitted per episode)
 		while true:
 			RF_Clear()
 			if episode == 3:
 				_update_messie(ob)
 			ControlMapKeen(ControlPlayer(1), ob)
+			if trace_frames:
+				print("TRACE mapframe t=%.6f tics=%d tc=%d keen=%d,%d" % [float(vm.now) / float(DosMachine.PIT_HZ * DosMachine.UNIT), tics, timecount, ob.x, ob.y])
 			if episode == 3:
 				_place_messie(anim)
 			cost("mapframe")    # the map frame's C code before the refresh, not yet counted
@@ -235,6 +237,12 @@ func _episode_finished() -> bool:
 		3:
 			return (LevelNumber & 0xFF) == 16
 	return false
+
+
+## The map loop's uninitialised `anim` (Keen 3's Messie animation reads bit 1 of it):
+## the value the original's stack slot holds when the map loop starts. Only its
+## value mod 4 shows. Fitted on keen3_level15_a; 0 for episodes without Messie.
+var map_anim0: int = 0
 
 
 ## Keen 3's Messie and Keen 2's ending; the episode classes supply them.

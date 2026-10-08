@@ -38,7 +38,7 @@
   [
    10.4281,
    "right",
-   4.0
+   3.9857
   ],
   [
    11.4281,
@@ -102,5 +102,5 @@
   ]
  ],
  "refreshes_after_intro": 2223,
- "result": "first difference at picture 78"
+ "result": "PASS"
 }

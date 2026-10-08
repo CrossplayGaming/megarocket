@@ -84,6 +84,12 @@ var _key_script: Array = []             # the scripted presses and releases alon
 ## come back with the next repeat. 0 turns repeating off.
 var repeat_pause_ms: int = 500
 var repeat_rate_ms: int = 33
+## DOSBox counts the repeat in whole emulated milliseconds (KEYBOARD_TickHandler runs
+## once a millisecond tick): the pause is counted from the first tick after the press,
+## and each code reaches port 60h KEYDELAY (0.3 ms) after it is queued. The tick grid's
+## phase against the program's start is not known: fitted (0 to 1 ms).
+var repeat_phase_ms: float = 0.0
+const KEY_DELAY_MS: float = 0.3
 var marks: Dictionary = {}              # name -> time units
 var keys_after_mark: Array = []         # [[mark, seconds after it, scancode, hold seconds], ...]
 var _key_index: int = 0
@@ -129,11 +135,21 @@ func _add_key_units(at_units: int, scancode: int, hold: float) -> void:
 ## key_events from the script: its events plus the repeats the held keys
 ## send. Keys are only ever added at or after `now`, so the events already
 ## delivered are unchanged and `_key_index` still counts them.
+## The first millisecond tick strictly after `t` (ticks at phase + k ms).
+static func _next_tick_ms(t: int, ms: int, phase: int) -> int:
+	var k: int = (t - phase) / ms + 1
+	if (t - phase) < 0:
+		k = 0
+	return phase + k * ms
+
+
 func _expand_repeats() -> void:
 	var out: Array = []
 	var ms: int = PIT_HZ * UNIT / 1000
 	var rep_key: int = -1
 	var rep_at: int = 1 << 62
+	var delay: int = int(round(KEY_DELAY_MS * ms))
+	var phase: int = int(round(repeat_phase_ms * ms))
 	for e: Array in _key_script:
 		if repeat_pause_ms > 0:
 			while rep_key >= 0 and rep_at < e[0]:
@@ -142,7 +158,12 @@ func _expand_repeats() -> void:
 		out.append([e[0], e[1]])
 		var code: int = e[1]
 		if (code & 0x80) == 0:
-			rep_at = e[0] + (repeat_rate_ms if code == rep_key else repeat_pause_ms) * ms
+			# the press was queued `delay` before it was delivered; the tick after that
+			# queuing starts the count (pause - 1 more ticks), and the repeat is queued
+			# on the tick it reaches zero, delivered `delay` later
+			var queued: int = e[0] - delay
+			var tick: int = _next_tick_ms(queued, ms, phase)
+			rep_at = tick + (repeat_pause_ms - 1) * ms + delay
 			rep_key = code
 		elif (code & 0x7F) == rep_key:
 			rep_key = -1

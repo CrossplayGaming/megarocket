@@ -609,6 +609,8 @@ func ClipMapKeen(ob: Obj) -> bool:
 			for y: int in range(tiletop, tilebottom + 1):
 				if westwall[GETTILE(tileright, y, 0)] != 0 or (GETTILE(tileright, y, 1) & infoBlockMask) != 0:
 					ob.xspeed = 0
+					if trace_frames:
+						print("TRACE mapblock right tile %d,%d tile0 %d westwall %d info %d rect %d-%d x %d-%d" % [tileright, y, GETTILE(tileright, y, 0), westwall[GETTILE(tileright, y, 0)], GETTILE(tileright, y, 1), mapkeen.left, mapkeen.right, mapkeen.top, mapkeen.bottom])
 					extra = (mapkeen.right + 1) % TILEGLOBAL
 					ob.xmove -= extra
 					mapkeen.left -= extra
@@ -692,7 +694,10 @@ func ControlMapKeen(ctrl: Dictionary, ob: Obj) -> void:
 	infoBlockMask = 0x8000
 	if keydown[KEY_TAB] != 0 and keydown[KEY_LSHIFT] != 0:
 		infoBlockMask = 0
+	var xm0: int = ob.xmove
 	var blocked: bool = ClipMapKeen(ob)
+	if trace_frames and (xm0 != 0 or ob.ymove != 0):
+		print("TRACE mapmove t=%.6f dir=%d xmove %d->%d ymove %d blocked=%s x=%d shape=%d tics=%d" % [float(vm.now) / float(DosMachine.PIT_HZ * DosMachine.UNIT), ctrl.dir, xm0, ob.xmove, ob.ymove, blocked, ob.x, ob.shapenum, tics])
 	ob.x += ob.xmove
 	ob.y += ob.ymove
 	if move and ((u16(timecount) >> 3) & 3) == 0:

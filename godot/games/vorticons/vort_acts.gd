@@ -1099,7 +1099,7 @@ func _lose_items(_currentlevel: int) -> void:
 	pass
 
 
-## Instructions LoadLevel's spawn pass spends on each tile of the level.
+## Instructions LoadLevel's spawn pass spends on each tile of the level (per episode; see each _init).
 var spawn_scan_per_tile: int = 16
 ## Diagnosis only: tics added to timecount as a level starts (0 in play).
 var level_tc_shift: int = 0
@@ -1127,7 +1127,15 @@ func LevelLoop(currentlevel: int) -> int:
 	LevelDone = ex_nothing
 	cheatmode = false
 	ankhtime = 0
+	if trace_frames:
+		print("TRACE load_begin t=%.6f" % (float(vm.now) / float(DosMachine.PIT_HZ * DosMachine.UNIT)))
 	LoadLevel(currentlevel)
+	if trace_frames:
+		print("TRACE load_end t=%.6f" % (float(vm.now) / float(DosMachine.PIT_HZ * DosMachine.UNIT)))
+	if trace_frames:    # the level's objects as spawned (tests only)
+		for q: int in range(numobj):
+			print("TRACE spawned %d class %d tile %d,%d xspeed %d think %s" % [q, objlist[q].obclass, objlist[q].x >> 12, objlist[q].y >> 12, objlist[q].xspeed, objlist[q].think])
+	cost("levelload")    # time after the level's read and spawns, before the first RF_Clear; 0 until fitted
 	timecount += level_tc_shift
 	lasttimecount += level_tc_shift
 	originx = keen.x - 10 * TILEGLOBAL
@@ -1141,6 +1149,8 @@ func LevelLoop(currentlevel: int) -> int:
 	if originy > originymax:
 		originy = originymax
 	RF_Clear()
+	if trace_frames:
+		print("TRACE fade_begin t=%.6f" % (float(vm.now) / float(DosMachine.PIT_HZ * DosMachine.UNIT)))
 	FadeOut()
 	lightson = true
 	RF_ForceRefresh()

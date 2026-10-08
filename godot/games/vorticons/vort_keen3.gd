@@ -75,9 +75,16 @@ func _init() -> void:
 	# border: that pinned the timer's start to 21.5312 refreshes, one tic
 	# after an equally good-looking 21.05.
 	costs = {"loadgraphics": round(21.5312 * DosMachine.VBL_PERIOD), "demoloop_load": 5 * 8192 * DosMachine.UNIT,
-		"worldmap_load": 10000000, "mapframe": 190909, "levelframe": 50000, "levelthink": 71600, "levelobject": 103400}    # worldmap_load: at least 6.5M on the level 1 session (provisional); the rest Keen 1's, until fitted here
+		"worldmap_load": 13750000, "mapframe": 190909, "levelframe": 50000, "levelthink": 71600, "levelobject": 103400}
+	# worldmap_load: the middle of 5.5M-22M, the window levels 6 and 14 pass in (one refresh
+	# wide). mapframe and the level frame costs are Keen 1's, until fitted here.
+	costs["demoloop_load"] = 33792000    # 4.125 tics: the middle of 3.25-5.0, the title's window with the spawn scan below
+	# LoadLevel's spawn pass: 19 switch cases; levels 4 and 15 want 108-138 and 114-126 per
+	# tile (Keen 1's pass only below 52: its own switch is smaller and compiled differently)
+	spawn_scan_per_tile = 120
+	map_anim0 = 1    # the map loop's uninitialised anim: level 15's Messie frames need 1 mod 4
 	dosbox_timing.timer_offset = -4453955
-	# the BIOS tick count when the program reads the DOS clock (provisional: best on keen3_level01_a so far)
+	# the BIOS tick count when the program reads the DOS clock (oracle clock set to midnight): the only value 0-60 under which levels 6 and 14 match throughout
 	dos_ticks = 4
 
 
