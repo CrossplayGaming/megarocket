@@ -6,7 +6,8 @@ extends SceneTree
 ## the card's frames reach the screen side; keys the player presses reach
 ## the game (Keen 4: Escape opens the control panel, Q, Enter and Y quit, and the
 ## host reports the game's end); stopping from outside ends a game cleanly
-## (Keen 1); the launcher starts a game from its tile and is back when it
+## (Keen 1); Keen 4's AdLib music reaches the mixer and makes a signal; the
+## launcher starts a game from its tile and is back when it
 ## ends (Keen 2); the threads are gone afterwards.
 ##
 ## Options: --game_data=<folder>
@@ -53,6 +54,18 @@ func _go() -> void:
 	if ok:
 		var shown: bool = await _wait(func() -> bool: return host.frames_shown >= 50, 120.0)
 		t.ok("frames reach the screen side (%d made, %d shown)" % [host.frames_made, host.frames_shown], shown)
+		# sound: the title's AdLib music reaches the mixer and makes a signal
+		# (the intro is silent; the demo's music starts after the title, about 19 s in)
+		await _wait(func() -> bool: return host.audio != null and host.audio.events.size() > 1000, 45.0)
+		var a: HostAudio = host.audio
+		var peak: float = 0.0
+		if a != null and a.events.size() > 0:
+			a.t = float(a.events[a.events.size() - 1][0])    # render where the music is (headless has no audio output)
+			a._next = 0
+			for v: Vector2 in a.render(8192):
+				peak = maxf(peak, absf(v.x))
+		t.ok("the game's AdLib writes reach the mixer (%d events, OPL %s) and make sound (peak %.3f)" %
+			[a.events.size() if a != null else 0, a != null and a.opl != null, peak], a != null and a.events.size() > 1000 and a.opl != null and peak > 0.01)
 		# keys: Escape until the control panel is up (the first may only skip the
 		# intro), then Q (QUIT) and Y to confirm
 		var g4: GalGame = host.engine

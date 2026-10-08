@@ -8,7 +8,8 @@ extends Control
 ## reaches the machine's time. Each frame the card finishes is shown through
 ## a palette shader at 4:3. When the program quits (or stop() is called) the
 ## thread ends and `finished` is emitted; nothing carries over to the next
-## game. No sound yet (AUDIO units).
+## game. Sound (HOST-02): the AdLib writes and speaker changes the machine
+## makes go to HostAudio, which the screen side turns into samples.
 
 signal finished(message: String)
 
@@ -31,6 +32,16 @@ var _frame_palette: PackedByteArray = PackedByteArray()
 var _frame_new: bool = false
 var _done: bool = false
 var _quit_message: String = ""
+
+## sound: events gathered on the engine thread, handed over in _pace
+var audio: HostAudio = null
+const AUDIO_LATENCY: float = 0.12
+var _opl_local: Array = []
+var _audio_pending: Array = []
+var _machine_t: float = 0.0
+var _player: AudioStreamPlayer = null
+var _playback: AudioStreamGeneratorPlayback = null
+var _audio_started: bool = false
 
 var _view: TextureRect
 var _index_image: Image
@@ -137,6 +148,19 @@ func start(found: Dictionary) -> bool:
 			return false
 	vm.on_display = _on_display
 	vm.pace = _pace
+	vm.record_speaker = true
+	if engine is GalGame:
+		(engine as GalGame).sd_alOutHook = func(reg: int, value: int) -> void:
+			_opl_local.append([vm.seconds(), reg, value])
+	audio = HostAudio.new()
+	_player = AudioStreamPlayer.new()
+	var gen: AudioStreamGenerator = AudioStreamGenerator.new()
+	gen.mix_rate = HostAudio.RATE
+	gen.buffer_length = 0.25
+	_player.stream = gen
+	add_child(_player)
+	_player.play()
+	_playback = _player.get_stream_playback()
 	_start_usec = Time.get_ticks_usec()
 	thread = Thread.new()
 	thread.start(_run)
@@ -175,6 +199,21 @@ func _pace() -> void:
 			vm.key_down_now(k[0])
 		else:
 			vm.key_up_now(k[0])
+	# the sound events so far go to the screen side
+	if not _opl_local.is_empty() or not vm.speaker_events.is_empty():
+		var batch: Array = _opl_local
+		_opl_local = []
+		var spk: PackedInt64Array = vm.speaker_events
+		vm.speaker_events = PackedInt64Array()
+		var unit: float = float(DosMachine.PIT_HZ * DosMachine.UNIT)
+		for i: int in range(0, spk.size(), 2):
+			batch.append([float(spk[i]) / unit, -1, int(spk[i + 1])])
+		_mutex.lock()
+		_audio_pending.append_array(batch)
+		_machine_t = vm.seconds()
+		_mutex.unlock()
+	else:
+		_machine_t = vm.seconds()
 	if stopping:
 		if engine is GalGame:
 			(engine as GalGame).Quit("")
@@ -207,7 +246,11 @@ func _process(_delta: float) -> void:
 	var pal: PackedByteArray = _frame_palette
 	_frame_new = false
 	var done: bool = _done
+	var pending: Array = _audio_pending
+	_audio_pending = []
+	var machine_t: float = _machine_t
 	_mutex.unlock()
+	_feed_audio(pending, machine_t)
 	if fresh and idx.size() == 320 * 200 and pal.size() >= 48:
 		_index_image.set_data(320, 200, false, Image.FORMAT_R8, idx)
 		_index_tex.update(_index_image)
@@ -221,6 +264,34 @@ func _process(_delta: float) -> void:
 		finished.emit(_quit_message)
 
 
+## Sound: events into the mixer (in time order), samples to the output.
+func _feed_audio(pending: Array, machine_t: float) -> void:
+	if audio == null:
+		return
+	pending.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	for e: Array in pending:
+		if e[1] == -1:
+			audio.push_speaker(e[0], e[2])
+		else:
+			audio.push_opl(e[0], e[1], e[2])
+	if not _audio_started:
+		if machine_t <= AUDIO_LATENCY:
+			return
+		audio.t = machine_t - AUDIO_LATENCY
+		_audio_started = true
+	if _playback == null:
+		return
+	# fallen behind (the screen side stalled): catch up silently, keeping a
+	# quarter second to fill the output with
+	if machine_t - AUDIO_LATENCY - audio.t > 0.4:
+		audio.skip_to(machine_t - AUDIO_LATENCY - 0.25)
+	# never run the audio clock past the machine's (less the latency)
+	var room: int = int((machine_t - AUDIO_LATENCY - audio.t) * HostAudio.RATE)
+	var n: int = mini(_playback.get_frames_available(), maxi(room, 0))
+	if n > 0:
+		_playback.push_buffer(audio.render(n))
+
+
 ## Breaks the references between the machine, its handlers and the engine.
 func _release() -> void:
 	if vm != null:
@@ -229,7 +300,13 @@ func _release() -> void:
 		vm.int8 = Callable()
 		vm.int9 = Callable()
 		vm.on_limit = Callable()
+	if audio != null:
+		audio.close()
+		audio = null
+	if _player != null:
+		_player.stop()
 	if engine is GalGame:
+		(engine as GalGame).sd_alOutHook = Callable()
 		(engine as GalGame).CK_ReleaseLinks()
 		(engine as GalGame).RF_Shutdown()
 	elif engine != null:
