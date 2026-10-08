@@ -2793,6 +2793,12 @@ func CK_FizzleFade() -> void:
 	var dimensions: Dictionary = VH_GetBitmapTableEntry(CK_CHUNKNUM("PIC_TITLESCREEN") - int(ca_gfxInfoE.offBitmaps))
 
 	VL_UnmaskedToSurface(ca_graphChunks[CK_CHUNKNUM("PIC_TITLESCREEN")], 0, titleBuffer, 0, 0, int(dimensions.width) * 8, int(dimensions.height))
+	# TIME-G: DOS sets the screen (VW_SetScreen, which waits for the retrace),
+	# then draws the title into the page not on display (VW_DrawPic), so the
+	# first step lands early in a refresh and shows alone (keen4_boot_a)
+	if costs.has("picbyte"):
+		vm.wait_retrace_start()
+		cost_n("picbyte", int(dimensions.width) * int(dimensions.height))
 
 	# Do the fizzling
 	i = 0
@@ -2809,6 +2815,7 @@ func CK_FizzleFade() -> void:
 		if var_12 >= 200:
 			var_12 = 199
 
+		var changed: PackedInt32Array = PackedInt32Array()
 		var y: int = var_10
 		while y <= var_12:
 			for _attempt: int in range(2):
@@ -2820,19 +2827,25 @@ func CK_FizzleFade() -> void:
 
 				# We use VL_ScreenRect here instead of VL_SurfaceToScreen() because
 				# the EGA backend requires VL_SurfaceToScreen()'s x coordinate be divisble by 8.
+				# DOS: the bit mask is 1 << (x & 7) (FinishPage's bitmask[]), and the
+				# EGA's bit 0 is a byte's rightmost pixel: the pixel changed is x
+				# mirrored within its byte (keen4_boot_a; omnispeak changes x)
+				x = (x & ~7) | (7 - (x & 7))
 				var pixelValue: int = VL_SurfacePGet(titleBuffer, x, y)
 				VL_ScreenRect(x, y, 1, 1, pixelValue)
 				# Update the byte we modified if we're double-buffering.
 				VL_UpdateRect(x & ~7, y, 8, 1)
+				changed.append(y * VL_EGAVGA_GFX_WIDTH + x)
 			y += 1
 
-		VL_FixRefreshBuffer()
-		VL_Present()
+		# DOS: the pixels go straight onto the page on display, then
+		# VW_WaitVBL(1) (a retrace's end, then the next one's start), so each
+		# step shows from the next refresh, the first one too (keen4_boot_a)
+		VL_ShowPixels(changed)
+		vm.wait_vbl(1)
 
-		# VL_WaitVBL(1);
-		VL_DelayTics(1)
-
-		IN_PumpEvents()
+		# DOS reads the keyboard's state here (IN_IsUserInput); no pump, which
+		# would run the machine on to its next event
 
 		if IN_CheckAck() != 0:
 			if IN_GetLastScan() == IN_SC_F1:
@@ -3051,6 +3064,9 @@ func CK_PrepareSWUpdate() -> void:
 	# SW text surface (in SWunits).
 	var currentMasterRow: int = 0
 
+	# TIME-G: the original's BuildBitTables (once, before the rows)
+	cost("swtables")
+
 	for row: int in range(199, -1, -1):
 		# Width of the row in pixels, even.
 		var rowWidth: int = CK_SWunitsToPixels(trapezoidWidth / 2) * 2
@@ -3069,6 +3085,16 @@ func CK_PrepareSWUpdate() -> void:
 
 		# Shrink the scale distance for the next line.
 		trapezoidWidth = (trapezoidWidth - delTrapWidth) & 0xFFFFFFFF
+
+		# TIME-G: the original compiles this row's scaler here, and the row
+		# appears on the page on display as it goes (in colour 1, then the
+		# picture), so the screen fills from the bottom, faster as the rows
+		# narrow (keen4_boot_a)
+		if costs.has("swrow"):
+			VL_ShowRows(row, row + 1, 1)
+			cost("swrow")
+			cost_n("swpixel", rowWidth)
+			VL_ShowRows(row, row + 1)
 
 
 ## Converts a string from ASCII to Star Wars font indices. Returns the
@@ -3165,6 +3191,15 @@ func CK_ScrollSWText() -> void:
 	VL_SetMapMask(8)
 
 	var scrollDistance: int = 0    # uint16_t
+	if costs.has("swstart"):
+		# TIME-G4: in the original the first frame is on screen at once and
+		# stays a while before the scroll's clock starts (keen4_boot_a)
+		_sw_draw_rows(scrollDistance)
+		VL_Present()
+		cost("swstart")
+		SD_SetLastTimeCount(0)
+		SD_SetTimeCount(0)
+		SD_SetSpriteSync(0)
 	VL_SwapOnNextPresent()
 	VL_Present()
 	VL_FixRefreshBuffer()
@@ -3172,27 +3207,7 @@ func CK_ScrollSWText() -> void:
 	while scrollDistance <= ck_starWarsTotalHeight + 400:
 		if quitting:
 			return
-		# Update rows from the bottom.
-		for row: int in range(199, -1, -1):
-			var masterRowToDraw: int = scrollDistance - ck_SWScreenRowToMasterRow[row]
-
-			# If it's out of range, set it to our reserved blank row 0.
-			if masterRowToDraw < 0 or masterRowToDraw >= ck_starWarsTotalHeight:
-				masterRowToDraw = 0
-
-			var rowStart: int = 160 - ck_SWRowWidthInScreenPx[row] / 2
-			var rowEnd: int = 160 + ck_SWRowWidthInScreenPx[row] / 2
-
-			# The x-coordinate of the current pixel in the offscreen text buffer, in SWunits.
-			var masterX: int = 0
-
-			# For each screen pixel: the master pixel, read and masked to the screen in plane 4.
-			for screenX: int in range(rowStart, rowEnd):
-				var masterPixelX: int = CK_SWunitsToPixels(masterX)
-				var pixelValue: int = VL_SurfacePGet(ck_starWarsTextSurface, masterPixelX, masterRowToDraw)
-
-				VL_ScreenRect_PM(screenX, row, 1, 1, pixelValue)
-				masterX += ck_SWRowPixelDistance[row]
+		_sw_draw_rows(scrollDistance)
 
 		IN_PumpEvents()
 		VL_SwapOnNextPresent()
@@ -3215,8 +3230,37 @@ func CK_ScrollSWText() -> void:
 			return
 
 
+## One frame of the scroll: every row, from the bottom.
+func _sw_draw_rows(scrollDistance: int) -> void:
+	for row: int in range(199, -1, -1):
+		var masterRowToDraw: int = scrollDistance - ck_SWScreenRowToMasterRow[row]
+
+		# If it's out of range, set it to our reserved blank row 0.
+		if masterRowToDraw < 0 or masterRowToDraw >= ck_starWarsTotalHeight:
+			masterRowToDraw = 0
+
+		var rowStart: int = 160 - ck_SWRowWidthInScreenPx[row] / 2
+		var rowEnd: int = 160 + ck_SWRowWidthInScreenPx[row] / 2
+
+		# The x-coordinate of the current pixel in the offscreen text buffer, in SWunits.
+		var masterX: int = 0
+
+		# For each screen pixel: the master pixel, read and masked to the screen in plane 4.
+		for screenX: int in range(rowStart, rowEnd):
+			var masterPixelX: int = CK_SWunitsToPixels(masterX)
+			var pixelValue: int = VL_SurfacePGet(ck_starWarsTextSurface, masterPixelX, masterRowToDraw)
+
+			VL_ScreenRect_PM(screenX, row, 1, 1, pixelValue)
+			masterX += ck_SWRowPixelDistance[row]
+
+
 func CK_DrawStarWars() -> void:
 	# Keen5 sets the palette to the default one here.
+	# DOS: the palette goes black (a BIOS call, applied in the retrace), then
+	# the page on display is cleared (TIME-G4: black from one refresh to the next)
+	if costs.has("swtables"):
+		vm.wait_retrace_start()
+	VL_ShowRows(0, VL_EGAVGA_GFX_HEIGHT, 0)
 	VL_ClearScreen(0)
 	VL_SetScrollCoords(0, 0)
 

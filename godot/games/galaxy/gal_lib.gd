@@ -1010,16 +1010,80 @@ func VL_SwapOnNextPresent() -> void:
 ## page in write mode 0 one plane at a time, then shown from the next retrace.
 func VL_Present() -> void:
 	vl_lastFrameTime = SD_GetTimeCount()
-	var card: EgaCard = vm.card
 	var page: int = 1 - vl_shownPage
 	var base: int = page * EgaCard.PAGE_SIZE
+	_write_rows(base, 0, VL_EGAVGA_GFX_HEIGHT, -1)
+	# the CRTC start address, latched by the card at the next retrace; then, as
+	# id_vl_dos.c's present does, wait for that retrace to begin (no wait when
+	# one already has)
+	vm.out8(EgaCard.CRTC_INDEX, EgaCard.CRTC_STARTHIGH)
+	vm.out8(EgaCard.CRTC_DATA, (base >> 8) & 0xFF)
+	vm.out8(EgaCard.CRTC_INDEX, EgaCard.CRTC_STARTLOW)
+	vm.out8(EgaCard.CRTC_DATA, base & 0xFF)
+	vl_shownPage = page
+	if not vm.in_retrace():
+		vm.wait_retrace_start()
+
+
+## Rows y0..y1-1 of the screen (at the scroll position), or those rows filled
+## with `colour` (>= 0), written straight into the page on display: for what
+## the original draws onto the page being shown, so the card shows the work
+## in progress at each refresh (TIME-G4: the story screen).
+func VL_ShowRows(y0: int, y1: int, colour: int = -1) -> void:
+	_write_rows(vl_shownPage * EgaCard.PAGE_SIZE, y0, y1, colour)
+
+
+## The bytes holding these pixels (y * 320 + x each), from the screen, written
+## straight into the page on display (TIME-G4: the title's fizzle).
+func VL_ShowPixels(pixels: PackedInt32Array) -> void:
+	var card: EgaCard = vm.card
+	var base: int = vl_shownPage * EgaCard.PAGE_SIZE
 	var src: PackedByteArray = vl_screen.pixels
 	var pitch: int = vl_screen.w
 	var p0: PackedByteArray = card.plane0
 	var p1: PackedByteArray = card.plane1
 	var p2: PackedByteArray = card.plane2
 	var p3: PackedByteArray = card.plane3
-	for y: int in range(VL_EGAVGA_GFX_HEIGHT):
+	for p: int in pixels:
+		var y: int = p / VL_EGAVGA_GFX_WIDTH
+		var bx: int = (p % VL_EGAVGA_GFX_WIDTH) >> 3
+		var s: int = (y + vl_scrollYpixels) * pitch + vl_scrollXpixels + bx * 8
+		var b0: int = 0
+		var b1: int = 0
+		var b2: int = 0
+		var b3: int = 0
+		for k: int in range(8):
+			var c: int = src[s + k] if s + k < src.size() else 0
+			var bit: int = 0x80 >> k
+			if (c & 1) != 0:
+				b0 |= bit
+			if (c & 2) != 0:
+				b1 |= bit
+			if (c & 4) != 0:
+				b2 |= bit
+			if (c & 8) != 0:
+				b3 |= bit
+		var d: int = base + y * (VL_EGAVGA_GFX_WIDTH / 8) + bx
+		p0[d] = b0
+		p1[d] = b1
+		p2[d] = b2
+		p3[d] = b3
+	card.plane0 = p0
+	card.plane1 = p1
+	card.plane2 = p2
+	card.plane3 = p3
+
+
+## The rows into the card's memory at `base`, in write mode 0 one plane at a time.
+func _write_rows(base: int, y0: int, y1: int, colour: int) -> void:
+	var card: EgaCard = vm.card
+	var src: PackedByteArray = vl_screen.pixels
+	var pitch: int = vl_screen.w
+	var p0: PackedByteArray = card.plane0
+	var p1: PackedByteArray = card.plane1
+	var p2: PackedByteArray = card.plane2
+	var p3: PackedByteArray = card.plane3
+	for y: int in range(y0, y1):
 		var srow: int = (y + vl_scrollYpixels) * pitch + vl_scrollXpixels
 		var drow: int = base + y * (VL_EGAVGA_GFX_WIDTH / 8)
 		for bx: int in range(VL_EGAVGA_GFX_WIDTH / 8):
@@ -1029,7 +1093,7 @@ func VL_Present() -> void:
 			var b3: int = 0
 			var s: int = srow + bx * 8
 			for k: int in range(8):
-				var c: int = src[s + k] if s + k < src.size() else 0
+				var c: int = colour if colour >= 0 else (src[s + k] if s + k < src.size() else 0)
 				var bit: int = 0x80 >> k
 				if (c & 1) != 0:
 					b0 |= bit
@@ -1047,16 +1111,6 @@ func VL_Present() -> void:
 	card.plane1 = p1
 	card.plane2 = p2
 	card.plane3 = p3
-	# the CRTC start address, latched by the card at the next retrace; then, as
-	# id_vl_dos.c's present does, wait for that retrace to begin (no wait when
-	# one already has)
-	vm.out8(EgaCard.CRTC_INDEX, EgaCard.CRTC_STARTHIGH)
-	vm.out8(EgaCard.CRTC_DATA, (base >> 8) & 0xFF)
-	vm.out8(EgaCard.CRTC_INDEX, EgaCard.CRTC_STARTLOW)
-	vm.out8(EgaCard.CRTC_DATA, base & 0xFF)
-	vl_shownPage = page
-	if not vm.in_retrace():
-		vm.wait_retrace_start()
 
 
 # ===================================================================== id_vh

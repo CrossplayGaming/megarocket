@@ -1,4 +1,7 @@
-# Keen 4 title fizzle, as keen4_boot_a recorded it (TIME-G4, open)
+# Keen 4 title fizzle, as keen4_boot_a recorded it (TIME-G4, solved 2026-10-08)
+
+Solved: the reconstructed source's FinishPage sets the EGA bit mask to 1 << (x & 7), and bit 0 is a byte's rightmost pixel, so the pixel changed is (x & ~7) | (7 - (x & 7)). Mirroring the cycle below that way, it is a rotation of the table Borland rand() makes from seed 1 with no earlier calls, index (rand() * 320) / 32768 (rotation 236), and the row starts are columns1[y] as omnispeak has them. The searches below failed only because they looked at unmirrored columns. The port (gal_game.gd CK_FizzleFade) now matches every fizzle picture.
+
 
 omnispeak's CK_FizzleFade: a 320-entry column table shuffled with rand(), each row y starting at
 table position columns1[y] from iteration y, revealing the next two entries per iteration.

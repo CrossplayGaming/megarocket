@@ -494,8 +494,9 @@ def simg01i():
 
 def timeg4():
     """Keen 4's boot against keen4_boot_a (a guard while TIME-G4 is in progress): exact to the
-    refresh through the terminator (picture 957), and from the title on (picture 1317) at least
-    741 pictures in order, every duration equal but at the recording's end."""
+    refresh through the terminator and the title's fizzle (picture 1317; the title's hold is one
+    refresh long), and from the title on (picture 1317) at least 745 pictures in order, every
+    duration equal but at the recording's end (the story screen's reveal rows are within 4)."""
     import galaxy_boot_score
     r = galaxy_boot_score.run("keen4", "keen4_boot_a", 75, 1317)
     if r is None:
@@ -503,8 +504,8 @@ def timeg4():
         return 2
     durs = [e for e in r["events"] if e[0] == "duration"]
     print(f"  exact to picture {r['exact']}; from 1317: {r['matched']} matched, {len(durs)} durations differ")
-    # the differences left: the recording's last pictures (the story screen drawn on the page on display)
-    return 0 if r["exact"] >= 957 and r["matched"] >= 741 and len(durs) <= 2 else 1
+    # the differences left: the story screen's reveal rows, the recording's last picture
+    return 0 if r["exact"] >= 1317 and r["matched"] >= 745 and len(durs) <= 2 else 1
 
 
 def shell01():
