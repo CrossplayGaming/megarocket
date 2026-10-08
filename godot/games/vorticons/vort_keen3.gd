@@ -84,7 +84,9 @@ func _init() -> void:
 	# pass only below 52: a smaller switch, compiled differently)
 	spawn_scan_per_tile = 130
 	map_anim0 = 1    # the map loop's uninitialised anim: level 15's Messie frames need 1 mod 4
-	dosbox_timing.timer_offset = -4453955
+	# the title's fit (-4453955) moved 175 us earlier: level 12's teleporter loop reads timecount
+	# just before a tic there, the original just after; level 14 passes from -200 us to 0
+	dosbox_timing.timer_offset = -4662762
 	# the BIOS tick count when the program reads the DOS clock (oracle clock set to midnight): the only value 0-60 under which levels 6 and 14 match throughout
 	dos_ticks = 4
 

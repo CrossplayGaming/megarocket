@@ -704,7 +704,8 @@ func RecordDemo() -> void:
 
 func ClearKeys() -> void:
 	if trace_frames:
-		print("TRACE clearkeys t=%.6f" % (float(vm.now) / float(DosMachine.PIT_HZ * DosMachine.UNIT)))
+		var st: Array = get_stack()
+		print("TRACE clearkeys t=%.6f from %s < %s" % [float(vm.now) / float(DosMachine.PIT_HZ * DosMachine.UNIT), st[1].function if st.size() > 1 else "?", st[2].function if st.size() > 2 else "?"])
 	NBKscan = 0
 	NBKascii = 0
 	keydown.fill(0)
@@ -739,6 +740,9 @@ func NoBiosKey(parm: int) -> int:
 			if al == 0:
 				continue
 			NBKascii = (NBKascii & 0xFF00) | al
+			if trace_frames:
+				var st2: Array = get_stack()
+				print("TRACE nobioskey t=%.6f scan=%d for %s" % [float(vm.now) / float(DosMachine.PIT_HZ * DosMachine.UNIT), bl, st2[1].function if st2.size() > 1 else "?"])
 			return (bl << 8) | al
 		return 0
 	var bl: int = NBKscan & 0xFF
