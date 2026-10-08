@@ -654,9 +654,49 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if howto != null and event.is_action_pressed("ui_cancel"):
-		close_howto()
+	if host == null and event.is_action_pressed("ui_cancel") and close_page():
 		get_viewport().set_input_as_handled()
+
+
+## AND-04: Android's Back is Escape. In a game it goes to the game as the
+## Escape key (which leaves through the game's own menus); on a launcher page
+## it closes the page; on the launcher itself the app steps aside (to the
+## background, as Android apps do), never quitting outside a quit path.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		back()
+
+
+func back() -> String:
+	var did: String = ""
+	if host != null:
+		host.send_key(0x01, true)
+		get_tree().create_timer(0.1).timeout.connect(func() -> void:
+			if host != null:
+				host.send_key(0x01, false))
+		did = "Escape to the game"
+	elif close_page():
+		did = "page closed"
+	else:
+		did = "to the background"
+		if OS.has_feature("android") and Engine.has_singleton("AndroidRuntime"):
+			Engine.get_singleton("AndroidRuntime").getActivity().moveTaskToBack(true)
+	ShellMessages.note("Back: " + did)
+	return did
+
+
+## Closes whichever launcher page is open (how-to, import, export). False if none.
+func close_page() -> bool:
+	if howto != null:
+		close_howto()
+		return true
+	if import_page != null and _import_thread == null:
+		close_import()
+		return true
+	if export_page != null and _export_thread == null:
+		close_export()
+		return true
+	return false
 
 
 # ---- title art (J-12): made off the main thread, shown as each is ready

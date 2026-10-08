@@ -24,6 +24,10 @@ With --export (SHELL-10 on the device): the launcher's export of the seven devel
 one pick; all seven come in, the launcher finds 7 of 7, and each of Keen 1-6 starts from its tile
 by keyboard (right arrow to it, Enter) after a fresh start of the app and draws, with no errors.
 (Keen Dreams plays once its engine is ported, SIM-D-01.)
+
+With --back (AND-04, after --export): Back closes the how-to page; in Keen 1, Back reaches the game
+as Escape (the picture changes, the app stays); on the launcher itself Back sends the app to the
+background (still running, no longer in front), never quitting it.
 """
 import os
 import re
@@ -226,6 +230,51 @@ def export_stage(ok):
     adb("shell", "am", "force-stop", PACKAGE)
 
 
+def back_stage(ok):
+    adb("shell", "am", "force-stop", PACKAGE)
+    adb("logcat", "-c")
+    adb("shell", "am", "start", "-W", "-n", ACTIVITY)
+    wait_log(r"games found", 60)
+    time.sleep(2)
+    tap_fraction(0.88, 0.092)                   # How to add games
+    time.sleep(2)
+    adb("shell", "input", "keyevent", "4")      # Back
+    log = wait_log(r"Back: page closed", 10)
+    ok("Back closes the how-to page", "Back: page closed" in log)
+    adb("shell", "am", "force-stop", PACKAGE)   # a fresh start: the focus on Keen 1's tile
+    adb("logcat", "-c")
+    adb("shell", "am", "start", "-W", "-n", ACTIVITY)
+    wait_log(r"games found", 60)
+    time.sleep(2)
+    adb("shell", "input", "keyevent", "66")     # Enter on the focused tile (Keen 1)
+    wait_log(r"Started Commander Keen 1", 20)
+    time.sleep(8)
+    before = screenshot(Path("F:/KeenReworkWork/android/back_before.png"))
+    adb("shell", "input", "keyevent", "4")
+    log = wait_log(r"Back: Escape to the game", 10)
+    time.sleep(4)
+    after = screenshot(Path("F:/KeenReworkWork/android/back_after.png"))
+    alive = adb("shell", "pidof", PACKAGE).stdout.strip() != ""
+    changed = before.tobytes() != after.tobytes()
+    ok(f"in Keen 1, Back reaches the game as Escape (picture changed {changed}, app running {alive})",
+       "Back: Escape to the game" in log and changed and alive)
+    adb("shell", "am", "force-stop", PACKAGE)
+    adb("logcat", "-c")
+    adb("shell", "am", "start", "-W", "-n", ACTIVITY)
+    wait_log(r"games found", 60)
+    time.sleep(2)
+    adb("shell", "input", "keyevent", "4")
+    log = wait_log(r"Back: to the background", 10)
+    time.sleep(2)
+    alive = adb("shell", "pidof", PACKAGE).stdout.strip() != ""
+    focus = adb("shell", "dumpsys", "window").stdout
+    front = re.search(r"mCurrentFocus=.*", focus)
+    in_front = bool(front) and PACKAGE in front.group(0)
+    ok(f"on the launcher, Back sends the app to the background (running {alive}, in front {in_front})",
+       "Back: to the background" in log and alive and not in_front)
+    adb("shell", "am", "force-stop", PACKAGE)
+
+
 def main():
     checks = []
 
@@ -271,6 +320,8 @@ def main():
         import_stage(ok)
     if "--export" in sys.argv:
         export_stage(ok)
+    if "--back" in sys.argv:
+        back_stage(ok)
     print(f"{sum(checks)} of {len(checks)} checks passed")
     return 0 if all(checks) else 1
 

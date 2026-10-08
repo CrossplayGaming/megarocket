@@ -652,6 +652,17 @@ def shell10b():
     return code
 
 
+def and04():
+    """On the emulator: Back closes a launcher page, reaches a game as Escape, and on the launcher sends
+    the app to the background without quitting (tools/android_check.py --export --back)."""
+    p = subprocess.run([sys.executable, str(Path(__file__).parent / "android_check.py"), "--export", "--back"],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3000)
+    for line in p.stdout.splitlines():
+        if "FAIL" in line or "checks passed" in line or "COULD-NOT-RUN" in line:
+            print("  " + line.strip())
+    return p.returncode
+
+
 def shell07():
     """One copy at a time: with a second process holding the lock the launcher waits; Enter starts it
     anyway; a stale lock is ignored; leaving removes the lock."""
@@ -754,6 +765,7 @@ CHECKS = {
     "AND-01": (and01, "slow"),
     "AND-02": (and02, "slow"),
     "SHELL-10": (shell10, "slow"),
+    "AND-04": (and04, "slow"),
     "SHELL-09": (shell09, "fast"),
     "AND-02a": (and02a, "fast"),
     "SHELL-10b": (shell10b, "fast"),
