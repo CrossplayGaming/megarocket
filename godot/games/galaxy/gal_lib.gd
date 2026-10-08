@@ -51,13 +51,75 @@ static func CK_Cross_min(a: int, b: int) -> int:
 	return a if a < b else b
 
 
+# --------------------------------------------------------------- the episode
+
+const EP_Nil: int = 0
+const EP_CK4: int = 1
+const EP_CK5: int = 2
+const EP_CK6: int = 3
+## ck_currentEpisode->ep
+var ck_currentEpisode_ep: int = EP_Nil
+
+
+## CK_INT(name, default): an integer from the episode's variable file.
+func CK_INT(name: String, default: int) -> int:
+	return data.episode.get_int(name, default)
+
+
+## CFG_GetConfigInt: omnispeak's config file; the port runs with its defaults.
+func CFG_GetConfigInt(_name: String, default: int) -> int:
+	return default
+
+
+# ===================================================================== id_sd (time)
+# The counters id_sd keeps; the timer interrupt that advances sd_timeCount is
+# SIM-G-01c's (until then a test advances it).
+
+var sd_timeCount: int = 0
+var sd_lastTimeCount: int = 0
+var sd_SpriteSync: int = 0
+
+
+func SD_GetTimeCount() -> int:
+	return sd_timeCount
+
+
+func SD_SetTimeCount(newval: int) -> void:
+	sd_timeCount = newval & 0xFFFFFFFF
+
+
+func SD_GetLastTimeCount() -> int:
+	return sd_lastTimeCount
+
+
+func SD_SetLastTimeCount(newval: int) -> void:
+	sd_lastTimeCount = s32(newval)
+
+
+func SD_GetSpriteSync() -> int:
+	return sd_SpriteSync
+
+
+func SD_SetSpriteSync(newval: int) -> void:
+	sd_SpriteSync = newval & 0xFFFF
+
+
 # ------------------------------------------------- declared here, defined later
 # (A function a later script defines but this one calls: the later script
 # overrides it. GalDecl will hold these once the whole engine is ported.)
 
-## id_sd: the 70 Hz tic count.
-func SD_GetTimeCount() -> int:
-	return 0
+## id_sd: wait for the timer's next interrupt.
+func SD_WaitTick() -> void:
+	vm.poll()
+
+
+func SD_PlaySound(_sound: int) -> void:
+	pass
+
+
+## id_in: the demo state (IN_Demo_Off while neither recording nor playing).
+const IN_Demo_Off: int = 0
+var in_demoState: int = IN_Demo_Off
 
 
 ## id_rf: mark a buffer tile for redraw on `page` (-1: every page).
@@ -317,6 +379,74 @@ func CA_GetMapWidth() -> int:
 
 func CA_GetMapHeight() -> int:
 	return CA_MapHeaders[ca_mapOn].height
+
+
+# ===================================================================== id_ti
+# Tile properties, from omnispeak's TILEINFO file: background animation (next
+# tile offset, time), then for foreground tiles the four edges, the misc flags
+# and the animation. A tile number past its table reads 0, as omnispeak's does.
+
+static func _s8(v: int) -> int:
+	return v - 256 if v >= 128 else v
+
+
+func _ti(index: int) -> int:
+	var ti: PackedByteArray = data.tileinfo
+	return ti[index] if index >= 0 and index < ti.size() else 0
+
+
+func TI_BackAnimTile(tile: int) -> int:
+	if tile > int(ca_gfxInfoE.numTiles16):
+		return 0
+	return _s8(_ti(tile + int(ca_gfxInfoE.numTiles16)))
+
+
+func TI_BackAnimTime(tile: int) -> int:
+	if tile > int(ca_gfxInfoE.numTiles16):
+		return 0
+	return _ti(tile)
+
+
+func TI_ForeTop(tile: int) -> int:
+	if tile > int(ca_gfxInfoE.numTiles16m):
+		return 0
+	return _ti(tile + int(ca_gfxInfoE.numTiles16) * 2)
+
+
+func TI_ForeBottom(tile: int) -> int:
+	if tile > int(ca_gfxInfoE.numTiles16m):
+		return 0
+	return _ti(tile + int(ca_gfxInfoE.numTiles16) * 2 + int(ca_gfxInfoE.numTiles16m) * 2)
+
+
+func TI_ForeLeft(tile: int) -> int:
+	if tile > int(ca_gfxInfoE.numTiles16m):
+		return 0
+	return _ti(tile + int(ca_gfxInfoE.numTiles16) * 2 + int(ca_gfxInfoE.numTiles16m) * 3)
+
+
+func TI_ForeRight(tile: int) -> int:
+	if tile > int(ca_gfxInfoE.numTiles16m):
+		return 0
+	return _ti(tile + int(ca_gfxInfoE.numTiles16) * 2 + int(ca_gfxInfoE.numTiles16m))
+
+
+func TI_ForeMisc(tile: int) -> int:
+	if tile > int(ca_gfxInfoE.numTiles16m):
+		return 0
+	return _ti(tile + int(ca_gfxInfoE.numTiles16) * 2 + int(ca_gfxInfoE.numTiles16m) * 5)
+
+
+func TI_ForeAnimTile(tile: int) -> int:
+	if tile > int(ca_gfxInfoE.numTiles16m):
+		return 0
+	return _s8(_ti(tile + int(ca_gfxInfoE.numTiles16) * 2 + int(ca_gfxInfoE.numTiles16m) * 4))
+
+
+func TI_ForeAnimTime(tile: int) -> int:
+	if tile > int(ca_gfxInfoE.numTiles16m):
+		return 0
+	return _ti(tile + int(ca_gfxInfoE.numTiles16) * 2 + int(ca_gfxInfoE.numTiles16m) * 6)
 
 
 # ===================================================================== id_vl

@@ -400,6 +400,18 @@ def simg01a():
     return code
 
 
+def simg01b():
+    """The Galaxy refresh manager: on real maps of Keen 4, 5 and 6 the card shows exactly the map's
+    tiles at the scroll position after repositioning and through smooth scrolling in six directions;
+    a sprite placed, moved and removed leaves the map exact; animated tiles step."""
+    import gdtest
+    code, out = gdtest.run("simg01b_refresh", ["--games=keen4,keen5,keen6"], timeout=2400.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def simv02():
     """Every level of Keen 1, 2 and 3, the world maps, the status and ordering screens and the
     endings run to a time limit under scripted play without a script error."""
@@ -478,6 +490,7 @@ CHECKS = {
     "SAVE-01V": (save01v, "fast"),
     "SIM-V-02": (simv02, "slow"),
     "SIM-G-01a": (simg01a, "slow"),
+    "SIM-G-01b": (simg01b, "slow"),
     "REPLAY-V1": (replayv1, "slow"),
     "REPLAY-V2": (replayv2, "slow"),
     "REPLAY-V3": (replayv3, "slow"),
