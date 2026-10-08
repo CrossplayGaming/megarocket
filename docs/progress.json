@@ -243,9 +243,21 @@
   {
    "what": "Look and sound decisions, later",
    "why": "Widescreen HUD placement, the sound of each engine, the added options screens and smooth motion are yours to judge once there is a build to see and hear."
+  },
+  {
+   "what": "The Android app's permanent ID (J-18)",
+   "why": "Phones and app stores know an app by a package name that can never change once it is published. It is org.megarocket.app for now; say if you want another before anything is released."
   }
  ],
  "milestones": [
+  {
+   "date": "2026-10-08",
+   "text": "Android: the app builds from the same project and opens to the launcher on the phone emulator, sound chip loaded, sized for a phone"
+  },
+  {
+   "date": "2026-10-08",
+   "text": "While playing: losing focus or unplugging the pad pauses the game; music and effects volumes from the settings"
+  },
   {
    "date": "2026-10-08",
    "text": "Keen 3 proven: all 16 levels match the original to the refresh"
