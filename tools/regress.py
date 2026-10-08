@@ -425,6 +425,18 @@ def simg01c1():
     return code
 
 
+def simg01c2():
+    """The Galaxy user manager: windows and frames, centred and running text, the random table,
+    typed input through the keyboard, CONFIG round trip and defaults, empty saved-game slots
+    (Keen 4, 5, 6)."""
+    import gdtest
+    code, out = gdtest.run("simg01c2_us", ["--games=keen4,keen5,keen6"], timeout=1800.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def simv02():
     """Every level of Keen 1, 2 and 3, the world maps, the status and ordering screens and the
     endings run to a time limit under scripted play without a script error."""
@@ -505,6 +517,7 @@ CHECKS = {
     "SIM-G-01a": (simg01a, "slow"),
     "SIM-G-01b": (simg01b, "slow"),
     "SIM-G-01c1": (simg01c1, "slow"),
+    "SIM-G-01c2": (simg01c2, "slow"),
     "REPLAY-V1": (replayv1, "slow"),
     "REPLAY-V2": (replayv2, "slow"),
     "REPLAY-V3": (replayv3, "slow"),
