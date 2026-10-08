@@ -13,6 +13,11 @@ renderer cannot link Godot's GLES3 shaders: too few fragment uniforms) and no au
 PASS when: the APK holds libgodot and d2opl for arm64-v8a and x86_64; it installs; the app's log
 shows the launcher's first line ("Megarocket ... on Android ..., sound chip ready") and its seven
 tiles' messages, with no script error; the screen is the launcher (not a flat colour).
+
+With --import (AND-02 on the device): the development copy of Keen 1 is pushed to the emulator's
+Download/Keen1; Import games is pressed and the system picker driven by its labels (uiautomator) to
+that folder and its access granted; the app reports Keen 1 imported, the launcher then finds 1 of 7
+games, and Keen 1 starts from its tile and draws, with no errors.
 """
 import os
 import re
@@ -97,6 +102,74 @@ def ensure_emulator():
     return False
 
 
+def screenshot(path):
+    path.write_bytes(subprocess.run([str(ADB), "exec-out", "screencap", "-p"], capture_output=True, timeout=60).stdout)
+    from PIL import Image
+    return Image.open(path).convert("RGB")
+
+
+def tap_fraction(fx, fy):
+    im = screenshot(Path("F:/KeenReworkWork/android/tap.png"))
+    adb("shell", "input", "tap", str(int(im.size[0] * fx)), str(int(im.size[1] * fy)))
+
+
+def tap_text(label, seconds=20):
+    """Taps the on-screen element whose text is `label` (Android views only: the system picker)."""
+    until = time.time() + seconds
+    while time.time() < until:
+        adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
+        xml = adb("shell", "cat", "/sdcard/ui.xml").stdout
+        for m in re.finditer(r'text="([^"]*)"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml):
+            if m.group(1).strip().lower() == label.lower():
+                x1, y1, x2, y2 = (int(v) for v in m.groups()[1:])
+                adb("shell", "input", "tap", str((x1 + x2) // 2), str((y1 + y2) // 2))
+                return True
+        time.sleep(1)
+    return False
+
+
+def visible_text(label):
+    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
+    return f'text="{label}"'.lower() in adb("shell", "cat", "/sdcard/ui.xml").stdout.lower()
+
+
+def wait_log(pattern, seconds):
+    until = time.time() + seconds
+    while time.time() < until:
+        log = adb("logcat", "-d", "-s", "godot:V").stdout
+        if re.search(pattern, log):
+            return log
+        time.sleep(1)
+    return adb("logcat", "-d", "-s", "godot:V").stdout
+
+
+def import_stage(ok):
+    data = Path(common.config()["game_data"]) / "keen1"
+    adb("shell", "rm", "-rf", "/sdcard/Download/Keen1")
+    adb("push", str(data), "/sdcard/Download/Keen1", timeout=300)
+    tap_fraction(0.728, 0.092)          # Import games (the launcher's own UI)
+    time.sleep(3)
+    if not visible_text("Keen1"):
+        tap_text("Download")
+    picked = tap_text("Keen1") and tap_text("Use this folder") and tap_text("Allow")
+    ok("the system picker reached Download/Keen1 and its access was granted", picked)
+    log = wait_log(r"Imported: Commander Keen 1", 90)
+    ok("the app reports Keen 1 imported", "Imported: Commander Keen 1" in log)
+    adb("shell", "input", "keyevent", "66")    # Enter: Done
+    log = wait_log(r"1 of 7 games found", 30)
+    ok("the launcher then finds 1 of 7 games", "1 of 7 games found" in log)
+    tap_fraction(0.23, 0.44)            # the Keen 1 tile
+    log = wait_log(r"Started Commander Keen 1", 20)
+    time.sleep(8)
+    im = screenshot(Path("F:/KeenReworkWork/android/keen1.png"))
+    colours = len(im.resize((160, 80)).getcolors(maxcolors=160 * 80))
+    ok(f"Keen 1 starts from its tile and draws ({colours} colours)", "Started Commander Keen 1" in log and colours > 4)
+    log = adb("logcat", "-d", "-s", "godot:V").stdout
+    errors = [l for l in log.splitlines() if "SCRIPT ERROR" in l or ("E godot" in l and "ERROR:" in l)]
+    ok("no errors through the import and the game" + (f" (first: {errors[0][-120:]})" if errors else ""), not errors)
+    adb("shell", "am", "force-stop", PACKAGE)
+
+
 def main():
     checks = []
 
@@ -117,6 +190,7 @@ def main():
         return 2
     ok("it installs", "Success" in adb("install", "-r", str(APK), timeout=300).stdout)
     adb("shell", "am", "force-stop", PACKAGE)
+    adb("shell", "pm", "clear", PACKAGE)    # a first start: nothing imported, nothing remembered
     adb("logcat", "-c")
     adb("shell", "am", "start", "-W", "-n", ACTIVITY)
     time.sleep(15)
@@ -137,6 +211,8 @@ def main():
         ok(f"the screen is the launcher, not a flat colour ({colours} colours; {shot})", colours > 8)
     except Exception as err:      # a screenshot that cannot be read proves nothing
         ok(f"the screenshot can be read ({err})", False)
+    if "--import" in sys.argv:
+        import_stage(ok)
     print(f"{sum(checks)} of {len(checks)} checks passed")
     return 0 if all(checks) else 1
 

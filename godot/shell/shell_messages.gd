@@ -7,7 +7,7 @@ extends RefCounted
 
 ## The first word of every next step: a test checks each message ends in a
 ## sentence starting with one of these.
-const NEXT_VERBS: PackedStringArray = ["Add", "Put", "Check", "Start", "Press", "Choose", "Play", "Set", "Send", "Copy"]
+const NEXT_VERBS: PackedStringArray = ["Add", "Put", "Check", "Start", "Press", "Choose", "Play", "Set", "Send", "Copy", "Export", "Pick", "Import"]
 const LOG_SETTING: String = "debug/file_logging/log_path"
 
 
@@ -31,6 +31,16 @@ static func note(text: String) -> void:
 	print("[%s] %s" % [Time.get_datetime_string_from_system(), text])
 
 
+## How the player brings a game in here: Android imports a folder picked with
+## the system's picker (AND-02); elsewhere a folder is added and read in place.
+static func android() -> bool:
+	return OS.has_feature("android")
+
+
+static func add_step(what: String) -> String:
+	return ("Import %s with Import games" if android() else "Add %s with Add a folder") % what
+
+
 ## The message's next step obeys the rule: its last sentence starts with an
 ## imperative from NEXT_VERBS.
 static func has_next_step(text: String) -> bool:
@@ -45,12 +55,13 @@ static func has_next_step(text: String) -> bool:
 # ---- the launcher's tiles
 
 static func missing(looks_for: String) -> String:
-	return say("Not found. " + looks_for, "Add its folder with Add a folder, or see How to add games.")
+	return say("Not found. " + looks_for, add_step("its folder") + ", or see How to add games.")
 
 
 static func not_run(found_what: String, why: String) -> String:
 	return say("Found %s, which Megarocket does not run. %s" % [found_what, why],
-		"Put the release named above where Megarocket looks, or add its folder with Add a folder.")
+		("Copy the release named above to the phone and import it with Import games." if android() else
+			"Put the release named above where Megarocket looks, or add its folder with Add a folder."))
 
 
 static func cant_load(title: String, detail: String) -> String:
@@ -90,7 +101,7 @@ static func settings_not_saved(file_name: String) -> String:
 # ---- exporting (SHELL-10)
 
 static func nothing_to_export() -> String:
-	return say("No supported game has been found yet, so there is nothing to export", "Add a game's folder with Add a folder first.")
+	return say("No supported game has been found yet, so there is nothing to export", add_step("a game's folder") + " first.")
 
 
 static func cannot_create(path: String) -> String:

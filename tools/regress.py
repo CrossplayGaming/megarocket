@@ -608,6 +608,28 @@ def and01():
     return p.returncode
 
 
+def and02():
+    """On the emulator: Keen 1's folder imported through the system picker, found, and played
+    (tools/android_check.py --import, after AND-01's checks)."""
+    p = subprocess.run([sys.executable, str(Path(__file__).parent / "android_check.py"), "--import"], capture_output=True,
+                       text=True, encoding="utf-8", errors="replace", timeout=2400)
+    for line in p.stdout.splitlines():
+        if "FAIL" in line or "checks passed" in line or "COULD-NOT-RUN" in line:
+            print("  " + line.strip())
+    return p.returncode
+
+
+def and02a():
+    """The importer on the desktop: a folder, a damaged release, an export ZIP and manifest, retries,
+    progress, re-import, the source untouched, the launcher's import page."""
+    import gdtest
+    code, out = gdtest.run("and02_import", [], timeout=300.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def shell07():
     """One copy at a time: with a second process holding the lock the launcher waits; Enter starts it
     anyway; a stale lock is ignored; leaving removes the lock."""
@@ -708,7 +730,9 @@ CHECKS = {
     "SHELL-08": (shell08, "slow"),
     "AUDIO-05": (audio05, "slow"),
     "AND-01": (and01, "slow"),
+    "AND-02": (and02, "slow"),
     "SHELL-09": (shell09, "fast"),
+    "AND-02a": (and02a, "fast"),
     "HOST-01": (host01, "slow"),
     "SHELL-02": (shell02, "slow"),
     "SIM-G-01d": (simg01d, "slow"),

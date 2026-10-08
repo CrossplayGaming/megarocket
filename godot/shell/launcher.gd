@@ -47,6 +47,12 @@ var scroll: ScrollContainer
 var howto_button: Button
 ## SHELL-09: where the log is, so a report can include it.
 var log_label: Label
+## AND-02: where imported games live (the importer's games_root), and the import under way.
+var imported_games_root: String = OS.get_user_data_dir().path_join("games")
+var import_page: PanelContainer = null
+var import_results: Array = []
+var _import_thread: Thread = null
+var _import_label: Label = null
 ## The how-to page (J-12), over the tiles while open.
 var howto: PanelContainer = null
 ## One sideways row (narrow or portrait windows).
@@ -104,7 +110,7 @@ func _ready() -> void:
 	howto_button.pressed.connect(show_howto)
 	var add: Button = Button.new()
 	add.name = "AddFolder"
-	add.text = "Add a folder"
+	add.text = "Import games" if OS.has_feature("android") else "Add a folder"
 	add.pressed.connect(_pick_folder)
 	top.add_child(add)
 	top.add_child(howto_button)
@@ -148,7 +154,16 @@ func _ready() -> void:
 
 func _scan() -> void:
 	var finder: GameFinder = GameFinder.new()
-	show_results(finder.scan_all(extra_folders))
+	show_results(finder.scan_all(scan_roots()))
+
+
+## The folders scanned besides Steam and GOG: the player's own, and the games
+## imported into the app's storage (AND-02) once there are any.
+func scan_roots() -> PackedStringArray:
+	var roots: PackedStringArray = PackedStringArray(extra_folders)
+	if DirAccess.dir_exists_absolute(imported_games_root):
+		roots.append(imported_games_root)
+	return roots
 
 
 ## As many columns as fit; one tile per game whatever the width.
@@ -249,6 +264,7 @@ func show_results(results: Array) -> void:
 		"No games found yet. Each tile says what Megarocket looks for."
 	if settings != null and settings.error != "":
 		summary.text += "\n" + settings.error
+	ShellMessages.note(summary.text)
 
 
 ## What the finder looks for, short: the releases' executables and versions.
@@ -312,8 +328,13 @@ func _pick_folder() -> void:
 	fd.file_mode = FileDialog.FILE_MODE_OPEN_DIR
 	fd.access = FileDialog.ACCESS_FILESYSTEM
 	fd.title = "Choose a folder with Keen games in it"
+	fd.use_native_dialog = OS.has_feature("android")    # the system's picker (AND-02)
 	fd.dir_selected.connect(func(dir: String) -> void:
-		add_folder(dir)
+		ShellMessages.note("Folder chosen: %s" % dir)
+		if dir.begins_with("content://") and AndroidSaf.available():
+			import_games(GameImporter.SafSource.new(dir))    # Android: read through the picker's grant, copied in
+		else:
+			add_folder(dir)
 		fd.queue_free())
 	fd.canceled.connect(fd.queue_free)
 	add_child(fd)
@@ -335,10 +356,90 @@ func add_folder(dir: String) -> bool:
 	return true
 
 
+# ---- importing games into the app's storage (AND-02)
+
+## Copies the games a source holds into the app's storage on a thread, with a
+## page showing each file as it comes and then each game's result; Done (or
+## Enter, or A) closes it and the tiles are scanned again.
+func import_games(source: Object) -> void:
+	if _import_thread != null:
+		return
+	import_results = []
+	import_page = PanelContainer.new()
+	import_page.name = "ImportPage"
+	import_page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var m: MarginContainer = MarginContainer.new()
+	for side: String in ["left", "right", "top", "bottom"]:
+		m.add_theme_constant_override("margin_" + side, 24)
+	import_page.add_child(m)
+	var col: VBoxContainer = VBoxContainer.new()
+	col.add_theme_constant_override("separation", 12)
+	m.add_child(col)
+	_import_label = Label.new()
+	_import_label.name = "Progress"
+	_import_label.text = "Looking at the folder..."
+	_import_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_import_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(_import_label)
+	add_child(import_page)
+	_page.visible = false
+	var importer: GameImporter = GameImporter.new()
+	importer.games_root = imported_games_root
+	importer.progress = func(what: String, done: int, total: int) -> void:
+		_set_import_text.call_deferred("Copying %d of %d: %s" % [done, total, what])
+	_import_thread = Thread.new()
+	_import_thread.start(func() -> void:
+		var results: Array = importer.import_from(source)
+		_import_done.call_deferred(results))
+
+
+func _set_import_text(text: String) -> void:
+	if _import_label != null:
+		_import_label.text = text
+
+
+func _import_done(results: Array) -> void:
+	if _import_thread != null:
+		_import_thread.wait_to_finish()
+		_import_thread = null
+	import_results = results
+	var lines: PackedStringArray = PackedStringArray()
+	for r: Dictionary in results:
+		lines.append(("Imported: " if r.ok else "Not imported: ") + String(r.message))
+		ShellMessages.note(lines[lines.size() - 1])
+	_set_import_text("\n\n".join(lines))
+	var done: Button = Button.new()
+	done.name = "Done"
+	done.text = "Done"
+	done.pressed.connect(close_import)
+	_import_label.get_parent().add_child(done)
+	done.grab_focus()
+
+
+func close_import() -> void:
+	if import_page == null or _import_thread != null:
+		return
+	import_page.queue_free()
+	import_page = null
+	_import_label = null
+	_page.visible = true
+	if scan_on_ready:
+		_scan.call_deferred()
+
+
 # ---- the how-to page (J-12)
 
 ## Where Megarocket looks and what each game needs, in plain words.
 static func howto_text() -> String:
+	if ShellMessages.android():
+		return "\n".join(PackedStringArray([
+			"Bringing games to the phone",
+			"",
+			"Copy a game's folder to the phone (or a Megarocket export made on a computer: its folder or ZIP), then press Import games and pick that folder. Android asks once to let Megarocket read it.",
+			"Megarocket copies the game's files into its own storage, checks each one, and says what came in. The copies on the phone are only read.",
+			"",
+			"What each game needs",
+			""]) + _remedies())
 	var lines: PackedStringArray = PackedStringArray([
 		"Where Megarocket looks",
 		"",
@@ -350,9 +451,15 @@ static func howto_text() -> String:
 		"",
 		"What each game needs",
 		""])
-	for g: Array in GAMES:
-		lines.append("%s: %s" % [g[1], KnownFiles.REMEDY.get(g[0], "")])
+	lines.append_array(_remedies())
 	return "\n".join(lines)
+
+
+static func _remedies() -> PackedStringArray:
+	var out: PackedStringArray = PackedStringArray()
+	for g: Array in GAMES:
+		out.append("%s: %s" % [g[1], KnownFiles.REMEDY.get(g[0], "")])
+	return out
 
 
 func show_howto() -> void:
@@ -462,6 +569,9 @@ func _exit_tree() -> void:
 	if _art_thread != null:
 		_art_thread.wait_to_finish()
 		_art_thread = null
+	if _import_thread != null:
+		_import_thread.wait_to_finish()
+		_import_thread = null
 
 
 func _tile_input(event: InputEvent, id: String) -> void:
@@ -490,6 +600,7 @@ func launch(id: String) -> bool:
 		return false
 	_page.visible = false
 	host.finished.connect(_on_game_finished.bind(id))
+	ShellMessages.note("Started %s (%s)" % [_title_of(id), found_results[id].get("version", "")])
 	return true
 
 
