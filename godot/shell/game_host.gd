@@ -15,6 +15,8 @@ extends Control
 ## comes back the clock starts again from there. However long the host
 ## stalls (a dragged window, a slow frame), the game catches up by one
 ## refresh at most, and never runs fast to make up the rest.
+## SHELL-08: if the pad being played with is unplugged, the game pauses the
+## same way and says so; plugging it back in, or any key, goes on.
 
 signal finished(message: String)
 
@@ -46,6 +48,10 @@ var _paused_label: Label = null
 const CATCH_UP_USEC: int = 14268      # 1 / 70.086 s
 var stalls_dropped: int = 0
 var _keys_until: int = 0              # machine time the last keys given are delivered by
+## SHELL-08: the pad played with (-1 none yet), and paused because it went away.
+var pad_device: int = -1
+var pad_paused: bool = false
+const PAD_GONE_TEXT: String = "Controller disconnected\nReconnect it, or press any key to go on"
 
 ## sound: events gathered on the engine thread, handed over in _pace
 var audio: HostAudio = null
@@ -199,8 +205,37 @@ static func _short_title(found: Dictionary) -> String:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		set_paused(true)
-	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
+	elif what == NOTIFICATION_APPLICATION_FOCUS_IN and not pad_paused:
 		set_paused(false)
+
+
+func _enter_tree() -> void:
+	if not Input.joy_connection_changed.is_connected(_on_joy_connection):
+		Input.joy_connection_changed.connect(_on_joy_connection)
+
+
+func _exit_tree() -> void:
+	if Input.joy_connection_changed.is_connected(_on_joy_connection):
+		Input.joy_connection_changed.disconnect(_on_joy_connection)
+
+
+## SHELL-08: the pad played with goes away (pause, say so) or comes back (go on).
+func _on_joy_connection(device: int, connected: bool) -> void:
+	if thread == null or device != pad_device:
+		return
+	if not connected and not pad_paused:
+		pad_paused = true
+		set_paused(true)
+		_paused_label.text = PAD_GONE_TEXT
+	elif connected and pad_paused:
+		_resume_from_pad()
+
+
+func _resume_from_pad() -> void:
+	pad_paused = false
+	set_paused(false)
+	if _paused_label != null:
+		_paused_label.text = "Paused"
 
 
 ## Pause or resume (SHELL-06). Pausing lets go of every held key (as key-ups
@@ -421,6 +456,14 @@ func send_key(scancode: int, down: bool) -> void:
 func _input(event: InputEvent) -> void:
 	if thread == null:
 		return
+	if pad_paused:
+		# any key (or a button on another pad) goes on; the key itself is not played
+		if (event is InputEventKey and event.pressed and not event.echo) or (event is InputEventJoypadButton and event.pressed):
+			_resume_from_pad()
+			get_viewport().set_input_as_handled()
+		return
+	if event is InputEventJoypadButton or event is InputEventJoypadMotion:
+		pad_device = event.device
 	if event is InputEventJoypadButton:
 		var jb: InputEventJoypadButton = event
 		var pcode: int = PAD_BUTTONS.get(jb.button_index, 0)
