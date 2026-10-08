@@ -462,6 +462,7 @@ func launch(id: String) -> bool:
 	if host != null or states.get(id, "") != "found":
 		return false
 	host = GameHost.new()
+	host.settings_path = settings_path
 	add_child(host)
 	if not host.start(found_results[id]):
 		_status_label(tiles[id]).text = host.error

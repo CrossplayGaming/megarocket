@@ -586,6 +586,17 @@ def shell08():
     return code
 
 
+def audio05():
+    """Music and effects volume: exact scaling of scripted AdLib notes split by channel, the speaker as
+    an effect, the saved volumes reaching a game, a game running under the dummy audio driver."""
+    import gdtest
+    code, out = gdtest.run("audio05_volume", [], timeout=300.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def shell07():
     """One copy at a time: with a second process holding the lock the launcher waits; Enter starts it
     anyway; a stale lock is ignored; leaving removes the lock."""
@@ -684,6 +695,7 @@ CHECKS = {
     "SHELL-06": (shell06, "slow"),
     "SHELL-07": (shell07, "fast"),
     "SHELL-08": (shell08, "slow"),
+    "AUDIO-05": (audio05, "slow"),
     "SHELL-09": (shell09, "fast"),
     "HOST-01": (host01, "slow"),
     "SHELL-02": (shell02, "slow"),

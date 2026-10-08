@@ -9,6 +9,12 @@ extends RefCounted
 ## the audio clock reaches its time, so the sound follows the game a fixed
 ## latency behind. Not the oracle's measure of sound (AUDIO units); a way to
 ## hear the game.
+## AUDIO-05: music and effects have their own volume (the settings' 0-100,
+## here 0-1). The speaker is effects. On the AdLib, id's sound effects play
+## on channel 0 and the music on the others, so when the two volumes differ
+## the writes are split by channel between two chips (the registers every
+## channel shares go to both) and each chip is scaled by its own volume;
+## when they are equal one chip is scaled by both.
 
 const RATE: int = 49716
 const PIT_HZ: float = 1193182.0
@@ -22,6 +28,9 @@ var _spk_phase: float = 0.0
 var opl_volume: float = 0.6
 var speaker_volume: float = 0.2
 var writes_applied: int = 0
+var music_volume: float = 1.0
+var effects_volume: float = 1.0
+var opl_fx: Object = null      # the effects' chip, only while the volumes differ
 
 
 func _init() -> void:
@@ -29,10 +38,51 @@ func _init() -> void:
 		opl = ClassDB.instantiate("D2Opl")
 
 
+## The volumes (0-1), set before the first event.
+func configure(music: float, effects: float) -> void:
+	music_volume = clampf(music, 0.0, 1.0)
+	effects_volume = clampf(effects, 0.0, 1.0)
+	if music_volume != effects_volume and opl != null and opl_fx == null:
+		opl_fx = ClassDB.instantiate("D2Opl")
+
+
 func close() -> void:
 	if opl != null:
 		opl.free()
 		opl = null
+	if opl_fx != null:
+		opl_fx.free()
+		opl_fx = null
+
+
+## Channel 0's registers: its frequency, key-on and feedback, and its two
+## operators' (slots 0 and 3).
+static func is_effects_register(reg: int) -> bool:
+	if reg == 0xA0 or reg == 0xB0 or reg == 0xC0:
+		return true
+	for base: int in [0x20, 0x40, 0x60, 0x80, 0xE0]:
+		if reg == base or reg == base + 3:
+			return true
+	return false
+
+
+## The registers all channels share (test, waveform enable, CSM/note select, rhythm).
+static func is_shared_register(reg: int) -> bool:
+	return reg == 0x01 or reg == 0x04 or reg == 0x08 or reg == 0xBD
+
+
+func _opl_write(reg: int, value: int) -> void:
+	if opl == null:
+		return
+	if opl_fx == null:
+		opl.write(reg, value)
+	elif is_shared_register(reg):
+		opl.write(reg, value)
+		opl_fx.write(reg, value)
+	elif is_effects_register(reg):
+		opl_fx.write(reg, value)
+	else:
+		opl.write(reg, value)
 
 
 func push_opl(at: float, reg: int, value: int) -> void:
@@ -51,8 +101,7 @@ func skip_to(to: float) -> void:
 		var e: Array = events[_next]
 		_next += 1
 		if e[1] == 0:
-			if opl != null:
-				opl.write(e[2], e[3])
+			_opl_write(e[2], e[3])
 			writes_applied += 1
 		else:
 			_spk_freq = PIT_HZ / float(e[2]) if e[2] > 0 else 0.0
@@ -69,17 +118,20 @@ func render(n: int) -> PackedVector2Array:
 			var e: Array = events[_next]
 			_next += 1
 			if e[1] == 0:
-				if opl != null:
-					opl.write(e[2], e[3])
+				_opl_write(e[2], e[3])
 				writes_applied += 1
 			else:
 				_spk_freq = PIT_HZ / float(e[2]) if e[2] > 0 else 0.0
 		var s: float = 0.0
 		if opl != null:
-			s = float(opl.sample()) / 32768.0 * opl_volume
+			if opl_fx == null:
+				s = float(opl.sample()) / 32768.0 * opl_volume * music_volume
+			else:
+				s = (float(opl.sample()) * music_volume + float(opl_fx.sample()) * effects_volume) / 32768.0 * opl_volume
 		if _spk_freq > 0.0:
 			_spk_phase = fmod(_spk_phase + _spk_freq * dt, 1.0)
-			s += speaker_volume if _spk_phase < 0.5 else -speaker_volume
+			var v: float = speaker_volume * effects_volume
+			s += v if _spk_phase < 0.5 else -v
 		out[i] = Vector2(s, s)
 		t += dt
 	if _next > 4096:

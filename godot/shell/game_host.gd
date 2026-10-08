@@ -29,6 +29,8 @@ var thread: Thread = null
 var frames_shown: int = 0
 var frames_made: int = 0
 var error: String = ""
+## Where the player's settings are read from (AUDIO-05's volumes; a test gives its own).
+var settings_path: String = Settings.PATH
 
 var _mutex: Mutex = Mutex.new()
 var _keys: Array = []                 # [scancode, down] waiting for the engine thread
@@ -182,6 +184,9 @@ func start(found: Dictionary) -> bool:
 		(engine as GalGame).sd_alOutHook = func(reg: int, value: int) -> void:
 			_opl_local.append([vm.seconds(), reg, value])
 	audio = HostAudio.new()
+	var settings: Settings = Settings.new(settings_path)
+	audio.configure(float(settings.get_value("music_volume", game_id)) / 100.0,
+		float(settings.get_value("effects_volume", game_id)) / 100.0)
 	_player = AudioStreamPlayer.new()
 	var gen: AudioStreamGenerator = AudioStreamGenerator.new()
 	gen.mix_rate = HostAudio.RATE
