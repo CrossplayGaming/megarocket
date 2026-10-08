@@ -151,15 +151,26 @@ def from_videos(videos, folder, meta=None):
              "stream=width,height", "-of", "csv=p=0", str(video)],
             capture_output=True, text=True, check=True)
         width, height = (int(x) for x in probe.stdout.strip().split(",")[:2])
-        if (width, height) != (WIDTH, HEIGHT):
+        # an older capture at twice the size (DOSBox's normal2x): every 2x2 block must be one
+        # colour, which is checked, so halving it loses nothing
+        double = (width, height) == (2 * WIDTH, 2 * HEIGHT)
+        if (width, height) != (WIDTH, HEIGHT) and not double:
             raise ValueError(f"{video}: expected {WIDTH}x{HEIGHT}, got {width}x{height}")
         proc = subprocess.Popen(
             ["ffmpeg", "-v", "error", "-i", str(video), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
             stdout=subprocess.PIPE)
+        size = FRAME_BYTES * (4 if double else 1)
         while True:
-            raw = proc.stdout.read(FRAME_BYTES)
-            if len(raw) < FRAME_BYTES:
+            raw = proc.stdout.read(size)
+            if len(raw) < size:
                 break
+            if double:
+                import numpy as np
+                a = np.frombuffer(raw, np.uint8).reshape(2 * HEIGHT, 2 * WIDTH, 3)
+                h = a[::2, ::2]
+                if not (np.array_equal(h, a[1::2, ::2]) and np.array_equal(h, a[::2, 1::2]) and np.array_equal(h, a[1::2, 1::2])):
+                    raise ValueError(f"{video}: a doubled picture whose 2x2 blocks are not one colour")
+                raw = np.ascontiguousarray(h).tobytes()
             writer.add(raw)
         proc.wait()
         if proc.returncode != 0:
