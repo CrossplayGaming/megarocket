@@ -119,7 +119,8 @@ game named in the evidence; where behaviour differs per engine, there is a row p
 
 | ID | Claim | Class | Check | Needs | Status | Evidence | Att | From |
 |---|---|---|---|---|---|---|---|---|
-| REPLAY-G4 | Keen 4's built-in demos, then scripted and recorded runs of every level, match the original frame for frame in Classic view. | oracle | HARN-04 over HARN-01/HARN-03 | SIM-G-01, HARN-04a, HARN-02a | blocked | | | Game loop |
+| TIME-G4 | Keen 4's boot recording (keen4_boot_a) matches the port picture by picture and refresh by refresh: the machine on DOSBox's timing, the drawing routines charged by the original's work at the fixed cycle rate (as TIME-V1 did for Vorticons), the EGA card's pel panning as the recording shows it. | oracle | timing_score on simg_boot over keen4_boot_a | SIM-G-01 | ready | | | Game loop |
+| REPLAY-G4 | Keen 4's built-in demos, then scripted and recorded runs of every level, match the original frame for frame in Classic view. | oracle | HARN-04 over HARN-01/HARN-03 | SIM-G-01, TIME-G4, HARN-02a | in progress | 2026-10-08: `godot/tests/simg_boot.gd` runs the port from CK_Main into the demo loop and writes its pictures. Against keen4_boot_a (75 s) with no Galaxy timing model yet: the same sequence in the same order (id logo scroll, terminator credits, title, demo 0 on the Shadowlands) with 2063 vs 2069 distinct pictures, but the scroll positions differ from the first picture (the port moves further per picture and starts earlier) and the recording shows a grey column at the left edge while the screen pans. | | Game loop |
 | REPLAY-G5 | Same for Keen 5. | oracle | As above | REPLAY-G4 | blocked | | | Game loop |
 | REPLAY-G6 | Same for Keen 6 v1.0 (the oracle is the user's own executable under DOSBox, so fidelity is to v1.0). | oracle | As above | REPLAY-G4 | blocked | | | Game loop |
 | REPLAY-D | Same for Keen Dreams. | oracle | As above | SIM-D-01, HARN-02b | blocked | | | Game loop |
