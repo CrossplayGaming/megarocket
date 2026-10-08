@@ -252,6 +252,10 @@
  "milestones": [
   {
    "date": "2026-10-08",
+   "text": "Phones: on-screen touch controls for every game (hidden while a pad is used), and Back works as Escape"
+  },
+  {
+   "date": "2026-10-08",
    "text": "On Android: Export for Android on the computer, one import on the phone, and Keen 1 to 6 all start and play on the emulator"
   },
   {
