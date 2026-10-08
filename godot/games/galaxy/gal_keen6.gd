@@ -14,7 +14,6 @@ extends GalMenu
 ## quit, so each Quit is followed by a return.
 
 
-# ---- id_* functions the library lacks (move to the library)
 # ===================================================================== ck6_misc.c
 
 # ck6_episode (the CK_EpisodeDef) is declared in gal_ck.gd.

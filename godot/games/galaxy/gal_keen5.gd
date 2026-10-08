@@ -17,7 +17,6 @@ extends GalMenu
 ## ck5_episode is declared in gal_ck.gd.
 
 
-# ---- id_* functions the library lacks (move to the library)
 
 
 

@@ -1011,3 +1011,115 @@ func IN_YesNo() -> bool:
 	IN_ClearKeysDown()
 	US_DrawCards()
 	return k == IN_SC_Y
+
+
+# ===================================================================== id_in pieces the game layer needs
+# (written with the ck_* ports, moved here by SIM-G-01j)
+
+
+## id_in.h: a scan code gal_io.gd's table lacks.
+const IN_SC_Two: int = 0x03
+
+
+## id_in.h: IN_JoyConfItem (the vanilla build: no quickload/quicksave items).
+const IN_joy_jump: int = 0
+
+
+const IN_joy_pogo: int = 1
+
+
+const IN_joy_fire: int = 2
+
+
+const IN_joy_menu: int = 3
+
+
+const IN_joy_status: int = 4
+
+
+const IN_joy_deadzone: int = 5
+
+
+const IN_joy_modern: int = 6
+
+
+## id_in.c
+const IN_MAX_JOYSTICKS: int = 2
+
+
+const IN_JoyConfNames: PackedStringArray = [
+	"in_joy_jump",
+	"in_joy_pogo",
+	"in_joy_fire",
+	"in_joy_menu",
+	"in_joy_status",
+	"in_joy_quickload",
+	"in_joy_quicksave",
+	"in_joy_deadzone",
+	"in_joy_modern",
+]
+
+
+func IN_GetJoyConf(item: int) -> int:
+	return CFG_GetConfigInt(IN_JoyConfNames[item], item)
+
+
+func IN_GetJoyButtonFromMask(mask: int, btn: int) -> bool:
+	var btn_id: int = IN_GetJoyConf(btn)
+	return false if (btn_id < 0) else (((u16(mask) >> btn_id) & 1) != 0)
+
+
+func IN_IsJoyButtonDown(btn: int) -> bool:
+	var joy: int = in_controlType - IN_ctrl_Joystick1
+	if joy < 0 or joy >= IN_MAX_JOYSTICKS:
+		joy = 0
+	var mask: int = u16(IN_GetJoyButtonsDB(joy))
+	return IN_GetJoyButtonFromMask(mask, btn)
+
+
+## The demo files IN_DemoSaveToFile wrote, by name (the shell keeps them; no file system here).
+var in_savedDemos: Dictionary = {}
+
+
+## id_in.c: the map number, the demo's size, then the recorded frames.
+func IN_DemoSaveToFile(fileName: String, mapNumber: int) -> void:
+	var demoSize: int = u16(in_demoPtr)
+	var demoFile: PackedByteArray = PackedByteArray()
+	demoFile.resize(4)
+	demoFile.encode_u16(0, u16(mapNumber))
+	demoFile.encode_u16(2, demoSize)
+
+	demoFile.append_array(in_demoBuf.slice(0, in_demoPtr))
+
+	in_savedDemos[fileName] = demoFile
+
+
+## id_in.h: scan codes gal_io.gd's table lacks (IN_SC_Two: gal_play.gd).
+const IN_SC_One: int = 0x02
+
+
+const IN_SC_Three: int = 0x04
+
+
+const IN_SC_Four: int = 0x05
+
+
+const IN_SC_Five: int = 0x06
+
+
+const IN_SC_Six: int = 0x07
+
+
+## id_in.c: in_key_controls (pointers into in_kbdControls: here its keys), the
+## vanilla build's (no EXTRA_KEYBOARD_OPTIONS or QUICKSAVE_ENABLED entries).
+const in_key_controls: PackedStringArray = [
+	"jump", "pogo", "fire",
+	"upLeft", "up", "upRight",
+	"right", "downRight", "down",
+	"downLeft", "left"]
+
+
+const in_key_button_controls: int = 3
+
+
+const in_key_direction_controls: int = 8

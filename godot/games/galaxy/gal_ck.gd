@@ -2107,3 +2107,94 @@ func CK6_CeilickCol(_p0, _p1):
 func CK6_Obj3_SetupFunctions():
 	return _undefined(&"CK6_Obj3_SetupFunctions")
 # ---- END GENERATED ----
+# ===================================================================== id_fs and id_us pieces over the game layer's declarations (saved games, ASLEV maps) the game layer needs
+# (written with the ck_* ports, moved here by SIM-G-01j)
+
+
+## id_ca.c: a map from an Abiathar .aslev file. CA_LoadFile fails without a
+## file system, so this ends at the C's "Couldn't load" Quit (the LZW and
+## RLEW unpacking past it is not reachable here).
+func CA_CacheMapFromASLEV(mapIndex: int, fname: String) -> void:
+	# Unload the previous map.
+	for plane: int in range(CA_NUMMAPPLANES):
+		CA_mapPlanes[plane] = PackedInt32Array()    # MM_FreePtr
+
+	ca_mapOn = mapIndex
+
+	var aslevFile: PackedByteArray = CA_LoadFile(fname)
+	if aslevFile.is_empty():
+		QuitF("Couldn't load map file %s\n", [fname])
+		return
+
+
+## id_fs.c: the name with its last three letters replaced by the episode's extension.
+func FS_AdjustExtension(filename: String) -> String:
+	var newname: String = filename.substr(0, FS_MAX_FILENAME_LEN - 1) # CK_Cross_strscpy into newname[FS_MAX_FILENAME_LEN]
+	var fnamelen: int = newname.length()
+	return newname.substr(0, fnamelen - 3) + ck_currentEpisode.ext.substr(0, 3)
+
+
+## The saved-game slot each open user file is (FS_File -> [slot, writable]).
+## Not state: open only inside US_LoadMain / US_SaveMain.
+var fs_userFiles: Dictionary = {}
+
+
+## id_us_1.c: the name of the saved game with the given index (0-based).
+func US_GetSavefileName(index: int) -> String:
+	# CK_FILENAME(us_saveFile, "SAVEGAM?.EXT")
+	var filename_pattern: String = CK_VAR_GetString("us_saveFile", FS_AdjustExtension("SAVEGAM?.EXT"))
+	if filename_pattern.length() >= FS_MAX_FILENAME_LEN:
+		QuitF("Savegame filename \"%s\" too long! (Maximum length %d)", [filename_pattern, FS_MAX_FILENAME_LEN])
+		return ""
+	return filename_pattern.replace("?", char(index + 0x30))
+
+
+## The saved-game slot a user file name is (the user folder holds only the
+## saved games here, matched case-insensitively), or -1.
+func _fs_user_slot(fileName: String) -> int:
+	for i: int in range(US_MAX_NUM_OF_SAVED_GAMES):
+		if US_GetSavefileName(i).to_upper() == fileName.to_upper():
+			return i
+	return -1
+
+
+## id_fs.c: open a user file to read (null when it is not there: an empty
+## buffer in us_saveFiles is no file).
+func FS_OpenUserFile(fileName: String) -> FS_File:
+	var slot: int = _fs_user_slot(fileName)
+	if slot == -1 or (us_saveFiles[slot] as PackedByteArray).is_empty():
+		errno = ENOENT
+		return null
+	var f: FS_File = FS_File.new(us_saveFiles[slot])
+	fs_userFiles[f] = [slot, false]
+	return f
+
+
+## id_fs.c: open a user file to write, empty (fopen "wb").
+func FS_CreateUserFile(fileName: String) -> FS_File:
+	var slot: int = _fs_user_slot(fileName)
+	if slot == -1:
+		errno = ENOENT
+		return null
+	var f: FS_File = FS_File.new(PackedByteArray())
+	fs_userFiles[f] = [slot, true]
+	return f
+
+
+## id_fs.c (fclose): a written file's bytes go to its slot in us_saveFiles.
+func FS_CloseFile(file: FS_File) -> void:
+	if fs_userFiles.has(file):
+		var e: Array = fs_userFiles[file]
+		if e[1]:
+			us_saveFiles[e[0]] = file.data
+		fs_userFiles.erase(file)
+
+
+## remove(): deletes a user file (its saved-game buffer).
+func remove(fname: String) -> int:
+	var slot: int = _fs_user_slot(fname)
+	if slot == -1:
+		errno = ENOENT
+		return -1
+	us_saveFiles[slot] = PackedByteArray()
+	return 0

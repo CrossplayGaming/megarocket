@@ -11,7 +11,6 @@ extends GalMenu
 ## wraps as the C field's type does (uint16_t: u16, int16_t: s16).
 
 
-# ---- id_* functions the library lacks (move to the library)
 
 ## DOSBox time the original spends where the port does none (TIME-G4, fitted
 ## on keen4_boot_a): Huffman decoding per compressed graphics byte
