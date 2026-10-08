@@ -36,6 +36,9 @@ var art_shown: Dictionary = {}
 var summary: Label
 var grid: GridContainer
 var scroll: ScrollContainer
+var howto_button: Button
+## The how-to page (J-12), over the tiles while open.
+var howto: PanelContainer = null
 ## One sideways row (narrow or portrait windows).
 var carousel: bool = false
 ## id -> the tile's PanelContainer
@@ -63,7 +66,17 @@ func _ready() -> void:
 	var title: Label = Label.new()
 	title.text = "Megarocket"
 	title.add_theme_font_size_override("font_size", 28)
-	column.add_child(title)
+	var top: HBoxContainer = HBoxContainer.new()
+	top.add_child(title)
+	var spacer: Control = Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(spacer)
+	howto_button = Button.new()
+	howto_button.name = "HowTo"
+	howto_button.text = "How to add games"
+	howto_button.pressed.connect(show_howto)
+	top.add_child(howto_button)
+	column.add_child(top)
 	summary = Label.new()
 	summary.name = "Summary"
 	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -199,6 +212,71 @@ static func _looks_for(id: String) -> String:
 		if s.id == id:
 			parts.append("%s %s" % [s.exe, s.version])
 	return "Looks for " + " or ".join(parts) + "."
+
+
+# ---- the how-to page (J-12)
+
+## Where Megarocket looks and what each game needs, in plain words.
+static func howto_text() -> String:
+	var lines: PackedStringArray = PackedStringArray([
+		"Where Megarocket looks",
+		"",
+		"Steam: the Commander Keen pack (Keen 1 to 5) and Keen Dreams (the Definitive Edition's DOS/EGA folder), in every Steam library on every drive.",
+		"GOG: the Keen games GOG Galaxy has installed.",
+		"A folder you choose, and the folders inside it two levels deep (to come with Settings).",
+		"",
+		"Megarocket only reads the games' files. It never changes or adds anything in a game's folder.",
+		"",
+		"What each game needs",
+		""])
+	for g: Array in GAMES:
+		lines.append("%s: %s" % [g[1], KnownFiles.REMEDY.get(g[0], "")])
+	return "\n".join(lines)
+
+
+func show_howto() -> void:
+	if howto != null:
+		return
+	howto = PanelContainer.new()
+	howto.name = "HowToPage"
+	howto.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var m: MarginContainer = MarginContainer.new()
+	for side: String in ["left", "right", "top", "bottom"]:
+		m.add_theme_constant_override("margin_" + side, 24)
+	howto.add_child(m)
+	var col: VBoxContainer = VBoxContainer.new()
+	col.add_theme_constant_override("separation", 12)
+	m.add_child(col)
+	var text: RichTextLabel = RichTextLabel.new()
+	text.name = "Text"
+	text.text = howto_text()
+	text.fit_content = false
+	text.focus_mode = Control.FOCUS_ALL
+	text.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(text)
+	var back: Button = Button.new()
+	back.name = "Back"
+	back.text = "Back"
+	back.pressed.connect(close_howto)
+	col.add_child(back)
+	add_child(howto)
+	_page.visible = false
+	back.grab_focus()
+
+
+func close_howto() -> void:
+	if howto == null:
+		return
+	howto.queue_free()
+	howto = null
+	_page.visible = true
+	howto_button.grab_focus()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if howto != null and event.is_action_pressed("ui_cancel"):
+		close_howto()
+		get_viewport().set_input_as_handled()
 
 
 # ---- title art (J-12): made off the main thread, shown as each is ready

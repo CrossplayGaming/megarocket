@@ -166,7 +166,7 @@ const REMEDY: Dictionary = {
 	"keen3": "Megarocket reads Commander Keen 3 v1.31 EGA (Steam): KEEN3.EXE with its data files beside it, as sold on Steam.",
 	"keen4": "Megarocket reads Commander Keen 4 v1.4 EGA (Steam): KEEN4E.EXE with its data files beside it, as sold on Steam.",
 	"keen5": "Megarocket reads Commander Keen 5 v1.4 EGA (Steam): KEEN5E.EXE with its data files beside it, as sold on Steam.",
-	"keen6": "Megarocket reads Commander Keen 6 v1.0 EGA: KEEN6C.EXE with its data files beside it, as sold on Steam.",
+	"keen6": "Megarocket reads Commander Keen 6 v1.0 EGA: KEEN6C.EXE with its data files beside it. Keen 6 is not in Steam's Commander Keen pack; it comes from an original release.",
 	"kdreams": "Megarocket reads Keen Dreams EGA v1.00 (KDREAMS.EXE with AUDIO, EGAGRAPH and GAMEMAPS .KDR beside it) and EGA v1.93, the DOS release in the Steam Definitive Edition's DOS/EGA folder.",
 }
 

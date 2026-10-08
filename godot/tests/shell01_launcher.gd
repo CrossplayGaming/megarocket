@@ -68,6 +68,18 @@ func _run(scene: PackedScene) -> void:
 		l.show_results([])
 		t.ok("a missing game's tile says what is looked for (%s)" % l._status_label(l.tiles["keen2"]).text.left(60),
 			l._status_label(l.tiles["keen2"]).text.begins_with("Not found.") and l._status_label(l.tiles["keen2"]).text.length() > 20)
+		# the how-to page opens over the tiles, says where it looks and what each game needs, and closes
+		l.show_howto()
+		await process_frame
+		var txt: String = l.howto_text()
+		var open_ok: bool = l.howto != null and not l._page.visible and txt.contains("Steam") and txt.contains("KEEN6C.EXE") and txt.contains("never changes")
+		var cancel: InputEventAction = InputEventAction.new()
+		cancel.action = "ui_cancel"
+		cancel.pressed = true
+		l._unhandled_input(cancel)
+		await process_frame
+		t.ok("%dx%d: the how-to page opens (where it looks, what each game needs) and ui_cancel closes it" % [win.x, win.y],
+			open_ok and l.howto == null and l._page.visible)
 		l.queue_free()
 		await process_frame
 	t.finish(self)
