@@ -3646,11 +3646,6 @@ func VL_Shutdown() -> void:
 		vm.card.bios_set_video_mode(0x03)
 
 
-## id_cfg.c (the config file is the shell's; the port runs with defaults).
-func CFG_GetConfigBool(name: String, defValue: bool) -> bool:
-	return CFG_GetConfigInt(name, 1 if defValue else 0) != 0
-
-
 ## id_cfg.c: saves OMNISPK.CFG when started; CFG_Startup is the shell's, so
 ## nothing was started here.
 func CFG_Shutdown() -> void:
