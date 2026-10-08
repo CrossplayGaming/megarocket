@@ -50,6 +50,10 @@ var messieshape: int = 0
 var messiecooldown: int = 0
 var messieoldtilex: int = 0
 var messieoldtiley: int = 0
+## The teleport loop's uninitialised `anim` (Messie's frame reads bit 1 of it): the
+## stack slot's leftover when CheckMapKeenTiles runs. Fitted on keen3_level12_a.
+var teleport_anim0: int = 0
+
 ## The teleporters found by ScanWorldMap: [x, y, tag] per index.
 var warps: Array = []
 
@@ -84,6 +88,7 @@ func _init() -> void:
 	# pass only below 52: a smaller switch, compiled differently)
 	spawn_scan_per_tile = 130
 	map_anim0 = 1    # the map loop's uninitialised anim: level 15's Messie frames need 1 mod 4
+	teleport_anim0 = 3    # the teleport loop's uninitialised anim: level 12's Messie frames need 3 mod 4
 	# the title's fit (-4453955) moved 175 us earlier: level 12's teleporter loop reads timecount
 	# just before a tic there, the original just after; level 14 passes from -200 us to 0
 	dosbox_timing.timer_offset = -4662762
@@ -1397,7 +1402,7 @@ func _check_map_tiles_other(num: int, ob: Obj, _spotX: int, _spotY: int) -> bool
 		# a teleporter: animate the source, move the screen, animate the
 		# destination, put Keen there
 		var index: int = (num & 0xF0) >> 4
-		var anim: int = 0    # uninitialised in the original (see the ledger's J-18)
+		var anim: int = teleport_anim0    # uninitialised in the original: the stack's leftover, fitted
 		for i: int in range(2):
 			PlaySound(SND.TELEPORTSND)
 			for tilenum: int in range(130, 134):

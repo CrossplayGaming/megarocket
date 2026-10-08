@@ -87,6 +87,8 @@ func _init() -> void:
 		vm.repeat_phase_ms = float(opts["repeat_phase"])
 	if opts.has("repeat_pause"):
 		vm.repeat_pause_ms = int(opts["repeat_pause"])
+	if opts.has("teleport_anim"):
+		g.set("teleport_anim0", int(opts["teleport_anim"]))
 	if opts.has("map_anim"):
 		g.map_anim0 = int(opts["map_anim"])
 	if opts.has("level_tc"):

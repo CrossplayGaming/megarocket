@@ -310,7 +310,7 @@ func _init() -> void:
 # ----------------------------------------------------------- state, hash
 
 ## Properties that are wiring or constant tables, not simulation state.
-const NOT_STATE: PackedStringArray = ["vm", "data", "save_dir", "dos_time", "dos_ticks", "spawn_scan_per_tile", "level_tc_shift", "map_anim0", "costs", "exit_message", "episode", "P", "S", "SND", "classes"]
+const NOT_STATE: PackedStringArray = ["vm", "data", "save_dir", "dos_time", "dos_ticks", "spawn_scan_per_tile", "level_tc_shift", "map_anim0", "teleport_anim0", "costs", "exit_message", "episode", "P", "S", "SND", "classes"]
 
 
 ## Every variable of the program, by name, as plain values: the whole
