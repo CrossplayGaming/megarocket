@@ -242,6 +242,10 @@
  "milestones": [
   {
    "date": "2026-10-08",
+   "text": "Keen 4 in Megarocket boots like the original: intro, credits, title and the first demo match the DOSBox recording picture for picture"
+  },
+  {
+   "date": "2026-10-08",
    "text": "Keen 4, 5 and 6 engine ported: all twelve built-in demos match the reference frame for frame"
   },
   {
