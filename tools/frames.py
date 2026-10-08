@@ -98,7 +98,9 @@ class Sequence:
         offset, size, _, _ = self.index[i]
         self._bin.seek(offset)
         raw = zlib.decompress(self._bin.read(size))
-        if self.indexed:
+        # an indexed store can hold whole RGB pictures too (a palette changed while the frame was
+        # scanned, so no one palette describes it): told apart by their size
+        if self.indexed and len(raw) != WIDTH * HEIGHT * 3:
             pixels = WIDTH * HEIGHT
             indices = np.frombuffer(raw[:pixels], dtype=np.uint8)
             palette = np.frombuffer(raw[pixels:], dtype=np.uint8).reshape(-1, 3)

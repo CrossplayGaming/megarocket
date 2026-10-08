@@ -61,7 +61,10 @@ func _init() -> void:
 	var written: Array = [0]
 	vm.on_display = func() -> void:
 		if card.video_mode == EgaCard.MODE_EGA:
-			writer.add_indexed(card.frame_pixels, card.frame_palette, "P")
+			if card.frame_mixed:
+				writer.add(card.frame_rgb(), "P")
+			else:
+				writer.add_indexed(card.frame_pixels, card.frame_palette, "P")
 			written[0] += 1
 	vm.time_limit = DosMachine.seconds_to_units(seconds)
 	vm.on_limit = func() -> void:

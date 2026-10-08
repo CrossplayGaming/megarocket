@@ -165,6 +165,7 @@ func bios_set_active_page(page: int) -> void:
 ## AH = 10h, AL = 00h: set one palette register.
 func bios_set_palette_register(index: int, value: int) -> void:
 	atc[index & 0x0F] = value & 0x3F
+	palette_serial += 1
 
 
 ## AH = 10h, AL = 01h: set the overscan (border) colour.
@@ -179,6 +180,7 @@ func bios_set_palette(table: PackedByteArray) -> void:
 		atc[i] = table[i] & 0x3F
 	if table.size() > 16:
 		atc[ATR_OVERSCAN] = table[16] & 0x3F
+	palette_serial += 1
 
 
 func _load_cga64() -> void:
@@ -214,6 +216,8 @@ func out8(port: int, value: int) -> void:
 				var register: int = atc_index & 0x1F
 				if register < 0x15:
 					atc[register] = value
+					if register < 0x10:
+						palette_serial += 1
 				atc_expect_data = false
 			else:
 				atc_index = value
@@ -228,6 +232,7 @@ func out8(port: int, value: int) -> void:
 			dac_component = 0
 		DAC_DATA:
 			dac[dac_write_index * 3 + dac_component] = value & 0x3F
+			palette_serial += 1
 			dac_component += 1
 			if dac_component == 3:
 				dac_component = 0
@@ -489,20 +494,47 @@ func compose_rows(out: PackedByteArray, y0: int, y1: int) -> void:
 ## scanned, filled band by band (DosMachine), finished at the last row.
 var frame_pixels: PackedByteArray = PackedByteArray()
 var frame_palette: PackedByteArray = PackedByteArray()
+## A palette change while the beam is drawing a frame shows from the row it
+## has reached (DOSBox looks the colours up line by line): the rows above keep
+## the old colours. Such a frame is kept as RGB (frame_mixed, frame_rgb()).
+var palette_serial: int = 0
+var frame_mixed: bool = false
+var _frame_serial: int = 0
+var _frame_rgb_mixed: PackedByteArray = PackedByteArray()
 
 
 func begin_frame() -> void:
 	if frame_pixels.size() != WIDTH * HEIGHT:
 		frame_pixels.resize(WIDTH * HEIGHT)
 	frame_palette = palette_rgb()
+	_frame_serial = palette_serial
+	frame_mixed = false
 
 
 func scan_rows(y0: int, y1: int) -> void:
 	compose_rows(frame_pixels, y0, y1)
+	if palette_serial != _frame_serial and not frame_mixed:
+		frame_mixed = true
+		_frame_rgb_mixed.resize(WIDTH * HEIGHT * 3)
+		_rgb_rows(_frame_rgb_mixed, 0, y0, frame_palette)
+	if frame_mixed:
+		_rgb_rows(_frame_rgb_mixed, y0, y1, palette_rgb())
+
+
+func _rgb_rows(out: PackedByteArray, y0: int, y1: int, pal: PackedByteArray) -> void:
+	var o: int = y0 * WIDTH * 3
+	for i: int in range(y0 * WIDTH, y1 * WIDTH):
+		var c: int = frame_pixels[i] * 3
+		out[o] = pal[c]
+		out[o + 1] = pal[c + 1]
+		out[o + 2] = pal[c + 2]
+		o += 3
 
 
 ## The finished frame as 320x200 RGB.
 func frame_rgb() -> PackedByteArray:
+	if frame_mixed:
+		return _frame_rgb_mixed.duplicate()
 	var out: PackedByteArray = PackedByteArray()
 	out.resize(WIDTH * HEIGHT * 3)
 	var o: int = 0

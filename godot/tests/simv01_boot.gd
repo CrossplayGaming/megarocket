@@ -61,7 +61,10 @@ func _init() -> void:
 	var stopped: Array = [false]
 	vm.on_display = func() -> void:
 		if card.video_mode == EgaCard.MODE_EGA and not stopped[0]:
-			writer.add_indexed(card.frame_pixels, card.frame_palette, "P")
+			if card.frame_mixed:
+				writer.add(card.frame_rgb(), "P")
+			else:
+				writer.add_indexed(card.frame_pixels, card.frame_palette, "P")
 			written[0] += 1
 			if written[0] == 1 and OS.has_environment("MR_TRACE"):
 				print("TRACE first_display vbl=%d" % vm.vbl_count)

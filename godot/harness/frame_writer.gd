@@ -66,7 +66,9 @@ func add_indexed(indices: PackedByteArray, palette: PackedByteArray, kind: Strin
 	return _store(blob, kind)
 
 
-## Add one picture: 320x200, three bytes per pixel, row by row.
+## Add one picture: 320x200, three bytes per pixel, row by row. In an indexed
+## store too (a picture no one palette describes); tools/frames.py tells the
+## two apart by their size.
 ## A picture identical to the one before it is merged into it; an in-between
 ## picture identical to the one before it is dropped.
 func add(rgb: PackedByteArray, kind: String = "P") -> bool:
