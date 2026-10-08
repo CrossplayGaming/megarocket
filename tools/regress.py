@@ -388,6 +388,18 @@ def replayv3():
     return _replay("keen3", REPLAY_V3_LEVELS)
 
 
+def simg01a():
+    """The Galaxy library layer draws what the data says: every tile, bitmap, sprite (all
+    shifts) and a font string read back from the surface as GalData decodes them; VL_Present
+    puts the scrolled window on the card; fades reach the palette registers (Keen 4, 5, 6)."""
+    import gdtest
+    code, out = gdtest.run("simg01a_draw", ["--games=keen4,keen5,keen6"], timeout=1800.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def simv02():
     """Every level of Keen 1, 2 and 3, the world maps, the status and ordering screens and the
     endings run to a time limit under scripted play without a script error."""
@@ -465,6 +477,7 @@ CHECKS = {
     "SHELL-10a": (shell10a, "fast"),
     "SAVE-01V": (save01v, "fast"),
     "SIM-V-02": (simv02, "slow"),
+    "SIM-G-01a": (simg01a, "slow"),
     "REPLAY-V1": (replayv1, "slow"),
     "REPLAY-V2": (replayv2, "slow"),
     "REPLAY-V3": (replayv3, "slow"),
