@@ -506,6 +506,17 @@ def timeg4():
     return 0 if r["exact"] >= 957 and r["matched"] >= 741 and len(durs) <= 12 else 1
 
 
+def shell01():
+    """The main scene is the launcher: seven tiles, the right found / unsupported / missing status
+    with no games, some and all, inside the window's width at 1280x720 and 480x800."""
+    import gdtest
+    code, out = gdtest.run("shell01_launcher", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def simv02():
     """Every level of Keen 1, 2 and 3, the world maps, the status and ordering screens and the
     endings run to a time limit under scripted play without a script error."""
@@ -588,6 +599,7 @@ CHECKS = {
     "SIM-G-01c1": (simg01c1, "slow"),
     "SIM-G-01c2": (simg01c2, "slow"),
     "DIST-02": (dist02, "fast"),
+    "SHELL-01": (shell01, "fast"),
     "SIM-G-01d": (simg01d, "slow"),
     "SIM-G-01g": (simg01g, "slow"),
     "SIM-G-01h": (simg01h, "slow"),

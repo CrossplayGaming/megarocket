@@ -1,0 +1,66 @@
+# Copyright (C) 2026 the Megarocket contributors. GPL v2 or later. See LICENSE.md.
+extends SceneTree
+## SHELL-01: the program's main scene is the launcher, and it shows seven
+## game tiles with the right status with no games found, some, and all; the
+## tiles lie inside the window's width at a desktop size and at a narrow one,
+## in a scroll area inside the window.
+
+var t: T = T.new()
+
+
+func _init() -> void:
+	t.ok("the project's main scene is the launcher", ProjectSettings.get_setting("application/run/main_scene") == "res://shell/main.tscn")
+	var scene: PackedScene = load("res://shell/main.tscn")
+	if not t.ok("main.tscn loads", scene != null):
+		t.finish(self)
+		return
+	_run.call_deferred(scene)
+
+
+func _run(scene: PackedScene) -> void:
+	for win: Vector2i in [Vector2i(1280, 720), Vector2i(480, 800)]:
+		root.size = win
+		var l: Launcher = scene.instantiate()
+		l.scan_on_ready = false
+		root.add_child(l)
+		await process_frame
+		await process_frame
+		var r: Rect2 = Rect2(Vector2.ZERO, Vector2(win))
+		var cases: Array = [
+			["none", []],
+			["some", [{"id": "keen1", "title": "Commander Keen 1", "version": "v1.31 EGA (Steam)", "status": "ok", "folder": "C:/fixture/keen1", "message": "", "exe": "KEEN1.EXE"},
+				{"id": "kdreams", "title": "Keen Dreams", "version": "Keen Dreams 2015 (Steam)", "status": "unsupported", "folder": "C:/fixture/kd", "message": "Use v1.93.", "exe": "KDREAMS.EXE"}]],
+			["all", []],
+		]
+		for g: Array in Launcher.GAMES:
+			(cases[2][1] as Array).append({"id": g[0], "title": g[1], "version": "v", "status": "ok", "folder": "C:/fixture/" + g[0], "message": "", "exe": ""})
+		for c: Array in cases:
+			l.show_results(c[1])
+			await process_frame
+			var found: int = 0
+			var unsupported: int = 0
+			var inside: bool = true
+			for id: String in l.tiles:
+				var tile: Control = l.tiles[id]
+				if l.states[id] == "found":
+					found += 1
+				elif l.states[id] == "unsupported":
+					unsupported += 1
+				# every tile as wide as the window allows, none past its sides; the
+				# tiles scroll vertically inside a scroll area that is inside the window
+				var tr: Rect2 = tile.get_global_rect()
+				if tr.position.x < 0 or tr.end.x > win.x or tr.size.x < 50:
+					inside = false
+			if not r.encloses(l.scroll.get_global_rect()):
+				inside = false
+			var want: Array = {"none": [0, 0], "some": [1, 1], "all": [7, 0]}[c[0]]
+			t.ok("%dx%d, %s found: 7 tiles, %d found and %d unsupported (want %s), every tile inside the window (%s), summary '%s'" %
+				[win.x, win.y, c[0], found, unsupported, want, inside, l.summary.text],
+				l.tiles.size() == 7 and found == want[0] and unsupported == want[1] and inside)
+		var missing_text: String = l._status_label(l.tiles["keen2"]).text
+		l.show_results([])
+		t.ok("a missing game's tile says what is looked for (%s)" % l._status_label(l.tiles["keen2"]).text.left(60),
+			l._status_label(l.tiles["keen2"]).text.begins_with("Not found.") and l._status_label(l.tiles["keen2"]).text.length() > 20)
+		l.queue_free()
+		await process_frame
+	t.finish(self)
