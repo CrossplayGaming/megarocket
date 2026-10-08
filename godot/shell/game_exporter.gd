@@ -88,16 +88,16 @@ func export_folder(found: Array, destination: String, progress: Callable = Calla
 	error = ""
 	var games: Array = exportable(found)
 	if games.is_empty():
-		error = "No supported game has been found yet, so there is nothing to export."
+		error = ShellMessages.nothing_to_export()
 		return []
 	var root: String = destination.path_join(FOLDER)
 	if DirAccess.make_dir_recursive_absolute(root) != OK:
-		error = "Cannot create %s. Choose a folder you can write to." % root
+		error = ShellMessages.cannot_create(root)
 		return []
 	var d: DirAccess = DirAccess.open(root)
 	var need: int = total_bytes(found)
 	if d != null and d.get_space_left() > 0 and d.get_space_left() < need:
-		error = "Not enough free space in %s: the export needs %.1f MB." % [destination, need / 1048576.0]
+		error = ShellMessages.no_space(destination, need / 1048576.0)
 		return []
 	var results: Array = []
 	var manifest_games: Array = []
@@ -107,7 +107,7 @@ func export_folder(found: Array, destination: String, progress: Callable = Calla
 		var src: Dictionary = _reader(g)
 		if src.has("error"):
 			r.ok = false
-			r.message = "%s: %s" % [s.title, src.error]
+			r.message = ShellMessages.say("%s: %s" % [s.title, src.error], "Check the game's folder is still there and readable, then export again.")
 			results.append(r)
 			continue
 		var out_dir: String = root.path_join(g.id)
@@ -130,13 +130,13 @@ func export_folder(found: Array, destination: String, progress: Callable = Calla
 			var bytes: PackedByteArray = src.read.call(upper)
 			if bytes.size() != want[0] or GameFinder.sha256(bytes) != want[1]:
 				r.ok = false
-				r.message = "%s: %s changed since it was found (it no longer matches %s %s); the game was not exported. Check the installation and export again." % [s.title, actual, s.title, s.version]
+				r.message = ShellMessages.say("%s: %s changed since it was found (it no longer matches %s %s); the game was not exported" % [s.title, actual, s.title, s.version], "Check the installation and export again.")
 				break
 			var tmp: String = target + ".part"
 			var f: FileAccess = FileAccess.open(tmp, FileAccess.WRITE)
 			if f == null:
 				r.ok = false
-				r.message = "%s: cannot write %s (%s)." % [s.title, target, error_string(FileAccess.get_open_error())]
+				r.message = ShellMessages.say("%s: cannot write %s (%s)" % [s.title, target, error_string(FileAccess.get_open_error())], "Choose a folder you can write to.")
 				break
 			f.store_buffer(bytes)
 			f.close()
@@ -144,7 +144,7 @@ func export_folder(found: Array, destination: String, progress: Callable = Calla
 				DirAccess.remove_absolute(target)
 			if DirAccess.rename_absolute(tmp, target) != OK:
 				r.ok = false
-				r.message = "%s: cannot finish writing %s." % [s.title, target]
+				r.message = ShellMessages.say("%s: cannot finish writing %s" % [s.title, target], "Check that the drive has free space, then export again.")
 				break
 			r.written += 1
 			done += 1
@@ -171,12 +171,12 @@ func export_zip(found: Array, zip_path: String, progress: Callable = Callable())
 	error = ""
 	var games: Array = exportable(found)
 	if games.is_empty():
-		error = "No supported game has been found yet, so there is nothing to export."
+		error = ShellMessages.nothing_to_export()
 		return []
 	var tmp: String = zip_path + ".part"
 	var z: ZIPPacker = ZIPPacker.new()
 	if z.open(tmp) != OK:
-		error = "Cannot create %s. Choose a folder you can write to." % zip_path
+		error = ShellMessages.cannot_create(zip_path)
 		return []
 	var results: Array = []
 	var manifest_games: Array = []
@@ -186,7 +186,7 @@ func export_zip(found: Array, zip_path: String, progress: Callable = Callable())
 		var src: Dictionary = _reader(g)
 		if src.has("error"):
 			r.ok = false
-			r.message = "%s: %s" % [s.title, src.error]
+			r.message = ShellMessages.say("%s: %s" % [s.title, src.error], "Check the game's folder is still there and readable, then export again.")
 			results.append(r)
 			continue
 		var names: Array = s.files.keys()
@@ -196,7 +196,7 @@ func export_zip(found: Array, zip_path: String, progress: Callable = Callable())
 			var bytes: PackedByteArray = src.read.call(upper)
 			if bytes.size() != s.files[upper][0] or GameFinder.sha256(bytes) != s.files[upper][1]:
 				r.ok = false
-				r.message = "%s: %s changed since it was found; the game was not exported." % [s.title, src.names.get(upper, upper)]
+				r.message = ShellMessages.say("%s: %s changed since it was found; the game was not exported" % [s.title, src.names.get(upper, upper)], "Check the installation and export again.")
 				break
 			blobs.append([src.names.get(upper, upper), bytes])
 		if src.has("zip"):

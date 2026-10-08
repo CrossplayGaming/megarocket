@@ -552,6 +552,17 @@ def shell05():
     return code
 
 
+def shell09():
+    """Every shell message says what happened and ends in a next step, on fixture errors; the log is
+    written and the launcher shows its path."""
+    import gdtest
+    code, out = gdtest.run("shell09_messages", [], timeout=300.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def shell07():
     """One copy at a time: with a second process holding the lock the launcher waits; Enter starts it
     anyway; a stale lock is ignored; leaving removes the lock."""
@@ -648,6 +659,7 @@ CHECKS = {
     "SHELL-01": (shell01, "fast"),
     "SHELL-05": (shell05, "fast"),
     "SHELL-07": (shell07, "fast"),
+    "SHELL-09": (shell09, "fast"),
     "HOST-01": (host01, "slow"),
     "SHELL-02": (shell02, "slow"),
     "SIM-G-01d": (simg01d, "slow"),

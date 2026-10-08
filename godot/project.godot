@@ -15,6 +15,12 @@ config/version="2.0.0-dev"
 run/main_scene="res://shell/main.tscn"
 config/features=PackedStringArray("4.7")
 
+[debug]
+
+file_logging/enable_file_logging=true
+file_logging/enable_file_logging.pc=true
+file_logging/log_path="user://logs/megarocket.log"
+
 [display]
 
 window/size/viewport_width=1280

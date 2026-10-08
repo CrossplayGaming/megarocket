@@ -129,7 +129,7 @@ func start(found: Dictionary) -> bool:
 		"keen1", "keen2", "keen3":
 			var d: VortData = VortData.new()
 			if not d.load_game(folder, "CK" + game_id.substr(4, 1)):
-				error = d.error
+				error = ShellMessages.cant_load(_short_title(found), d.error)
 				return false
 			var g: VortActs = VortKeen3.new() if game_id == "keen3" else (VortKeen2.new() if game_id == "keen2" else VortKeen1.new())
 			g.vm = vm
@@ -144,7 +144,7 @@ func start(found: Dictionary) -> bool:
 				meta = "keen6e15"
 			var d: GalData = GalData.new()
 			if not d.load_game(folder, "res://data/omnispeak".path_join(meta)):
-				error = d.error
+				error = ShellMessages.cant_load(_short_title(found), d.error)
 				return false
 			var g: GalGame = load("res://games/galaxy/gal_%s.gd" % game_id).new()
 			g.vm = vm
@@ -153,7 +153,7 @@ func start(found: Dictionary) -> bool:
 			vm.set_cycles(20000)
 			engine = g
 		_:
-			error = "%s's engine is not ready to play yet" % found.get("title", game_id)
+			error = ShellMessages.not_ready(_short_title(found))
 			return false
 	vm.on_display = _on_display
 	vm.pace = _pace
@@ -175,6 +175,11 @@ func start(found: Dictionary) -> bool:
 	thread.start(_run)
 	grab_focus()
 	return true
+
+
+## "Commander Keen 4" of "Commander Keen 4: Secret of the Oracle".
+static func _short_title(found: Dictionary) -> String:
+	return String(found.get("title", found.get("id", "The game"))).split(":")[0]
 
 
 ## The player leaves: the program is told to quit at its next machine event.

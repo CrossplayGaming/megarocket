@@ -45,6 +45,8 @@ var summary: Label
 var grid: GridContainer
 var scroll: ScrollContainer
 var howto_button: Button
+## SHELL-09: where the log is, so a report can include it.
+var log_label: Label
 ## The how-to page (J-12), over the tiles while open.
 var howto: PanelContainer = null
 ## One sideways row (narrow or portrait windows).
@@ -110,6 +112,13 @@ func _ready() -> void:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.add_child(grid)
 	column.add_child(scroll)
+	log_label = Label.new()
+	log_label.name = "LogPath"
+	log_label.text = "Log: " + ShellMessages.log_path()
+	log_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	log_label.add_theme_font_size_override("font_size", 12)
+	log_label.modulate = Color(1, 1, 1, 0.6)
+	column.add_child(log_label)
 	for g: Array in GAMES:
 		var tile: PanelContainer = _make_tile(g[0], g[1], g[2])
 		tiles[g[0]] = tile
@@ -209,18 +218,20 @@ func show_results(results: Array) -> void:
 			found_results[id] = r
 		if r == null:
 			states[id] = "missing"
-			st.text = "Not found. " + _looks_for(id)
+			st.text = ShellMessages.missing(_looks_for(id))
 		elif (r as Dictionary).status == GameFinder.STATUS_OK:
 			states[id] = "found"
 			found += 1
 			st.text = "Found: %s\n%s" % [r.version, r.folder]
 		else:
 			states[id] = "unsupported"
-			st.text = "Found %s, which Megarocket does not run. %s" % [r.version if r.version != "" else r.title, r.message]
+			st.text = ShellMessages.not_run(r.version if r.version != "" else r.title, r.message)
 	if make_art:
 		_queue_art()
 	summary.text = "%d of %d games found." % [found, GAMES.size()] if found > 0 else \
 		"No games found yet. Each tile says what Megarocket looks for."
+	if settings != null and settings.error != "":
+		summary.text += "\n" + settings.error
 
 
 ## What the finder looks for, short: the releases' executables and versions.
@@ -256,7 +267,7 @@ func _show_wait() -> void:
 	_wait_panel.name = "AlreadyRunning"
 	_wait_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var l: Label = Label.new()
-	l.text = "Megarocket is already running in another window.\nPress Enter (or A) to start this one anyway."
+	l.text = ShellMessages.already_running()
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_wait_panel.add_child(l)
@@ -297,7 +308,8 @@ func add_folder(dir: String) -> bool:
 		return false
 	known.append(dir)
 	settings.set_value("game_folders", known)
-	settings.save()
+	if not settings.save():
+		summary.text = ShellMessages.settings_not_saved(settings.path.get_file())
 	extra_folders = PackedStringArray(known)
 	if scan_on_ready:
 		_scan.call_deferred()
@@ -452,7 +464,7 @@ func launch(id: String) -> bool:
 	host = GameHost.new()
 	add_child(host)
 	if not host.start(found_results[id]):
-		_status_label(tiles[id]).text = "Can't start: " + host.error
+		_status_label(tiles[id]).text = host.error
 		host.queue_free()
 		host = null
 		return false
@@ -466,8 +478,15 @@ func _on_game_finished(message: String, id: String) -> void:
 	host = null
 	_page.visible = true
 	if message != "":
-		_status_label(tiles[id]).text = "The game stopped: " + message
+		_status_label(tiles[id]).text = ShellMessages.game_stopped(_title_of(id), message)
 	(tiles[id] as Control).grab_focus()
+
+
+static func _title_of(id: String) -> String:
+	for g: Array in GAMES:
+		if g[0] == id:
+			return g[1]
+	return id
 
 
 func _status_label(tile: PanelContainer) -> Label:

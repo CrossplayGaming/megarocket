@@ -43,7 +43,7 @@ func load_file() -> void:
 	if err == OK:
 		err = _cfg.parse(text)
 	if err != OK:
-		error = "%s could not be read (%s); it is kept as %s.bad and the defaults are used" % [path.get_file(), error_string(err), path.get_file()]
+		error = ShellMessages.settings_reset(path.get_file(), error_string(err))
 		DirAccess.rename_absolute(ProjectSettings.globalize_path(path), ProjectSettings.globalize_path(path + ".bad"))
 		_cfg = ConfigFile.new()
 
