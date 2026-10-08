@@ -361,7 +361,7 @@ REPLAY_V1_LEVELS = [f"level{n:02d}" for n in range(2, 17)]
 
 REPLAY_V2_LEVELS = [f"level{n:02d}" for n in range(1, 17)]
 # Keen 3's sessions that match so far (1, 2 and 8 are still being fitted)
-REPLAY_V3_LEVELS = [f"level{n:02d}" for n in (1, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16)]
+REPLAY_V3_LEVELS = [f"level{n:02d}" for n in (1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16)]
 
 
 def _replay(game, levels):
