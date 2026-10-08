@@ -279,9 +279,14 @@ func CK_Main(argv: PackedStringArray) -> int:
 	CK_Misc_SetupFunctions()
 
 	# Set up all of the episode functions.
-	CK4_SetupFunctions()
-	CK5_SetupFunctions()
-	CK6_SetupFunctions()
+	# Each episode is its own class here (GalKeen4/5/6): only this class's
+	# episode has its functions; the others' are stubs, skipped.
+	if _defined_after_decl(&"CK4_SetupFunctions"):
+		CK4_SetupFunctions()
+	if _defined_after_decl(&"CK5_SetupFunctions"):
+		CK5_SetupFunctions()
+	if _defined_after_decl(&"CK6_SetupFunctions"):
+		CK6_SetupFunctions()
 
 	CK_VAR_Startup()
 
@@ -289,7 +294,8 @@ func CK_Main(argv: PackedStringArray) -> int:
 	CK_SetCurrentEpisode(ck_episodes[0])
 	var i: int = 0
 	while ck_episodes[i] != null:
-		if call((ck_episodes[i] as CK_EpisodeDef).isPresent):
+		var present: StringName = (ck_episodes[i] as CK_EpisodeDef).isPresent
+		if _defined_after_decl(present) and call(present):
 			CK_SetCurrentEpisode(ck_episodes[i])
 			ck_episodeFile = ck_currentEpisode.episodeFile
 			break

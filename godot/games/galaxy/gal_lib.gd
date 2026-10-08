@@ -146,7 +146,9 @@ func Quit(msg: String) -> void:
 	if not quitting:
 		quitting = true
 		quit_message = msg
-		push_error("Galaxy engine quit: " + msg)
+		# Quit(NULL) is the normal way out; a message is an error exit
+		if msg != "":
+			push_error("Galaxy engine quit: " + msg)
 
 
 # ===================================================================== id_ca
