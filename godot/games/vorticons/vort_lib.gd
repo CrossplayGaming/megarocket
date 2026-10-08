@@ -703,6 +703,8 @@ func RecordDemo() -> void:
 # ------------------------------------------------------- misc library
 
 func ClearKeys() -> void:
+	if trace_frames:
+		print("TRACE clearkeys t=%.6f" % (float(vm.now) / float(DosMachine.PIT_HZ * DosMachine.UNIT)))
 	NBKscan = 0
 	NBKascii = 0
 	keydown.fill(0)

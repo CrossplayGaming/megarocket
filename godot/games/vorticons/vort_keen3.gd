@@ -75,7 +75,7 @@ func _init() -> void:
 	# border: that pinned the timer's start to 21.5312 refreshes, one tic
 	# after an equally good-looking 21.05.
 	costs = {"loadgraphics": round(21.5312 * DosMachine.VBL_PERIOD), "demoloop_load": 5 * 8192 * DosMachine.UNIT,
-		"worldmap_load": 13750000, "mapframe": 190909, "levelframe": 50000, "levelthink": 71600, "levelobject": 103400, "levelskip": 18000}
+		"worldmap_load": 13750000, "mapframe": 190909, "levelframe": 50000, "levelthink": 71600, "levelobject": 103400, "levelskip": 13200}
 	# worldmap_load: the middle of 5.5M-22M, the window levels 6 and 14 pass in (one refresh
 	# wide). mapframe and the level frame costs are Keen 1's, until fitted here.
 	costs["demoloop_load"] = 33792000    # 4.125 tics: the middle of 3.25-5.0, the title's window with the spawn scan below

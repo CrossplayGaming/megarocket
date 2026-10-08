@@ -42,7 +42,7 @@ func _init() -> void:
 	# the ONE MOMENT picture (only the part within a refresh shows: it places
 	# the timer's start against the refresh), and the timer's own phase.
 	costs = {"loadgraphics": 367727040, "demoloop_load": 5 * 8192 * DosMachine.UNIT,
-		"worldmap_load": 4355114, "mapframe": 190909, "levelframe": 50000, "levelthink": 71600, "levelobject": 103400, "levelskip": 18000}    # Keen 1's, until fitted here
+		"worldmap_load": 4355114, "mapframe": 190909, "levelframe": 50000, "levelthink": 71600, "levelobject": 103400, "levelskip": 13200}    # Keen 1's, until fitted here
 	dosbox_timing.timer_offset = -2539712
 	# the BIOS tick count when the program reads the DOS clock (oracle clock set
 	# to midnight): the only value 0-60 under which keen2_level01_a matches throughout
