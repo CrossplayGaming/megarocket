@@ -2202,7 +2202,11 @@ func ScrollTerminatorCredits(elapsedTime: int, xpixel: int) -> void:
 	var creditY1: int = 0
 	var picStartOffset: int = 0
 
-	var picX: int = xpixel + (160 - ck_currentTermPicWidth * 4)
+	# omnispeak: xpixel + (160 - width * 4). The original's EGA code places the
+	# picture in whole bytes, (20 - width / 2) bytes in: 4 pixels further right
+	# for an odd width. keen4_boot_a shows the original's (TIME-G4); drawing
+	# only, so omnispeak's state hash is the same either way.
+	var picX: int = xpixel + (20 - (ck_currentTermPicWidth >> 1)) * 8
 
 	VL_SetMapMask(0xC)
 
