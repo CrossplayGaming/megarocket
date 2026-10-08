@@ -3432,17 +3432,9 @@ static func _sscanf_d(s: String, unset: int) -> int:
 
 # ---- id_* functions the library lacks (move to the library)
 
-## id_rf.h
-const PRIORITIES: int = 4
-
 ## ck_config.h (the vanilla build)
 const FS_MAX_FILENAME_LEN: int = 24
 const CK_NEW_FEATURE_DEFAULT: bool = false
-
-
-## id_cfg.c. The port runs on the config's defaults (CFG_GetConfigInt, gal_lib.gd).
-func CFG_GetConfigBool(name: String, defValue: bool) -> bool:
-	return CFG_GetConfigInt(name, 1 if defValue else 0) != 0
 
 
 ## id_fs.c: the name with its last three letters replaced by the episode's extension.
