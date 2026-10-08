@@ -42,7 +42,7 @@ func _init() -> void:
 	# the ONE MOMENT picture (only the part within a refresh shows: it places
 	# the timer's start against the refresh), and the timer's own phase.
 	costs = {"loadgraphics": 367727040, "demoloop_load": 5 * 8192 * DosMachine.UNIT,
-		"worldmap_load": 13721593, "mapframe": 190909, "levelframe": 334091}    # Keen 1's, until fitted here
+		"worldmap_load": 13721593, "mapframe": 190909, "levelframe": 50000, "levelobject": 175000}    # Keen 1's, until fitted here
 	dosbox_timing.timer_offset = -2539712
 
 

@@ -51,10 +51,14 @@ func _init() -> void:
 		# each map frame's C code before its refresh (ControlMapKeen, the
 		# clipping, placing the sprite, the key checks): 0.16 ms, fitted (0.13-0.19 pass)
 		"mapframe": 190909,
-		# each level frame's C code before its refresh (the thinks and
-		# contacts, placing sprites): 0.28 ms, fitted on the Border Village
-		# recording (0.25-0.31 pass)
-		"levelframe": 334091}
+		# each level frame's C code before its refresh, charged before the
+		# thinks: a part every frame (ControlPlayer, contacts, placing sprites,
+		# PlayerCheckTiles: 42 us) and a part per object updated (its think,
+		# MoveObon's clipping, the hitboxes: 147 us), fitted over the 16 level
+		# recordings for the fewest one-refresh near misses (27, against 79 for
+		# one constant) with all of them matching
+		"levelframe": 50000,
+		"levelobject": 175000}
 	# the BIOS tick count when the program reads the DOS clock, the oracle's
 	# clock being set to midnight before the game starts (fitted: 22)
 	dos_ticks = 22

@@ -1174,6 +1174,7 @@ func LevelLoop(currentlevel: int) -> int:
 			obon.copy_from(ob)
 			if obon.active:
 				if i == 0 or _always_active(obon) or not RemoveInactive():
+					cost("levelobject")    # one object's update (its think, moves, hitboxes); 0 until fitted
 					UpdateObonHitbox()
 					obon.xmove = 0
 					obon.ymove = 0
@@ -1187,6 +1188,7 @@ func LevelLoop(currentlevel: int) -> int:
 				if ox - 2 < tx and oy - 2 < ty and ox + 23 > tx and oy + 12 > ty:
 					obon.active = true
 					_reactivate()
+					cost("levelobject")
 					UpdateObonHitbox()
 					obon.xmove = 0
 					obon.ymove = 0

@@ -113,10 +113,17 @@ func add_key(at: float, scancode: int, hold: float = 0.1) -> void:
 
 
 func _add_key_units(at_units: int, scancode: int, hold: float) -> void:
-	_key_script.append([at_units, scancode & 0x7F])
-	_key_script.append([at_units + seconds_to_units(hold), (scancode & 0x7F) | 0x80])
-	_key_script.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	# [time, code, order added]: events at the same moment keep the order they
+	# were scripted in. sort_custom is not stable, and a rebuild that swapped two
+	# delivered same-moment presses would change which key repeats, adding or
+	# removing repeats in the past under `_key_index` (seen as a hang).
+	_key_script.append([at_units, scancode & 0x7F, _key_script.size()])
+	_key_script.append([at_units + seconds_to_units(hold), (scancode & 0x7F) | 0x80, _key_script.size()])
+	_key_script.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0] or (a[0] == b[0] and a[2] < b[2]))
+	var delivered: Array = key_events.slice(0, _key_index)
 	_expand_repeats()
+	if key_events.slice(0, _key_index) != delivered:
+		push_error("DosMachine: adding a key changed events already delivered")
 
 
 ## key_events from the script: its events plus the repeats the held keys
@@ -132,7 +139,7 @@ func _expand_repeats() -> void:
 			while rep_key >= 0 and rep_at < e[0]:
 				out.append([rep_at, rep_key])
 				rep_at += repeat_rate_ms * ms
-		out.append(e)
+		out.append([e[0], e[1]])
 		var code: int = e[1]
 		if (code & 0x80) == 0:
 			rep_at = e[0] + (repeat_rate_ms if code == rep_key else repeat_pause_ms) * ms
@@ -354,6 +361,10 @@ func wait_vbl(n: int) -> void:
 func poll() -> void:
 	_settle()
 	var t_key: int = key_events[_key_index][0] if _key_index < key_events.size() else (1 << 62)
+	if t_key < now:
+		push_error("DosMachine: an undelivered key event lies in the past (index %d)" % _key_index)
+		_key_index += 1    # deliver nothing stale; never stall the poll
+		return
 	_run_to(mini(mini(next_tick, next_vbl), mini(t_key, _display_due)))
 
 

@@ -66,7 +66,7 @@ def main():
     for k in range(n):
         value = args.lo + k * args.step
         raw = int(round(value * args.unit))
-        out = Path(cfg["oracle_runs"]).parent / "port_runs" / f"fitopt_{args.game}_{args.case}_{args.option.replace(':', '_')}_{k}"
+        out = Path(cfg["oracle_runs"]).parent / "port_runs" / f"fitopt_{args.game}_{args.case}_{args.option.replace(':', '_')}_{raw}_{abs(hash(args.fixed)) % 10000}"    # own folder per value and fixed set: parallel sweeps must not share one
         shutil.rmtree(out, ignore_errors=True)
         opts = [f"--{o}={v}" for o, v in fixed_opts]
         costs = list(fixed_costs)

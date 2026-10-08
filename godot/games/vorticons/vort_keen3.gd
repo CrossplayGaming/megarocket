@@ -75,7 +75,7 @@ func _init() -> void:
 	# border: that pinned the timer's start to 21.5312 refreshes, one tic
 	# after an equally good-looking 21.05.
 	costs = {"loadgraphics": round(21.5312 * DosMachine.VBL_PERIOD), "demoloop_load": 5 * 8192 * DosMachine.UNIT,
-		"worldmap_load": 13721593, "mapframe": 190909, "levelframe": 334091}    # Keen 1's, until fitted here
+		"worldmap_load": 13721593, "mapframe": 190909, "levelframe": 50000, "levelobject": 175000}    # Keen 1's, until fitted here
 	dosbox_timing.timer_offset = -4453955
 
 

@@ -24,10 +24,14 @@ const KEY_ENTER: int = 28
 const KEY_SPACE: int = 57
 
 
+var only_levels: Array[int] = []
+
 func _init() -> void:
 	var opts: Dictionary = T.options()
 	var root: String = opts.get("game_data", "")
 	var seconds: float = float(opts.get("seconds", "12"))
+	for v: String in str(opts.get("levels", "")).split(",", false):    # only these levels (diagnosis)
+		only_levels.append(int(v))
 	shots = str(opts.get("shots", ""))
 	if shots != "":
 		DirAccess.make_dir_recursive_absolute(shots)
@@ -65,6 +69,7 @@ func _episode(root: String, game: String, seconds: float) -> void:
 			# a fresh stretch of game time, the scripted input timed from its start
 			stage[0] += 1
 			var mark: String = "stage%d" % stage[0]
+			print("  %s stage %d: %s (wall %d ms)" % [game, stage[0], label, Time.get_ticks_msec()])    # where a hang is
 			_script_keys(vm, mark, seconds)
 			vm.mark(mark)
 			vm.time_limit = vm.now + DosMachine.seconds_to_units(seconds)
@@ -85,6 +90,8 @@ func _episode(root: String, game: String, seconds: float) -> void:
 		g.gamestate.gotPogo = true
 		for n: int in range(1, 17):
 			if not FileAccess.file_exists(data.dir.path_join(("LEVEL%02d." % n) + data.ext)):
+				continue
+			if only_levels.size() > 0 and not only_levels.has(n):
 				continue
 			run.call("level %d" % n, func() -> void:
 				g.gamestate.ammo = 99
