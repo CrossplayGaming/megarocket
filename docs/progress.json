@@ -48,7 +48,7 @@
     "AND-02"
    ],
    "notes": {
-    "matches": "Title, menu, world map and 9 of 16 levels match to the refresh; 7 levels still being matched"
+    "matches": "Title, menu, world map and all 16 levels match the original to the refresh"
    }
   },
   {
@@ -77,7 +77,7 @@
    ],
    "notes": {
     "runs": "Every level plays",
-    "matches": "Title sequence matches to the refresh; levels next"
+    "matches": "Title sequence matches to the refresh; 16 level recordings made, matching them is next"
    }
   },
   {
@@ -106,7 +106,7 @@
    ],
    "notes": {
     "runs": "Every level plays",
-    "matches": "Title sequence matches to the refresh; levels next"
+    "matches": "Title sequence matches to the refresh; 16 level recordings made, matching them is next"
    }
   },
   {
@@ -242,7 +242,7 @@
  "milestones": [
   {
    "date": "2026-10-07",
-   "text": "Nine of Keen 1's 16 levels now match the original to the refresh (entering the level, running, jumping, creatures, shots)"
+   "text": "Keen 1 proven: all 16 levels match the original to the refresh (entering, running, jumping, creatures, shots, dying, the map after)"
   },
   {
    "date": "2026-10-07",
