@@ -564,6 +564,17 @@ def shell09():
     return code
 
 
+def shell06():
+    """In the host: focus loss pauses (the clock stops), mutes and lets go of held keys; focus back
+    resumes with nothing made up; a 2 s stall is dropped but for one refresh."""
+    import gdtest
+    code, out = gdtest.run("shell06_focus", [], timeout=300.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def shell07():
     """One copy at a time: with a second process holding the lock the launcher waits; Enter starts it
     anyway; a stale lock is ignored; leaving removes the lock."""
@@ -659,6 +670,7 @@ CHECKS = {
     "DIST-02": (dist02, "fast"),
     "SHELL-01": (shell01, "fast"),
     "SHELL-05": (shell05, "fast"),
+    "SHELL-06": (shell06, "slow"),
     "SHELL-07": (shell07, "fast"),
     "SHELL-09": (shell09, "fast"),
     "HOST-01": (host01, "slow"),

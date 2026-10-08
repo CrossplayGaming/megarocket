@@ -10,6 +10,11 @@ extends Control
 ## thread ends and `finished` is emitted; nothing carries over to the next
 ## game. Sound (HOST-02): the AdLib writes and speaker changes the machine
 ## makes go to HostAudio, which the screen side turns into samples.
+## SHELL-06: when the window loses focus the game pauses (the engine thread
+## waits in `pace`), the sound stops and every key held is let go; when it
+## comes back the clock starts again from there. However long the host
+## stalls (a dragged window, a slow frame), the game catches up by one
+## refresh at most, and never runs fast to make up the rest.
 
 signal finished(message: String)
 
@@ -32,6 +37,15 @@ var _frame_palette: PackedByteArray = PackedByteArray()
 var _frame_new: bool = false
 var _done: bool = false
 var _quit_message: String = ""
+## SHELL-06: paused while the window is out of focus (or by set_paused).
+var paused: bool = false
+var _held: Dictionary = {}            # scancode -> true while the player holds it
+var _paused_label: Label = null
+## The most the machine may lag the wall clock before the lag is dropped: one
+## refresh, so a stall costs at most one catch-up frame.
+const CATCH_UP_USEC: int = 14268      # 1 / 70.086 s
+var stalls_dropped: int = 0
+var _keys_until: int = 0              # machine time the last keys given are delivered by
 
 ## sound: events gathered on the engine thread, handed over in _pace
 var audio: HostAudio = null
@@ -182,6 +196,41 @@ static func _short_title(found: Dictionary) -> String:
 	return String(found.get("title", found.get("id", "The game"))).split(":")[0]
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		set_paused(true)
+	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		set_paused(false)
+
+
+## Pause or resume (SHELL-06). Pausing lets go of every held key (as key-ups
+## the game reads before it stops) and mutes; resuming restarts the clock
+## from the machine's present time, so nothing is made up.
+func set_paused(on: bool) -> void:
+	if on == paused or thread == null:
+		return
+	if on:
+		for code: int in _held.keys():
+			send_key(code, false)
+		_stick.clear()
+	_mutex.lock()
+	paused = on
+	_mutex.unlock()
+	if _player != null:
+		_player.stream_paused = on
+	if on:
+		if _paused_label == null:
+			_paused_label = Label.new()
+			_paused_label.name = "Paused"
+			_paused_label.text = "Paused"
+			_paused_label.add_theme_font_size_override("font_size", 32)
+			_paused_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+			add_child(_paused_label)
+		_paused_label.visible = true
+	elif _paused_label != null:
+		_paused_label.visible = false
+
+
 ## The player leaves: the program is told to quit at its next machine event.
 func stop() -> void:
 	_mutex.lock()
@@ -234,10 +283,30 @@ func _pace() -> void:
 		else:
 			(engine as VortActs).exited = true
 		return
+	# SHELL-06: paused, the machine waits here; its clock resumes from now
+	_mutex.lock()
+	var was_paused: bool = paused
+	_mutex.unlock()
+	if not keys.is_empty():
+		_keys_until = vm.now + 2
+	if was_paused and vm.now >= _keys_until:    # the key-ups just given go in first
+		while true:
+			OS.delay_msec(10)
+			_mutex.lock()
+			var still: bool = paused and not _stop
+			_mutex.unlock()
+			if not still:
+				break
+		_start_usec = Time.get_ticks_usec() - int(vm.seconds() * 1000000.0 / speed)
+		return
 	var due: int = _start_usec + int(vm.seconds() * 1000000.0 / speed)
 	var wait: int = due - Time.get_ticks_usec()
 	if wait > 2000:
 		OS.delay_usec(wait)
+	elif wait < -int(CATCH_UP_USEC / speed):
+		# behind by more than a refresh (a stall): drop all but one refresh of it
+		_start_usec += -wait - int(CATCH_UP_USEC / speed)
+		stalls_dropped += 1
 
 
 ## On the engine's thread: the card finished a frame.
@@ -343,6 +412,10 @@ func send_key(scancode: int, down: bool) -> void:
 	_mutex.lock()
 	_keys.append([scancode, down])
 	_mutex.unlock()
+	if down:
+		_held[scancode] = true
+	else:
+		_held.erase(scancode)
 
 
 func _input(event: InputEvent) -> void:
