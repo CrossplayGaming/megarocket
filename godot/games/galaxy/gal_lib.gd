@@ -869,9 +869,15 @@ func VL_GetTics(wait: int) -> int:
 	return tics
 
 
-## The original's VW_WaitVBL: whole refreshes on the machine.
+## id_vl_dos.c's waitVBLs: for each, wait for the vertical blank to begin
+## (at once if it already has), then for it to end.
 func VL_DelayTics(tics: int) -> void:
-	vm.wait_vbl(tics)
+	for i: int in range(tics):
+		if quitting:
+			return
+		if not vm.in_retrace():
+			vm.wait_retrace_start()
+		vm.wait_retrace_end()
 
 
 func VL_Yield() -> void:
@@ -963,12 +969,16 @@ func VL_Present() -> void:
 	card.plane1 = p1
 	card.plane2 = p2
 	card.plane3 = p3
-	# the CRTC start address, latched by the card at the next retrace
+	# the CRTC start address, latched by the card at the next retrace; then, as
+	# id_vl_dos.c's present does, wait for that retrace to begin (no wait when
+	# one already has)
 	vm.out8(EgaCard.CRTC_INDEX, EgaCard.CRTC_STARTHIGH)
 	vm.out8(EgaCard.CRTC_DATA, (base >> 8) & 0xFF)
 	vm.out8(EgaCard.CRTC_INDEX, EgaCard.CRTC_STARTLOW)
 	vm.out8(EgaCard.CRTC_DATA, base & 0xFF)
 	vl_shownPage = page
+	if not vm.in_retrace():
+		vm.wait_retrace_start()
 
 
 # ===================================================================== id_vh

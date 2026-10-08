@@ -168,12 +168,12 @@ func _game(t: T, root: String, game: String) -> void:
 				bad += 1
 	t.ok("%s: VL_Present shows the 320x200 window at the scroll position (9,13) on the card (%d pixels differ)" % [game, bad], bad == 0)
 
-	# a fade to black reaches the palette registers, one step every six refreshes
+	# a fade to black reaches the palette registers, one step every six refreshes (the present waits for a retrace; the delay's first tic ends it)
 	var start: int = vm.vbl_count
 	g.VL_FadeToBlack()
 	var regs: PackedByteArray = vm.card.atc.slice(0, 16)
-	t.ok("%s: VL_FadeToBlack leaves every palette register black after 24 refreshes (%s, %d refreshes)" %
-		[game, regs, vm.vbl_count - start], regs == PackedByteArray([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]) and vm.vbl_count - start == 24 and g.vl_screenFaded)
+	t.ok("%s: VL_FadeToBlack leaves every palette register black after four steps of six refreshes, each present sharing its retrace with the first tic (%s, %d refreshes)" %
+		[game, regs, vm.vbl_count - start], regs == PackedByteArray([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]) and vm.vbl_count - start >= 23 and vm.vbl_count - start <= 25 and g.vl_screenFaded)
 	g.VL_FadeFromBlack()
 	regs = vm.card.atc.slice(0, 16)
 	t.ok("%s: VL_FadeFromBlack ends on the default palette" % game, regs == PackedByteArray([0, 1, 2, 3, 4, 5, 6, 7, 24, 25, 26, 27, 28, 29, 30, 31]))
