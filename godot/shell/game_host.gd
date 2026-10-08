@@ -71,14 +71,14 @@ const GALAXY_META: Dictionary = {"keen4": "keen4", "keen5": "keen5", "keen6": "k
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var bg: ColorRect = ColorRect.new()
 	bg.color = Color.BLACK
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	var aspect: AspectRatioContainer = AspectRatioContainer.new()
 	aspect.ratio = 4.0 / 3.0
-	aspect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	aspect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(aspect)
 	_view = TextureRect.new()
 	_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
