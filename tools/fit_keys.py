@@ -78,13 +78,17 @@ def mismatch_time(out, oracle, intro_display):
     return (disp - intro_display) / 70.086, (disp + longest - intro_display) / 70.086
 
 
-MOVES = {0: "key", 1: "press", 2: "release"}
+MOVES = {0: "key", 1: "press", 2: "release", 3: "tail"}
 
 
 def targeted(game, keys, after, out, oracle, step, rng, window):
     """Repeatedly: find the first mismatch, try moving each key whole, its press
     alone or its release alone where they fall in the `window` seconds before
-    it, keep the best single change."""
+    it, keep the best single change. Also tried: the first key pressed after
+    the mismatch (a press that came earlier than scripted shows before its own
+    time: Keen 3 level 2's jump wind-up), and each candidate key moved with
+    every key after it ("tail": a recording whose later keys all landed early
+    or late by the same amount, Keen 3 levels 2 and 8)."""
     intro_display = run_port(game, keys, after, out)
     best, note = score(out, oracle)
     print(f"as given: {note}")
@@ -97,8 +101,13 @@ def targeted(game, keys, after, out, oracle, step, rng, window):
             if t_mis - window <= t <= t_end + 0.1:
                 cands.append((i, 0))
                 cands.append((i, 1))
+                cands.append((i, 3))
             if t_mis - window <= t + h <= t_end + 0.1:
                 cands.append((i, 2))
+        later = [i for i, (t, k, h) in enumerate(keys) if t > t_end + 0.1]
+        if later:
+            nxt = min(later, key=lambda i: keys[i][0])
+            cands += [(nxt, 0), (nxt, 1), (nxt, 3)]
         print(f"round {rounds}: mismatch in the picture at {t_mis:.3f}-{t_end:.3f} s after the intro; trying {[(i, MOVES[f]) for i, f in cands]}")
         top = (best, None, note)
         for i, field in cands:
@@ -109,6 +118,10 @@ def targeted(game, keys, after, out, oracle, step, rng, window):
                 if field == 1:      # the press alone: the release stays where it landed
                     trial[i][0] = round(trial[i][0] + d * step, 4)
                     trial[i][2] = round(trial[i][2] - d * step, 4)
+                elif field == 3:    # this key and every key pressed after it
+                    for j in range(len(trial)):
+                        if trial[j][0] >= keys[i][0]:
+                            trial[j][0] = round(trial[j][0] + d * step, 4)
                 else:
                     trial[i][field] = round(trial[i][field] + d * step, 4)
                 if trial[i][2] <= 0.01:
