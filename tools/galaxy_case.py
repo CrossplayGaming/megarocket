@@ -9,14 +9,16 @@ within 0.05 s), or, when tools/cases/<game>/<case>.port.json exists, the keys fi
     python tools/galaxy_case.py keen4 level05 [--keys-from case|port] [--tag NAME]
 """
 import argparse
-import calendar
 import json
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
+import numpy as np
+
 import common
+import frames
 import timing_score
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -36,21 +38,19 @@ def case_timer_offset(game, case):
     return 0
 
 
-# Borland's time() for the DOS clock, in its default zone EST5EDT: the local time plus five hours
-ZONE_SECONDS = 5 * 3600
+# The DOS clock when the program starts: the runner sets it to 00:00:00 just before the game
+# (tools/oracle_run.py), so this is the time DOS takes to load and start the program (fitted once).
+DOS_CLOCK_AT_START_US = 0
 
 
-def recording_clock(game, case, zone=ZONE_SECONDS):
-    """time(0) as the recording's program started: the runner sets the DOS clock to 00:00:00 just before it
-    (tools/oracle_run.py) and the date stays the host's, the day the recording was made (its log's date)."""
-    log = Path(common.config()["oracle_runs"]) / f"{game}_{case}_a" / "stderr.txt"
-    day = log.read_text(encoding="utf-8", errors="replace")[:10]
-    y, m, d = (int(x) for x in day.split("-"))
-    return calendar.timegm((y, m, d, 0, 0, 0)) + zone
+def recording_clock(game, case):
+    """Microseconds the DOS clock has run since 00:00:00 as the recording's program starts."""
+    return DOS_CLOCK_AT_START_US
 
 
 def case_clock(game, case):
-    """time(0) at the program's start for the recording (its .port.json's "clock" if fitted)."""
+    """The DOS clock at the program's start for the recording, microseconds (its .port.json's "clock"
+    if fitted): US_InitRndT(true) takes its hundredths when the level starts."""
     port = CASES / game / f"{case}.port.json"
     if port.exists():
         fitted = json.loads(port.read_text(encoding="utf-8")).get("clock")
@@ -83,10 +83,57 @@ def run_port(game, case, keys, out, seconds=None, extra=(), timer_offset=None, c
     return p.returncode
 
 
+def opening_end(oracle):
+    """The index of the recording's first all-black picture: the level's black before the fade-in (the
+    opening is the level loading under its name box, the fade out and that black)."""
+    seq = frames.Sequence(Path(oracle) / "frames")
+    seen = {}
+    for i in range(len(seq)):
+        seen.setdefault(seq.digest(i), i)
+    orc = timing_score.pictures(seq, True)
+    for n, (d, _r) in enumerate(orc[:60]):
+        if not np.asarray(seq.frame(seen[d])).any():
+            return n
+    return -1
+
+
+def level_score(out, oracle):
+    """REPLAY-G's measure of a level session: (k, note, n, opening_error).
+
+    The opening (to the black before the fade-in, opening_end) must show the recording's pictures in
+    order; how long each is held follows the level's loading time, which TIME-G's costs model to within
+    a refresh or two, and after the fade-in the original restarts its clock (FadeAndUnhook's TimeCount =
+    lasttimecount), so nothing after depends on it: those durations are only summed (opening_error).
+    From the first picture after the black every picture and its duration must match, one-refresh slips
+    that recover passed (timing_score's transient rule)."""
+    _k, _note, port, orc, start = timing_score.score(Path(out), Path(oracle), transient=True)
+    end = opening_end(oracle)
+    n = min(len(port), len(orc) - 1)
+    err = 0
+    for k in range(min(end + 1, n)):
+        if port[k][0] != orc[k][0]:
+            return k, f"opening picture {k} differs", n, err
+        if k < end:
+            err += abs(port[k][1] - orc[k][1])
+    offset = 0
+    slips = []
+    for k in range(end + 1, n):
+        if port[k][0] != orc[k][0]:
+            return k, f"picture {k} differs" + timing_score._slips(slips), n, err
+        if offset != 0:
+            slips.append(k - 1)
+        offset += port[k][1] - orc[k][1]
+        if abs(offset) > 1 or (offset != 0 and slips and slips[-1] == k - 1):
+            return k, f"picture {k} lasts {port[k][1]} refreshes in the port, {orc[k][1]} in the recording" + timing_score._slips(slips), n, err
+    return n, f"all {n} pictures match, from the fade-in their durations too" + timing_score._slips(slips), n, err
+
+
 def score(game, case, out):
     oracle = Path(common.config()["oracle_runs"]) / f"{game}_{case}_a"
-    k, note, port, orc, start = timing_score.score(Path(out), oracle, transient=True)
-    return k, note, len(orc)
+    k, note, n, err = level_score(out, oracle)
+    if err:
+        note += f"; the opening's durations {err} refreshes off in all"
+    return k, note, n + 1
 
 
 def main():

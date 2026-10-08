@@ -56,11 +56,13 @@ def align(port, orc, k):
     return matched, events
 
 
-def run(game, case, seconds, frm, costs="", tag=""):
+def run(game, case, seconds, frm, costs="", tag="", timer_offset=None):
     out = WORK / f"bootscore_{game}_{case}{('_' + tag) if tag else ''}"
     extra = [f"--game={game}", f"--seconds={seconds}", f"--out={out.as_posix()}"]
     if costs:
         extra.append(f"--costs={costs}")
+    if timer_offset is not None:
+        extra.append(f"--timer_offset={timer_offset}")
     code, text = gdtest.run("simg_boot", extra, timeout=1800.0, quiet=True)
     if code != 0:
         return None
@@ -79,8 +81,9 @@ def main():
     ap.add_argument("--from", dest="frm", type=int, default=1317)
     ap.add_argument("--costs", default="")
     ap.add_argument("--tag", default="", help="a name for this run's output folder (parallel runs)")
+    ap.add_argument("--timer_offset", type=int, default=None, help="the 70 Hz clock's phase (the recording's)")
     a = ap.parse_args()
-    r = run(a.game, a.case, a.seconds, a.frm, a.costs, a.tag)
+    r = run(a.game, a.case, a.seconds, a.frm, a.costs, a.tag, a.timer_offset)
     if r is None:
         print("COULD-NOT-RUN")
         return 2

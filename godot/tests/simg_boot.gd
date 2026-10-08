@@ -10,8 +10,8 @@ extends SceneTree
 ##          --keys=<at:scancode:hold,...> --args=<command line, space-separated>
 ##          --cycles= --vbl_period= --timer_offset= (the machine's timing)
 ##          --costs=name=units,... (TIME-G costs over the game's own)
-##          --seed=n (the original's time(0) & 0xFF, which US_InitRndT(true) takes)
-##          --clock=n (or time(0) at the start, and the machine's seconds since)
+##          --seed=n (the random index US_InitRndT(true) takes)
+##          --clock=us (or the DOS clock at the start, microseconds since 00:00:00)
 
 const GAMES: Dictionary = {"keen4": "keen4", "keen5": "keen5", "keen6": "keen6e14"}
 const CLASSES: Dictionary = {"keen4": "res://games/galaxy/gal_keen4.gd",
@@ -45,7 +45,7 @@ func _init() -> void:
 	vm.vbl_period = int(opts.get("vbl_period", DOSBOX.vbl_period))
 	vm.timer_offset = int(opts.get("timer_offset", DOSBOX.timer_offset))
 	g.us_randomSeed = int(opts.get("seed", "0"))
-	g.us_clockAtStart = int(opts.get("clock", "-1"))
+	g.us_dosClockAtStart = int(opts.get("clock", "-1"))
 	for spec: String in str(opts.get("costs", "")).split(",", false):
 		var kv: PackedStringArray = spec.split("=")
 		g.costs[kv[0]] = int(kv[1])

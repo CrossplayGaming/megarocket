@@ -13,7 +13,13 @@ this moves keys until the port's pictures and their durations follow the recordi
   further is kept. When no single event helps, the newest one is moved with every key after
   it (the "tail"). It stops when the whole recording matches or nothing helps.
 
-The fitted keys go to tools/cases/<game>/<case>.port.json (tools/galaxy_case.py uses them).
+Stage 0 first fits the DOS clock at the program's start (the random table's seed is the clock's
+hundredths when the level starts, and the time the original spends before the level's first picture
+is not modelled to a BIOS tick): every 10 ms over a second, scored by the opening, the middle of each
+best run kept; then the timer's phase and the keys' common delay for each of those.
+
+The fitted keys, phase and clock go to tools/cases/<game>/<case>.port.json (tools/galaxy_case.py uses
+them).
 
     python tools/fit_galaxy.py keen4 level05 [--delay 0.47] [--start case|port] [--workers 10]
 """
@@ -41,11 +47,13 @@ def say(*a):
 
 
 OFFSET = [0]    # the timer phase in use (machine units)
+CLOCK = [None]  # the DOS clock at the program's start in use (microseconds; None: the case's)
 
 
-def trial(game, case, keys, tag, seconds=None, offset=None):
+def trial(game, case, keys, tag, seconds=None, offset=None, clock=None):
     out = WORK / f"fitg_{game}_{case}_{tag}"
-    galaxy_case.run_port(game, case, keys, out, seconds=seconds, timer_offset=OFFSET[0] if offset is None else offset)
+    galaxy_case.run_port(game, case, keys, out, seconds=seconds, timer_offset=OFFSET[0] if offset is None else offset,
+                         clock=CLOCK[0] if clock is None else clock)
     try:
         k, note, n = galaxy_case.score(game, case, out)
     except Exception as err:          # a run that wrote nothing scores nothing
@@ -98,19 +106,36 @@ def main():
     if a.start == "port" and target.exists():
         keys = galaxy_case.case_keys(a.game, a.case, "port")
         OFFSET[0] = galaxy_case.case_timer_offset(a.game, a.case)
+        CLOCK[0] = galaxy_case.case_clock(a.game, a.case)
     else:
-        # stage 0: the timer's phase and the keys' common delay, together, over the first key
         script = galaxy_case.case_keys(a.game, a.case, "case")
+        # stage 0a: the DOS clock, by the opening (no keys yet)
+        clocks = list(range(0, 1000000, 10000))
+        futs = {c: pool.submit(trial, a.game, a.case, [], f"c{c}", script[0][0] + 0.3, 0, c) for c in clocks}
+        ks = [futs[c].result()[0] for c in clocks]
+        top = max(ks)
+        runs, cur = [], []
+        for c, k in zip(clocks, ks):
+            if k == top:
+                cur.append(c)
+            elif cur:
+                runs.append(cur)
+                cur = []
+        if cur:
+            runs.append(cur)
+        cands = [r[len(r) // 2] for r in sorted(runs, key=len, reverse=True)[:4]]
+        say(f"stage 0a: the opening matches to picture {top} with the clock at {[(r[0], r[-1]) for r in runs]} us; trying {cands}")
+        # stage 0b: the timer's phase and the keys' common delay, together, over the first key
         limit = script[0][0] + 8.0
-        grid = [(off, d) for off in range(0, PERIOD, PERIOD // 12) for d in (0.36, 0.40, 0.44, 0.48, 0.52, 0.56)]
-        futs = {pool.submit(trial, a.game, a.case, [[round(t + d, 4), k, h] for t, k, h in script], f"g{off}_{d}", limit, off): (off, d)
-                for off, d in grid}
+        grid = [(off, d, c) for c in cands for off in range(0, PERIOD, PERIOD // 12) for d in (0.36, 0.42, 0.48, 0.54)]
+        futs = {pool.submit(trial, a.game, a.case, [[round(t + d, 4), k, h] for t, k, h in script], f"g{off}_{d}_{c}", limit, off, c): (off, d, c)
+                for off, d, c in grid}
         scored = []
         for fu in concurrent.futures.as_completed(futs):
             scored.append((fu.result()[0], futs[fu]))
         scored.sort(key=lambda r: r[0], reverse=True)
-        k0, (OFFSET[0], d0) = scored[0]
-        say(f"stage 0: timer phase {OFFSET[0]}, delay {d0}: {k0} pictures (next best {scored[1][0]})")
+        k0, (OFFSET[0], d0, CLOCK[0]) = scored[0]
+        say(f"stage 0b: timer phase {OFFSET[0]}, delay {d0}, clock {CLOCK[0]} us: {k0} pictures (next best {scored[1][0]})")
         keys = [[round(t + d0, 4), k, h] for t, k, h in script]
     best, note, n, out = trial(a.game, a.case, keys, "base")
     say(f"{a.game} {a.case}: start {best} of {n} ({note})")
@@ -157,6 +182,18 @@ def main():
             if found:
                 break
         if not found:
+            # the clock again, with the keys as they are now: a later random choice can tell apart
+            # clocks the opening could not
+            futs = {c: pool.submit(trial, a.game, a.case, keys, f"rc{rounds}_{c}", t_mis + 3.0, None, c)
+                    for c in range(0, 1000000, 10000) if c != CLOCK[0]}
+            ks = {c: futs[c].result()[0] for c in futs}
+            top = max(ks.values(), default=-1)
+            if top > best:
+                tops = sorted(c for c, k in ks.items() if k == top)
+                CLOCK[0] = tops[len(tops) // 2]    # the middle of the window, away from a tick's edge
+                best, note, n, out = trial(a.game, a.case, keys, "best")
+                say(f"  clock {CLOCK[0]} us: {best} of {n} ({note})")
+                continue
             say("  no move helps")
             break
         k2, d, c, i, f = found
@@ -164,7 +201,7 @@ def main():
         best, note, n, out = trial(a.game, a.case, keys, "best")
         say(f"  kept event {i} ({keys[i][1]}) {['press', '', 'release', 'tail'][f]} {d:+d} refreshes: {best} of {n} ({note})")
     result = "PASS" if n > 0 and best >= n - 1 else f"first difference at picture {best}"
-    target.write_text(json.dumps({"keys": keys, "timer_offset": OFFSET[0], "result": result}, indent=1), encoding="utf-8")
+    target.write_text(json.dumps({"keys": keys, "timer_offset": OFFSET[0], "clock": CLOCK[0], "result": result}, indent=1), encoding="utf-8")
     say(f"wrote {target.name}: {result}")
     return 0 if result == "PASS" else 1
 

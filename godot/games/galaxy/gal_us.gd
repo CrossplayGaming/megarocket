@@ -356,19 +356,32 @@ const us_RandomTable: PackedByteArray = [
 	120, 163, 236, 249]
 
 var us_randomIndex: int = 0
-## The seed US_InitRndT(true) takes: the original reads the clock's seconds
-## (time(0) & 0xFF); here the shell sets it from the session (A11). Not state.
+## The seed US_InitRndT(true) takes: the original reads the clock's hundredths
+## (below); here the shell sets it from the session (A11). Not state.
 var us_randomSeed: int = 0
-## Or the clock itself (A11, set from outside): time(0) at the program's start, the
-## seconds since 1970 that Borland's time() gives for the DOS clock (EST5EDT, its
-## default zone). time(0) is then that plus the machine's seconds since. -1: unset.
-var us_clockAtStart: int = -1
+## Or the DOS clock itself (A11, set from outside): microseconds since the clock
+## read 00:00:00 when the program started (the oracle runner sets it just before
+## the game). US_InitRndT is id's assembly (ID_US_A.ASM): DOS GetSystemTime (int
+## 21h 2Ch) and DL, the hundredths of a second, which DOS works out from the BIOS
+## tick count (18.2 a second). -1: unset, us_randomSeed instead.
+var us_dosClockAtStart: int = -1
+
+
+## DL of int 21h 2Ch: the BIOS ticks since 00:00:00 as hundredths (DOSBox:
+## ticks * 100 / (1193182 / 65536), truncated), modulo 100. The BIOS counts its
+## own ticks until SD_Startup takes the timer over, then the game's handler
+## passes them on (sd_biosTicks).
+func US_DOSHundredths() -> int:
+	var before: int = vm.now if sd_startupNow < 0 else sd_startupNow
+	var units: int = before + us_dosClockAtStart * DosMachine.PIT_HZ / 1000
+	var ticks: int = units / (65536 * DosMachine.UNIT) + sd_biosTicks
+	return int(float(ticks) * 100.0 * 65536.0 / float(DosMachine.PIT_HZ)) % 100
 
 
 func US_InitRndT(randomize: bool) -> void:
 	if randomize:
-		if us_clockAtStart >= 0:
-			us_randomIndex = (us_clockAtStart + int(vm.seconds())) & 0xFF
+		if us_dosClockAtStart >= 0:
+			us_randomIndex = US_DOSHundredths()
 		else:
 			us_randomIndex = us_randomSeed & 0xFF
 	else:

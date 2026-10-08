@@ -77,6 +77,16 @@ var sd_musicMode: int = smm_Off
 var sd_sfxPartRate: int = 140
 var sd_haveAdlib: bool = false
 var sd_started: bool = false
+## The BIOS clock under the game's timer handler (ID_SD.C's SDL_t0Service): each
+## interrupt adds the timer's divisor to the 16-bit TimerCount, and on its carry
+## the old BIOS service runs and counts a tick of the time of day (18.2 a second
+## on average). sd_pitDivisor: what SD_DOS_SetTimer0 last programmed.
+var sd_pitDivisor: int = 0
+var sd_timerCount: int = 0
+var sd_biosTicks: int = 0
+## the machine's time when SD_Startup took the timer over; the BIOS counted its
+## own ticks before that
+var sd_startupNow: int = -1
 var sd_quietAdlibSfx: bool = false
 var sd_currentSfxId: int = 0
 var sd_currentSfxPriority: int = 0
@@ -128,6 +138,7 @@ func SD_DOS_PCSpkOn(on: bool, freq: int) -> void:
 
 
 func SD_DOS_SetTimer0(int_8_divisor: int) -> void:
+	sd_pitDivisor = int_8_divisor & 0xFFFF
 	vm.out8(0x43, 0x36)
 	vm.out8(0x40, int_8_divisor & 0xFF)
 	vm.out8(0x40, (int_8_divisor >> 8) & 0xFF)
@@ -335,6 +346,7 @@ func SD_Startup() -> void:
 	ca_audInfoE = data.aud
 	sd_sfxPartRate = CFG_GetConfigInt("sd_sfxPartRate", 140)
 	vm.int8 = Callable(self, "SD_DOS_t0InterruptProxy")
+	sd_startupNow = vm.now
 	sd_haveAdlib = true
 	SD_SetTimeCount(0)
 	SD_SetSoundMode(sdm_Off)
@@ -466,6 +478,10 @@ func SDL_t0Service() -> void:
 
 func SD_DOS_t0InterruptProxy() -> void:
 	SDL_t0Service()
+	sd_timerCount += sd_pitDivisor
+	if sd_timerCount > 0xFFFF:
+		sd_timerCount &= 0xFFFF
+		sd_biosTicks += 1    # t0OldService(): the BIOS counts a tick
 	vm.out8(0x20, 0x20)
 
 

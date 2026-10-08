@@ -2252,6 +2252,7 @@ func ScrollTerminatorCredits(elapsedTime: int, xpixel: int) -> void:
 		VL_SetMapMask(0x8)
 		VL_1bppToScreen_PM(ck_currentTermPicSeg, plane_2, picX, creditY1, ck_currentTermPicWidth * 8, ScrollTerminatorCredits_rowsToDraw, 0xF)
 		VL_ScreenRect_PM(picX + ck_currentTermPicWidth * 8, creditY1, 8, ScrollTerminatorCredits_rowsToDraw, 0)
+		cost_n("plaquebyte", 2 * ck_currentTermPicWidth * ScrollTerminatorCredits_rowsToDraw)    # TIME-G
 
 
 ## Does the terminator scrolling.
@@ -2380,6 +2381,8 @@ func AnimateTerminator() -> void:
 
 			if (row & 1) != 0:
 				rowptr += ck_introCommanderWidth
+		# TIME-G: the original's drawing of the frame (200 rows of 21 words, the plaque)
+		cost("termframe")
 
 		# Update the screen
 		VL_SwapOnNextPresent()
