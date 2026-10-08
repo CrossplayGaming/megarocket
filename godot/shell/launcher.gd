@@ -25,6 +25,13 @@ const TILE_MIN: Vector2 = Vector2(200, 120)
 var extra_folders: PackedStringArray = PackedStringArray()
 ## Set false by a test that supplies results itself.
 var scan_on_ready: bool = true
+## Make each found game's title art (J-12) on a background thread.
+var make_art: bool = true
+var _art_thread: Thread = null
+var _art_queue: Array = []
+var _art_mutex: Mutex = Mutex.new()
+## id -> true once the tile shows its title art
+var art_shown: Dictionary = {}
 
 var summary: Label
 var grid: GridContainer
@@ -104,6 +111,14 @@ func _make_tile(id: String, name_text: String, subtitle: String) -> PanelContain
 	tile.gui_input.connect(_tile_input.bind(id))
 	var box: VBoxContainer = VBoxContainer.new()
 	tile.add_child(box)
+	var art: TextureRect = TextureRect.new()
+	art.name = "Art"
+	art.custom_minimum_size = Vector2(0, 110)
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	art.visible = false
+	box.add_child(art)
 	var n: Label = Label.new()
 	n.name = "Name"
 	n.text = name_text
@@ -149,6 +164,8 @@ func show_results(results: Array) -> void:
 		else:
 			states[id] = "unsupported"
 			st.text = "Found %s, which Megarocket does not run. %s" % [r.version if r.version != "" else r.title, r.message]
+	if make_art:
+		_queue_art()
 	summary.text = "%d of %d games found." % [found, GAMES.size()] if found > 0 else \
 		"No games found yet. Each tile says what Megarocket looks for."
 
@@ -161,6 +178,61 @@ static func _looks_for(id: String) -> String:
 		if s.id == id:
 			parts.append("%s %s" % [s.exe, s.version])
 	return "Looks for " + " or ".join(parts) + "."
+
+
+# ---- title art (J-12): made off the main thread, shown as each is ready
+
+func _queue_art() -> void:
+	_art_mutex.lock()
+	_art_queue = []
+	for g: Array in GAMES:
+		if states.get(g[0], "") == "found" and not art_shown.has(g[0]):
+			_art_queue.append(found_results[g[0]])
+	_art_mutex.unlock()
+	if _art_thread == null and not _art_queue.is_empty():
+		_art_thread = Thread.new()
+		_art_thread.start(_art_worker)
+
+
+func _art_worker() -> void:
+	while true:
+		_art_mutex.lock()
+		var next: Variant = _art_queue.pop_front() if not _art_queue.is_empty() else null
+		_art_mutex.unlock()
+		if next == null:
+			break
+		var img: Image = TitleArt.make(next)
+		if img != null:
+			_show_art.call_deferred(String(next.id), img)
+	_art_done.call_deferred()
+
+
+func _art_done() -> void:
+	if _art_thread != null:
+		_art_thread.wait_to_finish()
+		_art_thread = null
+	_art_mutex.lock()
+	var more: bool = not _art_queue.is_empty()
+	_art_mutex.unlock()
+	if more:
+		_art_thread = Thread.new()
+		_art_thread.start(_art_worker)
+
+
+func _show_art(id: String, img: Image) -> void:
+	var art: TextureRect = tiles[id].get_child(0).get_node("Art")
+	art.texture = ImageTexture.create_from_image(img)
+	art.visible = true
+	art_shown[id] = true
+
+
+func _exit_tree() -> void:
+	_art_mutex.lock()
+	_art_queue = []
+	_art_mutex.unlock()
+	if _art_thread != null:
+		_art_thread.wait_to_finish()
+		_art_thread = null
 
 
 func _tile_input(event: InputEvent, id: String) -> void:

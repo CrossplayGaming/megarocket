@@ -127,6 +127,7 @@ func _go() -> void:
 	# ---- from the launcher: a found tile starts the game; when it ends the launcher is back
 	var l: Launcher = load("res://shell/main.tscn").instantiate()
 	l.scan_on_ready = false
+	l.make_art = false
 	root.add_child(l)
 	await process_frame
 	l.show_results([{"id": "keen2", "title": "Commander Keen 2", "version": "v1.31 EGA (Steam)", "status": "ok", "folder": root_dir.path_join("keen2"), "message": "", "exe": "KEEN2.EXE"}])

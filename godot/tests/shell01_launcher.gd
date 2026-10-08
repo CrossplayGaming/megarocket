@@ -22,6 +22,7 @@ func _run(scene: PackedScene) -> void:
 		root.size = win
 		var l: Launcher = scene.instantiate()
 		l.scan_on_ready = false
+		l.make_art = false
 		root.add_child(l)
 		await process_frame
 		await process_frame

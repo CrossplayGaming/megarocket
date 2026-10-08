@@ -530,6 +530,17 @@ def host01():
     return code
 
 
+def shell02():
+    """The launcher's title art (J-12): Keen 1's made by running its engine to the title, Keen 4's from
+    PIC_TITLESCREEN, the cache reused, and the launcher shows art on found tiles only."""
+    import gdtest
+    code, out = gdtest.run("shell02_art", [], timeout=900.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def simv02():
     """Every level of Keen 1, 2 and 3, the world maps, the status and ordering screens and the
     endings run to a time limit under scripted play without a script error."""
@@ -614,6 +625,7 @@ CHECKS = {
     "DIST-02": (dist02, "fast"),
     "SHELL-01": (shell01, "fast"),
     "HOST-01": (host01, "slow"),
+    "SHELL-02": (shell02, "slow"),
     "SIM-G-01d": (simg01d, "slow"),
     "SIM-G-01g": (simg01g, "slow"),
     "SIM-G-01h": (simg01h, "slow"),
