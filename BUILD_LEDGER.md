@@ -286,12 +286,12 @@ walk, SAVE round trips, AUDIO comparisons, REND equality, HARN-12 clean tree, HA
 check. One command: `python tools/regress.py` (to be written as HARN-01a's first deliverable,
 growing as units verify).
 
-## Session handoff — 2026-10-08
+## Session handoff — 2026-10-08 (overnight)
 
-Completed: REPLAY-V1 (Keen 1, all 16 levels) and REPLAY-V2 (Keen 2, all 16). REPLAY-V3 at 11 of 16 (see its row for the five open sessions). `python tools/regress.py TIME-V1 REPLAY-V1 REPLAY-V2 REPLAY-V3` passes.
-Model additions this session (all in the calibration log): level frame costs split around the thinks and per skipped object; C loops re-reading numobj; keyboard typematic repeat on DOSBox's ms grid; the BIOS palette call's port I/O time; Keen 3's spawn pass per tile; Messie's uninitialised anim; per-episode dos_ticks.
-Blocked: NATIVE-01's Android self-test run (AND-01 emulator). SHELL-10 (launcher screen SHELL-01; AND-02).
-Next: finish Keen 3's five open sessions (1 and 9: refit from port; 2 and 8: trace the port's menu key path, ControlPlayer/NoBiosKey, against the original's at the press moment; 12: the teleporter loop's time before RF_Refresh), then SIM-G-01 (Galaxy).
+Completed: SIM-G-01a-i (the Galaxy engine: library, refresh, sound/input, user manager, declarations, core, Keen 4/5/6, menus); the twelve built-in demos are identical to omnispeak frame for frame (tools/galaxy_verify.py builds omnispeak headless). TIME-G4 in progress: keen4_boot_a matches through the intro, terminator and from the title through demo 0, refresh for refresh (open: the title fizzle's table, the story screen drawn on the page on display). SHELL-01 (launcher), HOST-01 (games play in real time from the launcher, keyboard, no sound), DIST-02. REPLAY-V3 at 14 of 16 (levels 2 and 8 open).
+Regression: `python tools/regress.py --fast` passes (NATIVE-01 fails only while another Godot holds d2opl.dll); the slow Galaxy set SIM-G-01a..i, TIME-G4, HOST-01 pass.
+Blocked: REPLAY-G6 needs a new 320x200 recording of Keen 6 (keen6_boot_a is a 640x400 capture that is not exact doubling). NATIVE-01's Android run (AND-01). SHELL-10 (AND-02).
+Next: TIME-G4's two open items; Keen 5 and 6 boot recordings for TIME-G5/6; SHELL-02 (pad, navigation, title-art tiles per J-12); AUDIO-01 (d2opl into the host); Keen 3 levels 2 and 8; SIM-D-01 (Dreams).
 Notes: never edit game code while fits run (they read it mid-run); one fit per case at a time (two share an output folder and corrupt it); Python edits must keep each file's line endings (CRLF in most); scratchpad helpers look.py/diffbox.py/strip.py/trace_lines.py/slips.py; traces print only with MR_TRACE=1.
 
 ## Calibration log
