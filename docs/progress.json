@@ -133,7 +133,7 @@
     "AND-02"
    ],
    "notes": {
-    "matches": "Boot matches to the refresh through the title and the first demo. 17 level recordings made; the level start's fade and the random seed (the DOS clock) now follow the original; level loading times being fitted"
+    "matches": "Level 1 proven: a 32-second session matches the original picture for picture. The other levels match until Keen first dies; the restart after a death is the open piece (how DOS frees and reloads memory)"
    }
   },
   {
@@ -251,6 +251,10 @@
   }
  ],
  "milestones": [
+  {
+   "date": "2026-10-08",
+   "text": "Keen 4 level 1 proven against the original, picture for picture"
+  },
   {
    "date": "2026-10-08",
    "text": "Keen 4-6: every level recorded in the original; random seed and level fade-in now follow the original"
