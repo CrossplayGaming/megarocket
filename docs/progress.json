@@ -106,7 +106,7 @@
    ],
    "notes": {
     "runs": "Every level plays",
-    "matches": "Title and 11 of 16 levels match to the refresh; 5 levels still being matched"
+    "matches": "Title, menu, world map and all 16 levels match the original to the refresh"
    }
   },
   {
@@ -132,7 +132,9 @@
     "AND-01",
     "AND-02"
    ],
-   "notes": {}
+   "notes": {
+    "matches": "Boot matches the original to the refresh through the title (fizzle included), then the first demo and the story screen's timing"
+   }
   },
   {
    "id": "keen5",
@@ -235,11 +237,27 @@
  },
  "needs_you": [
   {
+   "what": "Keen Dreams: how its port handles memory (J-16)",
+   "why": "Two ways to port its memory system: like Keen 4-6 (recommended, already proven there) or the plan as first written. The Keen Dreams port starts once you choose."
+  },
+  {
    "what": "Look and sound decisions, later",
    "why": "Widescreen HUD placement, the sound of each engine, the added options screens and smooth motion are yours to judge once there is a build to see and hear."
   }
  ],
  "milestones": [
+  {
+   "date": "2026-10-08",
+   "text": "Keen 3 proven: all 16 levels match the original to the refresh"
+  },
+  {
+   "date": "2026-10-08",
+   "text": "Keen 4's title fizzle and story screen drawn as the original draws them (read from the reconstructed Keen 4 source)"
+  },
+  {
+   "date": "2026-10-08",
+   "text": "Every launcher message says what happened and what to do next; a log file, its path on screen"
+  },
   {
    "date": "2026-10-08",
    "text": "Launcher: each game's own title screen on its tile, a phone-width carousel, a how-to page, Add a folder (remembered), one copy at a time; pads play"
