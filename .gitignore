@@ -24,3 +24,4 @@ __pycache__/
 /godot/bin/*.so
 /Steam Artwork/
 .claude/worktrees/
+build/

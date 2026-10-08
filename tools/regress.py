@@ -597,6 +597,17 @@ def audio05():
     return code
 
 
+def and01():
+    """The APK exports from this project (d2opl for arm64 and x86_64) and boots to the launcher on the
+    emulator, sound chip loaded, no errors (tools/android_check.py; starts the emulator if needed)."""
+    p = subprocess.run([sys.executable, str(Path(__file__).parent / "android_check.py")], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", timeout=2400)
+    for line in p.stdout.splitlines():
+        if "FAIL" in line or "checks passed" in line or "COULD-NOT-RUN" in line:
+            print("  " + line.strip())
+    return p.returncode
+
+
 def shell07():
     """One copy at a time: with a second process holding the lock the launcher waits; Enter starts it
     anyway; a stale lock is ignored; leaving removes the lock."""
@@ -696,6 +707,7 @@ CHECKS = {
     "SHELL-07": (shell07, "fast"),
     "SHELL-08": (shell08, "slow"),
     "AUDIO-05": (audio05, "slow"),
+    "AND-01": (and01, "slow"),
     "SHELL-09": (shell09, "fast"),
     "HOST-01": (host01, "slow"),
     "SHELL-02": (shell02, "slow"),

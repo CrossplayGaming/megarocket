@@ -64,6 +64,9 @@ var _page: Control
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# the log's first line: what is running where (SHELL-09; AND-01 reads it)
+	ShellMessages.note("Megarocket %s on %s (%s), sound chip %s" % [ProjectSettings.get_setting("application/config/version", ""),
+		OS.get_name(), RenderingServer.get_current_rendering_method(), "ready" if ClassDB.class_exists("D2Opl") else "missing"])
 	settings = Settings.new(settings_path)
 	if other_copy_running():
 		_show_wait()
@@ -247,8 +250,10 @@ static func _looks_for(id: String) -> String:
 # ---- one copy at a time (SHELL-07)
 
 ## True when the lock names a process that is still running (not this one).
+## Android runs one copy of an app by itself (and cannot ask about another
+## app's process), so there is nothing to check there.
 func other_copy_running() -> bool:
-	if not FileAccess.file_exists(lock_path):
+	if OS.has_feature("android") or not FileAccess.file_exists(lock_path):
 		return false
 	var pid: int = FileAccess.get_file_as_string(lock_path).strip_edges().to_int()
 	return pid > 0 and pid != OS.get_process_id() and OS.is_process_running(pid)
