@@ -15,12 +15,6 @@ extends GalGame
 
 
 # ---- id_* functions the library lacks (move to the library)
-
-## id_ca.h: #define CA_MARKLUMP(name) CA_MarkLumpNeeded(CK_INT(name, -1))
-func CA_MARKLUMP(name: String) -> void:
-	CA_MarkLumpNeeded(CK_INT(name, -1))
-
-
 # ===================================================================== ck6_misc.c
 
 # ck6_episode (the CK_EpisodeDef) is declared in gal_ck.gd.
@@ -946,10 +940,6 @@ func CK6_BloogCol(a: CK_object, b: CK_object) -> void:
 # (ck_play.c uses them); CK6_Obj1_SetupFunctions gives ck6_smashScreenOfs its
 # C contents (a constant table: nothing writes it).
 
-## ck6_smashScreenOfs[]'s initializer (int16_t).
-const _ck6_smashScreenOfs_init: PackedInt32Array = [
-	0, -64, -64, -64, 64, 64, 64, -200, -200, -200, 200, 200, 200,
-	-250, -250, -250, 250, 250, 250, -250, -250, -250, 250, 250, 250]
 
 
 func CK6_SpawnBloogguard(tileX: int, tileY: int) -> void:
@@ -1085,8 +1075,6 @@ func CK6_BloogletCol(a: CK_object, b: CK_object) -> void:
 ## Setup all of the functions in this file.
 ## (Also gives gal_ck.gd's ck6_smashScreenOfs the contents C initializes it with.)
 func CK6_Obj1_SetupFunctions() -> void:
-	ck6_smashScreenOfs = _ck6_smashScreenOfs_init.duplicate()
-
 	CK_ACT_AddColFunction("CK6_GrabbiterCol", &"CK6_GrabbiterCol")
 
 	CK_ACT_AddFunction("CK6_Rocket", &"CK6_Rocket")

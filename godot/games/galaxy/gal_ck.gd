@@ -559,7 +559,10 @@ var ck5_episode: CK_EpisodeDef = _episode_def(EP_CK5, "CK5", &"CK5_ScanInfoLayer
 var ck6_episode: CK_EpisodeDef = _episode_def(EP_CK6, "CK6", &"CK6_ScanInfoLayer", &"CK6_IsPresent")
 # episode globals the core uses
 var ck6_smashScreenDistance: int = 0
-var ck6_smashScreenOfs: PackedInt32Array = PackedInt32Array()
+## ck6_obj1.c's table (constant: nothing writes it)
+const ck6_smashScreenOfs: PackedInt32Array = [
+	0, -64, -64, -64, 64, 64, 64, -200, -200, -200, 200, 200, 200,
+	-250, -250, -250, 250, 250, 250, -250, -250, -250, 250, 250, 250]
 var ck6_creatureQuestionDone: bool = false
 
 
