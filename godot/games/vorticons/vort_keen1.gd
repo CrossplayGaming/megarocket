@@ -51,14 +51,17 @@ func _init() -> void:
 		# each map frame's C code before its refresh (ControlMapKeen, the
 		# clipping, placing the sprite, the key checks): 0.16 ms, fitted (0.13-0.19 pass)
 		"mapframe": 190909,
-		# each level frame's C code before its refresh, charged before the
-		# thinks: a part every frame (ControlPlayer, contacts, placing sprites,
-		# PlayerCheckTiles: 42 us) and a part per object updated (its think,
-		# MoveObon's clipping, the hitboxes: 147 us), fitted over the 16 level
-		# recordings for the fewest one-refresh near misses (27, against 79 for
-		# one constant) with all of them matching
+		# each level frame's C code before its refresh: a part every frame before
+		# the thinks (ControlPlayer and the loop: 42 us), a part after each object's
+		# think (60 us) and the rest of each updated object's time after the update
+		# loop (contacts, sprites: 87 us). The totals were fitted over Keen 1's 16
+		# level recordings for the fewest one-refresh near misses with all matching;
+		# the split by when creatures read timecount in their first frame (Keen 1
+		# level 3: a tic 23 us in reaches the Yorps; Keen 2: one 121 us in reaches
+		# the third object updated, not the second)
 		"levelframe": 50000,
-		"levelobject": 175000}
+		"levelthink": 71600,
+		"levelobject": 103400}
 	# the BIOS tick count when the program reads the DOS clock, the oracle's
 	# clock being set to midnight before the game starts (fitted: 22)
 	dos_ticks = 22

@@ -1120,7 +1120,7 @@ func LevelLoop(currentlevel: int) -> int:
 	lastdir = 1
 	if trace_frames:
 		var unit: float = DosMachine.PIT_HZ * DosMachine.UNIT
-		print("TRACE level_start t=%.6f next_tick=%.6f last_vbl=%.6f" % [vm.now / unit, vm.next_tick / unit, vm.last_vbl / unit])
+		print("TRACE level_start t=%.6f next_tick=%.6f last_vbl=%.6f rndindex=%d" % [vm.now / unit, vm.next_tick / unit, vm.last_vbl / unit, rndindex])
 	timecount = 0
 	lasttimecount = 0
 	tics = 0
@@ -1165,6 +1165,7 @@ func LevelLoop(currentlevel: int) -> int:
 		# `i < numobj` is tested on every pass, as in the original's for loop: an
 		# object spawned during a think (a tank's shot) is appended and thinks in
 		# the same frame. range(numobj) would fix the count at the frame's start.
+		var updated: int = 0    # objects updated this frame
 		var i: int = -1
 		while i + 1 < numobj:
 			i += 1
@@ -1174,11 +1175,12 @@ func LevelLoop(currentlevel: int) -> int:
 			obon.copy_from(ob)
 			if obon.active:
 				if i == 0 or _always_active(obon) or not RemoveInactive():
-					cost("levelobject")    # one object's update (its think, moves, hitboxes); 0 until fitted
+					updated += 1
 					UpdateObonHitbox()
 					obon.xmove = 0
 					obon.ymove = 0
 					call(obon.think)
+					cost("levelthink")
 					obon.x += obon.xmove
 					obon.y += obon.ymove
 					UpdateObonHitbox()
@@ -1188,15 +1190,21 @@ func LevelLoop(currentlevel: int) -> int:
 				if ox - 2 < tx and oy - 2 < ty and ox + 23 > tx and oy + 12 > ty:
 					obon.active = true
 					_reactivate()
-					cost("levelobject")
+					updated += 1
 					UpdateObonHitbox()
 					obon.xmove = 0
 					obon.ymove = 0
 					call(obon.think)
+					cost("levelthink")
 					obon.x += obon.xmove
 					obon.y += obon.ymove
 					UpdateObonHitbox()
 			ob.copy_from(obon)
+		# the rest of each updated object's time, after the updates (contacts, placing
+		# sprites); `levelthink` is the part inside the update loop, charged after each
+		# think: Keen 2's first frames show the second object updated thinking before a
+		# tic 121 us in and the third after it
+		vm.cpu_work(int(costs.get("levelobject", 0)) * updated)
 		ScrollScreen()
 		i = 0
 		while i < numobj:    # both counts re-read each pass, as above

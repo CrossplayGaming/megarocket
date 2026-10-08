@@ -1560,6 +1560,8 @@ func Rnd(maxval: int) -> int:
 
 func InitRndT(randomize: bool) -> void:
 	rndindex = (_dos_clock()[3] & 0xFF) if randomize else 0
+	if trace_frames:
+		print("TRACE InitRndT dos_ticks=%d clock=%s rndindex=%d" % [dos_ticks, _dos_clock(), rndindex])
 
 
 func RndT() -> int:

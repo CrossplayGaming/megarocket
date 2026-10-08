@@ -75,8 +75,10 @@ func _init() -> void:
 	# border: that pinned the timer's start to 21.5312 refreshes, one tic
 	# after an equally good-looking 21.05.
 	costs = {"loadgraphics": round(21.5312 * DosMachine.VBL_PERIOD), "demoloop_load": 5 * 8192 * DosMachine.UNIT,
-		"worldmap_load": 13721593, "mapframe": 190909, "levelframe": 50000, "levelobject": 175000}    # Keen 1's, until fitted here
+		"worldmap_load": 10000000, "mapframe": 190909, "levelframe": 50000, "levelthink": 71600, "levelobject": 103400}    # worldmap_load: at least 6.5M on the level 1 session (provisional); the rest Keen 1's, until fitted here
 	dosbox_timing.timer_offset = -4453955
+	# the BIOS tick count when the program reads the DOS clock (provisional: best on keen3_level01_a so far)
+	dos_ticks = 4
 
 
 func LoadLevel(number: int) -> void:
