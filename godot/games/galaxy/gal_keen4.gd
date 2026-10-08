@@ -14,11 +14,12 @@ extends GalMenu
 # ---- id_* functions the library lacks (move to the library)
 
 ## DOSBox time the original spends where the port does none (TIME-G4, fitted
-## on keen4_boot_a): Huffman decoding per compressed graphics byte, shifting
-## per sprite, the rest of a level's set-up, clearing the EGA page per byte.
-## The plateaus each value sits in are in the ledger.
+## on keen4_boot_a): Huffman decoding per compressed graphics byte
+## and expanded graphics byte, shifting per sprite, the rest of a level's
+## set-up, clearing the EGA page per byte, rendering a 16x16 tile. The
+## plateaus each value sits in are in the ledger.
 func timing_defaults() -> Dictionary:
-	return {"grbyte": 4850, "sprchunk": 355000, "levelload": 80000000, "clearbyte": 1200}
+	return {"grbyte": 3500, "grexp": 700, "sprchunk": 620000, "levelload": 80000000, "clearbyte": 1200, "tile16": 80000}
 
 
 # ===================================================================== ck4_misc.c

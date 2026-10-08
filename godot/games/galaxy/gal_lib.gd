@@ -313,6 +313,7 @@ func CA_CacheGrChunk(chunk: int) -> void:
 		ca_graphChunks[chunk] = expanded
 	# reading and Huffman-expanding the chunk (TIME-G); a sprite is also shifted
 	cost("grchunk")
+	cost_n("grexp", data.chunk_exp_length(chunk))
 	if chunk >= int(ca_gfxInfoE.offSprites) and chunk < int(ca_gfxInfoE.offSprites) + int(ca_gfxInfoE.numSprites):
 		cost("sprchunk")
 	cost_n("grbyte", data.chunk_comp_length(chunk))
