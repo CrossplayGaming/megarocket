@@ -403,7 +403,11 @@ func CK_Main(argv: PackedStringArray) -> int:
 
 	CK_InitGame()
 
-	# /CHECKSUM <file>: CK_VERIFY_Startup (ck_verify.c) writes a checksum file; not ported
+	# /CHECKSUM <file>: the per-frame state hash (ck_verify.c, in gal_play.gd);
+	# the lines collect in ck_verifyLines for the caller to write.
+	for c: int in range(argc):
+		if argv[c].to_upper() == "/CHECKSUM":
+			CK_VERIFY_Startup(argv[c + 1] if c + 1 < argc else "")
 
 	var a2: int = 0
 	while a2 < argc:

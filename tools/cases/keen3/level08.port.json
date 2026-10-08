@@ -21,22 +21,22 @@
    0.2
   ],
   [
-   7.4423,
+   7.2283,
    "ctrl",
    0.2
   ],
   [
-   7.9423,
+   7.7568,
    "ctrl",
    0.2
   ],
   [
-   8.4423,
+   8.2425,
    "ctrl",
    0.2
   ],
   [
-   10.4423,
+   10.2568,
    "right",
    4.0
   ],
@@ -102,5 +102,5 @@
   ]
  ],
  "refreshes_after_intro": 2209,
- "result": "first difference at game frame 69"
+ "result": "first difference at picture 123"
 }

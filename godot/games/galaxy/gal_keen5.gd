@@ -19,9 +19,6 @@ extends GalGame
 
 # ---- id_* functions the library lacks (move to the library)
 
-## id_ca.h: #define CA_MARKLUMP(name) CA_MarkLumpNeeded(CK_INT(name, -1))
-func CA_MARKLUMP(name: String) -> void:
-	CA_MarkLumpNeeded(CK_INT(name, -1))
 
 
 # ===================================================================== ck5_misc.c

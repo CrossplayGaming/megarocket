@@ -437,6 +437,41 @@ def simg01c2():
     return code
 
 
+def _galaxy_demos(games):
+    import galaxy_verify
+    cfg = common.config()
+    if not galaxy_verify.EXE.exists():
+        galaxy_verify.build(cfg)
+    rc = 0
+    for g in games:
+        for d in range(4):
+            rc = max(rc, galaxy_verify.compare(cfg, g, d, False))
+    return rc
+
+
+def simg01d():
+    """The Galaxy port's scripts (the declarations, the game core, the three episodes) all parse
+    and every episode class instantiates."""
+    import gdtest
+    code, out = gdtest.run("galaxy_parse", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
+def simg01g():
+    """Keen 4's four built-in demos: the port's per-frame state hash (ck_verify.c's: camera, random
+    index, tics, game state, every object's fields) equals omnispeak's, built headless from
+    omnispeak-ref, on every frame."""
+    return _galaxy_demos(["keen4"])
+
+
+def simg01h():
+    """Keen 5's and Keen 6's built-in demos: per-frame state hash equal to omnispeak's on every frame."""
+    return _galaxy_demos(["keen5", "keen6"])
+
+
 def simv02():
     """Every level of Keen 1, 2 and 3, the world maps, the status and ordering screens and the
     endings run to a time limit under scripted play without a script error."""
@@ -518,6 +553,9 @@ CHECKS = {
     "SIM-G-01b": (simg01b, "slow"),
     "SIM-G-01c1": (simg01c1, "slow"),
     "SIM-G-01c2": (simg01c2, "slow"),
+    "SIM-G-01d": (simg01d, "slow"),
+    "SIM-G-01g": (simg01g, "slow"),
+    "SIM-G-01h": (simg01h, "slow"),
     "REPLAY-V1": (replayv1, "slow"),
     "REPLAY-V2": (replayv2, "slow"),
     "REPLAY-V3": (replayv3, "slow"),
