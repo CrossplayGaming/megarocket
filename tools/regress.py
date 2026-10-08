@@ -412,6 +412,19 @@ def simg01b():
     return code
 
 
+def simg01c1():
+    """The Galaxy timer, sound and input layer on the machine: 70 tics a second at 140 Hz and at
+    560 Hz with AdLib music; PC speaker and AdLib effects note for note; keys through the
+    keyboard interrupt as states, scan codes, ASCII and controls; every demo plays back as its
+    bytes say; recorded controls play back the same (Keen 4, 5, 6)."""
+    import gdtest
+    code, out = gdtest.run("simg01c_io", ["--games=keen4,keen5,keen6"], timeout=1800.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def simv02():
     """Every level of Keen 1, 2 and 3, the world maps, the status and ordering screens and the
     endings run to a time limit under scripted play without a script error."""
@@ -491,6 +504,7 @@ CHECKS = {
     "SIM-V-02": (simv02, "slow"),
     "SIM-G-01a": (simg01a, "slow"),
     "SIM-G-01b": (simg01b, "slow"),
+    "SIM-G-01c1": (simg01c1, "slow"),
     "REPLAY-V1": (replayv1, "slow"),
     "REPLAY-V2": (replayv2, "slow"),
     "REPLAY-V3": (replayv3, "slow"),
