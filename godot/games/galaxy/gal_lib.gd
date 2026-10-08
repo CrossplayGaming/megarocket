@@ -71,6 +71,12 @@ func CFG_GetConfigInt(_name: String, default: int) -> int:
 	return default
 
 
+## id_cfg.c: a boolean from omnispeak's config file (GalLib's CFG_GetConfigInt
+## gives the default: the port runs without a config file).
+func CFG_GetConfigBool(name: String, defValue: bool) -> bool:
+	return CFG_GetConfigInt(name, 1 if defValue else 0) != 0
+
+
 # ===================================================================== id_sd (time)
 # The counters id_sd keeps; the timer interrupt that advances sd_timeCount is
 # SIM-G-01c's (until then a test advances it).
@@ -337,6 +343,11 @@ func CA_MarkLumpNeeded(lump: int) -> void:
 
 
 ## lumpStarts/lumpEnds: the episode's lump ranges (EPISODE file arrays).
+## id_ca.h's CA_MARKLUMP(name) macro: CA_MarkLumpNeeded(CK_INT(name, -1)).
+func CA_MARKLUMP(name: String) -> void:
+	CA_MarkLumpNeeded(CK_INT(name, -1))
+
+
 func CA_MarkAllLumps(lumpStarts: PackedInt32Array, lumpEnds: PackedInt32Array) -> void:
 	for i: int in range(ca_lumpsNeeded.size()):
 		if ca_lumpsNeeded[i] != 0:

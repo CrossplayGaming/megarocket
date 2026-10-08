@@ -13,15 +13,6 @@ extends GalGame
 
 # ---- id_* functions the library lacks (move to the library)
 
-## id_rf.h: the number of sprite priorities (z layers).
-const PRIORITIES: int = 4
-
-
-## id_ca.h's CA_MARKLUMP(name) macro: CA_MarkLumpNeeded(CK_INT(name, -1)).
-func CA_MARKLUMP(name: String) -> void:
-	CA_MarkLumpNeeded(CK_INT(name, -1))
-
-
 # ===================================================================== ck4_misc.c
 
 # Contains some keen-4 specific functions.

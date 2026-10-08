@@ -14,20 +14,6 @@ extends GalCK
 ## returned: `obj.sde = RF_AddSpriteDraw(obj.sde, ...)`).
 
 
-# ---- id_* functions the library lacks (move to the library)
-
-## id_rf.h: the number of sprite priorities (z layers).
-const PRIORITIES: int = 4
-## id_rf.h: global >> G_T_SHIFT = tile.
-const G_T_SHIFT: int = 8
-
-
-## id_cfg.c: a boolean from omnispeak's config file (GalLib's CFG_GetConfigInt
-## gives the default: the port runs without a config file).
-func CFG_GetConfigBool(name: String, defValue: bool) -> bool:
-	return CFG_GetConfigInt(name, 1 if defValue else 0) != 0
-
-
 # ===================================================================== ck_phys.c
 
 const ck_physSlopeHeight: Array = [

@@ -17,6 +17,10 @@ extends GalLib
 ## entry before it in its layer, or the layer's index when it is first.
 
 const RF_MAX_BUFFERS: int = 2
+## id_rf.h: the number of sprite priorities (z layers).
+const PRIORITIES: int = 4
+## id_rf.h: global >> G_T_SHIFT = tile.
+const G_T_SHIFT: int = 8
 const RF_MAX_SCROLLBLOCKS: int = 6
 const RF_SCREEN_WIDTH_TILES: int = 20
 const RF_SCREEN_HEIGHT_TILES: int = 13
