@@ -518,6 +518,18 @@ def shell01():
     return code
 
 
+def host01():
+    """A game plays in real time: the engine on its own thread paced by the wall clock, frames to the
+    screen side, keys to the game (Keen 4 quits through its own menu), a stop from outside ends it
+    (Keen 1), the launcher starts a game from its tile and is back when it ends (Keen 2)."""
+    import gdtest
+    code, out = gdtest.run("host01_play", [], timeout=900.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def simv02():
     """Every level of Keen 1, 2 and 3, the world maps, the status and ordering screens and the
     endings run to a time limit under scripted play without a script error."""
@@ -601,6 +613,7 @@ CHECKS = {
     "SIM-G-01c2": (simg01c2, "slow"),
     "DIST-02": (dist02, "fast"),
     "SHELL-01": (shell01, "fast"),
+    "HOST-01": (host01, "slow"),
     "SIM-G-01d": (simg01d, "slow"),
     "SIM-G-01g": (simg01g, "slow"),
     "SIM-G-01h": (simg01h, "slow"),

@@ -33,12 +33,18 @@ var scroll: ScrollContainer
 var tiles: Dictionary = {}
 ## id -> "found" | "unsupported" | "missing"
 var states: Dictionary = {}
+## id -> the GameFinder result shown on its tile
+var found_results: Dictionary = {}
+## The game being played, if any (SHELL-02: launched from a tile, back here when it ends).
+var host: GameHost = null
+var _page: Control
 
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_page = margin
 	for side: String in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 16)
 	add_child(margin)
@@ -94,6 +100,7 @@ func _make_tile(id: String, name_text: String, subtitle: String) -> PanelContain
 	tile.custom_minimum_size = TILE_MIN
 	tile.focus_mode = Control.FOCUS_ALL
 	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tile.gui_input.connect(_tile_input.bind(id))
 	var box: VBoxContainer = VBoxContainer.new()
 	tile.add_child(box)
 	var n: Label = Label.new()
@@ -128,6 +135,9 @@ func show_results(results: Array) -> void:
 		var id: String = g[0]
 		var st: Label = _status_label(tiles[id])
 		var r: Variant = best.get(id)
+		found_results.erase(id)
+		if r != null:
+			found_results[id] = r
 		if r == null:
 			states[id] = "missing"
 			st.text = "Not found. " + _looks_for(id)
@@ -150,6 +160,43 @@ static func _looks_for(id: String) -> String:
 		if s.id == id:
 			parts.append("%s %s" % [s.exe, s.version])
 	return "Looks for " + " or ".join(parts) + "."
+
+
+func _tile_input(event: InputEvent, id: String) -> void:
+	var go: bool = false
+	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		go = true
+	elif event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo and (event as InputEventKey).keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]:
+		go = true
+	if go:
+		accept_event()
+		launch(id)
+
+
+## Plays a found game; the launcher returns when it ends. False (and the
+## tile's status says why) when it can't start.
+func launch(id: String) -> bool:
+	if host != null or states.get(id, "") != "found":
+		return false
+	host = GameHost.new()
+	add_child(host)
+	if not host.start(found_results[id]):
+		_status_label(tiles[id]).text = "Can't start: " + host.error
+		host.queue_free()
+		host = null
+		return false
+	_page.visible = false
+	host.finished.connect(_on_game_finished.bind(id))
+	return true
+
+
+func _on_game_finished(message: String, id: String) -> void:
+	host.queue_free()
+	host = null
+	_page.visible = true
+	if message != "":
+		_status_label(tiles[id]).text = "The game stopped: " + message
+	(tiles[id] as Control).grab_focus()
 
 
 func _status_label(tile: PanelContainer) -> Label:

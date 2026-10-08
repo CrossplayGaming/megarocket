@@ -97,6 +97,10 @@ var port60: int = 0
 
 ## Installed handlers: the timer interrupt (INT 8), the keyboard interrupt
 ## (INT 9), the start of each displayed frame, and the time limit.
+## The real-time host (godot/shell/game_host.gd), called on the engine's
+## thread before each event: it adds the keys the player pressed (at `now`)
+## and waits until the wall clock reaches `now`. Headless runs leave it unset.
+var pace: Callable = Callable()
 var int8: Callable = Callable()
 var int9: Callable = Callable()
 var on_display: Callable = Callable()
@@ -174,6 +178,22 @@ func _expand_repeats() -> void:
 			out.append([rep_at, rep_key])
 			rep_at += repeat_rate_ms * ms
 	key_events = out
+
+
+## Live input (the real-time host, on the engine's thread): a key goes down
+## or up now, just after the event being handled; the keyboard's repeat follows
+## from the script as for scripted keys.
+func key_down_now(scancode: int) -> void:
+	_live_key(scancode & 0x7F)
+
+
+func key_up_now(scancode: int) -> void:
+	_live_key((scancode & 0x7F) | 0x80)
+
+
+func _live_key(code: int) -> void:
+	_key_script.append([now + 1, code, _key_script.size()])
+	_expand_repeats()
 
 
 ## A key pressed `after` seconds past the moment the program marks `mark`.
@@ -275,6 +295,8 @@ func _run_to(target: int) -> void:
 	if target < now:
 		return
 	while true:
+		if pace.is_valid():
+			pace.call()    # the real-time host: input in, wall clock caught up
 		var t_key: int = key_events[_key_index][0] if _key_index < key_events.size() else (1 << 62)
 		var t: int = mini(mini(next_tick, next_vbl), mini(t_key, _display_due))
 		if t > target:
