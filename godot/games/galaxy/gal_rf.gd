@@ -889,6 +889,7 @@ func RFL_DrawSpriteList() -> void:
 					VH_DrawShiftedSpriteMask(pixelX, pixelY, sde.chunk, sde.shift, 15)
 				else:
 					VH_DrawShiftedSprite(pixelX, pixelY, sde.chunk, sde.shift)
+				cost_n("sprpixel", sde.sw * sde.sh)    # TIME-G: the original's masked draw, row by row
 				for y: int in range(tileY1, tileY2 + 1):
 					for x: int in range(tileX1, tileX2 + 1):
 						RFL_MarkBlockDirty(x, y, 3, VL_GetActiveBuffer())

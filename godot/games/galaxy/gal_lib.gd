@@ -626,11 +626,19 @@ func VL_FadeToBlack() -> void:
 	vl_screenFaded = true
 
 
-func VL_FadeFromBlack() -> void:
+## `flip` false: DOS's VW_FadeIn as such, palette steps only, the page on
+## display kept (from RF_Refresh's hook, which runs before the page it drew is
+## shown: the level's first frame drawn in the black is the one that fades in,
+## keen4_level08_a); true: omnispeak's present at each step, for its callers
+## that drew without one.
+func VL_FadeFromBlack(flip: bool = true) -> void:
 	for i: int in range(4):
 		vl_palette[i][16] = vl_border_color
 		VL_SetPaletteAndBorderColor(vl_palette[i])
-		VL_Present()
+		if flip:
+			VL_Present()
+		elif not vm.in_retrace():
+			vm.wait_retrace_start()
 		VL_DelayTics(6)
 	vl_screenFaded = false
 

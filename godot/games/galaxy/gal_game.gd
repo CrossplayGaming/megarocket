@@ -955,7 +955,7 @@ var ck_fadeDrawCounter: int = 0    # static int16_t
 func CK_UpdateFadeDrawing() -> void:
 	ck_fadeDrawCounter = s16(ck_fadeDrawCounter + 1)
 	if ck_fadeDrawCounter == 2:
-		VL_FadeFromBlack()
+		VL_FadeFromBlack(false)
 		RF_SetDrawFunc(&"")
 		SD_SetTimeCount(SD_GetLastTimeCount())
 

@@ -9,6 +9,7 @@ within 0.05 s), or, when tools/cases/<game>/<case>.port.json exists, the keys fi
     python tools/galaxy_case.py keen4 level05 [--keys-from case|port] [--tag NAME]
 """
 import argparse
+import calendar
 import json
 import shutil
 import subprocess
@@ -35,6 +36,29 @@ def case_timer_offset(game, case):
     return 0
 
 
+# Borland's time() for the DOS clock, in its default zone EST5EDT: the local time plus five hours
+ZONE_SECONDS = 5 * 3600
+
+
+def recording_clock(game, case, zone=ZONE_SECONDS):
+    """time(0) as the recording's program started: the runner sets the DOS clock to 00:00:00 just before it
+    (tools/oracle_run.py) and the date stays the host's, the day the recording was made (its log's date)."""
+    log = Path(common.config()["oracle_runs"]) / f"{game}_{case}_a" / "stderr.txt"
+    day = log.read_text(encoding="utf-8", errors="replace")[:10]
+    y, m, d = (int(x) for x in day.split("-"))
+    return calendar.timegm((y, m, d, 0, 0, 0)) + zone
+
+
+def case_clock(game, case):
+    """time(0) at the program's start for the recording (its .port.json's "clock" if fitted)."""
+    port = CASES / game / f"{case}.port.json"
+    if port.exists():
+        fitted = json.loads(port.read_text(encoding="utf-8")).get("clock")
+        if fitted is not None:
+            return int(fitted)
+    return recording_clock(game, case)
+
+
 def case_keys(game, case, source="port"):
     port = CASES / game / f"{case}.port.json"
     if source == "port" and port.exists():
@@ -43,7 +67,7 @@ def case_keys(game, case, source="port"):
     return [list(k) for k in spec["held"]]
 
 
-def run_port(game, case, keys, out, seconds=None, extra=(), timer_offset=None):
+def run_port(game, case, keys, out, seconds=None, extra=(), timer_offset=None, clock=None):
     spec = json.loads((CASES / game / f"{case}.json").read_text(encoding="utf-8"))
     secs = seconds or spec["seconds"] + 2
     keyarg = ",".join(f"{t:.4f}:{SCANCODES[k]}:{h}" for t, k, h in keys)
@@ -52,7 +76,8 @@ def run_port(game, case, keys, out, seconds=None, extra=(), timer_offset=None):
     shutil.rmtree(out, ignore_errors=True)
     p = subprocess.run([sys.executable, "tools/gdtest.py", "simg_boot", "--", f"--game={game}", f"--seconds={secs}",
                         f"--out={Path(out).as_posix()}", f"--keys={keyarg}",
-                        f"--timer_offset={case_timer_offset(game, case) if timer_offset is None else timer_offset}", *extra],
+                        f"--timer_offset={case_timer_offset(game, case) if timer_offset is None else timer_offset}",
+                        f"--clock={case_clock(game, case) if clock is None else clock}", *extra],
                        cwd=ROOT, capture_output=True, text=True,
                        encoding="utf-8", errors="replace")
     return p.returncode

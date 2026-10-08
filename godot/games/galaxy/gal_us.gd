@@ -359,11 +359,18 @@ var us_randomIndex: int = 0
 ## The seed US_InitRndT(true) takes: the original reads the clock's seconds
 ## (time(0) & 0xFF); here the shell sets it from the session (A11). Not state.
 var us_randomSeed: int = 0
+## Or the clock itself (A11, set from outside): time(0) at the program's start, the
+## seconds since 1970 that Borland's time() gives for the DOS clock (EST5EDT, its
+## default zone). time(0) is then that plus the machine's seconds since. -1: unset.
+var us_clockAtStart: int = -1
 
 
 func US_InitRndT(randomize: bool) -> void:
 	if randomize:
-		us_randomIndex = us_randomSeed & 0xFF
+		if us_clockAtStart >= 0:
+			us_randomIndex = (us_clockAtStart + int(vm.seconds())) & 0xFF
+		else:
+			us_randomIndex = us_randomSeed & 0xFF
 	else:
 		us_randomIndex = 0
 
