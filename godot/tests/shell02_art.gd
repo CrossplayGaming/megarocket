@@ -36,6 +36,7 @@ func _go() -> void:
 	# the launcher shows them on the tiles
 	var l: Launcher = load("res://shell/main.tscn").instantiate()
 	l.scan_on_ready = false
+	l.lock_path = OS.get_temp_dir().path_join("mr_lock_%d" % Time.get_ticks_usec())
 	root.add_child(l)
 	l.show_results([{"id": "keen1", "title": "K1", "version": "test", "status": "ok", "folder": root_dir.path_join("keen1"), "message": "", "exe": ""},
 		{"id": "keen4", "title": "K4", "version": "test", "status": "ok", "folder": root_dir.path_join("keen4"), "message": "", "exe": ""}])

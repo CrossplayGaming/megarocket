@@ -26,6 +26,11 @@ var extra_folders: PackedStringArray = PackedStringArray()
 ## The shell's settings (SHELL-05); a test gives its own file.
 var settings: Settings = null
 var settings_path: String = Settings.PATH
+## SHELL-07: one copy at a time. The lock holds the running copy's process id.
+var lock_path: String = "user://megarocket.lock"
+## Another copy holds the lock: the screen says so and waits for Enter.
+var waiting_for_other: bool = false
+var _wait_panel: PanelContainer = null
 ## Set false by a test that supplies results itself.
 var scan_on_ready: bool = true
 ## Make each found game's title art (J-12) on a background thread.
@@ -58,6 +63,8 @@ var _page: Control
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	settings = Settings.new(settings_path)
+	if other_copy_running():
+		_show_wait()
 	extra_folders = PackedStringArray(settings.get_value("game_folders"))
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -111,8 +118,10 @@ func _ready() -> void:
 	_layout()
 	show_results([])
 	(tiles[GAMES[0][0]] as Control).grab_focus.call_deferred()    # keyboard and pad work at once (ui_* moves between tiles)
-	if scan_on_ready:
-		call_deferred("_scan")
+	if not waiting_for_other:
+		take_lock()
+		if scan_on_ready:
+			call_deferred("_scan")
 
 
 func _scan() -> void:
@@ -224,6 +233,48 @@ static func _looks_for(id: String) -> String:
 	return "Looks for " + " or ".join(parts) + "."
 
 
+# ---- one copy at a time (SHELL-07)
+
+## True when the lock names a process that is still running (not this one).
+func other_copy_running() -> bool:
+	if not FileAccess.file_exists(lock_path):
+		return false
+	var pid: int = FileAccess.get_file_as_string(lock_path).strip_edges().to_int()
+	return pid > 0 and pid != OS.get_process_id() and OS.is_process_running(pid)
+
+
+func take_lock() -> void:
+	var f: FileAccess = FileAccess.open(lock_path, FileAccess.WRITE)
+	if f != null:
+		f.store_string(str(OS.get_process_id()))
+		f.close()
+
+
+func _show_wait() -> void:
+	waiting_for_other = true
+	_wait_panel = PanelContainer.new()
+	_wait_panel.name = "AlreadyRunning"
+	_wait_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var l: Label = Label.new()
+	l.text = "Megarocket is already running in another window.\nPress Enter (or A) to start this one anyway."
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_wait_panel.add_child(l)
+	add_child.call_deferred(_wait_panel)
+
+
+## Enter: start anyway (this copy takes the lock).
+func start_anyway() -> void:
+	if not waiting_for_other:
+		return
+	waiting_for_other = false
+	_wait_panel.queue_free()
+	_wait_panel = null
+	take_lock()
+	if scan_on_ready:
+		_scan.call_deferred()
+
+
 # ---- a folder the player chooses (SHELL-05's game_folders)
 
 func _pick_folder() -> void:
@@ -312,6 +363,12 @@ func close_howto() -> void:
 	howto_button.grab_focus()
 
 
+func _input(event: InputEvent) -> void:
+	if waiting_for_other and event.is_action_pressed("ui_accept"):
+		start_anyway()
+		get_viewport().set_input_as_handled()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if howto != null and event.is_action_pressed("ui_cancel"):
 		close_howto()
@@ -365,6 +422,9 @@ func _show_art(id: String, img: Image) -> void:
 
 
 func _exit_tree() -> void:
+	# the lock goes with this copy
+	if FileAccess.file_exists(lock_path) and FileAccess.get_file_as_string(lock_path).strip_edges().to_int() == OS.get_process_id():
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(lock_path))
 	_art_mutex.lock()
 	_art_queue = []
 	_art_mutex.unlock()

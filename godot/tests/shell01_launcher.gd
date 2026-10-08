@@ -23,6 +23,7 @@ func _run(scene: PackedScene) -> void:
 		root.size = win
 		var l: Launcher = scene.instantiate()
 		l.scan_on_ready = false
+		l.lock_path = OS.get_temp_dir().path_join("mr_lock_%d" % Time.get_ticks_usec())
 		l.make_art = false
 		l.settings_path = OS.get_temp_dir().path_join("mr_launcher_settings_%d.cfg" % Time.get_ticks_usec())
 		root.add_child(l)

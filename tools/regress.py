@@ -552,6 +552,17 @@ def shell05():
     return code
 
 
+def shell07():
+    """One copy at a time: with a second process holding the lock the launcher waits; Enter starts it
+    anyway; a stale lock is ignored; leaving removes the lock."""
+    import gdtest
+    code, out = gdtest.run("shell07_instance", [], timeout=300.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def simv02():
     """Every level of Keen 1, 2 and 3, the world maps, the status and ordering screens and the
     endings run to a time limit under scripted play without a script error."""
@@ -636,6 +647,7 @@ CHECKS = {
     "DIST-02": (dist02, "fast"),
     "SHELL-01": (shell01, "fast"),
     "SHELL-05": (shell05, "fast"),
+    "SHELL-07": (shell07, "fast"),
     "HOST-01": (host01, "slow"),
     "SHELL-02": (shell02, "slow"),
     "SIM-G-01d": (simg01d, "slow"),

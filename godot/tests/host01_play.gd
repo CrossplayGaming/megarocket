@@ -127,6 +127,7 @@ func _go() -> void:
 	# ---- from the launcher: a found tile starts the game; when it ends the launcher is back
 	var l: Launcher = load("res://shell/main.tscn").instantiate()
 	l.scan_on_ready = false
+	l.lock_path = OS.get_temp_dir().path_join("mr_lock_%d" % Time.get_ticks_usec())
 	l.make_art = false
 	root.add_child(l)
 	await process_frame
