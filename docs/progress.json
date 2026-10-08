@@ -242,6 +242,10 @@
  "milestones": [
   {
    "date": "2026-10-08",
+   "text": "Keen 4, 5 and 6 engine ported: all twelve built-in demos match the reference frame for frame"
+  },
+  {
+   "date": "2026-10-08",
    "text": "Keen 2 proven: all 16 levels match the original to the refresh; Keen 3 at 11 of 16"
   },
   {
