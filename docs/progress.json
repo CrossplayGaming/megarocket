@@ -242,6 +242,10 @@
  "milestones": [
   {
    "date": "2026-10-08",
+   "text": "Launcher: each game's own title screen on its tile, a phone-width carousel, a how-to page, Add a folder (remembered), one copy at a time; pads play"
+  },
+  {
+   "date": "2026-10-08",
    "text": "Playable: the launcher finds all seven games and starts Keen 1-6 in a window, in real time with the keyboard (no sound yet)"
   },
   {
