@@ -553,10 +553,30 @@ const ck_infoplaneArrowsY: PackedInt32Array = [-1, 0, 1, 0, -1, 1, 1, -1]
 var ck_startingSavedGame: int = 0
 var ck_inHighScores: bool = false
 var ck_startingDifficulty: int = D_NotPlaying
+# the episodes (ck4/5/6_misc.c's ck4_episode ...; ck_main.c points ck_currentEpisode at one)
+var ck4_episode: CK_EpisodeDef = _episode_def(EP_CK4, "CK4", &"CK4_ScanInfoLayer", &"CK4_IsPresent")
+var ck5_episode: CK_EpisodeDef = _episode_def(EP_CK5, "CK5", &"CK5_ScanInfoLayer", &"CK5_IsPresent")
+var ck6_episode: CK_EpisodeDef = _episode_def(EP_CK6, "CK6", &"CK6_ScanInfoLayer", &"CK6_IsPresent")
 # episode globals the core uses
 var ck6_smashScreenDistance: int = 0
 var ck6_smashScreenOfs: PackedInt32Array = PackedInt32Array()
 var ck6_creatureQuestionDone: bool = false
+
+
+static func _episode_def(ep: int, ext: String, scan: StringName, present: StringName) -> CK_EpisodeDef:
+	var e: CK_EpisodeDef = CK_EpisodeDef.new()
+	e.ep = ep
+	e.ext = ext
+	e.episodeFile = "EPISODE." + ext
+	e.scanInfoLayer = scan
+	e.isPresent = present
+	return e
+
+
+## ck_currentEpisode = &ckN_episode, keeping GalLib's ck_currentEpisode_ep in step.
+func CK_SetCurrentEpisode(e: CK_EpisodeDef) -> void:
+	ck_currentEpisode = e
+	ck_currentEpisode_ep = e.ep
 
 
 static func _new_obj_array() -> Array:
@@ -780,6 +800,10 @@ func _defined_after_decl(fn: StringName) -> bool:
 					return true
 		s = s.get_base_script()
 	return false
+
+
+# ===================================================================== globals added by the ports
+# (a global a port needs that another C file defines: one line each, naming the C file)
 
 
 # ===================================================================== saved-game offsets (id_rf.c's helpers over int16 user fields)
