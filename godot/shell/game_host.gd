@@ -78,6 +78,15 @@ const SCANCODES: Dictionary = {
 	KEY_PAGEDOWN: 0x51, KEY_INSERT: 0x52, KEY_DELETE: 0x53, KEY_F11: 0x57, KEY_F12: 0x58,
 }
 
+## A pad, until SHELL-04's mapping: the d-pad and left stick are the arrows,
+## A jump (Ctrl), B pogo (Alt), X fire (Space), Y Enter, Start Escape.
+const PAD_BUTTONS: Dictionary = {
+	JOY_BUTTON_DPAD_UP: 0x48, JOY_BUTTON_DPAD_DOWN: 0x50, JOY_BUTTON_DPAD_LEFT: 0x4B, JOY_BUTTON_DPAD_RIGHT: 0x4D,
+	JOY_BUTTON_A: 0x1D, JOY_BUTTON_B: 0x38, JOY_BUTTON_X: 0x39, JOY_BUTTON_Y: 0x1C, JOY_BUTTON_START: 0x01,
+}
+const STICK_DEADZONE: float = 0.5
+var _stick: Dictionary = {}    # arrow scan code -> held by the stick
+
 const GALAXY_META: Dictionary = {"keen4": "keen4", "keen5": "keen5", "keen6": "keen6e14"}
 
 
@@ -315,6 +324,15 @@ func _release() -> void:
 	vm = null
 
 
+## The stick on one axis as the two arrows it stands for.
+func _stick_axis(v: float, negative: int, positive: int) -> void:
+	for pair: Array in [[negative, v <= -STICK_DEADZONE], [positive, v >= STICK_DEADZONE]]:
+		var held: bool = _stick.get(pair[0], false)
+		if pair[1] != held:
+			_stick[pair[0]] = pair[1]
+			send_key(pair[0], pair[1])
+
+
 ## A key from the player (or a test): queued for the engine thread.
 func send_key(scancode: int, down: bool) -> void:
 	_mutex.lock()
@@ -324,6 +342,20 @@ func send_key(scancode: int, down: bool) -> void:
 
 func _input(event: InputEvent) -> void:
 	if thread == null:
+		return
+	if event is InputEventJoypadButton:
+		var jb: InputEventJoypadButton = event
+		var pcode: int = PAD_BUTTONS.get(jb.button_index, 0)
+		if pcode != 0:
+			send_key(pcode, jb.pressed)
+			get_viewport().set_input_as_handled()
+		return
+	if event is InputEventJoypadMotion:
+		var jm: InputEventJoypadMotion = event
+		if jm.axis == JOY_AXIS_LEFT_X:
+			_stick_axis(jm.axis_value, 0x4B, 0x4D)
+		elif jm.axis == JOY_AXIS_LEFT_Y:
+			_stick_axis(jm.axis_value, 0x48, 0x50)
 		return
 	var k: InputEventKey = event as InputEventKey
 	if k == null or k.echo:

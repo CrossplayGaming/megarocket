@@ -75,6 +75,24 @@ func _go() -> void:
 			await _press(host, 0x01)
 		var menu_up: bool = g4.get("us_currentCard") != null
 		t.ok("Escape opens the control panel", menu_up)
+		# a pad: A is jump (Ctrl), the stick's left is the left arrow, released past the deadzone
+		host._keys.clear()
+		var ab: InputEventJoypadButton = InputEventJoypadButton.new()
+		ab.button_index = JOY_BUTTON_A
+		ab.pressed = true
+		host._input(ab)
+		var st: InputEventJoypadMotion = InputEventJoypadMotion.new()
+		st.axis = JOY_AXIS_LEFT_X
+		st.axis_value = -0.9
+		host._input(st)
+		st.axis_value = -0.1
+		host._input(st)
+		t.ok("a pad's A and stick reach the game as Ctrl and the left arrow (%s)" % [host._keys], host._keys == [[0x1D, true], [0x4B, true], [0x4B, false]])
+		host._keys.clear()
+		var au: InputEventJoypadButton = InputEventJoypadButton.new()
+		au.button_index = JOY_BUTTON_A
+		au.pressed = false
+		host._input(au)
 		await _press(host, 0x10)    # Q: the selection to QUIT
 		await _press(host, 0x1C)    # Enter: REALLY QUIT?
 		await _press(host, 0x15)    # Y

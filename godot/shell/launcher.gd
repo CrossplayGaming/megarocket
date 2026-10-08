@@ -77,6 +77,7 @@ func _ready() -> void:
 	resized.connect(_layout)
 	_layout()
 	show_results([])
+	(tiles[GAMES[0][0]] as Control).grab_focus.call_deferred()    # keyboard and pad work at once (ui_* moves between tiles)
 	if scan_on_ready:
 		call_deferred("_scan")
 
@@ -166,8 +167,8 @@ func _tile_input(event: InputEvent, id: String) -> void:
 	var go: bool = false
 	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 		go = true
-	elif event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo and (event as InputEventKey).keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]:
-		go = true
+	elif event.is_action_pressed("ui_accept"):
+		go = true    # Enter, Space, a pad's A
 	if go:
 		accept_event()
 		launch(id)
