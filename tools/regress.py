@@ -720,6 +720,18 @@ def menu01():
     return code
 
 
+def menu02():
+    """Keen 4-6's Options (MENU-02): with a player at the controls CONFIGURE has a DISPLAY card and
+    OPTIONS starts with MODE, and choosing their rows changes the settings for that game only;
+    headless, the cards are the original's."""
+    import gdtest
+    code, out = gdtest.run("menu02_galaxy", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def shell05():
     """Settings persist, reset, survive damage value by value, per-game values win, and no
     simulation script reads them (A15)."""
@@ -947,6 +959,7 @@ CHECKS = {
     "DIST-02": (dist02, "fast"),
     "SHELL-01": (shell01, "fast"),
     "MENU-01": (menu01, "fast"),
+    "MENU-02": (menu02, "fast"),
     "SHELL-05": (shell05, "fast"),
     "SHELL-06": (shell06, "slow"),
     "SHELL-07": (shell07, "fast"),

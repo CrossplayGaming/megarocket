@@ -536,6 +536,8 @@ var ck_us_optionsMenuItems: Array = [
 	_us_item_end()]
 
 var ck_us_optionsMenu: US_Card = _us_card(8, 0, "PIC_OPTIONSCARD", 0, ck_us_optionsMenuItems, &"", 0, 0, 0)
+## The original four OPTIONS items, by reference (MENU-02 inserts the shell's MODE row before them).
+var ck_us_optionsOriginal: Array = ck_us_optionsMenuItems.slice(0, 4)
 
 # Movement Kbd Controls Menu
 var ck_us_movementMenuItems: Array = [
@@ -587,6 +589,8 @@ var ck_us_configureMenuItems: Array = [
 	_us_item_end()]
 
 var ck_us_configureMenu: US_Card = _us_card(0, 0, "PIC_CONFIGURECARD", 0, ck_us_configureMenuItems, &"CK_US_ConfigureMenuProc", 0, 0, 0)
+## The two joystick items, by reference (MENU-02 inserts DISPLAY after MUSIC).
+var ck_us_joystickItems: Array = [ck_us_configureMenuItems[4], ck_us_configureMenuItems[5]]
 
 # Paddle War!
 
@@ -1050,10 +1054,10 @@ func CK_PaddleWar(msg: int, _item: US_CardItem) -> bool:
 
 
 func CK_US_UpdateOptionsMenus() -> void:
-	(ck_us_optionsMenuItems[0] as US_CardItem).caption = "SCORE BOX (ON)" if ck_scoreBoxEnabled else "SCORE BOX (OFF)"
-	(ck_us_optionsMenuItems[1] as US_CardItem).caption = "TWO-BUTTON FIRING (ON)" if ck_twoButtonFiring else "TWO-BUTTON FIRING (OFF)"
-	(ck_us_optionsMenuItems[2] as US_CardItem).caption = "FIX JERKY MOTION (ON)" if ck_fixJerkyMotion else "FIX JERKY MOTION (OFF)"
-	(ck_us_optionsMenuItems[3] as US_CardItem).caption = "SVGA COMPATIBILITY (ON)" if ck_svgaCompatibility else "SVGA COMPATIBILITY (OFF)"
+	(ck_us_optionsOriginal[0] as US_CardItem).caption = "SCORE BOX (ON)" if ck_scoreBoxEnabled else "SCORE BOX (OFF)"
+	(ck_us_optionsOriginal[1] as US_CardItem).caption = "TWO-BUTTON FIRING (ON)" if ck_twoButtonFiring else "TWO-BUTTON FIRING (OFF)"
+	(ck_us_optionsOriginal[2] as US_CardItem).caption = "FIX JERKY MOTION (ON)" if ck_fixJerkyMotion else "FIX JERKY MOTION (OFF)"
+	(ck_us_optionsOriginal[3] as US_CardItem).caption = "SVGA COMPATIBILITY (ON)" if ck_svgaCompatibility else "SVGA COMPATIBILITY (OFF)"
 
 	# Disable Two button firing selection if required
 	(ck_us_buttonsMenuItems[2] as US_CardItem).state &= ~US_IS_Disabled
@@ -1061,13 +1065,13 @@ func CK_US_UpdateOptionsMenus() -> void:
 		(ck_us_buttonsMenuItems[2] as US_CardItem).state |= US_IS_Disabled
 
 	if IN_JoyPresent(0):
-		(ck_us_configureMenuItems[4] as US_CardItem).state &= ~US_IS_Disabled
+		(ck_us_joystickItems[0] as US_CardItem).state &= ~US_IS_Disabled
 	else:
-		(ck_us_configureMenuItems[4] as US_CardItem).state |= US_IS_Disabled
+		(ck_us_joystickItems[0] as US_CardItem).state |= US_IS_Disabled
 	if IN_JoyPresent(1):
-		(ck_us_configureMenuItems[5] as US_CardItem).state &= ~US_IS_Disabled
+		(ck_us_joystickItems[1] as US_CardItem).state &= ~US_IS_Disabled
 	else:
-		(ck_us_configureMenuItems[5] as US_CardItem).state |= US_IS_Disabled
+		(ck_us_joystickItems[1] as US_CardItem).state |= US_IS_Disabled
 
 	# Set up the gamepad menu item
 	# (an #if 0 block in C)
@@ -1334,7 +1338,16 @@ func USL_DrawCard() -> void:
 		return
 
 	# Draw the header (if any))
-	if us_currentCard.gfxChunk != "":
+	if us_currentCard.gfxChunk.begins_with("TEXT:"):
+		# MENU-02: a card the shell adds has no picture: its title in the menu font, set into the line
+		# as the pictures' titles are (a short dash, the title in the selected item's green, the line on)
+		var line_y: int = CK_INT("us_menu_horzLineY1", 55)
+		VHB_HLine(CK_INT("us_menu_horzLineX1", 77), CK_INT("us_menu_horzLineX2", 231), line_y, us_menu_foregroundColour)
+		var title: String = us_currentCard.gfxChunk.substr(5)
+		var tw: int = VH_MeasurePropString(title, 1)[0]
+		VHB_Bar(82, line_y - 2, tw + 4, 9, us_menu_backgroundColour)
+		VHB_DrawPropString(title, 84, line_y - 1, 1, us_menu_disabledColour)
+	elif us_currentCard.gfxChunk != "":
 		VHB_HLine(CK_INT("us_menu_horzLineX1", 77), CK_INT("us_menu_horzLineX2", 231), CK_INT("us_menu_horzLineY1", 55), us_menu_foregroundColour)
 		VHB_DrawBitmap(80, 48, CK_LookupChunk(us_currentCard.gfxChunk))
 
@@ -1766,9 +1779,9 @@ func USL_UpdateCards() -> void:
 
 	# Joystick and gamepad menu items
 	if true:    # !joystick_present[0] )
-		(ck_us_configureMenuItems[4] as US_CardItem).state |= US_IS_Disabled
+		(ck_us_joystickItems[0] as US_CardItem).state |= US_IS_Disabled
 	if true:    # !joystick_present[1] )
-		(ck_us_configureMenuItems[5] as US_CardItem).state |= US_IS_Disabled
+		(ck_us_joystickItems[1] as US_CardItem).state |= US_IS_Disabled
 	(ck_us_mainMenuItems[4] as US_CardItem).caption = "RETURN TO GAME" if game_in_progress != 0 else "RETURN TO DEMO"
 	# Save game and end game items
 	if game_in_progress == 0:
@@ -1949,9 +1962,12 @@ func US_RunCards() -> void:
 	if IN_GetLastScan() < IN_SC_F1 or IN_GetLastScan() > IN_SC_F10:
 		IN_ClearKeysDown()
 
+	CK_US_ShellCards()
+
 	# load all menu stuff and draw main menu
 	USL_BeginCards()
 	US_DrawCards()
+	vm.mark("menu")    # tests time their keys from the menu's first picture
 
 	controller_dy = 0
 	prev_controller_motion = 0
@@ -2061,3 +2077,71 @@ func US_RunCards() -> void:
 	if quitting:
 		return
 	USL_EndCards()
+
+
+# ===================================================================== the shell's rows (MENU-02)
+
+## The shell's Options rows (an OptionsModel) while a player is at the controls; null in headless runs
+## and the oracle comparisons, which see the original cards.
+var options: Object = null
+var _shell_cards_built: bool = false
+## A row's toggle card -> [the row's key, its item]
+var _shell_toggles: Dictionary = {}
+## The card the DISPLAY item opens.
+var ck_us_displayMenu: US_Card = null
+
+
+## MENU-02 (docs/MENUS.md): MODE first on the OPTIONS card (SVGA COMPATIBILITY gone), and a DISPLAY card
+## on CONFIGURE after MUSIC. Each row is an item reading "LABEL (VALUE)" that, chosen, flips its value and says so, as the
+## original OPTIONS items do.
+func CK_US_ShellCards() -> void:
+	if options == null or _shell_cards_built:
+		return
+	_shell_cards_built = true
+	var mode_rows: Array = (options.page("options") as Array).filter(func(r: Dictionary) -> bool: return r.key == "mode")
+	for r: Dictionary in mode_rows:
+		ck_us_optionsMenuItems.insert(0, _shell_row_item(r))
+	# SVGA COMPATIBILITY steers the original's EGA register writes, which the shell's display does not use
+	ck_us_optionsMenuItems.erase(ck_us_optionsOriginal[3])
+	var display_items: Array = []
+	for r: Dictionary in options.page("display"):
+		if r.kind == "value":
+			display_items.append(_shell_row_item(r))
+	display_items.append(_us_item_end())
+	ck_us_displayMenu = _us_card(8, 0, "TEXT:DISPLAY", 0, display_items, &"", 0, 0, 0)
+	ck_us_configureMenuItems.insert(2, _us_item(US_ITEM_Submenu, 0, IN_SC_D, "DISPLAY", US_Comm_None, ck_us_displayMenu))
+	CK_US_ShellCaptions()
+
+
+func _shell_row_item(r: Dictionary) -> US_CardItem:
+	var card: US_Card = _us_card(0, 0, "", 0, [], &"CK_US_ShellRowProc", 0, 0, 0)
+	var item: US_CardItem = _us_item(US_ITEM_Submenu, 0, IN_SC_None, "", US_Comm_None, card)
+	_shell_toggles[card] = [r.key, item]
+	return item
+
+
+## Every shell row's caption from the model's current values.
+func CK_US_ShellCaptions() -> void:
+	if options == null:
+		return
+	var rows: Dictionary = {}
+	for page_name: String in ["options", "display"]:
+		for r: Dictionary in options.page(page_name):
+			rows[r.key] = r
+	for card: US_Card in _shell_toggles:
+		var key: String = _shell_toggles[card][0]
+		if rows.has(key):
+			(_shell_toggles[card][1] as US_CardItem).caption = "%s (%s)" % [str(rows[key].label).to_upper(), str(rows[key].value).to_upper()]
+
+
+## A shell row chosen: its value moves on, and the change is said as the original toggles say theirs.
+func CK_US_ShellRowProc(msg: int, _item: US_CardItem) -> bool:
+	if msg != US_MSG_CardEntered or not _shell_toggles.has(us_currentCard):
+		return false
+	var key: String = _shell_toggles[us_currentCard][0]
+	options.step(key, 1)
+	CK_US_ShellCaptions()
+	var caption: String = (_shell_toggles[us_currentCard][1] as US_CardItem).caption
+	USL_CtlDialog(caption, "Press any key", "")
+	return true
+

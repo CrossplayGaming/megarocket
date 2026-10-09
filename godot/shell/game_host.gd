@@ -204,8 +204,8 @@ func start(found: Dictionary) -> bool:
 	# MENU-01: the Options rows, for the engines whose menus show them so far
 	options = OptionsModel.new(settings, game_id, "vorticons" if engine is VortScreens else ("galaxy" if engine is GalGame else "dreams"))
 	options.applier = apply_setting
-	if engine is VortScreens:
-		(engine as VortScreens).options = options
+	if "options" in engine:
+		engine.set("options", options)
 	apply_setting("pixel_shape")
 	_player = AudioStreamPlayer.new()
 	var gen: AudioStreamGenerator = AudioStreamGenerator.new()
