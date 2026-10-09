@@ -31,8 +31,11 @@ CASES = Path(__file__).parent / "cases"
 WORK = Path("F:/KeenReworkWork/port_runs")
 
 
-# The usual time from the first EGA picture to the recording's first frame (the title's first seconds)
-DEFAULT_START = 2.1
+# The time from the first EGA picture to the recording's first frame when it cannot be measured (v1.93's
+# title is one picture until a key): the runner's, as measured on v1.00's scrolling title
+DEFAULT_START = 0.3
+# A first whole picture held longer than this (refreshes) is waiting on a key: no measure of the start
+MEASURE_MAX = 70
 REFRESH_HZ = 70.086
 
 
@@ -54,6 +57,11 @@ def case_keys(game, case, source="port"):
     return [list(k) for k in spec["held"]]
 
 
+def case_tc_adds(game, case):
+    """HARN-21: [[seconds from the first EGA picture, tics added to TimeCount], ...] (fitted)."""
+    return [list(x) for x in _port_spec(game, case).get("tc_adds", [])]
+
+
 def case_clock(game, case):
     """The DOS clock at the program's start, microseconds (fitted; -1: the port's own seed)."""
     return int(_port_spec(game, case).get("clock", -1))
@@ -64,6 +72,8 @@ def measured_start(game, case, out):
     oracle = Path(common.config()["oracle_runs"]) / f"{game}_{case}_a"
     oseq = frames.Sequence(oracle / "frames")
     lead = oseq.repeats(0)        # the recording's frames of its first (partial) picture
+    if len(oseq) < 2 or oseq.repeats(1) > MEASURE_MAX:
+        return None
     first = oseq.digest(1)
     pseq = frames.Sequence(Path(out) / game)
     at = 0
@@ -74,9 +84,12 @@ def measured_start(game, case, out):
     return None
 
 
-def run_port(game, case, keys, out, seconds=None, extra=(), start=None, clock=None):
+def run_port(game, case, keys, out, seconds=None, extra=(), start=None, clock=None, tc_adds=None):
     """drm_boot for the one release, frames to `out` (its release folder inside)."""
     start = case_start(game, case) if start is None else start
+    tc_adds = case_tc_adds(game, case) if tc_adds is None else tc_adds
+    if tc_adds:
+        extra = (f"--tc_adds={','.join(f'{t:.4f}:{n}' for t, n in tc_adds)}", *extra)
     clock = case_clock(game, case) if clock is None else clock
     spec = json.loads((CASES / game / f"{case}.json").read_text(encoding="utf-8"))
     # the port's start-up (text screen, keys, mode set) runs ahead of the recording's first picture
@@ -89,12 +102,15 @@ def run_port(game, case, keys, out, seconds=None, extra=(), start=None, clock=No
     return p.returncode, p.stdout + p.stderr
 
 
-# A run of pictures that only one side shows is passed when each lasts at most this many refreshes and
-# there are at most SKIP_MAX of them: the original's work in progress on screen (a loading box drawn,
-# its text, the bar's steps, text being printed) that the port, whose loads and drawing take no time
-# yet (TIME-D), does at once (SKIP_ORACLE), and the port's own (SKIP_PORT). Every pass is reported.
+# Runs of pictures one side shows and the other does not are passed when each lasts at most this many
+# refreshes and there are at most SKIP_MAX of them: the original's work in progress on screen (a
+# loading box drawn, its text, the bar's steps, text being printed) that the port, whose loads and
+# drawing take no time yet (TIME-D), does at once (SKIP_ORACLE), and the port's own (SKIP_PORT): a
+# load finished within one refresh, caught half drawn by the beam. The port's pictures in play last at
+# least two refreshes (MINTICS; its drawing takes no time), so a one-refresh picture of the port is
+# never a frame of play, and a different frame of play is never passed. Every pass is reported.
 SKIP_ORACLE = 6
-SKIP_PORT = 2
+SKIP_PORT = 1
 SKIP_MAX = 16
 
 
@@ -118,7 +134,8 @@ def level_score(port, orc):
                     continue
                 if port[k + a][0] != orc[j + b][0]:
                     continue
-                if all(port[k + x][1] <= SKIP_PORT for x in range(a)) and                         all(orc[j + x][1] <= SKIP_ORACLE for x in range(b)):
+                if all(port[k + x][1] <= SKIP_PORT for x in range(a)) and \
+                        all(orc[j + x][1] <= SKIP_ORACLE for x in range(b)):
                     return a, b
         return None
 
@@ -130,7 +147,7 @@ def level_score(port, orc):
             if r is None:
                 return j, f"picture {j} differs" + timing_score._slips(slips), n, load_err, skips, k
             a, b = r
-            skips.append((j, a, b))
+            skips.append((j, a, b, k))
             load_err += abs(sum(p[1] for p in port[k:k + a]) - sum(o[1] for o in orc[j:j + b]))
             k += a
             j += b
@@ -160,6 +177,7 @@ def score(game, case, out):
         return 0, "the recording's first picture is not in the port's run", len(orc) - 1, port, orc, 0
     port = port[start:]
     j, note, n, load_err, skips, k = level_score(port, orc)
+    score.skips = skips    # (recording picture, port's extras, recording's extras, port picture) per pass
     if skips:
         note += f"; {len(skips)} runs of work in progress passed (at {[s[0] for s in skips[:6]]}), loads {load_err} refreshes off in all"
     return j, note, n, port, orc, k

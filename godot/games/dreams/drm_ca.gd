@@ -227,8 +227,7 @@ func MM_SetAttributes(key: String, attributes: int) -> void:
 ## Throws out all purgeable blocks and piles the movable ones down (each moved paragraph costing
 ## `mmmove`, TIME-D); the border is white meanwhile.
 func MM_SortMem() -> void:
-	VW_ColorBorder(15)
-	BE_ST_ShortSleep()
+	VW_ColorBorder(15)    # (ReflectionHLE's ShortSleep here, a hack to show the border, is not the original's)
 	if beforesort != &"":
 		call(beforesort)
 	var moved: int = 0
@@ -693,8 +692,7 @@ func CA_CacheMarks(title: String, cachedownlevel: bool) -> void:
 				for x: int in range(lastx, xh + 1):
 					VWB_Vlin(thy, thy + 13, x, barcolor)
 				lastx = xh
-				VW_UpdateScreen()
-				BE_ST_ShortSleep()
+				VW_UpdateScreen()    # (no wait: ReflectionHLE's ShortSleep here is its hack, not the original's)
 		if _grstart(i) < 0:
 			continue
 		_read_chunk(i)
@@ -703,4 +701,3 @@ func CA_CacheMarks(title: String, cachedownlevel: bool) -> void:
 		for x: int in range(lastx, xh2 + 1):
 			VWB_Vlin(thy, thy + 13, x, barcolor)
 		VW_UpdateScreen()
-		BE_ST_ShortSleep()

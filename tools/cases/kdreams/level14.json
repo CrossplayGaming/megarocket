@@ -104,6 +104,6 @@
    0.2
   ]
  ],
- "note": "F10+W warp to level 14 from the world map after a new game (Space at the title opens the control panel, Enter starts a normal game), then the same moves, jumps, throws and a Boobus Bomb in every level. Held times are seconds after the recording's first picture. may_exit: a map the release lacks (v1.00: 6, 8, 11) makes the warp's load quit to DOS with 'CA_CacheMap: Tried to load a non existant map!', the original as the port; the session is then that refusal.",
+ "note": "F10+W warp to level 14 from the world map after a new game (Space at the title opens the control panel, Enter starts a normal game), then the same moves, jumps, throws and a Boobus Bomb in every level. Held times are seconds after the recording's first picture. may_exit: a map the release lacks (v1.00: 6, 8, 11, 13) makes the warp's load quit to DOS with 'CA_CacheMap: Tried to load a non existant map!', the original as the port; the session is then that refusal.",
  "may_exit": true
 }

@@ -15,6 +15,10 @@ extends SceneTree
 ##          --case_keys=<at:scancode:hold,...> (keys timed from the first EGA picture, as the
 ##          recordings' held keys are: REPLAY-D, tools/dreams_case.py)
 ##          --cycles= --vbl_period= --timer_offset= (the machine's timing)
+##          --tc_adds=<at:tics,...> (HARN-21: at the first EGA picture at or after `at` seconds
+##          from the first one, that many tics added to TimeCount: the time the original's loads
+##          take that the port's do not yet (TIME-D) runs on its game clock, whose parity decides
+##          the tic each frame accelerates on; fitted by tools/fit_dreams.py)
 ##          --clock=us (the DOS clock at the start, microseconds since 00:00:00: the random
 ##          table's seed is its hundredths at US_Startup; unset, the port's own seed)
 
@@ -78,6 +82,10 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	for spec: String in str(opts.get("case_keys", "")).split(",", false):
 		var parts: PackedStringArray = spec.split(":")
 		vm.add_key_after("ega", float(parts[0]), int(parts[1]), float(parts[2]) if parts.size() > 2 else 0.1)
+	var tc_adds: Array = []
+	for spec: String in str(opts.get("tc_adds", "")).split(",", false):
+		var parts: PackedStringArray = spec.split(":")
+		tc_adds.append([DosMachine.seconds_to_units(float(parts[0])), int(parts[1])])
 	DirAccess.make_dir_recursive_absolute(out)
 	var writer: FrameWriter = FrameWriter.new()
 	if not writer.open(out):
@@ -89,6 +97,8 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	var st: Dictionary = {"ega": 0, "text": "", "title": 0.0, "colours": 0, "last": 0, "pictures": 0}
 	vm.on_display = func() -> void:
 		if card.video_mode == EgaCard.MODE_EGA:
+			if not tc_adds.is_empty() and vm.marks.has("ega") and vm.now - int(vm.marks["ega"]) >= int(tc_adds[0][0]):
+				g.TimeCount = (g.TimeCount + int(tc_adds.pop_front()[1])) & 0xFFFFFFFF
 			if st.ega == 0:
 				vm.mark("ega")    # the recording's start: DOSBox's first entry into the EGA mode
 				print("  %s: the first EGA picture at %.2f s" % [name, vm.seconds()])

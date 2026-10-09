@@ -407,6 +407,20 @@ func wait_vbl(n: int) -> void:
 		wait_retrace_start()
 
 
+## A busy loop that only the timer, the refresh or a key can change: run to the
+## next of those (the beam's bands between are scanned on the way, unseen by the
+## program). A loop that redraws the screen each pass costs the port that much
+## less, and the program sees the same (the Dreams control panel's loop).
+func poll_event() -> void:
+	_settle()
+	var t_key: int = key_events[_key_index][0] if _key_index < key_events.size() else (1 << 62)
+	if t_key < now:
+		push_error("DosMachine: an undelivered key event lies in the past (index %d)" % _key_index)
+		_key_index += 1
+		return
+	_run_to(mini(mini(next_tick, next_vbl), t_key))
+
+
 ## A busy loop with nothing to wait on but the next thing that happens: the
 ## next timer tic, refresh or key. Used where the program spins reading keys.
 func poll() -> void:

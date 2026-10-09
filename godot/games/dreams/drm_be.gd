@@ -126,6 +126,8 @@ func BE_ST_WaitForNewVerticalRetraces(number: int) -> void:
 	vm.wait_vbl(number)
 
 
-## The busy loops' yield (waiting on the timer or a key): the machine runs to its next event.
+## The busy loops' yield (waiting on the timer or a key): the machine runs to the next timer tic,
+## refresh or key, the only things these loops wait on (ReflectionHLE's sleeps where the original
+## does not wait at all are left out where they stand).
 func BE_ST_ShortSleep() -> void:
-	vm.poll()
+	vm.poll_event()
