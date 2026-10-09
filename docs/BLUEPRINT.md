@@ -221,7 +221,7 @@ user decides.
 | Disk full or write interrupted leaves the previous save intact (write to temp, then rename) | required | How saves get destroyed | automated test | catalog |
 | High-score tables per game; name entry; persisted in the original formats | required | Original feature | automated test | project |
 | Config and saves from Megarocket (`QUICKSAV.CKx`, `KEENLNCH.CFG`) imported or at least recognised | deferred | Nice for the one existing user; the formats were port-own | — | project |
-| Cloud sync | not-applicable | No storefront | — | catalog |
+| Saves shared between the player's devices (PC and Android) | planned | The user's goal (2026-10-09); see "Save sync between devices" below | automated test (two-device simulator) + path walk | project |
 
 ### HUD and feedback
 
@@ -328,13 +328,58 @@ Each gets its own blueprint pass before it is built.
 | Map builder: an intuitive, pad- and touch-operable interface (A16 applies) | deferred (v1.5) | Same rule as everything else | path walk | project |
 | Player-made maps in a library screen, launchable from the launcher, sharable as files | deferred (v1.5) | Playing them is the point | automated test | project |
 
+### Save sync between devices (user, 2026-10-09) — planned
+
+The player's progress follows them between the Windows app and the Android app, the way Steam Cloud,
+Xbox and Switch saves do: when you start a game you continue from where you last played, on whichever
+device, and when both devices have moved on you choose which one to continue from.
+
+**How the platforms do it (research, 2026-10-09).** Steam Cloud downloads at game launch and uploads at
+exit; when both copies changed it shows a conflict dialog with the local and the cloud copy and their
+times, and the player keeps one. Xbox's Game Saves asks "Which one do you want to use?" with "This
+console" or "The Xbox network (cloud data)", for the whole game at once; it also says when the game
+is running on another device ("Looks like you're signed in on another device"), and when it cannot
+reach the cloud it offers "Try again" or "Use offline". Switch downloads a newer cloud save
+automatically while the console sleeps, and a download overwrites the console's copy for good.
+Google Play Games lets a game resolve conflicts by a rule (most recently modified, longest playtime,
+highest progress, last known good) or ask the player. Common to all: sync is automatic at launch and
+exit; the player is only asked when both copies changed; the question names the devices and the
+times. The weak spots players complain about: the words "local" and "cloud" do not say which copy is
+newer, the choice is all-or-nothing for the game, and the copy not chosen is lost.
+
+**Megarocket's design.** Familiar where they are good, better where they are weak:
+
+| Item | Status | Why it matters | Verification | Source |
+|---|---|---|---|---|
+| What is shared: each game's save slots, its quicksave, its high scores (merged, not replaced); not controls, display or audio settings (per device), never the games' own files | planned | The player's progress, nothing else | automated test | user + research |
+| Sync when a game is opened (fetch) and when it is saved or closed (send); in the background otherwise; play is never blocked (a few seconds of "Syncing…", then play with this device's saves) | planned | Steam's and Xbox's rhythm, which players know | automated test (simulator) | research |
+| Only one device changed: its progress is taken without a question, with a short notice ("Continuing from Living-room PC · 12 min ago") | planned | No needless prompts (Switch, Steam) | automated test | research |
+| Each slot on its own: different slots changed on different devices are both kept without a question (Xbox's choice is for the whole game) | planned | Fewer conflicts than the platforms | automated test | research |
+| The same slot changed on both: at the game's start a choice of two cards, side by side, each naming the device and saying when, with what the save holds (game, level or map position, score, lives, items, time played) and a picture of where it was saved; "Continue from Phone" / "Continue from PC"; the newer one focused; pad, keyboard, touch | planned | The user's request: choose which device's progress to go on with, in the words players know | automated test + path walk | user + research |
+| The copy not chosen is kept: a save history per game (the last versions of each slot, with device and time), restorable from the game's menu (the platforms discard it) | planned | No progress ever lost by a wrong tap | automated test | research |
+| A game open on the other device: "You're playing Keen 4 on Living-room PC. Continue here?" | planned | Xbox's "signed in on another device" | automated test | research |
+| The other device or the cloud unreachable: play with this device's saves ("Use offline"); the sync happens next time, by the same rules | planned | Offline play must always work | automated test | research |
+| Which copy is newer decided by change counters per slot, not by the devices' clocks (wrong clocks must not lose progress); clocks only for display | planned | Clock skew is how sync loses saves | automated test | catalog |
+| A transfer interrupted, a full disk, a damaged copy: the slot keeps its last good version (write aside, verify, then swap) | planned | Same rule as local saves (SAVE-03) | automated test | catalog |
+| A deleted save is deleted on the other device too, and restorable from the history | planned | Otherwise deleted saves come back | automated test | catalog |
+| Each save labelled with its game and version (Keen 6 v1.4, Dreams v1.93): never loaded into another | planned | Releases differ (J-19) | automated test | project |
+| Turning sync on with saves on both devices: a one-time choice (keep both where they differ, or take one device's) | planned | The first sync is the riskiest | automated test + path walk | catalog |
+| Transport 1, home network: pair once by scanning a code the PC shows; the two talk directly on the same Wi-Fi; no account, no server, nothing leaves the house | planned | Simplest and private; Godot's own networking | automated test + device test | user |
+| Transport 2, the player's own Google Drive (its hidden app-data folder, which the app alone can see): sync anywhere; opt-in; no server of ours, no player data held by the project | planned | Away from home; every Android phone has the account | device test | research |
+| Transport 3, a folder the player already syncs (Syncthing, Dropbox, OneDrive): pick it on each device | planned | Power users; Android's folder access limits it | device test | catalog |
+| A sync settings page: on/off, paired devices (names editable), transports, "sync now", the history | planned | Control and trust | path walk | catalog |
+
+Not planned: a server run by the project (accounts, passwords, hosting and security duties a free
+project should not take on). Open choices for the user: J-21 (when it ships), J-22 (which transport
+first), J-23 (whether the choice of cards may be skipped by a rule).
+
 ## Deferred and not-applicable
 
 | Item | Reason |
 |---|---|
 | Multiplayer | None of the originals have it; not planned. |
 | Joystick calibration | Not applicable to modern pads; entries open the pad options. |
-| Cloud saves, achievements, overlays | No storefront. |
+| Achievements, overlays | No storefront. (Save sharing between devices is planned: see "Save sync between devices".) |
 | Subtitles | No speech. |
 | Colour-blind palette | Deferred to the replacement-art phase. |
 | Shareware and CGA versions | Detected and named at start-up; support deferred. |
