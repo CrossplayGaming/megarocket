@@ -115,6 +115,8 @@ func BE_ST_EGAXorGFXByteByPlaneMask(destOff: int, srcVal: int, planeMask: int) -
 ## INT 10h: the video mode (3 text, 0Dh EGA 320x200).
 func BE_ST_SetScreenMode(mode: int) -> void:
 	vm.card.bios_set_video_mode(mode)
+	if mode == 0x0D:
+		vm.mark("mode_0d")    # HARN-22: the key feeder's timetable starts here (KEYFEED.COM sees the BIOS mode)
 
 
 func BE_ST_MarkGfxForUpdate() -> void:

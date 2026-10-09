@@ -84,8 +84,25 @@ def measured_start(game, case, out):
     return None
 
 
+def run_feed(game, held, out, seconds, extra=(), clock=-1):
+    """HARN-22: drm_boot for the one release with KEYFEED.COM's timetable (`held`: seconds after the EGA
+    mode set, tools/keyfeed.py's ticks), frames to `out`."""
+    import keyfeed
+    arg = ",".join(f"{m}:{c}:{b}" for m, c, b in keyfeed.feed_pairs(held))
+    shutil.rmtree(out, ignore_errors=True)
+    p = subprocess.run([sys.executable, "tools/gdtest.py", "drm_boot", "--", f"--only={game}", f"--seconds={seconds}",
+                        f"--out={Path(out).as_posix()}", f"--feed_keys={arg}", f"--clock={clock}", *extra],
+                       cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    return p.returncode, p.stdout + p.stderr
+
+
 def run_port(game, case, keys, out, seconds=None, extra=(), start=None, clock=None, tc_adds=None):
     """drm_boot for the one release, frames to `out` (its release folder inside)."""
+    spec = json.loads((CASES / game / f"{case}.json").read_text(encoding="utf-8"))
+    if spec.get("keyfeed"):
+        # HARN-22: the keys are the case's own timetable, typed into the original inside DOS
+        return run_feed(game, keys, out, seconds or spec["seconds"] + 12, extra,
+                        case_clock(game, case) if clock is None else clock)
     start = case_start(game, case) if start is None else start
     tc_adds = case_tc_adds(game, case) if tc_adds is None else tc_adds
     if tc_adds:

@@ -5,6 +5,7 @@
 Usage: python tools/oracle_decode.py <run name>...
 """
 
+import json
 import sys
 
 import common
@@ -18,7 +19,10 @@ def decode(run_name):
         print(f"COULD-NOT-RUN: {run_name} has no finished oracle run")
         return common.COULD_NOT_RUN
     videos = [run_dir / "capture" / name for name in pointer.read_text(encoding="ascii").split()]
-    count = frames.from_videos(videos, run_dir / "frames", {"run": run_name, "videos": [v.name for v in videos]})
+    case = run_dir / "case.json"
+    keyfeed = case.exists() and json.loads(case.read_text(encoding="utf-8")).get("keyfeed", False)
+    count = frames.from_videos(videos, run_dir / "frames", {"run": run_name, "videos": [v.name for v in videos]},
+                               skip_other_sizes=keyfeed)
     seq = frames.Sequence(run_dir / "frames")
     print(f"{run_name}: {seq.raw_frames} recorded pictures, {count} distinct")
     return common.PASS if count > 0 else common.FAIL

@@ -2,108 +2,104 @@
  "seconds": 37.2,
  "keys": "",
  "cycles": 20000,
- "press_until_picture": {
-  "key": "enter",
-  "from": 8.0,
-  "every": 1.5
- },
  "held": [
   [
-   3.0,
+   3.3,
    "space",
    0.2
   ],
   [
-   6.0,
+   6.3,
    "enter",
    0.2
   ],
   [
-   10.0,
+   10.3,
    "f10",
    1.5
   ],
   [
-   10.5,
+   10.8,
    "w",
    0.2
   ],
   [
-   12.0,
+   12.3,
    "1",
    0.2
   ],
   [
-   12.6,
+   12.9,
    "4",
    0.2
   ],
   [
-   13.6,
+   13.9,
    "enter",
    0.2
   ],
   [
-   17.2,
+   17.5,
    "left",
    3.0
   ],
   [
-   18.2,
+   18.5,
    "ctrl",
    0.3
   ],
   [
-   20.7,
+   21.0,
    "right",
    2.0
   ],
   [
-   21.2,
+   21.5,
    "alt",
    0.2
   ],
   [
-   23.7,
+   24.0,
    "left",
    4.0
   ],
   [
-   24.7,
+   25.0,
    "ctrl",
    0.3
   ],
   [
-   26.2,
+   26.5,
    "alt",
    0.2
   ],
   [
-   28.2,
+   28.5,
    "right",
    3.0
   ],
   [
-   29.2,
+   29.5,
    "ctrl",
    0.3
   ],
   [
-   31.7,
+   32.0,
    "up",
    0.3
   ],
   [
-   32.7,
+   33.0,
    "left",
    2.5
   ],
   [
-   33.2,
+   33.5,
    "space",
    0.2
   ]
  ],
- "note": "F10+W warp to level 14 from the world map after a new game (Space at the title opens the control panel, Enter starts a normal game), then the same moves, jumps, throws and a Boobus Bomb in every level. Held times are seconds after the recording's first picture. may_exit: a map the release lacks (v1.00: 6, 8, 11, 13) makes the warp's load quit to DOS with 'CA_CacheMap: Tried to load a non existant map!', the original as the port; the session is then that refusal.",
- "may_exit": true
+ "note": "F10+W warp to level 14 from the world map after a new game (Space at the title opens the control panel, Enter starts a normal game), then the same moves, jumps, throws and a Boobus Bomb in every level. Held times are seconds after the EGA mode set: KEYFEED.COM types them inside DOS (HARN-22), the port takes the same timetable. may_exit: a map the release lacks (v1.00: 6, 8, 11, 13) makes the warp's load quit to DOS with 'CA_CacheMap: Tried to load a non existant map!', the original as the port; the session is then that refusal.",
+ "may_exit": true,
+ "keyfeed": true
 }

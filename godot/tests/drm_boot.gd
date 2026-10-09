@@ -19,6 +19,9 @@ extends SceneTree
 ##          from the first one, that many tics added to TimeCount: the time the original's loads
 ##          take that the port's do not yet (TIME-D) runs on its game clock, whose parity decides
 ##          the tic each frame accelerates on; fitted by tools/fit_dreams.py)
+##          --feed_keys=<make_tick:scancode:break_tick,...> (HARN-22: KEYFEED.COM's timetable, 1024 ticks a
+##          second from the EGA mode set, no typematic repeat: tools/keyfeed.py)
+##          --costs=<name:units,...> (TIME-D: the original's time where the port does the work at once)
 ##          --clock=us (the DOS clock at the start, microseconds since 00:00:00: the random
 ##          table's seed is its hundredths at US_Startup; unset, the port's own seed)
 
@@ -71,6 +74,9 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	vm.vbl_period = int(opts.get("vbl_period", DOSBOX.vbl_period))
 	vm.timer_offset = int(opts.get("timer_offset", DOSBOX.timer_offset))
 	g.us_dosClockAtStart = int(opts.get("clock", "-1"))
+	for spec: String in str(opts.get("costs", "")).split(",", false):
+		var parts: PackedStringArray = spec.split(":")
+		g.costs[parts[0]] = int(parts[1])
 	# the files the program opens itself (gelib's reads): v1.93's title archive
 	if d.version == "e193":
 		g.us_files["KDREAMS.CMP"] = d._read("KDREAMS.CMP")
@@ -79,6 +85,10 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	for spec: String in str(opts.get("keys", "")).split(",", false):
 		var parts: PackedStringArray = spec.split(":")
 		vm.add_key(float(parts[0]), int(parts[1]), float(parts[2]) if parts.size() > 2 else 0.1)
+	for spec: String in str(opts.get("feed_keys", "")).split(",", false):
+		var parts: PackedStringArray = spec.split(":")
+		vm.repeat_pause_ms = 0    # the feeder sends no repeats
+		vm.add_key_after("mode_0d", int(parts[0]) / 1024.0, int(parts[1]), (int(parts[2]) - int(parts[0])) / 1024.0)
 	for spec: String in str(opts.get("case_keys", "")).split(",", false):
 		var parts: PackedStringArray = spec.split(":")
 		vm.add_key_after("ega", float(parts[0]), int(parts[1]), float(parts[2]) if parts.size() > 2 else 0.1)

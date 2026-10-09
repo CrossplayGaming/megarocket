@@ -153,6 +153,8 @@ def load_case(game, case):
     spec.setdefault("may_exit", False)
     spec.setdefault("cycles", DEFAULT_CYCLES)
     spec.setdefault("overrides", None)
+    spec.setdefault("keyfeed", False)   # HARN-22: KEYFEED.COM types the held keys (seconds after the EGA mode set)
+    spec.setdefault("pre_seconds", 20)  # keyfeed: seconds recorded before the game's start-up is done
     return spec
 
 
@@ -202,7 +204,8 @@ class Log:
         return out
 
     def count(self, text):
-        return sum(1 for line in self.lines() if text in line)
+        # (DOSBox 0.80 logs "Capturing Video", 0.83 "CAPTURE: Capturing video output": no case)
+        return sum(1 for line in self.lines() if text.lower() in line.lower())
 
 
 def _wait(cond, timeout, proc, step=0.1):
@@ -295,6 +298,8 @@ def _run(game, case, run_name, spec, opl, wave, show):
         print(f"COULD-NOT-RUN: DOSBox not found at {cfg['dosbox']}")
         return common.COULD_NOT_RUN, run_dir
 
+    if spec["keyfeed"]:
+        return _run_keyfeed(game, case, spec, cfg, entry, run_dir, game_dir, cap_dir, show)
     held = [tuple(h) for h in spec["held"]]
     prekeys = [tuple(h) for h in spec["prekeys"]]
     pup = spec["press_until_picture"]
@@ -445,6 +450,131 @@ def _run(game, case, run_name, spec, opl, wave, show):
     recorded = sum(recorded_frames(v) for v in videos) / REFRESH_HZ
     speed = recorded / elapsed if elapsed > 0 else 0.0
     print(f"{game}/{case}: ran {elapsed:.0f} s; {len(videos)} recordings holding {recorded:.1f} s "
+          f"({speed:.0%} of full speed){'; the game exited' if exited else ''}")
+    if not exited and speed < MIN_SPEED:
+        print(f"COULD-NOT-RUN: DOSBox ran at {speed:.0%} of full speed; the machine is too busy for a timed run")
+        return common.COULD_NOT_RUN, run_dir
+    (run_dir / "videos.txt").write_text("\n".join(v.name for v in videos), encoding="ascii")
+    return common.PASS, run_dir
+
+
+CONF_KEYFEED = """[sdl]
+fullscreen = false
+output = opengl
+windowresolution = 640x400
+vsync = off
+mapperfile = {mapper}
+
+[dosbox]
+machine = svga_s3
+memsize = 16
+startup_verbosity = quiet
+
+[capture]
+capture_dir = {captures}
+
+[render]
+aspect = off
+
+[cpu]
+core = normal
+cputype = auto
+cpu_cycles = {cycles}
+
+[mixer]
+nosound = true
+
+[midi]
+mididevice = none
+
+[sblaster]
+sbtype = sbpro2
+sbbase = 220
+irq = 7
+dma = 1
+oplmode = auto
+
+[speaker]
+pcspeaker = impulse
+
+[autoexec]
+time 00:00:00
+date 01-01-1991
+mount c "{game}"
+c:
+KEYFEED.COM
+{exe}{args}
+exit
+"""
+
+
+def _run_keyfeed(game, case, spec, cfg, entry, run_dir, game_dir, cap_dir, show):
+    """HARN-22: the keys typed inside DOS by KEYFEED.COM on the case's timetable (seconds after the EGA
+    mode set), nothing posted from outside; DOSBox Staging 0.81+ (cfg dosbox_keyfeed). The capture runs
+    from the window's appearance: the start-up's text screens come first in the recording."""
+    import keyfeed
+    (game_dir / "KEYFEED.COM").write_bytes(keyfeed.program(keyfeed.schedule(spec["held"])))
+    mapper = run_dir / "oracle.map"
+    mapper.write_text(MAPPER, encoding="ascii")
+    conf = run_dir / "oracle.conf"
+    conf.write_text(CONF_KEYFEED.format(
+        mapper=mapper.as_posix(), captures=cap_dir.as_posix(), game=str(game_dir), cycles=spec["cycles"],
+        exe=entry["exe"], args=(" " + spec["args"]) if spec["args"] else ""), encoding="ascii")
+    (run_dir / "case.json").write_text(json.dumps({"game": game, "case": case, **spec}), encoding="utf-8")
+    log = Log(run_dir / "stderr.txt")
+    env = dict(os.environ, SDL_AUDIODRIVER="dummy")
+    startup = subprocess.STARTUPINFO()
+    startup.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    startup.wShowWindow = 1 if show else 7
+    proc = subprocess.Popen(
+        [str(cfg["dosbox_keyfeed"]), "-noprimaryconf", "-nolocalconf", "-conf", str(conf), "-noconsole"],
+        cwd=str(run_dir), env=env, startupinfo=startup, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    _keep_at_full_speed(proc.pid)
+    hwnd = winkeys.wait_for_window(proc.pid)
+    if hwnd is None:
+        _shut_down(proc, None)
+        print("COULD-NOT-RUN: DOSBox window never appeared")
+        return common.COULD_NOT_RUN, run_dir
+    # (0.83 keeps no log file with -noconsole: the capture is confirmed by its file appearing)
+    for _ in range(10):
+        winkeys.tap(hwnd, "f8")
+        if _wait(lambda: any(cap_dir.glob("*.avi")), 2, proc):
+            break
+    else:
+        _shut_down(proc, hwnd)
+        print("COULD-NOT-RUN: DOSBox would not start recording")
+        return common.COULD_NOT_RUN, run_dir
+    started = time.time()
+    total = spec["seconds"] + spec["pre_seconds"]
+    exited = False
+    while time.time() - started < total:
+        if proc.poll() is not None:
+            exited = True
+            break
+        time.sleep(0.05)
+    elapsed = time.time() - started
+    if exited and not spec["may_exit"]:
+        print("FAIL: DOSBox exited before the run finished")
+        return common.FAIL, run_dir
+    if proc.poll() is None:
+        winkeys.tap(hwnd, "f8")
+        time.sleep(1.0)
+        winkeys.tap(hwnd, "f12")
+        try:
+            proc.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            winkeys.close(hwnd)
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+    videos = sorted(cap_dir.glob("*.avi"))
+    if not videos:
+        print("FAIL: no recording was produced")
+        return common.FAIL, run_dir
+    recorded = sum(recorded_frames(v) for v in videos) / REFRESH_HZ
+    speed = recorded / elapsed if elapsed > 0 else 0.0
+    print(f"{game}/{case}: ran {elapsed:.0f} s (keys fed in DOS); {len(videos)} recordings holding {recorded:.1f} s "
           f"({speed:.0%} of full speed){'; the game exited' if exited else ''}")
     if not exited and speed < MIN_SPEED:
         print(f"COULD-NOT-RUN: DOSBox ran at {speed:.0%} of full speed; the machine is too busy for a timed run")

@@ -455,6 +455,9 @@ func CAL_CacheSprite(chunk: int, unshifted: PackedByteArray) -> void:
 		return
 	var expanded: int = shiftstarts[spr.shifts]
 	MM_GetPtr("gr:%d" % chunk, expanded)
+	# TIME-D: the original's time building the shifted copies (per sprite, per byte made)
+	cost("sprchunk")
+	cost_n("sprbyte", expanded - shiftstarts[1] if spr.shifts > 1 else 0)
 	var dest: PackedByteArray = PackedByteArray()
 	dest.resize(expanded)
 	for k: int in range(mini(unshifted.size(), smallplane * 5)):

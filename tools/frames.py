@@ -144,8 +144,9 @@ def from_video(video, folder, meta=None):
     return from_videos([video], folder, meta)
 
 
-def from_videos(videos, folder, meta=None):
-    """Decode several captures, in order, into one sequence."""
+def from_videos(videos, folder, meta=None, skip_other_sizes=False):
+    """Decode several captures, in order, into one sequence. With `skip_other_sizes` a capture of another
+    size is left out (DOSBox 0.83 starts a new file at a mode change: the text-mode start-up's, HARN-22)."""
     writer = Writer(folder)
     for video in videos:
         probe = subprocess.run(
@@ -156,6 +157,8 @@ def from_videos(videos, folder, meta=None):
         # an older capture at twice the size (DOSBox's normal2x): every 2x2 block must be one
         # colour, which is checked, so halving it loses nothing
         double = (width, height) == (2 * WIDTH, 2 * HEIGHT)
+        if (width, height) != (WIDTH, HEIGHT) and not double and skip_other_sizes:
+            continue
         if (width, height) != (WIDTH, HEIGHT) and not double:
             raise ValueError(f"{video}: expected {WIDTH}x{HEIGHT}, got {width}x{height}")
         proc = subprocess.Popen(

@@ -23,6 +23,8 @@ def config():
     cfg["game_data"] = ROOT / cfg["game_data"]
     cfg["oracle_runs"] = Path(cfg["oracle_runs"])
     cfg["dosbox"] = Path(cfg["dosbox"])
+    # DOSBox Staging 0.81+ for HARN-22's key feeder (the keyboard controller's D2h command)
+    cfg["dosbox_keyfeed"] = Path(cfg.get("dosbox_keyfeed", cfg["dosbox"]))
     godot = Path(cfg["godot"])
     cfg["godot"] = godot if godot.is_absolute() else ROOT / godot
     cfg["gcc"] = Path(cfg.get("gcc", "gcc"))
