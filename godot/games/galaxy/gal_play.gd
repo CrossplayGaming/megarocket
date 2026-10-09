@@ -51,22 +51,22 @@ func CK_CountActiveObjects() -> void:
 	IN_WaitButton()
 
 
+## The original's DebugMemory (F10-M): the manager's totals, then its picture of memory.
 func CK_DebugMemory() -> void:
 	VL_FixRefreshBuffer()
-	US_CenterWindow(16, 10)
-
-	US_CPrint("Memory Usage:\n")
-	US_CPrint("-------------\n")
+	US_CenterWindow(16, 7)
+	US_CPrint("Memory Usage")
+	US_CPrint("------------")
 	@warning_ignore("integer_division")
-	US_PrintF("In Use      : %dk\n", [MM_UsedMemory() / 1024])
-	US_PrintF("Blocks      : %d\n", [MM_UsedBlocks()])
-	US_PrintF("Purgable    : %d\n", [MM_PurgableBlocks()])
+	US_Print("Total     :%dk" % ((mm_mainmem + mm_emsmem + mm_xmsmem) / 1024))
 	@warning_ignore("integer_division")
-	US_PrintF("GFX Mem Used: %dk\n", [VL_MemUsed() / 1024])
-	US_PrintF("GFX Surfaces: %d\n", [VL_NumSurfaces()])
+	US_Print("\nFree      :%dk" % (MM_FreeMemory(false) / 1024))
+	@warning_ignore("integer_division")
+	US_Print("\nWith purge:%dk" % (MM_FreeMemory(true) / 1024))
 	VH_UpdateScreen()
+	IN_WaitButton()    # IN_Ack
+	MM_ShowMemory()
 	IN_WaitButton()
-	#MM_ShowMemory();
 
 
 func CK_BeginDemoRecord() -> void:
@@ -957,7 +957,7 @@ func StopMusic() -> void:
 		var chunk: int = int(ca_audInfoE.startMusic) + i
 		# (C's CA_audio is fixed-size; past the port's lazily sized array nothing is cached)
 		if chunk < CA_audio.size() and CA_audio[chunk] != null:
-			MM_SetPurge(CA_audio[chunk], 3)
+			MM_SetPurge("aud:%d" % chunk, true)
 
 
 func StartMusic(level: int) -> void:
@@ -1333,7 +1333,7 @@ func CK_ShowStatusWindow() -> void:
 	ck_statusWindowYPx = 16
 	ck_statusDown = false
 	RF_SetDrawFunc(&"CK_ScrollStatusWindow")
-	while true:
+	while not quitting:    # (a harness run's time limit ends the wait; the port's Quit returns)
 		RF_Refresh()
 		if ck_statusWindowYPx == 168:
 			break
@@ -1355,7 +1355,7 @@ func CK_ShowStatusWindow() -> void:
 	ck_statusDown = true
 	RF_SetDrawFunc(&"CK_ScrollStatusWindow")
 
-	while true:
+	while not quitting:    # (a harness run's time limit ends the wait; the port's Quit returns)
 		RF_Refresh()
 		if ck_statusWindowYPx == 0:
 			break

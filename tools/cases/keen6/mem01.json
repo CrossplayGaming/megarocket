@@ -1,0 +1,59 @@
+{
+ "seconds": 17.0,
+ "keys": "",
+ "cycles": 20000,
+ "args": "/TEDLEVEL 1",
+ "press_until_picture": {
+  "key": "enter",
+  "from": 5.0,
+  "every": 1.5
+ },
+ "held": [
+  [
+   2.5,
+   "a",
+   3.5
+  ],
+  [
+   2.5,
+   "2",
+   3.5
+  ],
+  [
+   4.6,
+   "enter",
+   0.2
+  ],
+  [
+   6.5,
+   "enter",
+   0.2
+  ],
+  [
+   8.0,
+   "enter",
+   0.2
+  ],
+  [
+   9.5,
+   "f10",
+   1.0
+  ],
+  [
+   9.8,
+   "m",
+   0.2
+  ],
+  [
+   11.5,
+   "enter",
+   0.2
+  ],
+  [
+   13.5,
+   "enter",
+   0.2
+  ]
+ ],
+ "note": "MM oracle: /TEDLEVEL 1, debug keys on (A+2+Enter), F10+M: the memory usage window, then the memory map."
+}

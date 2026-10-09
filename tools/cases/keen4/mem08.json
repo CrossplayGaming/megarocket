@@ -1,0 +1,104 @@
+{
+ "seconds": 31.0,
+ "keys": "",
+ "cycles": 20000,
+ "args": "/TEDLEVEL 8",
+ "press_until_picture": {
+  "key": "enter",
+  "from": 5.0,
+  "every": 1.5
+ },
+ "held": [
+  [
+   3.0,
+   "a",
+   1.5
+  ],
+  [
+   3.0,
+   "2",
+   1.5
+  ],
+  [
+   3.8,
+   "enter",
+   0.2
+  ],
+  [
+   5.5,
+   "enter",
+   0.2
+  ],
+  [
+   7.0,
+   "enter",
+   0.2
+  ],
+  [
+   8.5,
+   "f10",
+   1.0
+  ],
+  [
+   8.8,
+   "m",
+   0.2
+  ],
+  [
+   10.5,
+   "enter",
+   0.2
+  ],
+  [
+   12.0,
+   "f10",
+   1.0
+  ],
+  [
+   12.3,
+   "y",
+   0.2
+  ],
+  [
+   14.0,
+   "enter",
+   0.2
+  ],
+  [
+   16.0,
+   "right",
+   3.0
+  ],
+  [
+   23.0,
+   "f10",
+   1.0
+  ],
+  [
+   23.3,
+   "m",
+   0.2
+  ],
+  [
+   25.0,
+   "enter",
+   0.2
+  ],
+  [
+   26.5,
+   "f10",
+   1.0
+  ],
+  [
+   26.8,
+   "y",
+   0.2
+  ],
+  [
+   28.5,
+   "enter",
+   0.2
+  ]
+ ],
+ "note": "MM oracle: /TEDLEVEL 8, debug keys on (A+2+Enter), F10+M (memory usage) and F10+Y (the memory map) after the load, then a death (right for 3 s) and the same after the restart."
+}

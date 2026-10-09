@@ -127,7 +127,7 @@ func US_PrintCentered(str: String) -> void:
 
 
 func US_CPrintLine(str: String) -> void:
-	CA_CacheGrChunk(3)
+	CA_EnsureGrChunk(3)
 	var wh: PackedInt32Array = call(USL_MeasureString, str, us_printFont)
 	if wh[0] <= us_windowW:
 		var x: int = us_windowX + ((us_windowW - wh[0]) / 2)

@@ -14,6 +14,14 @@ extends GalMenu
 ## quit, so each Quit is followed by a return.
 
 
+## The DOS memory Keen 6's manager gets: provisional, Keen 5's layout (the user's v1.0
+## executable did not answer the debug keys in keen6_mem01_a/b, so its own map is not yet
+## read; MM-01 in the ledger).
+func mm_layout() -> Dictionary:
+	return {"near": [0x3ff8, 0x177], "far": [0x41d8, 0x5e26], "high": [0xd001, 0x1fff],
+		"introscn": [0x2270, 0xfa], "tile8": 108, "tile8m": 36}
+
+
 # ===================================================================== ck6_misc.c
 
 # ck6_episode (the CK_EpisodeDef) is declared in gal_ck.gd.

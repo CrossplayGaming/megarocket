@@ -20,6 +20,13 @@ extends GalMenu
 
 
 
+## The DOS memory Keen 5 v1.4's manager gets under DOSBox with 632K free (keen5_mem01_a): its
+## near heap holds the 4K misc buffer, which Keen 4's cannot (see GalLib.mm_layout).
+func mm_layout() -> Dictionary:
+	return {"near": [0x3ff8, 0x177], "far": [0x41d8, 0x5e26], "high": [0xd001, 0x1fff],
+		"introscn": [0x2270, 0xfa], "tile8": 108, "tile8m": 36}
+
+
 # ===================================================================== ck5_misc.c
 
 # Contains some keen-5 specific functions.

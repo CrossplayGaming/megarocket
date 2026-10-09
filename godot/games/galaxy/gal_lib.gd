@@ -233,10 +233,17 @@ func CA_Startup() -> void:
 	ca_mapOn = -1
 	ca_levelbit = 1
 	ca_levelnum = 0
-	# CAL_SetupGrFile: the three header tables are cached at once and kept
-	CA_CacheGrChunk(int(ca_gfxInfoE.hdrBitmaps))
-	CA_CacheGrChunk(int(ca_gfxInfoE.hdrMasked))
-	CA_CacheGrChunk(int(ca_gfxInfoE.hdrSprites))
+	# CAL_SetupGrFile: the three header tables are cached at once and kept. The original
+	# allocates each table, reads its chunk into a temporary block and expands it there
+	# (the memory manager sees the same: pictable, picmtable, spritetable, compseg)
+	var tables: Array = [[int(ca_gfxInfoE.hdrBitmaps), "pictable", int(ca_gfxInfoE.numBitmaps) * 4],
+		[int(ca_gfxInfoE.hdrMasked), "picmtable", int(ca_gfxInfoE.numMasked) * 4],
+		[int(ca_gfxInfoE.hdrSprites), "spritetable", int(ca_gfxInfoE.numSprites) * 18]]
+	for tb: Array in tables:
+		MM_GetPtr(tb[1], tb[2])
+		MM_GetPtr("compseg", data.chunk_comp_length(tb[0]) + 4)
+		CA_CacheGrChunk(tb[0])
+		MM_FreePtr("compseg")
 
 
 func CAL_ShiftSprite(src: PackedByteArray, dst: PackedByteArray, dst_off: int, width: int, height: int, pxShift: int) -> void:
@@ -309,18 +316,68 @@ func CAL_CacheSprite(chunkNumber: int) -> void:
 	ca_graphChunks[chunkNumber] = shifted
 
 
+## The three header tables are the manager's pictable, picmtable and spritetable, not grsegs.
+func _mm_is_table(chunk: int) -> bool:
+	return chunk == int(ca_gfxInfoE.hdrBitmaps) or chunk == int(ca_gfxInfoE.hdrMasked) or chunk == int(ca_gfxInfoE.hdrSprites)
+
+
+## The bytes the original allocates for a chunk: a sprite's shifted copies (CAL_CacheSprite),
+## a tile chunk by its kind (CAL_ExpandGrChunk, with the original's tile8 counts), else the
+## expanded length the chunk carries.
+func _mm_chunk_size(chunk: int, expanded: int) -> int:
+	var g: Dictionary = ca_gfxInfoE
+	if chunk >= int(g.offSprites) and chunk < int(g.offSprites) + int(g.numSprites):
+		var spr: Dictionary = VH_GetSpriteTableEntry(chunk - int(g.offSprites))
+		var smallplane: int = int(spr.width) * int(spr.height)
+		var bigplane: int = (int(spr.width) + 1) * int(spr.height)
+		return 4 * 6 + 5 * (smallplane + (int(spr.shifts) - 1) * bigplane)
+	if chunk >= int(g.offTiles8) and chunk < int(g.offBinaries):
+		var lay: Dictionary = mm_layout()
+		if chunk < int(g.offTiles8m):
+			return 32 * int(lay.tile8)
+		if chunk < int(g.offTiles16):
+			return 40 * int(lay.tile8m)
+		if chunk < int(g.offTiles16m):
+			return 32 * 4
+		if chunk < int(g.offTiles32):
+			return 40 * 4
+		if chunk < int(g.offTiles32m):
+			return 32 * 16
+		return 40 * 16
+	return expanded
+
+
 func CA_CacheGrChunk(chunk: int) -> void:
 	CA_MarkGrChunk(chunk)
+	var managed: bool = mm_started and not _mm_is_table(chunk)
 	if ca_graphChunks[chunk] != null:
+		if managed:
+			MM_SetPurge("gr:%d" % chunk, false)
 		return
 	if data.chunk_start(chunk) == -1:
 		return
+	# the file's bytes of the chunk (the length word of a non-tile chunk included), read
+	# into the misc buffer or, too big for it, a block of their own
+	var filebytes: int = data.chunk_comp_length(chunk) + (0 if data.chunk_exp_length(chunk) != 0 else 4)
+	var bigbuffer: bool = managed and filebytes > MM_BUFFERSIZE
+	if bigbuffer:
+		if not MM_GetPtr("bigbuffer", filebytes):
+			return
+		MM_SetLock("bigbuffer", true)
 	if chunk >= int(ca_gfxInfoE.offSprites) and chunk < int(ca_gfxInfoE.offSprites) + int(ca_gfxInfoE.numSprites):
+		if managed and not MM_GetPtr("gr:%d" % chunk, _mm_chunk_size(chunk, 0)):
+			if bigbuffer:
+				MM_FreePtr("bigbuffer")
+			return
 		CAL_CacheSprite(chunk)
 	else:
 		var expanded: PackedByteArray = data.chunk(chunk)
 		if data.error != "":
 			Quit("Tried to expand an invalid chunk! Make sure you're using a compatible version of Keen!")
+			return
+		if managed and not MM_GetPtr("gr:%d" % chunk, _mm_chunk_size(chunk, expanded.size())):
+			if bigbuffer:
+				MM_FreePtr("bigbuffer")
 			return
 		ca_graphChunks[chunk] = expanded
 	# reading and Huffman-expanding the chunk (TIME-G); a sprite is also shifted
@@ -331,6 +388,8 @@ func CA_CacheGrChunk(chunk: int) -> void:
 		if costs.has("sprbyte") and ca_graphChunks[chunk] is VH_ShiftedSprite:
 			cost_n("sprbyte", (ca_graphChunks[chunk] as VH_ShiftedSprite).data.size())    # the shifted copies, by their size
 	cost_n("grbyte", data.chunk_comp_length(chunk))
+	if bigbuffer:
+		MM_FreePtr("bigbuffer")
 
 
 func CA_GetGrChunk(base: int, index: int, _chunkType: String, required: bool) -> Variant:
@@ -352,9 +411,29 @@ func CA_ClearMarks() -> void:
 		ca_graphChunkNeeded[i] = ca_graphChunkNeeded[i] & ~ca_levelbit
 
 
-## Purging is a memory matter the port does not have: chunks stay cached.
+## Every cached chunk made purgeable: the manager may throw it out for room.
 func CA_SetGrPurge() -> void:
-	pass
+	if not mm_started:
+		return
+	for i: int in range(ca_graphChunks.size()):
+		if ca_graphChunks[i] != null and not _mm_is_table(i):
+			MM_SetPurge("gr:%d" % i, true)
+
+
+## The map headers and sounds made purgeable, the map planes freed, the graphics too.
+func CA_SetAllPurge() -> void:
+	CA_ClearMarks()
+	if not mm_started:
+		return
+	for i: int in CA_MapHeaders.keys():
+		MM_SetPurge("maphead:%d" % i, true)
+	for plane: int in range(CA_NUMMAPPLANES):
+		if mm_blocks.has("map:%d" % plane):
+			MM_FreePtr("map:%d" % plane)
+	for i: int in range(CA_audio.size()):
+		if CA_audio[i] != null:
+			MM_SetPurge("aud:%d" % i, true)
+	CA_SetGrPurge()
 
 
 func CA_MarkGrChunk(chunk: int) -> void:
@@ -372,10 +451,15 @@ var ca_finishCacheBox: StringName = &""
 func CA_CacheMarks(msg: String) -> void:
 	var isMessage: bool = msg != ""
 	var numChunksToCache: int = 0
-	# (marking purgeable is a memory matter the port does not have)
+	# what is needed and cached stays, what is cached and not needed may go
 	for i: int in range(ca_graphChunkNeeded.size()):
-		if (ca_graphChunkNeeded[i] & ca_levelbit) != 0 and ca_graphChunks[i] == null:
-			numChunksToCache += 1
+		if (ca_graphChunkNeeded[i] & ca_levelbit) != 0:
+			if ca_graphChunks[i] == null:
+				numChunksToCache += 1
+			elif mm_started and not _mm_is_table(i):
+				MM_SetPurge("gr:%d" % i, false)
+		elif ca_graphChunks[i] != null and mm_started and not _mm_is_table(i):
+			MM_SetPurge("gr:%d" % i, true)
 	if numChunksToCache == 0:
 		return
 	if isMessage and ca_beginCacheBox != &"":
@@ -433,14 +517,39 @@ func CA_MarkAllLumps(lumpStarts: PackedInt32Array, lumpEnds: PackedInt32Array) -
 
 
 func CA_CacheMap(mapIndex: int) -> void:
+	# free up memory from the last map (levels are always reloaded, never cached)
+	if ca_mapOn > -1 and CA_MapHeaders.has(ca_mapOn):
+		MM_SetPurge("maphead:%d" % ca_mapOn, true)
+	for plane: int in range(CA_NUMMAPPLANES):
+		if mm_blocks.has("map:%d" % plane):
+			MM_FreePtr("map:%d" % plane)
 	ca_mapOn = mapIndex
 	var m: Dictionary = data.load_map(mapIndex)
 	if m.is_empty():
 		Quit("CA_CacheMap: Tried to load a non-existant map!")
 		return
+	# the header is cached if it is still around
+	if CA_MapHeaders.has(mapIndex):
+		MM_SetPurge("maphead:%d" % mapIndex, false)
+	else:
+		MM_GetPtr("maphead:%d" % mapIndex, 38)    # sizeof(maptype)
 	CA_MapHeaders[mapIndex] = {"width": int(m.width), "height": int(m.height), "name": String(m.get("name", ""))}
+	# each plane: its block, the file's bytes read into the misc buffer or a block of their own,
+	# the Carmack expansion into a scratch block, the RLEW expansion into the plane, the scratch
+	# freed (id_ca.c 1991; keen4_mem08b_a: the third plane's scratch takes the box picture's room)
+	var sizes: Array = data.map_plane_sizes(mapIndex)
 	for plane: int in range(CA_NUMMAPPLANES):
+		MM_GetPtr("map:%d" % plane, int(m.width) * int(m.height) * 2)
+		var compressed: int = int(sizes[plane][0]) if plane < sizes.size() else 0
+		var expanded: int = int(sizes[plane][1]) if plane < sizes.size() else 0
+		var bigbuffer: bool = mm_started and compressed > MM_BUFFERSIZE
+		if bigbuffer:
+			MM_GetPtr("bigbuffer", compressed)
+		MM_GetPtr("buffer2seg", expanded)
 		CA_mapPlanes[plane] = (m.plane[plane] as PackedInt32Array).duplicate()
+		MM_FreePtr("buffer2seg")
+		if bigbuffer:
+			MM_FreePtr("bigbuffer")
 	# reading and expanding the three planes (TIME-G)
 	cost_n("mapword", int(m.width) * int(m.height))
 
@@ -1541,9 +1650,18 @@ func CA_LoadFile(_filename: String) -> PackedByteArray:
 	return PackedByteArray()
 
 
-## id_ca.c: MM_SetLock on the chunk, a memory matter the port does not have.
-func CA_LockGrChunk(_chunk: int) -> void:
-	pass
+## omnispeak caches a chunk again before using it in places the original just uses it (its
+## print routines, CK_SetAction); the original's memory manager never hears of those, so
+## here the chunk is cached only when it is missing (which the original could not survive).
+func CA_EnsureGrChunk(chunk: int) -> void:
+	if ca_graphChunks[chunk] == null:
+		CA_CacheGrChunk(chunk)
+
+
+## id_ca.c: MM_SetLock on the chunk.
+func CA_LockGrChunk(chunk: int) -> void:
+	if mm_started and ca_graphChunks[chunk] != null:
+		MM_SetLock("gr:%d" % chunk, true)
 
 
 ## id_ca.c: the RLEW compressor. src is a map plane (words) from src_off;
@@ -1634,11 +1752,6 @@ func CFG_Shutdown() -> void:
 	pass
 
 
-## id_mm.c: frees the memory manager's blocks; the port has none.
-func MM_Shutdown() -> void:
-	pass
-
-
 ## rand()'s state (the C library's, seeded 1 as an unseeded rand() is).
 var rand_seed: int = 1
 
@@ -1657,37 +1770,349 @@ const FS_MAX_FILENAME_LEN: int = 24
 const CK_NEW_FEATURE_DEFAULT: bool = false
 
 
-## id_mm.c. The port keeps every cached chunk (see CA_SetGrPurge in gal_lib.gd), so a
-## purge level changes nothing.
-func MM_SetPurge(_ptr: Variant, _level: int) -> void:
-	pass
+# ===================================================================== id_mm.c (TIME-G)
+# The original's memory manager, kept beside the port's own storage. What it throws out (a
+# purgeable block in the way of an allocation) and when it compacts memory (MML_SortMem)
+# decide what the original loads again and when it spends time moving memory, which the
+# recordings show (REPLAY-G4's restarts, TIME-G4's demo box). The blocks are the original's:
+# start and length in paragraphs, the lock and purge bits, a list in address order; each is
+# keyed by the C pointer variable it belongs to ("gr:N" grsegs[N], "aud:N" audiosegs[N],
+# "map:P" a map plane, "maphead:N", and the temporaries by name). A block purged has its
+# owner cleared (_mm_purged), so the port caches the thing again, at its cost. The regions
+# (the DOS program's near and far heaps, the upper memory with the EMS frame) are the
+# machine's, read from the original's own memory map (F10-M) under DOSBox: mm_layout().
+
+const MM_LOCKBIT: int = 1
+const MM_PURGEBIT: int = 2
+const MM_BUFFERSIZE: int = 0x1000
 
 
-## id_mm.c: a TODO there too.
-func MM_BombOnError(_bomb: bool) -> void:
-	pass
+class MMBlock:
+	var start: int = 0
+	var length: int = 0
+	var attr: int = 0
+	var key: String = ""
+	var next: MMBlock = null
 
 
-## id_mm.c's counters, for the F10-M display: the port has no memory manager.
-func MM_UsedMemory() -> int:
+## The cached audio chunks (id_ca.c's audiosegs; GalIO fills it), here so the manager can clear one.
+var CA_audio: Array = []
+
+var mm_head: MMBlock = null
+var mm_rover: MMBlock = null
+var mm_blocks: Dictionary = {}    # key -> MMBlock
+var mm_error: bool = false        # mmerror
+var mm_bombonerror: bool = true
+var mm_started: bool = false
+var mm_mainmem: int = 0
+var mm_emsmem: int = 0
+var mm_xmsmem: int = 0
+
+
+## The DOS memory the original's manager gets, in paragraphs [start, length]: the near heap
+## (what is left of the data segment), the far heap (DOS's free memory above the program), the
+## upper memory blocks with the EMS page frame (one gap, 0xd001-0xf000), and the start-up text
+## screen's buffer that InitGame hands over. Keen 4 v1.4 under DOSBox with 632K free
+## (keen4_mem08_a); tile8 and tile8m are the sizes the original allocates for those chunks
+## (its compile-time counts, 108 and 36 tiles, not the data's). Episodes override.
+func mm_layout() -> Dictionary:
+	return {"near": [0x3f34, 0xee], "far": [0x408b, 0x5f73], "high": [0xd001, 0x1fff],
+		"introscn": [0x2187, 0xfa], "tile8": 108, "tile8m": 36}
+
+
+func MM_Startup() -> void:
+	if OS.has_environment("MMOFF"):    # a harness switch: the port without the manager
+		return
+	var lay: Dictionary = mm_layout()
+	mm_head = MMBlock.new()
+	mm_head.start = 0
+	mm_head.length = 0xffff
+	mm_head.attr = MM_LOCKBIT
+	mm_blocks = {}
+	mm_rover = mm_head
+	mm_error = false
+	mm_bombonerror = true
+	mm_started = true
+	MML_UseSpace(lay.near[0], lay.near[1])
+	MML_UseSpace(lay.far[0], lay.far[1])
+	mm_mainmem = (lay.near[1] + lay.far[1]) * 16
+	# EMS (4 pages at the frame) and the XMS upper memory blocks, adjacent here
+	MML_UseSpace(lay.high[0], lay.high[1])
+	mm_emsmem = 0x10000
+	mm_xmsmem = (lay.high[1] - 0x1000) * 16
+	mm_rover = mm_head
+	# the misc buffer: the first allocation (keen4_mem08_a: the far heap starts with it)
+	MM_GetPtr("bufferseg", MM_BUFFERSIZE)
+
+
+func MM_Shutdown() -> void:
+	mm_started = false
+
+
+## A range of memory the manager may use, taken out of the locked block holding it.
+func MML_UseSpace(segstart: int, seglength: int) -> void:
+	if not mm_started:
+		return
+	var scan: MMBlock = mm_head
+	var last: MMBlock = mm_head
+	mm_rover = mm_head
+	while scan.start + scan.length < segstart:
+		last = scan
+		scan = scan.next
+	var oldend: int = scan.start + scan.length
+	var extra: int = oldend - (segstart + seglength)
+	if extra < 0:
+		Quit("MML_UseSpace: Segment spans two blocks!")
+		return
+	if segstart == scan.start:
+		last.next = scan.next
+		scan = last
+	else:
+		scan.length = segstart - scan.start
+	if extra > 0:
+		var b: MMBlock = MMBlock.new()
+		b.next = scan.next
+		scan.next = b
+		b.start = segstart + seglength
+		b.length = extra
+		b.attr = MM_LOCKBIT
+
+
+## FREEBLOCK: the block's owner loses it.
+func _mm_free_block(b: MMBlock) -> void:
+	if b.key != "":
+		mm_blocks.erase(b.key)
+		_mm_purged(b.key)
+
+
+## The owner of a purged block: the port's cache of it is cleared, so it is read again.
+func _mm_purged(key: String) -> void:
+	if key.begins_with("gr:"):
+		ca_graphChunks[int(key.substr(3))] = null
+	elif key.begins_with("aud:"):
+		var n: int = int(key.substr(4))
+		if n < CA_audio.size():
+			CA_audio[n] = null
+	elif key.begins_with("maphead:"):
+		CA_MapHeaders.erase(int(key.substr(8)))
+
+
+## Allocates an unlocked, unpurgable block; false when there is no room (bombonerror off).
+func MM_GetPtr(key: String, size: int) -> bool:
+	if not mm_started:
+		return true
+	if mm_blocks.has(key):
+		push_warning("MM_GetPtr: %s allocated twice" % key)
+		MM_FreePtr(key)
+	@warning_ignore("integer_division")
+	var needed: int = (size + 15) / 16
+	var mmnew: MMBlock = MMBlock.new()
+	mmnew.length = needed
+	mmnew.key = key
+	mmnew.attr = 0
+	for search: int in range(3):
+		var lastscan: MMBlock
+		var scan: MMBlock
+		var endscan: MMBlock = null
+		# first search: right after the rover, then on up; second: from the head up to the
+		# rover; third: compress memory, then from the start
+		if search == 1 and mm_rover == mm_head:
+			continue
+		match search:
+			0:
+				lastscan = mm_rover
+				scan = mm_rover.next
+			1:
+				lastscan = mm_head
+				scan = mm_head.next
+				endscan = mm_rover
+			_:
+				MML_SortMem()
+				lastscan = mm_head
+				scan = mm_head.next
+		var startseg: int = lastscan.start + lastscan.length
+		while scan != endscan:
+			if scan.start - startseg >= needed:
+				# room between the end of lastscan and the start of scan: throw out
+				# anything in the middle and allocate there
+				var purge: MMBlock = lastscan.next
+				lastscan.next = mmnew
+				mmnew.start = startseg
+				mmnew.next = scan
+				while purge != scan:
+					var nxt: MMBlock = purge.next
+					_mm_free_block(purge)
+					purge = nxt
+				mm_rover = mmnew
+				mm_blocks[key] = mmnew
+				return true
+			# a block locked or at purge level zero is skipped past
+			if (scan.attr & MM_LOCKBIT) != 0 or (scan.attr & MM_PURGEBIT) == 0:
+				lastscan = scan
+				startseg = lastscan.start + lastscan.length
+			scan = scan.next
+	if mm_bombonerror:
+		Quit("MM_GetPtr: Out of memory!")
+	else:
+		mm_error = true
+	return false
+
+
+func MM_FreePtr(key: String) -> void:
+	if not mm_started:
+		return
+	if mm_rover.key == key:    # removed the last allocated block
+		mm_rover = mm_head
+	var last: MMBlock = mm_head
+	var scan: MMBlock = mm_head.next
+	while scan != null and scan.key != key:
+		last = scan
+		scan = scan.next
+	if scan == null:
+		Quit("MM_FreePtr: Block not found! (%s)" % key)
+		return
+	last.next = scan.next
+	mm_blocks.erase(key)
+
+
+## The rover moved to the block (MML_SetRover): on from where it is, round to the head.
+func _mm_set_rover(key: String) -> bool:
+	var start: MMBlock = mm_rover
+	while true:
+		if mm_rover.key == key:
+			return true
+		mm_rover = mm_rover.next
+		if mm_rover == null:
+			mm_rover = mm_head
+		elif mm_rover == start:
+			return false
+	return false
+
+
+func MM_SetPurge(key: String, purge: bool) -> void:
+	if not mm_started:
+		return
+	if not _mm_set_rover(key):
+		Quit("MM_SetPurge: Block not found! (%s)" % key)
+		return
+	mm_rover.attr &= ~MM_PURGEBIT
+	if purge:
+		mm_rover.attr |= MM_PURGEBIT
+
+
+func MM_SetLock(key: String, locked: bool) -> void:
+	if not mm_started:
+		return
+	if not _mm_set_rover(key):
+		Quit("MM_SetLock: Block not found! (%s)" % key)
+		return
+	mm_rover.attr &= ~MM_LOCKBIT
+	if locked:
+		mm_rover.attr |= MM_LOCKBIT
+
+
+## Throws out all purgeable blocks and piles the movable ones down, each moved block costing
+## its paragraphs (TIME-G, mmmove); the border turns white meanwhile, as the original's does.
+func MML_SortMem() -> void:
+	var playing: int = SD_SoundPlaying()
+	var sound_key: String = ""
+	if playing != 0 and mm_blocks.has("aud:%d" % playing):
+		sound_key = "aud:%d" % playing
+		MM_SetLock(sound_key, true)
+	var oldborder: int = vl_border_color
+	VL_ColorBorder(15)
+	var moved: int = 0
+	var start: int = 0
+	var last: MMBlock = null
+	var scan: MMBlock = mm_head
+	while scan != null:
+		if (scan.attr & MM_LOCKBIT) != 0:
+			# locked: later blocks pile right after it
+			start = scan.start + scan.length
+		elif (scan.attr & MM_PURGEBIT) != 0:
+			# the purgeable block goes
+			var nxt: MMBlock = scan.next
+			_mm_free_block(scan)
+			last.next = nxt
+			scan = nxt
+			continue
+		else:
+			if scan.start != start:
+				moved += scan.length
+				scan.start = start
+			start = scan.start + scan.length
+		last = scan
+		scan = scan.next
+	mm_rover = mm_head
+	cost_n("mmmove", moved)
+	VL_ColorBorder(oldborder)
+	if sound_key != "":
+		MM_SetLock(sound_key, false)
+
+
+## The free space in bytes, the purgeable (unlocked) blocks counted when asked.
+func MM_FreeMemory(withpurging: bool) -> int:
+	if not mm_started:
+		return 0
+	var free: int = 0
+	var scan: MMBlock = mm_head
+	while scan.next != null:
+		if withpurging and (scan.attr & MM_PURGEBIT) != 0 and (scan.attr & MM_LOCKBIT) == 0:
+			free += scan.length
+		free += scan.next.start - (scan.start + scan.length)
+		scan = scan.next
+	return free * 16
+
+
+func MM_BombOnError(bomb: bool) -> void:
+	mm_bombonerror = bomb
+
+
+## id_sd.c's, GalIO's: the sound playing, which MML_SortMem locks down meanwhile.
+func SD_SoundPlaying() -> int:
 	return 0
 
 
-func MM_UsedBlocks() -> int:
-	return 0
+## The debug key's picture of memory: one pixel a paragraph, 320 to a row, each block a line
+## (purple purgeable, blue not, red locked) from a white pixel at its start, free space black.
+func MM_ShowMemory() -> void:
+	if not mm_started:
+		return
+	if OS.has_environment("MMDUMP"):    # a harness aid: the block list behind the picture
+		var b: MMBlock = mm_head
+		while b != null:
+			print("MMDUMP %s %s %d %s" % [String.num_int64(b.start, 16), String.num_int64(b.length, 16), b.attr, b.key])
+			b = b.next
+	var scan: MMBlock = mm_head
+	var end: int = -1
+	while scan != null:
+		var color: int = 5 if (scan.attr & MM_PURGEBIT) != 0 else 9
+		if (scan.attr & MM_LOCKBIT) != 0:
+			color = 12
+		if scan.start <= end:
+			Quit("MM_ShowMemory: Memory block order currupted!")
+			return
+		end = scan.start + scan.length - 1
+		_mm_hlin(scan.start, end, color)
+		_mm_hlin(scan.start, scan.start, 15)
+		if scan.next != null and scan.next.start > end + 1:
+			_mm_hlin(end + 1, scan.next.start, 0)
+		scan = scan.next
+	VL_ShowRows(0, VL_EGAVGA_GFX_HEIGHT)
+	# (the caller waits for the key, IN_Ack)
 
 
-func MM_PurgableBlocks() -> int:
-	return 0
-
-
-## id_vl.c's counters, for the F10-M display: the port does not count surface memory.
-func VL_MemUsed() -> int:
-	return 0
-
-
-func VL_NumSurfaces() -> int:
-	return 0
+## VW_Hlin over the 320-wide memory picture, paragraphs a..b inclusive.
+func _mm_hlin(a: int, b: int, color: int) -> void:
+	var i: int = a
+	while i <= b and i < 320 * VL_EGAVGA_GFX_HEIGHT:
+		@warning_ignore("integer_division")
+		var y: int = i / 320
+		var x: int = i % 320
+		var run: int = mini(b - i + 1, 320 - x)
+		# the original shows the page from address 0; here the shown window is at the scroll
+		VL_ScreenRect(x + vl_scrollXpixels, y + vl_scrollYpixels, run, 1, color)
+		i += run
 
 
 ## C's errno, as the port's file calls leave it (ENOENT for a user file that

@@ -48,6 +48,8 @@ KEYS = {
     "kp9": (0x69, 0x49),
     "kp0": (0x60, 0x52),
     "kpdot": (0x6E, 0x53),
+    # letters and digits the Galaxy debug keys need (A+2+Enter, F10+M, F10+Y)
+    "a": (0x41, 0x1E), "m": (0x4D, 0x32), "y": (0x59, 0x15), "2": (0x32, 0x03),
 }
 
 _EnumWindowsProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)

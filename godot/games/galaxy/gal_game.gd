@@ -136,7 +136,8 @@ func CK_InitGame() -> void:
 	CA_MarkGrChunk(int(ca_gfxInfoE.offTiles8m))
 	CA_MarkGrChunk(CK_CHUNKNUM("MPIC_STATUSLEFT"))
 	CA_MarkGrChunk(CK_CHUNKNUM("MPIC_STATUSRIGHT"))
-	CA_MarkGrChunk(CK_CHUNKNUM("PIC_TITLESCREEN"))    # Moved from CA_Startup
+	# (omnispeak caches PIC_TITLESCREEN here too; the original does not, and its memory map
+	# shows it: keen4_mem08_a)
 	CA_CacheMarks("")    # CA_CacheMarks(0): no message
 
 	# Lock them chunks in memory.
@@ -145,6 +146,10 @@ func CK_InitGame() -> void:
 	CA_LockGrChunk(int(ca_gfxInfoE.offTiles8m))
 	CA_LockGrChunk(CK_CHUNKNUM("MPIC_STATUSLEFT"))
 	CA_LockGrChunk(CK_CHUNKNUM("MPIC_STATUSRIGHT"))
+
+	# InitGame hands the start-up text screen's buffer to the memory manager
+	var introscn: Array = mm_layout().introscn
+	MML_UseSpace(introscn[0], introscn[1])
 
 	# Setup the screen
 	VL_Startup()
@@ -291,7 +296,8 @@ func CK_MainBody(argv: PackedStringArray) -> int:
 	if US_ParmPresent("DEMO"):
 		ck_storeDemo = true
 
-	# FS_Startup(), MM_Startup(), CFG_Startup(): the shell's (no file system here)
+	# FS_Startup(), CFG_Startup(): the shell's (no file system here)
+	MM_Startup()
 	# ck_cross_logLevel = CFG_GetConfigEnum("logLevel", ...): logging only
 
 	# Compile the actions
@@ -1019,8 +1025,11 @@ func CK_BeginCacheBox(title: String, numChunks: int) -> void:
 	# Vanilla keen checks if > 2kb free here; not necessary for omnispeak
 	ck_cacheCountdownNum = 0
 
-	# Cache the Keen countdown graphics
-	for i: int in range(6):
+	# Cache the Keen countdown graphics (not when memory is nearly out: the original's
+	# DialogDraw asks the manager first)
+	if mm_started and MM_FreeMemory(true) < 2048:
+		ck_cacheCountdownNum = 5
+	for i: int in range(6 if ck_cacheCountdownNum == 0 else 0):
 		# TODO: Episode independence
 		CA_CacheGrChunk(CK_CHUNKNUM("PIC_COUNTDOWN5") + i)
 		ca_graphChunkNeeded[CK_CHUNKNUM("PIC_COUNTDOWN5") + i] &= ~ca_levelbit
@@ -1028,10 +1037,13 @@ func CK_BeginCacheBox(title: String, numChunks: int) -> void:
 		# If a pic can't be cached, forget updating the hand pics by setting
 		# the countdown counter at 5
 		if ca_graphChunks[CK_CHUNKNUM("PIC_COUNTDOWN5") + i] == null:
+			mm_error = false
 			ck_cacheCountdownNum = 5
 			break
 
-		# MM_SetPurge(ca_graphChunks + PIC_COUNTDOWN5 + i, 3): memory only
+		# the pictures may go once the box is drawn: the next allocation needing their
+		# room takes it (keen4_mem08_a shows the box picture moving)
+		MM_SetPurge("gr:%d" % (CK_CHUNKNUM("PIC_COUNTDOWN5") + i), true)
 
 	US_CenterWindow(26, 8)
 
@@ -2127,11 +2139,10 @@ func AdvanceTerminatorCredit(elapsedTime: int) -> int:
 
 	# case -1 flows into case 0, as the C's switch does
 	if ck_termCreditStage == -1:
-		# loading
+		# loading (the plaque was loaded by CK_LoadPlaques)
 		picchunk = CK_LookupChunk(terminator_pics[ck_currentTerminatorCredit])
-		CA_CacheGrChunk(picchunk)
 		var bmp: Dictionary = VH_GetBitmapTableEntry(picchunk - int(ca_gfxInfoE.offBitmaps))
-		ck_currentTermPicSeg = ca_graphChunks[picchunk]
+		ck_currentTermPicSeg = ck_plaqueSegs[ck_currentTerminatorCredit]
 		ck_currentTermPicWidth = u16(bmp.width)    # This is width in EGA bytes (1/8 px)
 		ck_currentTermPicHalfWidth = u16((ck_currentTermPicWidth + 3) >> 1)
 		ck_currentTermPicHeight = u16(bmp.height)
@@ -2253,6 +2264,22 @@ func ScrollTerminatorCredits(elapsedTime: int, xpixel: int) -> void:
 		VL_1bppToScreen_PM(ck_currentTermPicSeg, plane_2, picX, creditY1, ck_currentTermPicWidth * 8, ScrollTerminatorCredits_rowsToDraw, 0xF)
 		VL_ScreenRect_PM(picX + ck_currentTermPicWidth * 8, creditY1, 8, ScrollTerminatorCredits_rowsToDraw, 0)
 		cost_n("plaquebyte", 2 * ck_currentTermPicWidth * ScrollTerminatorCredits_rowsToDraw)    # TIME-G
+
+
+## The four credit plaques, each cached, converted into a buffer of its own (two planes of
+## words: planesize*2) and its chunk freed, before the scroll (the original's LoadPlaque).
+var ck_plaqueSegs: Array = [PackedByteArray(), PackedByteArray(), PackedByteArray(), PackedByteArray()]
+
+
+func CK_LoadPlaques() -> void:
+	for i: int in range(4):
+		var picchunk: int = CK_LookupChunk(terminator_pics[i])
+		CA_CacheGrChunk(picchunk)
+		var bmp: Dictionary = VH_GetBitmapTableEntry(picchunk - int(ca_gfxInfoE.offBitmaps))
+		MM_GetPtr("basepl:%d" % i, int(bmp.width) * int(bmp.height) * 2 * 2)
+		ck_plaqueSegs[i] = ca_graphChunks[picchunk]
+		MM_FreePtr("gr:%d" % picchunk)
+		ca_graphChunks[picchunk] = null
 
 
 ## Does the terminator scrolling.
@@ -2501,6 +2528,7 @@ func TerminatorExpandRLE(src: BytePtr, dest: BytePtr) -> void:
 ## Generate an RLE-compressed bitmap with COMMANDER KEEN separated by some
 ## space: here alternating runs are given by their start positions.
 func JoinTerminatorPics() -> void:
+	MM_GetPtr("both", 30000)
 	# Allocate memory for the COMMANDER KEEN graphic
 	introbuffer2 = PackedByteArray()
 	introbuffer2.resize(30000)
@@ -2671,7 +2699,8 @@ func ZoomOutTerminator() -> void:
 	# The starting (negative) offset of the COMMANDER graphic from the left edge of the screen
 	startingLeftOffset = 120 - _game_rd16(ck_introCommander, 2)
 
-	JoinTerminatorPics()
+	JoinTerminatorPics()    # BuildScaleShape: its 30000-byte buffer
+	MM_GetPtr("scaletable", 2500 * 2)
 
 	scaleFactor = 256
 	finalHeight = 33
@@ -2745,7 +2774,9 @@ func ZoomOutTerminator() -> void:
 			# return;// should this be break instead? Want to free intro buffers!
 			break
 
+	MM_FreePtr("scaletable")
 	introbuffer2 = PackedByteArray()    # MM_FreePtr(&introbuffer2)
+	MM_FreePtr("both")
 
 
 ## The Fizzlefade routine: the title graphic drawn to a new surface, then
@@ -2912,6 +2943,10 @@ func CK_DrawTerminator() -> void:
 		var seg: PackedByteArray = PackedByteArray()
 		seg.resize(cmdrWidthX100)
 		shiftedCmdrBMPsegs[i] = seg
+		MM_GetPtr("cmdr:%d" % i, cmdrWidthX100)
+	# the four plaques, loaded now (LoadPlaque: the picture converted into a buffer of its
+	# own and the chunk freed), where omnispeak loads each as its credit comes
+	CK_LoadPlaques()
 
 	ck_introKeen = ca_graphChunks[CK_CHUNKNUM("EXTERN_KEEN")]
 	ck_introCommander = ca_graphChunks[CK_CHUNKNUM("EXTERN_COMMANDER")]
@@ -2945,6 +2980,10 @@ func CK_DrawTerminator() -> void:
 	ck_currentTermPicStartTime = 0
 	ck_termCreditStage = -1
 	AnimateTerminator()
+	for i: int in range(4):
+		MM_FreePtr("basepl:%d" % i)
+	for i: int in range(8):
+		MM_FreePtr("cmdr:%d" % i)
 
 	# Omnispeak
 	VL_ResizeScreen(RF_BUFFER_WIDTH_TILES * 16, RF_BUFFER_HEIGHT_TILES * 16)
@@ -2960,7 +2999,9 @@ func CK_DrawTerminator() -> void:
 		terminator_complete = true
 
 	# Free the COMMANDER and KEEN bitmaps
-	# MM_SetPurge(EXTERN_COMMANDER, 3); MM_SetPurge(EXTERN_KEEN, 3): memory only
+	if mm_started:
+		MM_SetPurge("gr:%d" % CK_CHUNKNUM("EXTERN_COMMANDER"), true)
+		MM_SetPurge("gr:%d" % CK_CHUNKNUM("EXTERN_KEEN"), true)
 
 	# Restore video mode to normal
 	# DOS: VW_ClearVideo, straight into video memory when a key cut the intro
@@ -3069,8 +3110,11 @@ func CK_PrepareSWUpdate() -> void:
 	# SW text surface (in SWunits).
 	var currentMasterRow: int = 0
 
-	# TIME-G: the original's BuildBitTables (once, before the rows)
+	# TIME-G: the original's BuildBitTables (once, before the rows), then CompileSWUpdate
+	# with its 190000-byte block of compiled code
+	MM_GetPtr("bittables", 0x4000)
 	cost("swtables")
+	MM_GetPtr("linecode", 190000)
 
 	for row: int in range(199, -1, -1):
 		# Width of the row in pixels, even.
@@ -3180,6 +3224,8 @@ func CK_DrawSWText() -> void:
 
 	# Save off the total height of the scroller.
 	ck_starWarsTotalHeight = US_GetPrintY()
+	# the text's picture, copied out of video memory into a buffer of its own: 42 bytes a row
+	MM_GetPtr("sourcepic", ck_starWarsTotalHeight * 42)
 	US_SetPrintY(0)
 	US_SetPrintRoutines(&"", &"")
 
@@ -3269,7 +3315,7 @@ func CK_DrawStarWars() -> void:
 	VL_ClearScreen(0)
 	VL_SetScrollCoords(0, 0)
 
-	CA_SetGrPurge()
+	CA_SetAllPurge()
 	# Cache and set the Star Wars font.
 	CA_CacheGrChunk(5)
 	US_SetPrintFont(2)
@@ -3282,6 +3328,7 @@ func CK_DrawStarWars() -> void:
 
 	# Keen draws this to a separate surface, for fast copies.
 	VH_DrawBitmap(0, 0, CK_CHUNKNUM("PIC_STARWARS"))
+	CA_SetAllPurge()
 
 	VL_SetPaletteFromArray(CK_VAR_GetIntArray("ck_starWarsPalette"))
 
@@ -3296,6 +3343,9 @@ func CK_DrawStarWars() -> void:
 		StopMusic()
 
 	VL_DestroySurface(ck_starWarsTextSurface)
+	MM_FreePtr("linecode")
+	MM_FreePtr("bittables")
+	MM_FreePtr("sourcepic")
 
 	VL_ClearScreen(0)
 	VL_SetScrollCoords(0, 0)
@@ -3307,6 +3357,7 @@ func CK_DrawStarWars() -> void:
 
 func CK_ShowTitleScreen() -> void:
 	# scrollofs = 0;
+	CA_SetGrPurge()
 	CA_CacheGrChunk(CK_CHUNKNUM("PIC_TITLESCREEN"))
 	VH_DrawBitmap(0, 0, CK_CHUNKNUM("PIC_TITLESCREEN"))
 	# VW_SetScreen(0,bufferofs_0);
@@ -3351,10 +3402,14 @@ func CK_PlayDemo(demoNumber: int) -> void:
 
 	CA_CacheGrChunk(demoChunk)
 	var demoBuf: PackedByteArray = ca_graphChunks[demoChunk]
-	# MM_SetLock(&ca_graphChunks[demoChunk], true): memory only
 
 	var demoMap: int = demoBuf[0]    # uint16_t demoMap = *demoBuf: one byte (demoBuf is uint8_t *)
 	var demoLen: int = GalData.u16(demoBuf, 2)
+	# RunDemo copies the demo into a locked buffer of its own and frees the chunk
+	MM_GetPtr("DemoBuffer", demoLen)
+	MM_SetLock("DemoBuffer", true)
+	MM_FreePtr("gr:%d" % demoChunk)
+	ca_graphChunks[demoChunk] = null
 
 	ck_gameState.currentLevel = s16(demoMap)
 
@@ -3370,7 +3425,7 @@ func CK_PlayDemo(demoNumber: int) -> void:
 
 	# We have to get rid of the demo buffer, as if we want to play it again,
 	# we need a fresh copy. ID_IN modifies the buffer.
-	ca_graphChunks[demoChunk] = null    # MM_FreePtr(&ca_graphChunks[demoChunk])
+	MM_FreePtr("DemoBuffer")
 	VL_FixRefreshBuffer()
 	CA_ClearMarks()
 

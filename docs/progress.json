@@ -133,7 +133,7 @@
     "AND-02"
    ],
    "notes": {
-    "matches": "Level 1 proven: a 32-second session matches the original picture for picture. The other levels match until Keen first dies; the restart after a death is the open piece (how DOS frees and reloads memory)"
+    "matches": "Level 1 proven picture for picture. The original's memory manager is now modelled and proven against the original's own memory map; the other levels match until Keen first dies, where one refresh of the restart is still open"
    }
   },
   {
@@ -161,7 +161,7 @@
     "AND-02"
    ],
    "notes": {
-    "matches": "Boot matches the original to the refresh through the title with Keen 4's timing; 14 level recordings made"
+    "matches": "Boot matches to the refresh through the title; memory manager proven against its own map; 14 level recordings made"
    }
   },
   {
@@ -251,6 +251,10 @@
   }
  ],
  "milestones": [
+  {
+   "date": "2026-10-08",
+   "text": "The original's memory manager modelled and proven against its own memory map (Keen 4 and 5)"
+  },
   {
    "date": "2026-10-08",
    "text": "Keen 4 level 1 proven against the original, picture for picture"

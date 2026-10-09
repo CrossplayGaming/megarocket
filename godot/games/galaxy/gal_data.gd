@@ -707,6 +707,28 @@ func num_audio_chunks() -> int:
 	return _au_starts.size() / 4 - 1
 
 
+## A map's planes as the original reads them: [bytes in the file, Carmack-expanded bytes] for each.
+func map_plane_sizes(i: int) -> Array:
+	var out: Array = []
+	if i < 0 or 2 + i * 4 + 4 > _map_head.size():
+		return out
+	var off: int = u32(_map_head, 2 + i * 4)
+	if off <= 0 or off + 22 > _maps_file.size():
+		return out
+	for p: int in range(3):
+		var poff: int = u32(_maps_file, off + p * 4)
+		var plen: int = u16(_maps_file, off + 12 + p * 2)
+		out.append([plen, u16(_maps_file, poff) if poff + 2 <= _maps_file.size() else 0])
+	return out
+
+
+## The bytes an audio chunk takes in the file (the original reads them into its buffer).
+func audio_comp_length(c: int) -> int:
+	if c < 0 or (c + 1) * 4 + 4 > _au_starts.size():
+		return 0
+	return u32(_au_starts, (c + 1) * 4) - u32(_au_starts, c * 4)
+
+
 ## One audio chunk (PC speaker, AdLib effect or IMF song), expanded.
 func audio_chunk(c: int) -> PackedByteArray:
 	if c < 0 or (c + 1) * 4 + 4 > _au_starts.size():

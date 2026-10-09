@@ -20,7 +20,6 @@ extends GalRF
 
 var ca_audInfoE: Dictionary = {}
 ## The cached audio chunks: PackedByteArray or null.
-var CA_audio: Array = []
 
 
 func CA_CacheAudioChunk(chunk: int) -> void:
@@ -29,18 +28,42 @@ func CA_CacheAudioChunk(chunk: int) -> void:
 	if chunk < 0 or chunk >= CA_audio.size():
 		return
 	if CA_audio[chunk] != null:
+		MM_SetPurge("aud:%d" % chunk, false)    # already in memory
 		return
 	var a: PackedByteArray = data.audio_chunk(chunk)
 	if a.is_empty():
 		return
+	# read into the misc buffer, or a block of its own when too big, then expanded
+	var filebytes: int = data.audio_comp_length(chunk)
+	var bigbuffer: bool = mm_started and filebytes > MM_BUFFERSIZE
+	if bigbuffer:
+		if not MM_GetPtr("bigbuffer", filebytes):
+			return
+		MM_SetLock("bigbuffer", true)
+	if not MM_GetPtr("aud:%d" % chunk, a.size()):
+		if bigbuffer:
+			MM_FreePtr("bigbuffer")
+		return
 	CA_audio[chunk] = a
 	cost("audiochunk")    # reading and expanding it (TIME-G)
 	cost_n("audiobyte", a.size())
+	if bigbuffer:
+		MM_FreePtr("bigbuffer")
 
 
 ## Every sound effect of the current sound mode, cached.
 func CA_LoadAllSounds() -> void:
 	var start: int = 0
+	# the sounds of the mode before may go
+	match ca_oldSoundMode:
+		sdm_PC:
+			start = int(ca_audInfoE.startPCSounds)
+		sdm_AdLib:
+			start = int(ca_audInfoE.startAdlibSounds)
+	if ca_oldSoundMode != sdm_Off:
+		for i: int in range(int(ca_audInfoE.numSounds)):
+			if start + i < CA_audio.size() and CA_audio[start + i] != null:
+				MM_SetPurge("aud:%d" % (start + i), true)
 	match sd_soundMode:
 		sdm_Off:
 			return
@@ -50,6 +73,7 @@ func CA_LoadAllSounds() -> void:
 			start = int(ca_audInfoE.startAdlibSounds)
 	for i: int in range(int(ca_audInfoE.numSounds)):
 		CA_CacheAudioChunk(start + i)
+	ca_oldSoundMode = sd_soundMode
 
 
 # ===================================================================== id_sd
@@ -73,6 +97,7 @@ const SD_ADLIB_REG_EFFECTS: int = 0xbd
 const SD_ADLIB_NUM_CHANNELS: int = 10
 
 var sd_soundMode: int = sdm_Off
+var ca_oldSoundMode: int = sdm_Off    # id_ca.c's oldsoundmode
 var sd_musicMode: int = smm_Off
 var sd_sfxPartRate: int = 140
 var sd_haveAdlib: bool = false

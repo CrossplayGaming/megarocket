@@ -964,7 +964,8 @@ func CK_SpawnAxisPlatform(tileX: int, tileY: int, direction: int, purple: bool) 
 		CK_SetAction(obj, CK_GetActionByName("CK_ACT_AxisPlatform"))
 	# TODO: These should *not* be done here.
 	obj.gfxChunk = u16(obj.currentAction.chunkLeft)
-	CA_CacheGrChunk(obj.gfxChunk)
+	# (omnispeak caches obj.gfxChunk here; the original does not, and its memory map shows
+	# the difference at a level's load: keen5_mem01_a. The level's marks cache every sprite.)
 	# CK_ResetClipRects(obj);
 
 
@@ -1084,7 +1085,8 @@ func CK_SpawnStandPlatform(tileX: int, tileY: int) -> void:
 	obj.clipped = CLIP_not
 	CK_SetAction(obj, CK_GetActionByName("CK_ACT_StandPlatform"))
 	obj.gfxChunk = u16(obj.currentAction.chunkLeft)
-	CA_CacheGrChunk(obj.gfxChunk)
+	# (omnispeak caches obj.gfxChunk here; the original does not, and its memory map shows
+	# the difference at a level's load: keen5_mem01_a. The level's marks cache every sprite.)
 
 
 ## Spawn a GoPlat
@@ -1208,7 +1210,8 @@ func CK_SneakPlatSpawn(tileX: int, tileY: int) -> void:
 	obj.clipped = CLIP_not
 
 	CK_SetAction(obj, CK_GetActionByName("CK_ACT_sneakPlatWait"))
-	CA_CacheGrChunk(obj.gfxChunk)
+	# (omnispeak caches obj.gfxChunk here; the original does not, and its memory map shows
+	# the difference at a level's load: keen5_mem01_a. The level's marks cache every sprite.)
 
 
 func CK_SneakPlatThink(obj: CK_object) -> void:

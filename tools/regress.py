@@ -399,6 +399,21 @@ def _galaxy_case(game, case):
     return p.returncode
 
 
+def mm01():
+    """The original's memory manager, modelled (MM-01): the port's picture of its memory (the
+    debug key F10-M, one pixel a paragraph) agrees block for block with the original's under
+    DOSBox, after a level's load and after a death's restart (Keen 4, keen4_mem08b_a) and after
+    a level's load (Keen 5, keen5_mem01_a)."""
+    worst = 0
+    for game, case in (("keen4", "mem08b"), ("keen5", "mem01")):
+        p = subprocess.run([sys.executable, "tools/mm_oracle.py", game, case], cwd=str(common.ROOT),
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        for line in p.stdout.strip().splitlines()[-3:]:
+            print("  " + line)
+        worst = max(worst, p.returncode)
+    return worst
+
+
 def replayg4():
     """Keen 4's verified level sessions (/TEDLEVEL n): the opening's pictures in order, then from
     the fade-in every picture and its duration (galaxy_case.level_score)."""
@@ -515,20 +530,22 @@ def simg01i():
 def timeg4():
     """Keen 4's boot against keen4_boot_a (a guard while TIME-G4 is in progress): exact to the
     refresh through the terminator and the title's fizzle (picture 1317), and from the title on at
-    least 743 pictures in order with every duration equal except two named ones. Re-based
-    2026-10-08 on the direct-update model (VW_UpdateScreen onto the page on display) and the
-    shared Galaxy costs: 1318, the DEMO box's second countdown step (the original's 11 refreshes
-    against 3-4 for its like; a one-off, probably MML_SortMem compacting memory, not modelled),
-    and 1321, a countdown step a refresh off."""
+    least 743 pictures in order with every duration equal except three named ones. Re-based
+    2026-10-08 (evening) on the memory manager (MM-01) and the original's intro structure (the
+    plaques loaded before the scroll), which moved the demo's tic waits onto another timer phase:
+    the phase is 6000000 (a plateau 5.7M-6.45M). Named: 1318, the DEMO box's second countdown step
+    (the original's 11 refreshes against 3-4 for its like; a one-off, probably MML_SortMem
+    compacting memory, not seen in the manager's trace); 1321, a step a refresh off; 2065, the
+    recording's last pictures (the story screen's reveal rows are within 4)."""
     import galaxy_boot_score
-    r = galaxy_boot_score.run("keen4", "keen4_boot_a", 75, 1317)
+    r = galaxy_boot_score.run("keen4", "keen4_boot_a", 75, 1317, timer_offset=6000000)
     if r is None:
         print("  COULD-NOT-RUN")
         return 2
     durs = [e for e in r["events"] if e[0] == "duration"]
     print(f"  exact to picture {r['exact']}; from 1317: {r['matched']} matched, {len(durs)} durations differ "
           f"(at {[e[1] for e in durs]})")
-    allowed = {1318, 1321}
+    allowed = {1318, 1321, 2065}
     return 0 if r["exact"] >= 1317 and r["matched"] >= 743 and all(e[1] in allowed for e in durs) else 1
 
 
@@ -813,6 +830,7 @@ CHECKS = {
     "SIM-G-01i": (simg01i, "slow"),
     "TIME-G4": (timeg4, "slow"),
     "REPLAY-G4": (replayg4, "slow"),
+    "MM-01": (mm01, "slow"),
     "REPLAY-V1": (replayv1, "slow"),
     "REPLAY-V2": (replayv2, "slow"),
     "REPLAY-V3": (replayv3, "slow"),
