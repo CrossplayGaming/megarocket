@@ -72,6 +72,9 @@ var _playback: AudioStreamGeneratorPlayback = null
 var _audio_started: bool = false
 
 var _view: TextureRect
+var _aspect: AspectRatioContainer = null
+## MENU-01: the Options rows the game's own menus show (the shell's settings, applied here).
+var options: OptionsModel = null
 var _index_image: Image
 var _index_tex: ImageTexture
 var _palette_image: Image
@@ -128,6 +131,7 @@ func _ready() -> void:
 	aspect.ratio = 4.0 / 3.0
 	aspect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(aspect)
+	_aspect = aspect
 	_view = TextureRect.new()
 	_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_view.stretch_mode = TextureRect.STRETCH_SCALE
@@ -197,6 +201,12 @@ func start(found: Dictionary) -> bool:
 	var settings: Settings = Settings.new(settings_path)
 	audio.configure(float(settings.get_value("music_volume", game_id)) / 100.0,
 		float(settings.get_value("effects_volume", game_id)) / 100.0)
+	# MENU-01: the Options rows, for the engines whose menus show them so far
+	options = OptionsModel.new(settings, game_id, "vorticons" if engine is VortScreens else ("galaxy" if engine is GalGame else "dreams"))
+	options.applier = apply_setting
+	if engine is VortScreens:
+		(engine as VortScreens).options = options
+	apply_setting("pixel_shape")
 	_player = AudioStreamPlayer.new()
 	var gen: AudioStreamGenerator = AudioStreamGenerator.new()
 	gen.mix_rate = HostAudio.RATE
@@ -210,6 +220,25 @@ func start(found: Dictionary) -> bool:
 	thread.start(_run)
 	grab_focus()
 	return true
+
+
+## A setting changed in the game's Options (or at the start): applied to the window, the picture or
+## the sound at once (main thread).
+func apply_setting(name: String) -> void:
+	if options == null:
+		return
+	match name:
+		"fullscreen":
+			var full: bool = bool(options.get_value("fullscreen"))
+			if not OS.has_feature("mobile") and get_window() != null:
+				get_window().mode = Window.MODE_FULLSCREEN if full else Window.MODE_WINDOWED
+		"pixel_shape":
+			# 4:3 is the monitor's shape the games were drawn for; square pixels show 320x200 as 16:10
+			if _aspect != null:
+				_aspect.ratio = 4.0 / 3.0 if options.get_value("pixel_shape") == "4:3" else 320.0 / 200.0
+		"music_volume", "effects_volume":
+			if audio != null:
+				audio.configure(float(options.get_value("music_volume")) / 100.0, float(options.get_value("effects_volume")) / 100.0)
 
 
 ## "Commander Keen 4" of "Commander Keen 4: Secret of the Oracle".

@@ -704,7 +704,12 @@ func DoFkeys() -> bool:
 		KEY_F3:
 			PauseSound()
 			ClearKeys()
-			CalibrateKeys()
+			# MENU-01: with a player at the controls F3 opens Options (its Controls page keeps
+			# the original Keyboard Commands walk); headless, the original
+			if get(&"options") != null:
+				call(&"OptionsMenu")
+			else:
+				CalibrateKeys()
 			i += 1
 		KEY_F4:
 			PauseSound()

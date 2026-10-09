@@ -32,6 +32,9 @@ var worldkeenx: int = 0
 var worldkeeny: int = 0
 var worldCamX: int = 0
 var worldCamY: int = 0
+## MENU-01: the shell's Options rows (an OptionsModel) while a player is at the controls; null in
+## headless runs and the oracle comparisons, which then see the original menus unchanged.
+var options: Object = null
 var oldx: int = 0
 var oldy: int = 0
 var warpspots: Array = [[28 * TILEGLOBAL, 6 * TILEGLOBAL, 1], [36 * TILEGLOBAL, 5 * TILEGLOBAL, 1], [62 * TILEGLOBAL, 37 * TILEGLOBAL, 0]]
@@ -984,3 +987,122 @@ func UpdateObjHitbox(ob: Obj) -> void:
 	ob.right = ob.x + image.xh
 	ob.top = ob.y + image.yl
 	ob.bottom = ob.y + image.yh
+
+
+# ----------------------------------------------------------- the Options window (MENU-01)
+
+## The Options window's size: every page in one window of this size, so going from page to page
+## leaves nothing of the last behind.
+const OPTIONS_W: int = 26
+const OPTIONS_H: int = 7
+
+
+## The Options window (docs/MENUS.md): the shell's rows in an ExpWin with the game's caret cursor.
+## Up and down move, left and right change a value, Enter / Space / the first button chooses,
+## Escape / the second button goes back a page (from the first page: leaves).
+func OptionsMenu() -> void:
+	if options == null:
+		return
+	var stack: Array = []    # [page, cursor] to come back to
+	var page_name: String = "options"
+	var pos: int = 0
+	ExpWin(OPTIONS_W, OPTIONS_H)
+	var wx: int = sx
+	var wy: int = sy
+	while not exited:
+		var rows: Array = options.page(page_name)
+		_options_draw(rows, wx, wy)
+		pos = clampi(pos, 0, rows.size() - 1)
+		var anim: int = 0
+		var act: String = ""
+		_options_release()
+		while not exited:
+			DrawChar(wx + 1, (wy + pos) * 8, anim + 9)
+			var ctrl: Dictionary = {"dir": nodir, "button1": false, "button2": false}
+			var c: int = 0
+			for i: int in range(6):
+				WaitVBL(1)
+				ctrl = ControlPlayer(1)
+				c = NoBiosKey(1) & 0xFF
+				if ctrl.dir != nodir or ctrl.button1 or ctrl.button2 or c != 0 or exited:
+					break
+			anim = (anim + 1) % 3
+			if c != 0:
+				NoBiosKey(0)
+			var row: Dictionary = rows[pos]
+			if ctrl.dir == north or ctrl.dir == south:
+				DrawChar(wx + 1, (wy + pos) * 8, 32)
+				pos = (pos + (rows.size() - 1 if ctrl.dir == north else 1)) % rows.size()
+				_options_release()
+			elif (ctrl.dir == west or ctrl.dir == east) and row.kind == "value":
+				options.step(row.key, -1 if ctrl.dir == west else 1)
+				rows = options.page(page_name)
+				_options_draw(rows, wx, wy)
+				_options_release()
+			elif c == 13 or c == 32 or ctrl.button1:
+				act = options.activate(row.key)
+				if act == "":
+					rows = options.page(page_name)
+					_options_draw(rows, wx, wy)
+					_options_release()
+				else:
+					break
+			elif c == CHAR_ESCAPE or ctrl.button2:
+				act = "action:exit"
+				break
+		DrawChar(wx + 1, (wy + pos) * 8, 32)
+		if act.begins_with("page:"):
+			stack.append([page_name, pos])
+			page_name = act.substr(5)
+			pos = 0
+		elif act == "action:exit":
+			if stack.is_empty():
+				break
+			var back: Array = stack.pop_back()
+			page_name = back[0]
+			pos = back[1]
+		elif act == "action:quit_game":
+			ExpWin(17, 1)
+			Print("Quit game (Y/N)?")
+			if _toupper(Get() & 0xFF) == 89:
+				Quit("")
+				return
+			ExpWin(OPTIONS_W, OPTIONS_H)
+		elif act == "action:keyboard_commands":
+			CalibrateKeys()
+			ExpWin(OPTIONS_W, OPTIONS_H)
+	ClearKeys()
+
+
+## A page's rows in the window at (wx, wy): the label from the fourth column, a value row's value at
+## the right edge; the rest of the window blank.
+func _options_draw(rows: Array, wx: int, wy: int) -> void:
+	for i: int in range(OPTIONS_H):
+		var line: String = ""
+		if i < rows.size():
+			var r: Dictionary = rows[i]
+			line = "   " + str(r.label)    # the caret in the second column, as the title menu has it
+			if r.kind == "value":
+				line += " ".repeat(maxi(1, OPTIONS_W - line.length() - str(r.value).length())) + str(r.value)
+		line = line.rpad(OPTIONS_W).left(OPTIONS_W)
+		sx = wx
+		sy = wy + i
+		var keep: int = leftedge
+		leftedge = wx
+		Print(line)
+		leftedge = keep
+	sx = wx
+	sy = wy
+
+
+## Waits for the stick and the buttons to be let go (one press, one step).
+func _options_release() -> void:
+	var n: int = 0
+	while not exited and n < 20:
+		var ctrl: Dictionary = ControlPlayer(1)
+		if ctrl.dir == nodir and not ctrl.button1 and not ctrl.button2:
+			break
+		WaitVBL(1)
+		n += 1
+	ClearKeys()
+

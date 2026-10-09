@@ -708,6 +708,18 @@ def shell02():
     return code
 
 
+def menu01():
+    """Keen 1-3's Options (MENU-01): with a player at the controls the title menu has an Options row
+    and its window changes the settings (Mode, Display's Fullscreen) for that game only; headless, the
+    menu is the original's."""
+    import gdtest
+    code, out = gdtest.run("menu01_vorticons", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def shell05():
     """Settings persist, reset, survive damage value by value, per-game values win, and no
     simulation script reads them (A15)."""
@@ -934,6 +946,7 @@ CHECKS = {
     "SIM-G-01c2": (simg01c2, "slow"),
     "DIST-02": (dist02, "fast"),
     "SHELL-01": (shell01, "fast"),
+    "MENU-01": (menu01, "fast"),
     "SHELL-05": (shell05, "fast"),
     "SHELL-06": (shell06, "slow"),
     "SHELL-07": (shell07, "fast"),

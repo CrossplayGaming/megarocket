@@ -859,6 +859,8 @@ func MenuLoop() -> void:
 func MainMenuLoop(_screen: int) -> bool:
 	var startgame: bool = false
 	var menupos: int = 0
+	# MENU-01: an Options row between High Scores and Ordering Info while a player is at the controls
+	var maxpos: int = MAXMENUPOS + (1 if options != null else 0)
 	while true:
 		if originx != X_TITLE:
 			DrawMainMenuScreen()
@@ -892,7 +894,7 @@ func MainMenuLoop(_screen: int) -> bool:
 							if anim > 2:
 								anim = 0
 					else:
-						menupos = MAXMENUPOS
+						menupos = maxpos
 						DrawChar(sx, sy * 8, 32)
 					sy = oldy + menupos
 					DrawChar(sx, sy * 8, anim + 9)
@@ -903,7 +905,7 @@ func MainMenuLoop(_screen: int) -> bool:
 					delay = 20
 					ClearKeys()
 				south:
-					if menupos < MAXMENUPOS:
+					if menupos < maxpos:
 						menupos += 1
 						for i: int in range(8):
 							DrawChar(sx, sy * 8 + i, anim + 9)
@@ -937,7 +939,10 @@ func MainMenuLoop(_screen: int) -> bool:
 				break
 		ClearKeys()
 		WaitVBL(8)
-		match menupos:
+		if options != null and menupos == OPTIONS_ROW:
+			OptionsMenu()
+			continue
+		match (menupos - 1 if options != null and menupos > OPTIONS_ROW else menupos):
 			mm_NewGame:
 				startgame = true
 			mm_ContinueGame:
@@ -973,8 +978,12 @@ func MainMenuLoop(_screen: int) -> bool:
 	return startgame
 
 
+## MENU-01: where the Options row sits (after High Scores) when a player is at the controls.
+const OPTIONS_ROW: int = mm_HighScores + 1
+
+
 func DrawMainMenu() -> void:
-	ExpWin(18, 10)
+	ExpWin(18, 11 if options != null else 10)
 	oldx = sx
 	oldy = sy
 	Print("   New Game\n")
@@ -982,6 +991,8 @@ func DrawMainMenu() -> void:
 	Print("   Story\n")
 	Print("   About ID...\n")
 	Print("   High Scores\n")
+	if options != null:
+		Print("   Options\n")
 	Print("   Ordering Info\n")
 	Print("   Previews!\n")
 	Print("   Restart Demo\n\n")
