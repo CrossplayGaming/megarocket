@@ -590,6 +590,39 @@ def timeg4():
     return 0 if r["exact"] >= 1317 and r["matched"] >= 743 and all(e[1] in allowed for e in durs) else 1
 
 
+def timeg5():
+    """Keen 5's boot against keen5_boot_a, to the parity standard (J-20): exact to the refresh through
+    the terminator and the title (picture 1317, one-refresh slips that recover allowed), then the demo's
+    pictures in order to its end; the ones not matched are one-refresh in-between pictures (at least
+    810 of 867 matched)."""
+    import galaxy_boot_score
+    r = galaxy_boot_score.run("keen5", "keen5_boot_a", 75, 1317)
+    if r is None:
+        print("  COULD-NOT-RUN")
+        return 2
+    lost = [e for e in r["events"] if e[0] == "lost"]
+    print(f"  exact to picture {r['exact']}; from 1317: {r['matched']} of {r['pictures'] - 1317} in order"
+          f"{'; lost at ' + str(lost[0][1]) if lost else ''}")
+    return 0 if r["exact"] >= 1317 and r["matched"] >= 810 and not lost else 1
+
+
+def timeg6():
+    """Keen 6's boot against keen6_boot_a (the user's v1.0), to the parity standard (J-20): every picture
+    in order from the first to the demo's first frames (picture 1335), every duration within one
+    refresh (the terminator intro's one-refresh pairs). The demo itself parts where v1.0's rules
+    differ from v1.4's (J-19; REPLAY-G6 keeps its floor)."""
+    import galaxy_boot_score
+    r = galaxy_boot_score.run("keen6", "keen6_boot_a", 75, 0)
+    if r is None:
+        print("  COULD-NOT-RUN")
+        return 2
+    early = [e for e in r["events"] if e[1] < 1336]
+    skips = [e for e in early if e[0] != "duration"]
+    worst = max([abs(e[2] - e[3]) for e in early if e[0] == "duration" and e[1] < 1317] or [0])
+    print(f"  to picture 1335: {len(skips)} pictures out of order, durations within {worst} refresh")
+    return 0 if not skips and worst <= 1 else 1
+
+
 def shell01():
     """The main scene is the launcher: seven tiles, the right found / unsupported / missing status
     with no games, some and all, inside the window's width at 1280x720 and 480x800."""
@@ -870,6 +903,8 @@ CHECKS = {
     "SIM-G-01h": (simg01h, "slow"),
     "SIM-G-01i": (simg01i, "slow"),
     "TIME-G4": (timeg4, "slow"),
+    "TIME-G5": (timeg5, "slow"),
+    "TIME-G6": (timeg6, "slow"),
     "REPLAY-G4": (replayg4, "slow"),
     "MM-01": (mm01, "slow"),
     "REPLAY-G5": (replayg5, "slow"),

@@ -59,8 +59,18 @@ def files():
     return [p for p in sorted(SRC.glob("*.c")) if not p.name.startswith(SKIP)]
 
 
+def by_hand():
+    """Functions drm_decl.gd defines itself, outside the generated blocks (Quit, ...)."""
+    if not OUT.exists():
+        return set()
+    text = OUT.read_text(encoding="utf-8")
+    head, _, rest = text.partition(BEGIN)
+    tail = rest.partition(END)[2]
+    return set(re.findall(r"^func (\w+)\(", head + tail, flags=re.M))
+
+
 def block():
-    seen = {}
+    seen = {name: 0 for name in by_hand()}
     lines = [BEGIN]
     for p in files():
         fresh = []
