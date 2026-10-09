@@ -399,6 +399,17 @@ def _galaxy_case(game, case):
     return p.returncode
 
 
+REPLAY_G5_LEVELS = ["level01", "level04", "level12"]    # the verified ones (15 is the high scores)
+
+
+def replayg5():
+    """Keen 5's verified level sessions (/TEDLEVEL n), as REPLAY-G4's."""
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(lambda case: _galaxy_case("keen5", case), REPLAY_G5_LEVELS))
+    return max(results)
+
+
 def mm01():
     """The original's memory manager, modelled (MM-01): the port's picture of its memory (the
     debug key F10-M, one pixel a paragraph) agrees block for block with the original's under
@@ -831,6 +842,7 @@ CHECKS = {
     "TIME-G4": (timeg4, "slow"),
     "REPLAY-G4": (replayg4, "slow"),
     "MM-01": (mm01, "slow"),
+    "REPLAY-G5": (replayg5, "slow"),
     "REPLAY-V1": (replayv1, "slow"),
     "REPLAY-V2": (replayv2, "slow"),
     "REPLAY-V3": (replayv3, "slow"),
