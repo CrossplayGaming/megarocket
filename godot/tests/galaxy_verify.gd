@@ -16,6 +16,7 @@ func _init() -> void:
 	var opts: Dictionary = T.options()
 	var game: String = opts.get("game", "keen4")
 	var d: GalData = GalData.new()
+	d.exe_behaviour = false    # v1.4's rules, as omnispeak (Keen 6 v1.0's own: REPLAY-G6, DATA-01G6)
 	if not t.ok("files load (%s)" % d.error, d.load_game(str(opts.get("game_data", "")).path_join(game), "res://data/omnispeak".path_join(GAMES[game]))):
 		t.finish(self)
 		return

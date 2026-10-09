@@ -68,6 +68,15 @@ func _init() -> void:
 			continue
 		if g[0] == "keen6":
 			t.ok("keen6: the three version tables come from the executable (%s)" % d.exe_build, d.exe_build != "")
+			# v1.0's own strings and ledge-climb states (DATA-01G6)
+			var entry: String = d.episode.string_arrays.get("ck_str_levelEntryText", PackedStringArray())[8]
+			t.ok("keen6: v1.0's level-8 text from the executable (%s)" % entry.replace("
+", " "), entry.begins_with("Keen hungily enters"))
+			var pull1: Array = d.episode.actions.get("CK_ACT_keenPull1", [])
+			var pull4: Array = d.episode.actions.get("CK_ACT_keenPull4", [])
+			t.ok("keen6: v1.0's ledge climb (pull 1 moves %s,%s with think %s, collide %s; pull 4 goes to %s)" %
+				[pull1[7], pull1[8], pull1[9], pull1[10], pull4[12]],
+				pull1[7] == "128" and pull1[8] == "-128" and pull1[9] == "NULL" and pull1[10] == "CK_KeenColFunc" and pull4[12] == "CK_ACT_keenStanding")
 			_without_exe(t, dir, meta_root.path_join(g[1]))
 		var gfx: Dictionary = d.gfx
 		t.ok("%s: tables (%d bitmaps, %d masked, %d sprites, %d tiles16, %d tiles16m, %d chunks)" %

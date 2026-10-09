@@ -2624,14 +2624,41 @@ func CK_KeenJumpDrawFunc(obj: CK_object) -> void:
 	elif obj.leftTI != 0 and obj.xDirection == 1:
 		obj.velX = 0
 
+	# Keen 6 v1.0 (KEEN6C.EXE 0A2F:1956, CK_KeenPoleHoleV10): a head hit first looks for a pole
+	# hole (a tile whose bottom wall is 17) in the rows from one above the top of Keen's box to one
+	# above its bottom; on one, Keen is centred on the pole and carries on up through it
+	var throughPoleHole: bool = false
+	if obj.bottomTI != 0 and CK_INT("CK_KeenPoleHoleV10", 0) != 0:
+		var row: int = obj.clipRects.tileY1 - 1
+		var rowCount: int = obj.clipRects.tileY1
+		while not throughPoleHole and (obj.clipRects.tileY2 & 0xFFFF) >= (rowCount & 0xFFFF):
+			for x: int in range(obj.clipRects.tileX1, obj.clipRects.tileX2 + 1):
+				if TI_ForeBottom(CA_TileAtPos(x, row, 1)) == 17:
+					obj.velX = 0
+					obj.posX = u16(RF_TileToUnit(obj.clipRects.tileXmid) - 32)
+					var dy: int = s16(obj.velY * SD_GetSpriteSync())
+					obj.posY = u16(obj.posY + dy)
+					obj.clipRects.unitY1 = u16(obj.clipRects.unitY1 + dy)
+					throughPoleHole = true    # on to the landing check
+					break
+			rowCount += 1
+			row += 1
+
 	# Did we hit our head on the ceiling?
-	if obj.bottomTI != 0:
+	if obj.bottomTI != 0 and not throughPoleHole:
 		#TODO: Something to do with poles (push keen into the centre)
 		if obj.bottomTI == 17: #Pole
 			obj.posY = u16(obj.posY - 32)
 			obj.clipRects.unitY1 = u16(obj.clipRects.unitY1 - 32)
 			obj.velX = 0
 			obj.posX = u16(RF_TileToUnit(obj.clipRects.tileXmid) - 32)
+			# (v1.0 then bumps the head as on any ceiling: the sound, the speed, the jump's end)
+			if CK_INT("CK_KeenPoleHoleV10", 0) != 0 and not ck_gameState.jumpCheat:
+				SD_PlaySound(CK_SOUNDNUM("SOUND_KEENHITCEILING"))
+				obj.velY = s16(obj.velY + 16)    # (17 > 1)
+				if obj.velY < 0:
+					obj.velY = 0
+				ck_keenState.jumpTimer = 0
 		else:
 			# (WITH_KEEN6: compiled in, not tied to the episode)
 			if obj.bottomTI == 0x21: # Bloog switches

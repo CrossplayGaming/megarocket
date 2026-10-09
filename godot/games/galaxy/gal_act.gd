@@ -1360,9 +1360,10 @@ func CK_BasicDrawFunc2(obj: CK_object) -> void:
 		obj.xDirection = IN_motion_Right
 		obj.timeUntillThink = u16(US_RndT() / 32)
 		CK_SetAction2(obj, obj.currentAction)
-	# Walked off of ledge; turn around
+	# Walked off of ledge; turn around (Keen 6 v1.0's R_Walk steps back twice the move:
+	# CK_WalkLedgeBackoff, set by the build, GalData KNOWN_EXES)
 	elif obj.topTI == 0:
-		obj.posX = u16(obj.posX - obj.deltaPosX)
+		obj.posX = u16(obj.posX - obj.deltaPosX * CK_INT("CK_WalkLedgeBackoff", 1))
 		obj.xDirection = s16(-obj.xDirection)
 		obj.timeUntillThink = u16(US_RndT() / 32)
 		CK_SetAction2(obj, obj.currentAction)

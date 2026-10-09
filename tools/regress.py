@@ -417,12 +417,27 @@ def replayg5():
 REPLAY_G6_LEVELS = ["level04"]    # the verified ones, against the user's v1.0 (18 sessions)
 
 
+# keen6_boot_a's first demo against the user's v1.0, from the first picture after the title: the
+# pictures matched in order (deterministic play: v1.0's own rules, DATA-01G6). A floor, raised as
+# v1.0's differences are ported (192 on v1.4's rules; 577 with R_Walk's ledge step-back).
+REPLAY_G6_DEMO_FLOOR = 577
+
+
 def replayg6():
-    """Keen 6's verified level sessions (/TEDLEVEL n) against the user's v1.0, as REPLAY-G4's."""
+    """Keen 6's verified level sessions (/TEDLEVEL n) against the user's v1.0, as REPLAY-G4's, and the
+    boot recording's demo held to its floor."""
     from concurrent.futures import ThreadPoolExecutor
+    import galaxy_boot_score
     with ThreadPoolExecutor(max_workers=8) as pool:
         results = list(pool.map(lambda case: _galaxy_case("keen6", case), REPLAY_G6_LEVELS))
-    return max(results)
+    r = galaxy_boot_score.run("keen6", "keen6_boot_a", 75, 1317, tag="regress")
+    if r is None:
+        print("  keen6 demo: the port's run failed")
+        return common.COULD_NOT_RUN
+    ok = r["matched"] >= REPLAY_G6_DEMO_FLOOR
+    print(f"  keen6 demo (v1.0): {r['matched']} of {r['pictures'] - 1317} pictures in order from the title "
+          f"(floor {REPLAY_G6_DEMO_FLOOR})")
+    return max(results + [0 if ok else 1])
 
 
 def mm01():

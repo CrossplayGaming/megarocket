@@ -41,6 +41,22 @@ const KNOWN_EXES: Dictionary = {
 		"strings": {"ck_str_levelEntryText:8": 0x1DDA0, "ck6_str_getPasscard": 0x311B6,
 			"ck6_str_grabbiterHungry": 0x31BB6, "ck_str_godModeOn": 0x2FD57, "ck_str_godModeOff": 0x2FD4A,
 			"ck_str_jumpCheatOn": 0x2FD6F, "ck_str_jumpCheatOff": 0x2FD7D},
+		# Keen's climb onto a ledge: v1.0 moves him by the states' own velocities (no think in the
+		# first three), collides as Keen always does (CK_KeenColFunc, not the special one) and goes
+		# from the fourth straight to standing; v1.4 moves him in CK_KeenPullThink1-3 and stands him
+		# for 6 tics (keenPull5). Of v1.4's 329 action records these are the only ones v1.0 differs
+		# in (words, functions or next, compared record by record). Each: the record's image
+		# offset (its eight words are read from there), the action its `next` names, its collide.
+		"actions": {"CK_ACT_keenPull1": [0x30A7A, "CK_ACT_keenPull2", "CK_KeenColFunc"],
+			"CK_ACT_keenPull2": [0x30A98, "CK_ACT_keenPull3", "CK_KeenColFunc"],
+			"CK_ACT_keenPull3": [0x30AB6, "CK_ACT_keenPull4", "CK_KeenColFunc"],
+			"CK_ACT_keenPull4": [0x30AD4, "CK_ACT_keenStanding", "CK_KeenColFunc"]},
+		# Code that differs from v1.4's, as episode values the port's shared code reads: v1.0's
+		# R_Walk (the walkers' draw function, 089B:16EE) steps a walker that met a ledge back by
+		# twice its move (`shl ax,1`), where v1.4's (omnispeak's CK_BasicDrawFunc2) steps it back once.
+		# v1.0's Keen jump draw (0A2F:1956) looks for a pole hole above Keen's box when his head hits
+		# something and passes him up through it; on the single pole tile it also bumps his head.
+		"ints": {"CK_WalkLedgeBackoff": 2, "CK_KeenPoleHoleV10": 1},
 	},
 }
 
@@ -51,6 +67,11 @@ var _exe_graph_head: PackedByteArray = PackedByteArray()
 var _exe_graph_dict: PackedByteArray = PackedByteArray()
 var _exe_map_head: PackedByteArray = PackedByteArray()
 var _exe_strings: Dictionary = {}    # the build's own strings, by STRINGS name (KNOWN_EXES "strings")
+var _exe_actions: Dictionary = {}    # action name -> its eight words, think kept or not, next (KNOWN_EXES "actions")
+var _exe_ints: Dictionary = {}    # episode values for the build's own code (KNOWN_EXES "ints")
+## The build's own behaviour (its action records and code values) applies; false keeps v1.4's, as
+## omnispeak has it (SIM-G-01h holds the port's code against omnispeak's). Set before load_game.
+var exe_behaviour: bool = true
 var dir: String = ""            # the player's game folder
 var meta_dir: String = ""       # omnispeak's data folder for this episode
 var ext: String = ""            # "CK4" ...
@@ -325,6 +346,22 @@ func load_game(game_dir: String, meta: String) -> bool:
 					vars.string_arrays[parts[0]] = arr    # (a packed array is a copy)
 			elif vars.strings.has(key):
 				vars.strings[key] = _exe_strings[key]
+	for key: String in (_exe_ints if exe_behaviour else {}):
+		episode.ints[key] = _exe_ints[key]
+	# the build's own action records: tokens 1..8 the words, 9 the think (NULL where it has none), 12 next
+	for key: String in (_exe_actions if exe_behaviour else {}):
+		var fields: Variant = episode.actions.get(key)
+		if typeof(fields) != TYPE_ARRAY or (fields as Array).size() < 13:
+			continue
+		var a: Dictionary = _exe_actions[key]
+		var f: Array = (fields as Array).duplicate()
+		for w: int in range(8):
+			f[1 + w] = ["UnscaledOnce", "ScaledOnce", "Frame", "UnscaledFrame", "ScaledFrame"][a.words[w]] 				if w == 2 and a.words[w] >= 0 and a.words[w] <= 4 else str(a.words[w])
+		if not a.think:
+			f[9] = "NULL"
+		f[10] = a.collide
+		f[12] = a.next
+		episode.actions[key] = f
 	if not _setup_graphics():
 		return false
 	if not _setup_maps():
@@ -345,6 +382,8 @@ func _find_exe_tables() -> void:
 	_exe_graph_dict = PackedByteArray()
 	_exe_map_head = PackedByteArray()
 	_exe_strings = {}
+	_exe_actions = {}
+	_exe_ints = {}
 	var digit: String = ext.substr(2, 1)
 	var d: DirAccess = DirAccess.open(dir)
 	if d == null:
@@ -375,6 +414,15 @@ func _find_exe_tables() -> void:
 			while end < img.size() and img[end] != 0:
 				end += 1
 			_exe_strings[key] = img.slice(at, end).get_string_from_ascii()
+		_exe_ints = k.get("ints", {}).duplicate()
+		for key: String in k.get("actions", {}):
+			var at: int = k.actions[key][0]
+			var words: Array = []
+			for w: int in range(8):
+				var v: int = img.decode_u16(at + w * 2)
+				words.append(v - 0x10000 if v >= 0x8000 else v)
+			_exe_actions[key] = {"words": words, "think": img.decode_u32(at + 16) != 0, "next": k.actions[key][1],
+				"collide": k.actions[key][2]}
 		exe_build = "%s = %s" % [f, k.name]
 		_exe_note = exe_build
 		return
