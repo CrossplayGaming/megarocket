@@ -4,8 +4,10 @@ extends Control
 ## The launcher screen (SHELL-01): one tile per game, in the series' order,
 ## each saying whether the game was found (and which release), found but not
 ## supported (and what to do), or missing (and where to put it). A line
-## above the tiles counts them. The look is a first, plain one; its design
-## is the user's call (the ledger's judgment queue).
+## above the tiles counts them. The look (J-12): Megarocket's own, rebuilt
+## fresh (MegaTheme): deep space with stars, the rocket and wordmark, each
+## game's tile framed in its accent colour, Megarocket's pixel font, at a
+## whole-number pixel scale; the selected game's details on a line below.
 ##
 ## show_results() takes GameFinder's results; on its own the screen scans
 ## (Steam, GOG and the folders in `extra_folders`) once it is in the tree.
@@ -19,7 +21,9 @@ const GAMES: Array = [
 	["keen6", "Commander Keen 6", "Aliens Ate My Baby Sitter!"],
 	["kdreams", "Keen Dreams", ""],
 ]
-const TILE_MIN: Vector2 = Vector2(200, 120)
+## A tile's least size in logical pixels (times the pixel scale).
+const TILE_LOGICAL: Vector2 = Vector2(112, 104)
+var TILE_MIN: Vector2 = Vector2(224, 208)
 
 ## Folders the player chose (settings' game_folders); scanned with Steam and GOG.
 var extra_folders: PackedStringArray = PackedStringArray()
@@ -47,6 +51,14 @@ var scroll: ScrollContainer
 var howto_button: Button
 ## SHELL-09: where the log is, so a report can include it.
 var log_label: Label
+## J-12's look: the backdrop, the mark, the pixel scale it is all drawn at, and the selected game's
+## details and the controls on the lines under the tiles.
+var starfield: Starfield = null
+var brand: BrandHeader = null
+var pixel: int = 0
+var details: Label = null
+var hints: Label = null
+var selected: String = ""
 ## AND-02: where imported games live (the importer's games_root), and the import under way.
 var imported_games_root: String = OS.get_user_data_dir().path_join("games")
 var import_page: PanelContainer = null
@@ -91,6 +103,9 @@ func _ready() -> void:
 	ShellMessages.note("Megarocket %s on %s (%s), sound chip %s" % [ProjectSettings.get_setting("application/config/version", ""),
 		OS.get_name(), RenderingServer.get_current_rendering_method(), "ready" if ClassDB.class_exists("D2Opl") else "missing"])
 	settings = Settings.new(settings_path)
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST    # the pixel font and the frames stay hard
+	starfield = Starfield.new()
+	add_child(starfield)
 	if other_copy_running():
 		_show_wait()
 	extra_folders = PackedStringArray(settings.get_value("game_folders"))
@@ -103,11 +118,10 @@ func _ready() -> void:
 	var column: VBoxContainer = VBoxContainer.new()
 	column.add_theme_constant_override("separation", 12)
 	margin.add_child(column)
-	var title: Label = Label.new()
-	title.text = "Megarocket"
-	title.add_theme_font_size_override("font_size", 28)
+	brand = BrandHeader.new()
+	brand.name = "Brand"
 	var top: HFlowContainer = HFlowContainer.new()    # wraps on a narrow window
-	top.add_child(title)
+	top.add_child(brand)
 	var spacer: Control = Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(spacer)
@@ -133,6 +147,7 @@ func _ready() -> void:
 	summary = Label.new()
 	summary.name = "Summary"
 	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	summary.add_theme_color_override("font_color", MegaTheme.ega(11))
 	column.add_child(summary)
 	grid = GridContainer.new()
 	grid.name = "Tiles"
@@ -146,18 +161,29 @@ func _ready() -> void:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.add_child(grid)
 	column.add_child(scroll)
+	details = Label.new()
+	details.name = "Details"
+	details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	details.custom_minimum_size = Vector2(0, 1)
+	column.add_child(details)
+	hints = Label.new()
+	hints.name = "Hints"
+	hints.text = "Move: arrows / stick   Play: Enter / A   Back: Esc / B"
+	hints.add_theme_color_override("font_color", MegaTheme.ega(7))
+	column.add_child(hints)
 	log_label = Label.new()
 	log_label.name = "LogPath"
 	log_label.text = "Log: " + ShellMessages.log_path()
-	log_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
-	log_label.add_theme_font_size_override("font_size", 12)
-	log_label.modulate = Color(1, 1, 1, 0.6)
+	log_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	log_label.clip_text = true
+	log_label.add_theme_color_override("font_color", MegaTheme.ega(8))
 	column.add_child(log_label)
 	for g: Array in GAMES:
 		var tile: PanelContainer = _make_tile(g[0], g[1], g[2])
 		tiles[g[0]] = tile
 		grid.add_child(tile)
 	resized.connect(_layout)
+	_apply_pixel_scale()
 	_layout()
 	show_results([])
 	(tiles[GAMES[0][0]] as Control).grab_focus.call_deferred()    # keyboard and pad work at once (ui_* moves between tiles)
@@ -181,6 +207,68 @@ func scan_roots() -> PackedStringArray:
 	return roots
 
 
+## J-12's look at the pixel scale this window size takes: the theme, the backdrop, the mark and the
+## tiles' frames are made again whenever it changes.
+func _apply_pixel_scale() -> void:
+	var s: int = MegaTheme.pixel_scale(size if size.x > 0 else Vector2(1280, 720))
+	if s == pixel:
+		return
+	pixel = s
+	theme = MegaTheme.build(s)
+	TILE_MIN = TILE_LOGICAL * s
+	for id: String in tiles:
+		(tiles[id].get_child(0).get_node("Art") as Control).custom_minimum_size = Vector2(0, 55 * s)
+	if starfield != null:
+		starfield.pixel = s
+	if brand != null:
+		brand.pixel = s
+	for id: String in tiles:
+		_style_tile(id)
+
+
+## A tile's frame and name in its game's accent: brighter when selected, grey when the game is missing.
+func _style_tile(id: String) -> void:
+	var tile: PanelContainer = tiles[id]
+	var s: int = maxi(pixel, 1)
+	var c: Color = MegaTheme.accent(id)
+	var present: bool = states.get(id, "missing") != "missing"
+	var frame: Color = (MegaTheme.light_of(c) if tile.has_focus() else c) if present else 		(MegaTheme.ega(7) if tile.has_focus() else MegaTheme.ega(8))
+	tile.add_theme_stylebox_override("panel", MegaTheme.bevel(frame, s, Color8(0, 0, 12) if present else MegaTheme.SPACE))
+	var n: Label = tile.get_child(0).get_node("Name")
+	n.add_theme_color_override("font_color", (MegaTheme.ega(15) if tile.has_focus() else c) if present else MegaTheme.ega(7))
+	(tile.get_child(0).get_node("Subtitle") as Label).add_theme_color_override("font_color", MegaTheme.ega(7))
+	var st: Label = tile.get_child(0).get_node("Status")
+	var brief: Label = tile.get_child(0).get_node("Brief")
+	var found: bool = states.get(id, "") == "found"
+	# a found game's status is one short line; a game stopped by an error shows it whole
+	var short: bool = found and st.text.begins_with("Ready")
+	st.visible = short or (found and not short)
+	st.autowrap_mode = TextServer.AUTOWRAP_OFF if short else TextServer.AUTOWRAP_WORD_SMART
+	st.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	st.clip_text = short
+	st.add_theme_color_override("font_color", MegaTheme.ega(10) if short else MegaTheme.ega(12))
+	brief.visible = not found
+	brief.text = "Not found" if states.get(id, "missing") == "missing" else "Can't run this release"
+	brief.add_theme_color_override("font_color", MegaTheme.ega(7) if states.get(id, "missing") == "missing" else MegaTheme.ega(14))
+
+
+## The selected game's details under the tiles: its name, then where it was found and which release,
+## or what to do to add it.
+func _select(id: String) -> void:
+	selected = id
+	for t: String in tiles:
+		_style_tile(t)
+	if details == null:
+		return
+	var r: Variant = found_results.get(id)
+	var line: String = _title_of(id)
+	if r != null and states.get(id, "") == "found":
+		line += " · " + str(r.version) + " · " + str(r.folder)
+	else:
+		line += " · " + _status_label(tiles[id]).text.replace("\n", " ")
+	details.text = line
+
+
 ## As many columns as fit; one tile per game whatever the width.
 ## Wide: as many columns as fit, scrolling down. Narrow (portrait, under two
 ## tiles across, or too short for the grid's rows, as a phone held sideways):
@@ -188,20 +276,36 @@ func scan_roots() -> PackedStringArray:
 func _layout() -> void:
 	if grid == null:
 		return
+	_apply_pixel_scale()
 	var usable: float = max(size.x - 32.0, TILE_MIN.x)
-	# the grid's rows must fit under the header too (a landscape phone is short)
+	# the grid's rows must fit under the header too (a landscape phone is short): the tiles' real
+	# height against the room the rest of the page leaves the tiles
 	var columns: int = clampi(int(usable / (TILE_MIN.x + 12.0)), 1, GAMES.size())
 	var rows: int = ceili(GAMES.size() / float(columns))
-	var too_short: bool = size.y < 140.0 + rows * (TILE_MIN.y + 12.0)
+	var tile_h: float = TILE_MIN.y
+	for id: String in tiles:
+		tile_h = maxf(tile_h, (tiles[id] as Control).get_combined_minimum_size().y)
+	# the rest of the page: the header row and four lines (the count, the details, the controls, the log)
+	var line: float = MegaTheme.line_size() * maxi(pixel, 1)
+	var others: float = (brand.get_combined_minimum_size().y if brand != null else line) + 12.0 + 4.0 * (line + 12.0)
+	var too_short: bool = size.y - 32.0 - others < rows * (tile_h + 12.0)
 	carousel = size.y > size.x or usable < 2.0 * TILE_MIN.x + 12.0 or too_short
 	if carousel:
 		grid.columns = GAMES.size()
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 		scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		grid.size_flags_horizontal = Control.SIZE_FILL
-		var w: float = clampf(usable * 0.8, TILE_MIN.x, 360.0)
+		# the tiles fill the height left them, the title art taking what the three lines leave
+		var h: float = maxf(TILE_MIN.y, size.y - 32.0 - others - 16.0)
+		var text_h: float = 3.0 * (line + pixel) + 14.0 * pixel + 12.0
+		var art_h: float = maxf(55.0 * pixel, h - text_h)
+		var w: float = clampf(minf(usable * 0.85, art_h * 1.6 + 14.0 * pixel), TILE_MIN.x, usable)
+		# a tall window (portrait) needs no taller art than the width allows: the tile's height follows
+		art_h = minf(art_h, (w - 14.0 * pixel) / 1.6)
+		h = maxf(TILE_MIN.y, art_h + text_h)
 		for id: String in tiles:
-			(tiles[id] as Control).custom_minimum_size = Vector2(w, TILE_MIN.y)
+			(tiles[id] as Control).custom_minimum_size = Vector2(w, h)
+			(tiles[id].get_child(0).get_node("Art") as Control).custom_minimum_size = Vector2(0, art_h)
 	else:
 		grid.columns = columns
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -209,6 +313,7 @@ func _layout() -> void:
 		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		for id: String in tiles:
 			(tiles[id] as Control).custom_minimum_size = TILE_MIN
+			(tiles[id].get_child(0).get_node("Art") as Control).custom_minimum_size = Vector2(0, 55 * pixel)
 
 
 func _make_tile(id: String, name_text: String, subtitle: String) -> PanelContainer:
@@ -218,32 +323,43 @@ func _make_tile(id: String, name_text: String, subtitle: String) -> PanelContain
 	tile.focus_mode = Control.FOCUS_ALL
 	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tile.gui_input.connect(_tile_input.bind(id))
+	tile.focus_entered.connect(_select.bind(id))
+	tile.focus_exited.connect(_style_tile.bind(id))
 	var box: VBoxContainer = VBoxContainer.new()
 	tile.add_child(box)
 	var art: TextureRect = TextureRect.new()
 	art.name = "Art"
-	art.custom_minimum_size = Vector2(0, 110)
+	art.custom_minimum_size = Vector2(0, 110)    # (55 logical pixels: _apply_pixel_scale)
+	art.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR    # a title screen shrunk to a tile reads better smoothed
 	art.visible = false
 	box.add_child(art)
 	var n: Label = Label.new()
 	n.name = "Name"
 	n.text = name_text
-	n.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	n.add_theme_font_size_override("font_size", 18)
+	n.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	n.clip_text = true
 	box.add_child(n)
 	var s: Label = Label.new()
 	s.name = "Subtitle"
 	s.text = subtitle
-	s.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	s.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	s.clip_text = true
 	box.add_child(s)
 	var st: Label = Label.new()
 	st.name = "Status"
 	st.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	st.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(st)
+	# a missing or unrunnable game's tile says so in two words; its full message (Status, kept for
+	# the details line and the message rule) shows on the details line when the tile is selected
+	var brief: Label = Label.new()
+	brief.name = "Brief"
+	brief.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	brief.clip_text = true
+	brief.visible = false
+	box.add_child(brief)
 	return tile
 
 
@@ -269,7 +385,7 @@ func show_results(results: Array) -> void:
 		elif (r as Dictionary).status == GameFinder.STATUS_OK:
 			states[id] = "found"
 			found += 1
-			st.text = "Found: %s\n%s" % [r.version, r.folder]
+			st.text = "Ready · %s" % r.version    # the folder is on the details line when selected
 		else:
 			states[id] = "unsupported"
 			st.text = ShellMessages.not_run(r.version if r.version != "" else r.title, r.message)
@@ -282,6 +398,10 @@ func show_results(results: Array) -> void:
 	ShellMessages.note(summary.text)
 	if export_button != null:
 		export_button.disabled = not GameExporter.can_export(found_results.values())
+	for g: Array in GAMES:
+		_style_tile(g[0])
+	if selected != "":
+		_select(selected)
 
 
 ## What the finder looks for, short: the releases' executables and versions.
@@ -788,6 +908,7 @@ func launch(id: String) -> bool:
 		host = null
 		return false
 	_page.visible = false
+	starfield.visible = false
 	host.finished.connect(_on_game_finished.bind(id))
 	ShellMessages.note("Started %s (%s)" % [_title_of(id), found_results[id].get("version", "")])
 	return true
@@ -797,6 +918,7 @@ func _on_game_finished(message: String, id: String) -> void:
 	host.queue_free()
 	host = null
 	_page.visible = true
+	starfield.visible = true
 	if message != "":
 		_status_label(tiles[id]).text = ShellMessages.game_stopped(_title_of(id), message)
 	(tiles[id] as Control).grab_focus()
