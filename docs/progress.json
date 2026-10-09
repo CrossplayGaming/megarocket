@@ -190,7 +190,7 @@
    ],
    "notes": {
     "files": "Your v1.0 copy, read as it is",
-    "matches": "Every intro picture matches; small timing wobbles in the intro (your copy is v1.0, the port's tables are v1.4); 18 level recordings made"
+    "matches": "Level 4 proven against your v1.0 original; the others match up to 624 pictures. Your v1.0 differs from the v1.4 that omnispeak describes in a few texts, now read from your own executable"
    }
   },
   {
@@ -251,6 +251,10 @@
   }
  ],
  "milestones": [
+  {
+   "date": "2026-10-09",
+   "text": "Keen 6 level sessions running against your v1.0 original: level 4 proven; v1.0's own texts (“Keen hungily enters”) read from your executable"
+  },
   {
    "date": "2026-10-09",
    "text": "Keen 4 levels 2 and 4 and Keen 5 level 2 proven against the original; a new check holds each picture to the original's timing so the game's own logic can be proven through deaths and restarts"

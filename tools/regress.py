@@ -414,6 +414,17 @@ def replayg5():
     return max(results)
 
 
+REPLAY_G6_LEVELS = ["level04"]    # the verified ones, against the user's v1.0 (18 sessions)
+
+
+def replayg6():
+    """Keen 6's verified level sessions (/TEDLEVEL n) against the user's v1.0, as REPLAY-G4's."""
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(lambda case: _galaxy_case("keen6", case), REPLAY_G6_LEVELS))
+    return max(results)
+
+
 def mm01():
     """The original's memory manager, modelled (MM-01): the port's picture of its memory (the
     debug key F10-M, one pixel a paragraph) agrees block for block with the original's under
@@ -847,6 +858,7 @@ CHECKS = {
     "REPLAY-G4": (replayg4, "slow"),
     "MM-01": (mm01, "slow"),
     "REPLAY-G5": (replayg5, "slow"),
+    "REPLAY-G6": (replayg6, "slow"),
     "REPLAY-V1": (replayv1, "slow"),
     "REPLAY-V2": (replayv2, "slow"),
     "REPLAY-V3": (replayv3, "slow"),
