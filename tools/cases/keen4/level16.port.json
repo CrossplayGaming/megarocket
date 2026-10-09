@@ -11,9 +11,9 @@
    0.3
   ],
   [
-   6.4829,
+   6.5542,
    "right",
-   2.0
+   1.9287
   ],
   [
    6.9829,
@@ -26,14 +26,14 @@
    1.5
   ],
   [
-   10.4829,
+   10.5685,
    "space",
-   0.2
+   0.1144
   ],
   [
-   12.4829,
+   12.5685,
    "right",
-   4.0
+   3.9144
   ],
   [
    13.4829,
@@ -77,6 +77,8 @@
   ]
  ],
  "timer_offset": 0,
- "clock": 426749,
- "result": "first difference at picture 108"
+ "clock": 680000,
+ "result": "first difference at picture 349",
+ "lock": true,
+ "seed_ticks": {}
 }

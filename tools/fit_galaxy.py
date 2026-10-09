@@ -13,6 +13,12 @@ this moves keys until the port's pictures and their durations follow the recordi
   further is kept. When no single event helps, the newest one is moved with every key after
   it (the "tail"). It stops when the whole recording matches or nothing helps.
 
+With --lock (HARN-12) every picture after a fade-in is held to the refresh the recording shows it
+(the original's frames take processing time the port does not model), and a mismatch soon after a
+death's restart first tries the restart's two clock readings (the reload's and the fade-in's random
+seeds) a BIOS tick either way: the reload comes right after the last frame, whose processing the port
+does not have, so which tick it reads is fitted per restart as the clock at the start is.
+
 Stage 0 first fits the DOS clock at the program's start (the random table's seed is the clock's
 hundredths when the level starts, and the time the original spends before the level's first picture
 is not modelled to a BIOS tick): every 10 ms over a second, scored by the opening, the middle of each
@@ -48,12 +54,16 @@ def say(*a):
 
 OFFSET = [0]    # the timer phase in use (machine units)
 CLOCK = [None]  # the DOS clock at the program's start in use (microseconds; None: the case's)
+LOCK = [False]  # HARN-12's frame lock
+SEEDS = [{}]    # BIOS ticks added to the clock's n-th reading (HARN-12)
+SEED_COMBOS = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1)]
 
 
-def trial(game, case, keys, tag, seconds=None, offset=None, clock=None):
+def trial(game, case, keys, tag, seconds=None, offset=None, clock=None, seeds=None):
     out = WORK / f"fitg_{game}_{case}_{tag}"
     galaxy_case.run_port(game, case, keys, out, seconds=seconds, timer_offset=OFFSET[0] if offset is None else offset,
-                         clock=CLOCK[0] if clock is None else clock)
+                         clock=CLOCK[0] if clock is None else clock, lock=LOCK[0],
+                         seed_ticks=SEEDS[0] if seeds is None else seeds)
     try:
         k, note, n = galaxy_case.score(game, case, out)
     except Exception as err:          # a run that wrote nothing scores nothing
@@ -100,13 +110,20 @@ def main():
     ap.add_argument("--start", default="case", choices=["case", "port"])
     ap.add_argument("--workers", type=int, default=10)
     ap.add_argument("--rounds", type=int, default=80)
+    ap.add_argument("--lock", action="store_true", help="hold pictures to the recording's refreshes (HARN-12)")
     a = ap.parse_args()
+    oracle = Path(common.config()["oracle_runs"]) / f"{a.game}_{a.case}_a"
+    blacks = galaxy_case.black_pictures(oracle)
+    restarts = [b for b in blacks[1:] if b > blacks[0] + galaxy_case.RESTART_PICTURES]
+    seeds_tried = set()
     target = Path(__file__).parent / "cases" / a.game / f"{a.case}.port.json"
     pool = concurrent.futures.ThreadPoolExecutor(a.workers)
+    LOCK[0] = a.lock or galaxy_case.case_lock(a.game, a.case)
     if a.start == "port" and target.exists():
         keys = galaxy_case.case_keys(a.game, a.case, "port")
         OFFSET[0] = galaxy_case.case_timer_offset(a.game, a.case)
         CLOCK[0] = galaxy_case.case_clock(a.game, a.case)
+        SEEDS[0] = galaxy_case.case_seed_ticks(a.game, a.case)
     else:
         script = galaxy_case.case_keys(a.game, a.case, "case")
         # stage 0a: the DOS clock, by the opening (no keys yet)
@@ -143,6 +160,22 @@ def main():
     while best < n - 1 and rounds < a.rounds:
         rounds += 1
         t_mis, way, gap = mismatch(a.game, a.case, out, best)
+        r = sum(1 for b in restarts if b - galaxy_case.RESTART_PICTURES <= best)    # the restart it follows
+        if LOCK[0] and r > 0 and r not in seeds_tried and best <= restarts[r - 1] + 60:
+            seeds_tried.add(r)
+            reads = (2 + 2 * r, 3 + 2 * r)    # the clock's readings: start-up, level, fade-in, then two a restart
+            futs = {}
+            for dl, dp in SEED_COMBOS:
+                s = dict(SEEDS[0])
+                s[reads[0]] = s.get(reads[0], 0) + dl
+                s[reads[1]] = s.get(reads[1], 0) + dp
+                futs[pool.submit(trial, a.game, a.case, keys, f"s{rounds}_{dl}_{dp}", t_mis + 3.0, None, None, s)] = s
+            res = sorted(((fu.result()[0], i, futs[fu]) for i, fu in enumerate(futs)), key=lambda x: (x[0], -x[1]), reverse=True)
+            if res and res[0][0] > best:
+                SEEDS[0] = res[0][2]
+                best, note, n, out = trial(a.game, a.case, keys, "best")
+                say(f"  restart {r}: clock readings {reads} ticks {[SEEDS[0].get(x, 0) for x in reads]}: {best} of {n} ({note})")
+                continue
         events = []
         for i, (t, key, h) in enumerate(keys):
             for field, at in ((0, t), (2, t + h)):
@@ -201,7 +234,11 @@ def main():
         best, note, n, out = trial(a.game, a.case, keys, "best")
         say(f"  kept event {i} ({keys[i][1]}) {['press', '', 'release', 'tail'][f]} {d:+d} refreshes: {best} of {n} ({note})")
     result = "PASS" if n > 0 and best >= n - 1 else f"first difference at picture {best}"
-    target.write_text(json.dumps({"keys": keys, "timer_offset": OFFSET[0], "clock": CLOCK[0], "result": result}, indent=1), encoding="utf-8")
+    spec = {"keys": keys, "timer_offset": OFFSET[0], "clock": CLOCK[0], "result": result}
+    if LOCK[0]:
+        spec["lock"] = True
+        spec["seed_ticks"] = {str(n): d for n, d in sorted(SEEDS[0].items()) if d}
+    target.write_text(json.dumps(spec, indent=1), encoding="utf-8")
     say(f"wrote {target.name}: {result}")
     return 0 if result == "PASS" else 1
 

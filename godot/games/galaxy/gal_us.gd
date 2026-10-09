@@ -365,6 +365,12 @@ var us_randomSeed: int = 0
 ## 21h 2Ch) and DL, the hundredths of a second, which DOS works out from the BIOS
 ## tick count (18.2 a second). -1: unset, us_randomSeed instead.
 var us_dosClockAtStart: int = -1
+## HARN-12 (tests only, set from outside): BIOS ticks added to the n-th reading of
+## the clock (1 = the first). A death's restart reads it right after the last
+## frame, where the original's frame took processing time the port does not
+## model, so its tick is fitted per restart as the clock at the start is. Not state.
+var us_seedTicks: Dictionary = {}
+var us_clockReads: int = 0
 
 
 ## DL of int 21h 2Ch: the BIOS ticks since 00:00:00 as hundredths (DOSBox:
@@ -375,6 +381,8 @@ func US_DOSHundredths() -> int:
 	var before: int = vm.now if sd_startupNow < 0 else sd_startupNow
 	var units: int = before + us_dosClockAtStart * DosMachine.PIT_HZ / 1000
 	var ticks: int = units / (65536 * DosMachine.UNIT) + sd_biosTicks
+	us_clockReads += 1
+	ticks += int(us_seedTicks.get(us_clockReads, 0))
 	return int(float(ticks) * 100.0 * 65536.0 / float(DosMachine.PIT_HZ)) % 100
 
 

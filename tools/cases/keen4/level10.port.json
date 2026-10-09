@@ -11,14 +11,14 @@
    0.3
   ],
   [
-   6.4829,
+   6.5542,
    "right",
-   2.0
+   1.9287
   ],
   [
-   6.9829,
+   7.0257,
    "ctrl",
-   0.3
+   0.2572
   ],
   [
    9.4829,
@@ -78,5 +78,7 @@
  ],
  "timer_offset": 0,
  "clock": 106749,
- "result": "first difference at picture 84"
+ "result": "first difference at picture 171",
+ "lock": true,
+ "seed_ticks": {}
 }

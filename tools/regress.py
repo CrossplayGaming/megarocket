@@ -388,14 +388,18 @@ def replayv3():
     return _replay("keen3", REPLAY_V3_LEVELS)
 
 
-REPLAY_G4_LEVELS = ["level01"]    # the verified ones; level 18 is the ending (no session)
+# the verified ones; level 18 is the ending (no session). Sessions whose .port.json says "lock" are held
+# under HARN-12's frame lock (the game's logic, not the frames' timing); the others are frame for frame.
+REPLAY_G4_LEVELS = ["level01", "level02", "level04"]
 
 
 def _galaxy_case(game, case):
     """One Galaxy level session (tools/galaxy_case.py): its fitted keys, timer phase and DOS clock."""
     p = subprocess.run([sys.executable, "tools/galaxy_case.py", game, case, "--tag", "regress"],
                        cwd=str(common.ROOT), capture_output=True, text=True, encoding="utf-8", errors="replace")
-    print("  " + (p.stdout.strip().splitlines() or ["(no output)"])[-1])
+    import galaxy_case
+    lock = " [frame lock]" if galaxy_case.case_lock(game, case) else ""
+    print("  " + (p.stdout.strip().splitlines() or ["(no output)"])[-1] + lock)
     return p.returncode
 
 

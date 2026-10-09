@@ -59,6 +59,21 @@ def case_clock(game, case):
     return recording_clock(game, case)
 
 
+def _port_spec(game, case):
+    port = CASES / game / f"{case}.port.json"
+    return json.loads(port.read_text(encoding="utf-8")) if port.exists() else {}
+
+
+def case_seed_ticks(game, case):
+    """BIOS ticks added to the clock's n-th reading, {n: ticks}, fitted per restart (HARN-12)."""
+    return {int(n): int(d) for n, d in _port_spec(game, case).get("seed_ticks", {}).items()}
+
+
+def case_lock(game, case):
+    """Whether the session was fitted under HARN-12's frame lock."""
+    return bool(_port_spec(game, case).get("lock", False))
+
+
 def case_keys(game, case, source="port"):
     port = CASES / game / f"{case}.port.json"
     if source == "port" and port.exists():
@@ -67,8 +82,34 @@ def case_keys(game, case, source="port"):
     return [list(k) for k in spec["held"]]
 
 
-def run_port(game, case, keys, out, seconds=None, extra=(), timer_offset=None, clock=None):
+def lock_file(game, case):
+    """HARN-12's frame lock for a session: for each of the recording's blacks (the level's, then each
+    restart's), the refresh at which each following picture first shows, counted from the first picture
+    after the black, up to the next restart's pictures (whose timing is the load's, TIME-G)."""
+    oracle = Path(common.config()["oracle_runs"]) / f"{game}_{case}_a"
+    orc = timing_score.pictures(frames.Sequence(oracle / "frames"), True)
+    blacks = black_pictures(oracle)
+    segments = []
+    for i, b in enumerate(blacks):
+        stop = blacks[i + 1] - RESTART_PICTURES if i + 1 < len(blacks) else len(orc) - 1
+        offs, at = [], 0
+        for k in range(b + 1, stop + 1):
+            offs.append(at)
+            at += orc[k][1]
+        segments.append(offs)
+    path = WORK / f"lock_{game}_{case}.json"
+    path.write_text(json.dumps({"segments": segments}), encoding="utf-8")
+    return path
+
+
+def run_port(game, case, keys, out, seconds=None, extra=(), timer_offset=None, clock=None, lock=None,
+             seed_ticks=None):
     spec = json.loads((CASES / game / f"{case}.json").read_text(encoding="utf-8"))
+    seed_ticks = case_seed_ticks(game, case) if seed_ticks is None else seed_ticks
+    if seed_ticks:
+        extra = (f"--seed_ticks={','.join(f'{n}:{d}' for n, d in sorted(seed_ticks.items()) if d)}", *extra)
+    if case_lock(game, case) if lock is None else lock:
+        extra = (f"--lock={lock_file(game, case).as_posix()}", *extra)
     secs = seconds or spec["seconds"] + 2
     keyarg = ",".join(f"{t:.4f}:{SCANCODES[k]}:{h}" for t, k, h in keys)
     if spec.get("args"):
@@ -97,6 +138,23 @@ def opening_end(oracle):
     return -1
 
 
+def black_pictures(oracle):
+    """The indices of the recording's all-black pictures (the black before each fade-in)."""
+    seq = frames.Sequence(Path(oracle) / "frames")
+    seen = {}
+    for i in range(len(seq)):
+        seen.setdefault(seq.digest(i), i)
+    orc = timing_score.pictures(seq, True)
+    return [n for n, (d, _r) in enumerate(orc) if not np.asarray(seq.frame(seen[d])).any()]
+
+
+# A restart's pictures whose durations follow the reload: the last one of play (held while the map
+# loads), the level's box, the fade-out's three steps and the black.
+RESTART_PICTURES = 5
+# How far a restart's durations may sum from the recording's (TIME-G's restart error, refreshes)
+RESTART_TOLERANCE = 2
+
+
 def level_score(out, oracle):
     """REPLAY-G's measure of a level session: (k, note, n, opening_error).
 
@@ -105,7 +163,11 @@ def level_score(out, oracle):
     a refresh or two, and after the fade-in the original restarts its clock (FadeAndUnhook's TimeCount =
     lasttimecount), so nothing after depends on it: those durations are only summed (opening_error).
     From the first picture after the black every picture and its duration must match, one-refresh slips
-    that recover passed (timing_score's transient rule)."""
+    that recover passed (timing_score's transient rule). A death's restart is the opening again (the
+    level loads, its box, the fade-out, the black, and the fade-in sets the clock back): its pictures
+    must match, their durations sum to within RESTART_TOLERANCE of the recording's (added to the error),
+    and the count starts again after its black. The RNG is seeded from the DOS clock at the load and the
+    fade-in, so a restart timed wrongly enough to matter still shows as a picture that differs."""
     _k, _note, port, orc, start = timing_score.score(Path(out), Path(oracle), transient=True)
     end = opening_end(oracle)
     n = min(len(port), len(orc) - 1)
@@ -115,11 +177,21 @@ def level_score(out, oracle):
             return k, f"opening picture {k} differs", n, err
         if k < end:
             err += abs(port[k][1] - orc[k][1])
+    restarts = [b for b in black_pictures(oracle) if b > end + RESTART_PICTURES]
     offset = 0
     slips = []
     for k in range(end + 1, n):
         if port[k][0] != orc[k][0]:
             return k, f"picture {k} differs" + timing_score._slips(slips), n, err
+        b = next((b for b in restarts if b - RESTART_PICTURES <= k <= b), None)
+        if b is not None:
+            if k == b:
+                miss = sum(port[j][1] - orc[j][1] for j in range(b - RESTART_PICTURES, b + 1))
+                err += abs(miss)
+                if abs(miss) > RESTART_TOLERANCE:
+                    return k, f"the restart ending at picture {k} lasts {miss:+d} refreshes against the recording" +                         timing_score._slips(slips), n, err
+                offset = 0
+            continue
         if offset != 0:
             slips.append(k - 1)
         offset += port[k][1] - orc[k][1]
@@ -142,9 +214,10 @@ def main():
     ap.add_argument("case")
     ap.add_argument("--keys-from", default="port", choices=["case", "port"])
     ap.add_argument("--tag", default="")
+    ap.add_argument("--lock", action="store_true", help="hold each picture to the recording's refresh (HARN-12)")
     a = ap.parse_args()
-    out = WORK / f"gcase_{a.game}_{a.case}{('_' + a.tag) if a.tag else ''}"
-    code = run_port(a.game, a.case, case_keys(a.game, a.case, a.keys_from), out)
+    out = WORK / f"gcase_{a.game}_{a.case}{('_' + a.tag) if a.tag else ''}{'_lock' if a.lock else ''}"
+    code = run_port(a.game, a.case, case_keys(a.game, a.case, a.keys_from), out, lock=True if a.lock else None)
     if code != 0:
         print(f"COULD-NOT-RUN: the port's run failed ({code})")
         return 2

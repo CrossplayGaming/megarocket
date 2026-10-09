@@ -1137,6 +1137,11 @@ func VL_SwapOnNextPresent() -> void:
 	pass
 
 
+## A verification harness's hold on each picture (HARN-12, tests only): called
+## with the page just written, before it is put on display. Not game state.
+var present_lock: Callable = Callable()
+
+
 ## The 320 x 200 window at the scroll position, written into the card's hidden
 ## page in write mode 0 one plane at a time, then shown from the next retrace.
 func VL_Present() -> void:
@@ -1144,6 +1149,8 @@ func VL_Present() -> void:
 	var page: int = 1 - vl_shownPage
 	var base: int = page * EgaCard.PAGE_SIZE
 	_write_rows(base, 0, VL_EGAVGA_GFX_HEIGHT, -1)
+	if present_lock.is_valid():
+		present_lock.call(base)
 	# the CRTC start address, latched by the card at the next retrace; then, as
 	# id_vl_dos.c's present does, wait for that retrace to begin (no wait when
 	# one already has)

@@ -26,24 +26,24 @@
    1.5
   ],
   [
-   10.4829,
+   10.5114,
    "space",
-   0.2
+   0.1715
   ],
   [
-   12.4829,
+   12.5114,
    "right",
-   4.0
+   3.9715
   ],
   [
-   13.4829,
+   13.5114,
    "ctrl",
-   0.3
+   0.2715
   ],
   [
-   15.4829,
+   15.5114,
    "alt",
-   0.2
+   0.1715
   ],
   [
    17.4829,
@@ -78,5 +78,7 @@
  ],
  "timer_offset": 1420000,
  "clock": 576749,
- "result": "first difference at picture 249"
+ "result": "first difference at picture 501",
+ "lock": true,
+ "seed_ticks": {}
 }

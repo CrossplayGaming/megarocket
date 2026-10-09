@@ -12,6 +12,9 @@ extends SceneTree
 ##          --costs=name=units,... (TIME-G costs over the game's own)
 ##          --seed=n (the random index US_InitRndT(true) takes)
 ##          --clock=us (or the DOS clock at the start, microseconds since 00:00:00)
+##          --seed_ticks=n:d,... (BIOS ticks added to the clock's n-th reading)
+##          --lock=<json> (HARN-12: each picture after a fade-in held until the
+##            refresh the recording first shows it, counted from that fade-in)
 
 const GAMES: Dictionary = {"keen4": "keen4", "keen5": "keen5", "keen6": "keen6e14"}
 const CLASSES: Dictionary = {"keen4": "res://games/galaxy/gal_keen4.gd",
@@ -46,6 +49,8 @@ func _init() -> void:
 	vm.timer_offset = int(opts.get("timer_offset", DOSBOX.timer_offset))
 	g.us_randomSeed = int(opts.get("seed", "0"))
 	g.us_dosClockAtStart = int(opts.get("clock", "-1"))
+	for spec: String in str(opts.get("seed_ticks", "")).split(",", false):
+		g.us_seedTicks[int(spec.split(":")[0])] = int(spec.split(":")[1])
 	for spec: String in str(opts.get("costs", "")).split(",", false):
 		var kv: PackedStringArray = spec.split("=")
 		g.costs[kv[0]] = int(kv[1])
@@ -59,6 +64,7 @@ func _init() -> void:
 		return
 	var card: EgaCard = vm.card
 	var written: Array = [0]
+	var lock: Dictionary = _lock_setup(g, vm, str(opts.get("lock", "")))
 	vm.on_display = func() -> void:
 		if card.video_mode == EgaCard.MODE_EGA:
 			if card.frame_mixed:
@@ -66,6 +72,8 @@ func _init() -> void:
 			else:
 				writer.add_indexed(card.frame_pixels, card.frame_palette, "P")
 			written[0] += 1
+			if not lock.is_empty():
+				_lock_display(g, vm, lock)
 	vm.time_limit = DosMachine.seconds_to_units(seconds)
 	vm.on_limit = func() -> void:
 		# end the run the way Quit does, without Quit's error report
@@ -84,5 +92,76 @@ func _init() -> void:
 	vm.int8 = Callable()
 	vm.int9 = Callable()
 	vm.on_display = Callable()
+	g.present_lock = Callable()
 	vm.on_limit = Callable()
 	t.finish(self)
+
+
+# ----------------------------------------------------------------- HARN-12
+
+## The frame lock: segments[i] holds, for the i-th fade-in (the level's first, then each restart's),
+## the refresh at which the recording first shows each picture from the first one after the black.
+## A present whose page differs from the one on display is the next picture; it is put on display
+## no sooner than the recording's refresh for it (never sooner than the port would: a picture the
+## port shows late still fails). This stands in for the original's processing time per frame,
+## which the port does not model, so a session can be held against the original's game logic.
+func _lock_setup(g: GalGame, vm: DosMachine, path: String) -> Dictionary:
+	if path == "":
+		return {}
+	var spec: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if typeof(spec) != TYPE_DICTIONARY:
+		t.blocked("bad lock file " + path)
+		return {}
+	var lock: Dictionary = {"segments": spec.segments, "seg": -1, "pic": 0, "anchor": -1,
+		"last": 0, "fading": false, "await": false, "shown": 0, "held": 0, "pending": 0}
+	g.present_lock = func(base: int) -> void:
+		var card: EgaCard = vm.card
+		var h: int = hash([card.plane0.slice(base, base + 8000), card.plane1.slice(base, base + 8000),
+			card.plane2.slice(base, base + 8000), card.plane3.slice(base, base + 8000)])
+		if h == lock.shown:
+			return
+		lock.shown = h
+		if lock.seg < 0 or lock.seg >= lock.segments.size() or lock.anchor < 0:
+			return
+		var offs: Array = lock.segments[lock.seg]
+		# the next picture after those shown and those presented but not yet scanned out
+		var j: int = int(lock.pic) + 1 + int(lock.pending)
+		lock.pending = int(lock.pending) + 1
+		if j >= offs.size():
+			return
+		var target: int = int(lock.anchor) + int(offs[j])
+		if vm.vbl_count < target - 1:
+			lock.held = int(lock.held) + 1
+			while vm.vbl_count < target - 1 and not g.quitting:
+				vm.wait_retrace_start()
+			vm.wait_retrace_end()
+	return lock
+
+
+func _lock_display(g: GalGame, vm: DosMachine, lock: Dictionary) -> void:
+	var card: EgaCard = vm.card
+	var h: int = hash([card.frame_pixels, card.frame_palette]) if not card.frame_mixed else hash(card.frame_rgb())
+	# a fade-in (CK_UpdateFadeDrawing's second call) starts a segment at the next picture shown
+	var fading: bool = g.ck_fadeDrawCounter == 2
+	if fading and not lock.fading:
+		lock.await = true
+	lock.fading = fading
+	if h == lock.last:
+		return
+	lock.last = h
+	var black: bool = true
+	for c: int in card.frame_palette:
+		if c != 0:
+			black = false
+			break
+	if lock.await and not black:
+		lock.await = false
+		lock.seg = int(lock.seg) + 1
+		lock.anchor = vm.vbl_count
+		lock.pic = 0
+		lock.pending = 0
+	else:
+		lock.pic = int(lock.pic) + 1
+		if int(lock.pending) > 0:
+			lock.pending = int(lock.pending) - 1
+
