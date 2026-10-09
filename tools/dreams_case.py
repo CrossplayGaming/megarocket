@@ -188,15 +188,25 @@ def level_score(port, orc):
     return n, f"all {n} pictures match" + timing_score._slips(slips), n, load_err, skips, k
 
 
+def align(port, orc, lead=4):
+    """The port's pictures from the recording's first whole one, and the recording's from there: when the
+    recording opens on a picture of the original's drawing in progress (v1.93's title half drawn), up to
+    `lead` such pictures are left out. ([], orc) when none is found."""
+    for i in range(min(lead + 1, len(orc))):
+        start = next((n for n, (d, _) in enumerate(port) if d == orc[i][0]), None)
+        if start is not None:
+            return port[start:], orc[i:]
+    return [], orc
+
+
 def score(game, case, out):
     """(j, note, n, port, orc, k): the port's pictures from the recording's first whole one, scored."""
     oracle = Path(common.config()["oracle_runs"]) / f"{game}_{case}_a"
     port = timing_score.pictures(frames.Sequence(Path(out) / game), False)
     orc = timing_score.pictures(frames.Sequence(oracle / "frames"), True)
-    start = next((i for i, (d, _) in enumerate(port) if d == orc[0][0]), None)
-    if start is None:
-        return 0, "the recording's first picture is not in the port's run", len(orc) - 1, port, orc, 0
-    port = port[start:]
+    port, orc = align(port, orc)
+    if not port:
+        return 0, "the recording's first pictures are not in the port's run", len(orc) - 1, port, orc, 0
     j, note, n, load_err, skips, k = level_score(port, orc)
     score.skips = skips    # (recording picture, port's extras, recording's extras, port picture) per pass
     if skips:
