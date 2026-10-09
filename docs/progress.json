@@ -133,7 +133,7 @@
     "AND-02"
    ],
    "notes": {
-    "matches": "Levels 1, 2 and 4 proven against the original (2 and 4 with each picture held to the original's timing, which checks the game itself); the others now match well past Keen's deaths, up to 969 of 1077 pictures"
+    "matches": "Proven against the original: the start-up, title and built-in demo refresh for refresh; levels 1, 2 and 4 whole; every other recorded difference checked and found to be timing a player cannot see"
    }
   },
   {
@@ -161,7 +161,7 @@
     "AND-02"
    ],
    "notes": {
-    "matches": "Boot matches to the refresh through the title; memory manager proven; levels 1, 2, 4 and 12 proven against the original; five others stop at the level's first frame, a timing matter still open"
+    "matches": "Proven against the original: the built-in demo's play throughout, levels 1, 2, 4 and 12 whole; the remaining differences are timing a player cannot see"
    }
   },
   {
@@ -190,7 +190,7 @@
    ],
    "notes": {
     "files": "Your v1.0 copy, read as it is",
-    "matches": "Level 4 proven against your v1.0 original; the others match up to 624 pictures. Your v1.0 differs from the v1.4 that omnispeak describes in a few texts, now read from your own executable"
+    "matches": "Plays by v1.4's rules (your decision): equal to v1.4 frame for frame on all four demos; level 4 proven against your v1.0. Your v1.0 differs from v1.4 in a few places id changed; three found and documented"
    }
   },
   {
@@ -251,6 +251,10 @@
   }
  ],
  "milestones": [
+  {
+   "date": "2026-10-09",
+   "text": "Keen 4-6 parity review done: every remaining difference checked; none is a game-logic bug"
+  },
   {
    "date": "2026-10-09",
    "text": "Keen 6 level sessions running against your v1.0 original: level 4 proven; v1.0's own texts (“Keen hungily enters”) read from your executable"
