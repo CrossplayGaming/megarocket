@@ -1632,6 +1632,20 @@ func US_SetPrintRoutines(_p0, _p1):
 	return _undefined(&"US_SetPrintRoutines")
 func US_Print(_p0):
 	return _undefined(&"US_Print")
+func US_PrintUnsigned(_p0):
+	return _undefined(&"US_PrintUnsigned")
+func US_PrintSigned(_p0):
+	return _undefined(&"US_PrintSigned")
+func US_PrintCentered(_p0):
+	return _undefined(&"US_PrintCentered")
+func US_CPrintLine(_p0, _p1):
+	return _undefined(&"US_CPrintLine")
+func US_CPrint(_p0):
+	return _undefined(&"US_CPrint")
+func US_ClearWindow():
+	return _undefined(&"US_ClearWindow")
+func US_DrawWindow(_p0, _p1, _p2, _p3):
+	return _undefined(&"US_DrawWindow")
 func US_CenterWindow(_p0, _p1):
 	return _undefined(&"US_CenterWindow")
 func US_CenterSaveWindow(_p0, _p1, _p2):

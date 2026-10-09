@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 import gen_gal_decl as gal
+from c_lex import strip_comments
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "refkeen" / "src" / "kdreams"
@@ -24,7 +25,7 @@ KEYWORDS = {"if", "while", "for", "switch", "return", "sizeof", "else", "do"}
 
 def functions(path):
     """[(name, parameter count, static)] of the file's function definitions, in order."""
-    text = gal.active_lines(gal.strip_comments(path.read_text(encoding="latin-1")))
+    text = gal.active_lines(strip_comments(path.read_text(encoding="latin-1")))
     found = []
     for m in re.finditer(r"^((?:[A-Za-z_][\w \t\*]*?\b)?)([A-Za-z_]\w*)\s*\(", text, flags=re.M):
         ret, name = m.group(1).strip(), m.group(2)

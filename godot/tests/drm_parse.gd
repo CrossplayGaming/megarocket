@@ -22,4 +22,6 @@ func _init() -> void:
 		be.BE_ST_EGAFetchGFXByteFromPlane(200, 2), be.BE_ST_EGAFetchGFXByteFromPlane(300, 0), be.BE_ST_EGAFetchGFXByteFromPlane(300, 1)],
 		be.BE_ST_EGAFetchGFXByteFromPlane(100, 2) == 0xA5 and be.BE_ST_EGAFetchGFXByteFromPlane(200, 2) == 0xA5
 		and be.BE_ST_EGAFetchGFXByteFromPlane(300, 0) == 0xF0 and be.BE_ST_EGAFetchGFXByteFromPlane(300, 1) == 0)
+	var g: DreamsGame = DreamsGame.new()
+	t.ok("the class chain instantiates (DreamsGame through DrmDecl)", g is DrmUS and g is DrmCA and g is DrmBE)
 	t.finish(self)

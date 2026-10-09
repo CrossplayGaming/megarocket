@@ -422,6 +422,19 @@ func load_map(i: int) -> Dictionary:
 	return {"width": width, "height": height, "name": hdr.slice(22, 38).get_string_from_ascii().strip_edges(), "plane": planes}
 
 
+## A map's planes as the cache reads them: [compressed length, Huffman-expanded length] each
+## (the sizes of the blocks CA_CacheMap allocates for them).
+func map_plane_sizes(i: int) -> Array:
+	var off: int = u32(_map_head, 2 + i * 4)
+	var g: GalData = GalData.new()
+	var hdr: PackedByteArray = g.huff_expand(_maps_file, off, _map_head[402 + i], 38, _map_dict, "map %d header" % i)
+	var out: Array = []
+	for p: int in range(3):
+		var poff: int = u32(hdr, p * 4)
+		out.append([u16(hdr, 12 + p * 2), u16(_maps_file, poff)])
+	return out
+
+
 func num_audio_chunks() -> int:
 	return _au_starts.size() / 4 - 1
 

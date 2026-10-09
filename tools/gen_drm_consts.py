@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 import gen_gal_decl as gal
+from c_lex import strip_comments
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "refkeen" / "src" / "kdreams"
@@ -55,7 +56,7 @@ def expression(value, known):
 def constants():
     known, out = set(), []
     for name in HEADERS:
-        text = gal.active_lines(gal.strip_comments((SRC / name).read_text(encoding="latin-1")))
+        text = gal.active_lines(strip_comments((SRC / name).read_text(encoding="latin-1")))
         section = []
         for m in re.finditer(r"^[ \t]*#define[ \t]+([A-Za-z_]\w*)(\(?)([^\n]*)$", text, flags=re.M):
             ident, paren, value = m.group(1), m.group(2), m.group(3)
