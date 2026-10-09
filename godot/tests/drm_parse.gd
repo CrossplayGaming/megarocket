@@ -23,5 +23,17 @@ func _init() -> void:
 		be.BE_ST_EGAFetchGFXByteFromPlane(100, 2) == 0xA5 and be.BE_ST_EGAFetchGFXByteFromPlane(200, 2) == 0xA5
 		and be.BE_ST_EGAFetchGFXByteFromPlane(300, 0) == 0xF0 and be.BE_ST_EGAFetchGFXByteFromPlane(300, 1) == 0)
 	var g: DreamsGame = DreamsGame.new()
+	_games.append(g)
 	t.ok("the class chain instantiates (DreamsGame through DrmDecl)", g is DrmUS and g is DrmCA and g is DrmBE)
+	_release_all()
 	t.finish(self)
+
+
+## The state tables' nextstate links form loops: break them so the run ends without leaks.
+var _games: Array = []
+
+
+func _release_all() -> void:
+	for o: Object in _games:
+		o.call("release_links")
+	_games.clear()

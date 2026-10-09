@@ -21,13 +21,16 @@ func _init() -> void:
 	var root: String = opts.get("game_data", "")
 	if root == "":
 		t.blocked("no --game_data folder given")
+		_release_all()
 		t.finish(self)
 		return
 	d = DreamsData.new()
 	if not t.ok("files load (%s)" % d.error, d.load_game(root.path_join("kdreams"))):
+		_release_all()
 		t.finish(self)
 		return
 	g = DreamsGame.new()
+	_games.append(g)
 	g.vm = DosMachine.new()
 	g.data = d
 	g.refkeen_current_gamever = DrmDecl.BE_GAMEVER_KDREAMSE100 if d.version == "e100" else DrmDecl.BE_GAMEVER_KDREAMSE193
@@ -54,6 +57,7 @@ func _init() -> void:
 	_update_screen()
 	_fades()
 	t.ok("nothing quit (%s)" % g.quit_message, not g.quitting)
+	_release_all()
 	t.finish(self)
 
 
@@ -418,3 +422,13 @@ func _fades() -> void:
 	for i: int in range(16):
 		ok = ok and card.atc[i] == g.colors[3][i]
 	t.ok("VW_FadeOut / VW_FadeIn step the palette, waiting on the retrace (time passes %s)" % (g.vm.now > t0), ok and g.vm.now > t0)
+
+
+## The state tables' nextstate links form loops: break them so the run ends without leaks.
+var _games: Array = []
+
+
+func _release_all() -> void:
+	for o: Object in _games:
+		o.call("release_links")
+	_games.clear()

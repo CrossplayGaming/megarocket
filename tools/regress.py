@@ -497,6 +497,24 @@ def simd01d():
     return _dreams_test("drm_us_check")
 
 
+def simd01e():
+    """The Dreams actors: all 213 states as kd_keen.c, kd_act1.c and kd_act2.c define them (shapes, timing,
+    moves, functions, links, both releases' DOS offsets) and the physics helpers on hand-worked cases."""
+    return _dreams_test("drm_acts_check")
+
+
+def simd01f():
+    """Keen Dreams boots headless, v1.00 and v1.93: start-up, the text start screen, the title and the
+    demo loop for 40 s of machine time without the program quitting."""
+    import gdtest
+    code, out = gdtest.run("drm_boot", [f"--out={Path('F:/KeenReworkWork/port_runs/drm_boot_regress').as_posix()}"],
+                           timeout=900.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "game time" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def simg01a():
     """The Galaxy library layer draws what the data says: every tile, bitmap, sprite (all
     shifts) and a font string read back from the surface as GalData decodes them; VL_Present
@@ -939,6 +957,8 @@ CHECKS = {
     "SIM-D-01b": (simd01b, "fast"),
     "SIM-D-01c": (simd01c, "fast"),
     "SIM-D-01d": (simd01d, "fast"),
+    "SIM-D-01e": (simd01e, "fast"),
+    "SIM-D-01f": (simd01f, "slow"),
     "TIME-G4": (timeg4, "slow"),
     "TIME-G5": (timeg5, "slow"),
     "TIME-G6": (timeg6, "slow"),

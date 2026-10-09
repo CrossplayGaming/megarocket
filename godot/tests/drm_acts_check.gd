@@ -17,9 +17,11 @@ func _init() -> void:
 	var src: String = ProjectSettings.globalize_path("res://").path_join("../refkeen/src/kdreams")
 	if not FileAccess.file_exists(src.path_join("kd_keen.c")):
 		t.blocked("no reference at %s" % src)
+		_release_all()
 		t.finish(self)
 		return
 	var g: DreamsGame = DreamsGame.new()
+	_games.append(g)
 	var scr: Script = g.get_script()
 	while scr != null:
 		var m: Dictionary = scr.get_script_constant_map()
@@ -36,6 +38,7 @@ func _init() -> void:
 	_objptrs(g)
 	_overread(g)
 	t.ok("the engine did not quit (%s)" % g.quit_message, not g.quitting)
+	_release_all()
 	t.finish(self)
 
 
@@ -322,3 +325,13 @@ func _overread(g: DreamsGame) -> void:
 		print("  %s: bounceangle at image offset 0x%x" % [ver[0], at])
 	g.refkeen_current_gamever = DrmDecl.BE_GAMEVER_KDREAMSE100
 	g.RefKeen_FillObjStatesWithDOSPointers()
+
+
+## The state tables' nextstate links form loops: break them so the run ends without leaks.
+var _games: Array = []
+
+
+func _release_all() -> void:
+	for o: Object in _games:
+		o.call("release_links")
+	_games.clear()

@@ -13,15 +13,18 @@ func _init() -> void:
 	var root: String = T.options().get("game_data", "")
 	if root == "":
 		t.blocked("no --game_data folder given")
+		_release_all()
 		t.finish(self)
 		return
 	var d: DreamsData = DreamsData.new()
 	if not d.load_game(root.path_join("kdreams")):
 		t.blocked("Keen Dreams does not load: %s" % d.error)
+		_release_all()
 		t.finish(self)
 		return
 	var vm: DosMachine = DosMachine.new()
 	var g: DreamsGame = DreamsGame.new()
+	_games.append(g)
 	g.vm = vm
 	g.data = d
 	g.current_gamever_int = 100
@@ -35,6 +38,7 @@ func _init() -> void:
 	g.SD_Shutdown()
 	g.IN_Shutdown()
 	t.ok("SD_Shutdown gives the timer back (18.2 Hz, no handler)", vm.pit0_reload == 0x10000 and not vm.int8.is_valid())
+	_release_all()
 	t.finish(self)
 
 
@@ -199,3 +203,13 @@ func _sounds(g: DreamsGame, vm: DosMachine) -> void:
 	t.eq("AdLib sound %d plays %d interrupts (its length)" % [n, ints], ints, allen)
 	t.ok("AdLib note off at the end", writes.size() > 11 and writes[writes.size() - 1] == [g.alFreqH, 0])
 	g.sd_alOutHook = Callable()
+
+
+## The state tables' nextstate links form loops: break them so the run ends without leaks.
+var _games: Array = []
+
+
+func _release_all() -> void:
+	for o: Object in _games:
+		o.call("release_links")
+	_games.clear()
