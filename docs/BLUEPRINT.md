@@ -334,6 +334,14 @@ Three tools that share one look and feel: **Keen Maker** (levels), **Asset Studi
 restyling any image or sound) and **Keen's Closet** (customising Keen). They are built after v1.0,
 but v1.0 keeps them cheap (A18).
 
+**Two rules for the whole suite (user, 2026-10-09).** (1) The tools' own interface (menus, panels,
+buttons, cursors, the mascot, the tutor, the font) is original art made for Megarocket, in the Keen
+style and in colours taken from the EGA 16-colour palette (a hardware standard), and reads no file of
+any game: the suite opens and works with none of the games present. (2) Everything is per game: the
+player first picks the game they are making for, and only the games they own can be picked; the others
+are shown as not found, with how to add them. A level is built from that game's own tiles and sprites,
+which is the only place the games' files are used.
+
 **What Mario Maker teaches (research, 2026-10-09).** Nintendo's starting idea was "wouldn't it be fun
 if these tools became a game, so anyone could create these levels"; the in-house editor needed a
 keyboard and mouse, and moving it to the GamePad's touch screen "lowered the hurdle for everyone"
@@ -352,13 +360,13 @@ poles, slopes, keygems and switch-linked bridges, a world map), so the lessons c
 |---|---|---|---|---|
 | Build and play are one button apart: play starts from the cursor (or the level's start), and back in the editor everything is where it was; Keen's last test run stays on screen as a fading trail of his positions | planned | Mario Maker's core loop; Keen's jumps and pogo arcs are learned by seeing them | automated test (round trip) + path walk | research |
 | Start from scratch or from an existing level: any level of the player's games (or a shared level) opens as a copy to remix, harder, easier or just different; with quick remix helpers (thin out or add enemies, swap an enemy for its tougher or gentler kin, add or remove items and lives, move the exit) | planned | The user's request (2026-10-09); remixing the classics is how most people start | automated test + path walk | user |
-| Every part from the game's own sets, in palettes of the game's own art and font: ground, platforms, poles, slopes, hazards, keygems and doors, switches and bridges, items, enemies, the exit | planned | The Keen look; nothing generic | path walk | user |
+| Pick the game first (only the games the player owns); every part then comes from that game's own sets: ground, platforms, poles, slopes, hazards, keygems and doors, switches and bridges, items, enemies, the exit; the palettes, menus and frames around them are the suite's own art (rule 1) | planned | Works with any subset of the games; the Keen look | automated test (with none, one and all games present) + path walk | user |
 | Parts with variants: pick one up and wiggle it to change it (a gem's colour, which enemy of a family, a platform's direction) | planned | Mario Maker's shake, applied to Keen's families | path walk | research |
 | Brushes that pick the right tiles: paint "ground" or "a slope" and its edges, corners and joins choose themselves from the tileset; a raw-tile mode for experts | planned | Keen's tilesets have dozens of edge pieces; this is what makes it easy for anyone | automated test (brush tables) | project |
 | Links drawn as lines: a switch to its bridge, a gem holder to its door, a platform to its path, a teleporter to its exit; drag to connect | planned | Galaxy's info plane made visible | path walk | project |
 | Rules that teach instead of failing: what the engine cannot do is refused at once with a Keen sound and a short reason (too many objects, outside the map, a door with no gem); meters for the engine's limits | planned | Levels always load and play in the faithful engine | automated test | research |
-| Playful helpers in the Keen spirit: the Dopefish swallows what you erase and spits back what you undo; every placement has a sound from the game | planned | Undodog and Mr. Eraser are why building is fun | by eye / ear | research + user |
-| Lessons from a tutor out of the games themselves (Keen 4's Princess Lindsey, who gives hints in Keen 4): short playable lessons in three levels | planned | Yamamura's Dojo: teach by doing | path walk | research |
+| Playful helpers in the Keen spirit, drawn for the suite (rule 1): a hungry fish in the Dopefish's spirit swallows what you erase and spits back what you undo; every placement has a sound (the chosen game's own where it is present, the suite's own otherwise) | planned | Undodog and Mr. Eraser are why building is fun | by eye / ear | research + user |
+| Lessons from a tutor drawn for the suite (rule 1), in the spirit of Keen 4's hint-giving Princess Lindsey: short playable lessons in three levels, using the player's own games for the playable parts | planned | Yamamura's Dojo: teach by doing | path walk | research |
 | Game styles: a level is made for one engine (Keen 1–3, Keen 4, 5, 6, Dreams), each with its own moves; switching style converts what can be converted and says what could not | planned | Mario Maker 2's styles; the engines really differ | automated test | research |
 | A world builder: link levels into an episode on a world map (Keen 1–3's and 4–6's maps), playable start to finish | planned | Mario Maker 2's World Maker; Keen is an episode game | automated test + path walk | research |
 | Zoom out to see the whole level; pad, keyboard and touch all first-class (A16); touch was what made Mario Maker easy | planned | Comfort on phone and PC | path walk | research |
@@ -369,7 +377,7 @@ poles, slopes, keygems and switch-linked bridges, a world map), so the lessons c
 
 | Item | Status | Why it matters | Verification | Source |
 |---|---|---|---|---|
-| Browse every asset of every game by kind: sprites by character and animation, tiles by tileset and use, screens, fonts, sounds, music | planned | Full access, organised | path walk | user |
+| Pick a game the player owns, then browse every asset of it by kind: sprites by character and animation, tiles by tileset and use, screens, fonts, sounds, music | planned | Full access, organised; works with any subset of the games | path walk | user |
 | An inspector for each: size in pixels, frames, its anchor and hit box drawn over it, the colours it uses (EGA index and colour), the animation at game speed, where it appears (levels, states) | planned | "See its shape, dimensions and colours" | automated test (metadata) + path walk | user |
 | Drop in a replacement (an image or several): checked at once (size or a whole multiple for HD, transparency, frame count and alignment of an animation), shown before and after, in place in a level, and for tiles repeated 3×3 so seams show | planned | "Know it matches and tiles well" | automated test | user |
 | Restyle without drawing: shift or swap colours across a set (a whole tileset at night, a sprite family recoloured) | planned | Restyling for everyone, not only artists | automated test | user |
@@ -381,7 +389,7 @@ poles, slopes, keygems and switch-linked bridges, a world map), so the lessons c
 
 | Item | Status | Why it matters | Verification | Source |
 |---|---|---|---|---|
-| Colours for Keen's helmet, shirt, pants and shoes, applied to every frame of Keen in every game; presets, a random button, and Keen previewed running, jumping and pogoing | planned | The user's first step | automated test + by eye | user |
+| Colours for Keen's helmet, shirt, pants and shoes, applied to every frame of Keen in every game the player owns; presets, a random button, and Keen previewed running, jumping and pogoing (in a game they own) | planned | The user's first step | automated test + by eye | user |
 | Classic keeps to the 16 EGA colours; Enhanced allows any colour | planned | The fidelity line | automated test | project |
 | Which pixels are helmet, shirt, pants or shoes is worked out at run time from the player's files by rules (colour and place per frame), never stored as art (A12); frames a rule cannot settle are listed for a hand fix in the Asset Studio | planned | The legal line; Keen's art differs per game | automated test | project |
 | Outfits: themed colour sets on Keen's own silhouette, every frame and pose unchanged in shape; the id-family homages first this way (the Doom marine: green armour, a dark visor tone on the helmet; B.J.: fatigues in olive and khaki), picked by eye in the preview; finer regions where an outfit needs them (the helmet's front for a visor); no art from Wolf3D or Doom involved | planned | The user's idea (2026-10-09): the family look without new art or id's other games' sprites | automated test + by eye | user |
