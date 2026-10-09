@@ -39,10 +39,10 @@ def one(game, case, costs, tag, phase=0):
         k, note, port, orc, start = timing_score.score(out, oracle, transient=True)
     except Exception:
         return -1000, 1
-    # the opening only: the box, the fade out, the black and the first two fade-in steps; after them
-    # what is drawn follows the random seed (the DOS clock, fitted per session by fit_galaxy), not the
-    # loading costs
-    n = galaxy_case.opening_end(oracle) + 3
+    # the opening only: the box, the fade out, the black, the fade-in's steps and the first frame
+    # after it (its wait is where Keen 5's sessions first differed); after them what is drawn
+    # follows the random seed (the DOS clock, fitted per session by fit_galaxy), not the costs
+    n = galaxy_case.opening_end(oracle) + 5
     # the score: minus the refreshes by which the opening's pictures are held wrong (a picture that
     # differs costs 10), so a better black counts even where an earlier picture is still off
     err = 0
