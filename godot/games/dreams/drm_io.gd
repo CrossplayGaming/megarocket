@@ -999,6 +999,11 @@ func SD_SetMusicMode(mode: int) -> bool:
 
 
 ## Starts up the Sound Mgr: detects the sound hardware and installs the timer ISR.
+## The machine's time when SD_Startup took the timer over (US_DOSHundredths reads the DOS
+## clock as it stood then). -1 before.
+var sd_startupNow: int = -1
+
+
 func SD_Startup() -> void:
 	if SD_Started:
 		return
@@ -1011,6 +1016,7 @@ func SD_Startup() -> void:
 	SoundUserHook = &""
 
 	vm.int8 = Callable(self, "SDL_t0Service")    # set to my timer 0 ISR
+	sd_startupNow = vm.now    # the BIOS ticks no more from here: DOS's time of day stands still
 	TimeCount = 0
 
 	SD_SetSoundMode(sdm_Off)
