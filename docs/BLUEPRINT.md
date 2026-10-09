@@ -335,12 +335,13 @@ restyling any image or sound) and **Keen's Closet** (customising Keen). They are
 but v1.0 keeps them cheap (A18).
 
 **Two rules for the whole suite (user, 2026-10-09).** (1) The tools' own interface (menus, panels,
-buttons, cursors, the mascot, the tutor, the font) is original art made for Megarocket, in the Keen
-style and in colours taken from the EGA 16-colour palette (a hardware standard), and reads no file of
-any game: the suite opens and works with none of the games present. (2) Everything is per game: the
+buttons, cursors, the font, the game picker) is original art made for Megarocket, in the Keen style
+and in colours taken from the EGA 16-colour palette (a hardware standard), and reads no file of any
+game: the suite opens and works with none of the games present. (2) Everything is per game: the
 player first picks the game they are making for, and only the games they own can be picked; the others
-are shown as not found, with how to add them. A level is built from that game's own tiles and sprites,
-which is the only place the games' files are used.
+are shown as not found, with how to add them. Once a game is picked, its own files supply the level's
+tiles and sprites and also the characters who host the tools (the mascot, the tutor), a version per
+game, since a player building for a game owns it (user, adjusted 2026-10-09).
 
 **What Mario Maker teaches (research, 2026-10-09).** Nintendo's starting idea was "wouldn't it be fun
 if these tools became a game, so anyone could create these levels"; the in-house editor needed a
@@ -365,8 +366,8 @@ poles, slopes, keygems and switch-linked bridges, a world map), so the lessons c
 | Brushes that pick the right tiles: paint "ground" or "a slope" and its edges, corners and joins choose themselves from the tileset; a raw-tile mode for experts | planned | Keen's tilesets have dozens of edge pieces; this is what makes it easy for anyone | automated test (brush tables) | project |
 | Links drawn as lines: a switch to its bridge, a gem holder to its door, a platform to its path, a teleporter to its exit; drag to connect | planned | Galaxy's info plane made visible | path walk | project |
 | Rules that teach instead of failing: what the engine cannot do is refused at once with a Keen sound and a short reason (too many objects, outside the map, a door with no gem); meters for the engine's limits | planned | Levels always load and play in the faithful engine | automated test | research |
-| Playful helpers in the Keen spirit, drawn for the suite (rule 1): a hungry fish in the Dopefish's spirit swallows what you erase and spits back what you undo; every placement has a sound (the chosen game's own where it is present, the suite's own otherwise) | planned | Undodog and Mr. Eraser are why building is fun | by eye / ear | research + user |
-| Lessons from a tutor drawn for the suite (rule 1), in the spirit of Keen 4's hint-giving Princess Lindsey: short playable lessons in three levels, using the player's own games for the playable parts | planned | Yamamura's Dojo: teach by doing | path walk | research |
+| Playful helpers from the chosen game's own cast (rule 2), a version per game: in Keen 4 the Dopefish swallows what you erase and spits back what you undo; the other games' helpers chosen when each game's version is designed (Keen himself from that game where none fits); every placement has a sound from the chosen game | planned | Undodog and Mr. Eraser are why building is fun | by eye / ear | research + user |
+| Lessons from a tutor out of the chosen game (rule 2), a version per game: in Keen 4 Princess Lindsey, who gives hints in Keen 4; the other games' tutors chosen per game (Keen himself where none fits); short playable lessons in three levels | planned | Yamamura's Dojo: teach by doing | path walk | research |
 | Game styles: a level is made for one engine (Keen 1–3, Keen 4, 5, 6, Dreams), each with its own moves; switching style converts what can be converted and says what could not | planned | Mario Maker 2's styles; the engines really differ | automated test | research |
 | A world builder: link levels into an episode on a world map (Keen 1–3's and 4–6's maps), playable start to finish | planned | Mario Maker 2's World Maker; Keen is an episode game | automated test + path walk | research |
 | Zoom out to see the whole level; pad, keyboard and touch all first-class (A16); touch was what made Mario Maker easy | planned | Comfort on phone and PC | path walk | research |
