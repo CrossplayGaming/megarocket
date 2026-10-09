@@ -1097,6 +1097,11 @@ func CK6_CreatureQuestion() -> bool:
 	if ck6_creatureQuestionDone:
 		return true
 
+	# /TEDLEVEL: the original goes straight into the level (keen6_level01_a .. 18_a show the level's
+	# box first; omnispeak asks). Seen in the recordings; the v1.0 source is not to hand.
+	if us_tedLevel:
+		return true
+
 	var numCreatures: int = CK_INT("ck6_numCopyCreatures", 12)
 
 	var correct: bool = false

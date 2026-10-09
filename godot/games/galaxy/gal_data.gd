@@ -28,7 +28,9 @@ const MAPHEAD_TAG: int = 0xABCD
 # Everything else (chunk numbering, actions, strings, tile info, audio) is
 # the same as v1.4 for these builds, as Megarocket proved by replaying the
 # game's own demo through v1.4's tables. Keen 6 v1.0 differs from v1.4 in
-# exactly these three tables.
+# these three tables and in a few strings ("strings": a name, or name:index
+# for an array element, to the offset of v1.0's own text in the image; its
+# level sessions show them, keen6_level08_a: "Keen hungily enters").
 const KNOWN_EXES: Dictionary = {
 	"050dadf0c1902fcf9c7288e2a704057bd5ec2159388d3900a0f13ab326b134a3": {
 		"name": "Keen 6 v1.0 EGA (KEEN6C.EXE, 104,938 bytes)",
@@ -36,6 +38,9 @@ const KNOWN_EXES: Dictionary = {
 		"graph_head": 0x1FB20, "graph_head_len": 5561 * 3,
 		"graph_dict": 0x35D12,
 		"map_head": 0x23C50,
+		"strings": {"ck_str_levelEntryText:8": 0x1DDA0, "ck6_str_getPasscard": 0x311B6,
+			"ck6_str_grabbiterHungry": 0x31BB6, "ck_str_godModeOn": 0x2FD57, "ck_str_godModeOff": 0x2FD4A,
+			"ck_str_jumpCheatOn": 0x2FD6F, "ck_str_jumpCheatOff": 0x2FD7D},
 	},
 }
 
@@ -45,6 +50,7 @@ var _exe_note: String = ""      # what the folder's executables turned out to be
 var _exe_graph_head: PackedByteArray = PackedByteArray()
 var _exe_graph_dict: PackedByteArray = PackedByteArray()
 var _exe_map_head: PackedByteArray = PackedByteArray()
+var _exe_strings: Dictionary = {}    # the build's own strings, by STRINGS name (KNOWN_EXES "strings")
 var dir: String = ""            # the player's game folder
 var meta_dir: String = ""       # omnispeak's data folder for this episode
 var ext: String = ""            # "CK4" ...
@@ -308,6 +314,17 @@ func load_game(game_dir: String, meta: String) -> bool:
 	if actions == null:
 		return false
 	_find_exe_tables()
+	# (the game reads its strings through EPISODE, which includes STRINGS)
+	for vars: VarFile in [strings, episode]:
+		for key: String in _exe_strings:
+			var parts: PackedStringArray = key.split(":")
+			if parts.size() == 2:
+				var arr: PackedStringArray = vars.string_arrays.get(parts[0], PackedStringArray())
+				if int(parts[1]) < arr.size():
+					arr[int(parts[1])] = _exe_strings[key]
+					vars.string_arrays[parts[0]] = arr    # (a packed array is a copy)
+			elif vars.strings.has(key):
+				vars.strings[key] = _exe_strings[key]
 	if not _setup_graphics():
 		return false
 	if not _setup_maps():
@@ -318,7 +335,7 @@ func load_game(game_dir: String, meta: String) -> bool:
 
 
 ## Every KEENn*.EXE beside the data is hashed. A build in KNOWN_EXES is
-## unpacked and its three tables taken; anything else is only noted, for
+## unpacked and its three tables (and its own strings) taken; anything else is only noted, for
 ## the message given when the data then fails to match omnispeak's headers.
 ## Never fails the load by itself.
 func _find_exe_tables() -> void:
@@ -327,6 +344,7 @@ func _find_exe_tables() -> void:
 	_exe_graph_head = PackedByteArray()
 	_exe_graph_dict = PackedByteArray()
 	_exe_map_head = PackedByteArray()
+	_exe_strings = {}
 	var digit: String = ext.substr(2, 1)
 	var d: DirAccess = DirAccess.open(dir)
 	if d == null:
@@ -351,6 +369,12 @@ func _find_exe_tables() -> void:
 		_exe_graph_head = img.slice(k.graph_head, k.graph_head + k.graph_head_len)
 		_exe_graph_dict = img.slice(k.graph_dict, k.graph_dict + 1024)
 		_exe_map_head = img.slice(k.map_head, k.map_head + 2 + NUM_MAPS * 4)
+		for key: String in k.get("strings", {}):
+			var at: int = k.strings[key]
+			var end: int = at
+			while end < img.size() and img[end] != 0:
+				end += 1
+			_exe_strings[key] = img.slice(at, end).get_string_from_ascii()
 		exe_build = "%s = %s" % [f, k.name]
 		_exe_note = exe_build
 		return
