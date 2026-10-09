@@ -78,5 +78,7 @@
  ],
  "timer_offset": 8520000,
  "clock": 110000,
- "result": "first difference at picture 168"
+ "result": "first difference at picture 168",
+ "lock": true,
+ "seed_ticks": {}
 }

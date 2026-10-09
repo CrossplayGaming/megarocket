@@ -403,7 +403,7 @@ def _galaxy_case(game, case):
     return p.returncode
 
 
-REPLAY_G5_LEVELS = ["level01", "level04", "level12"]    # the verified ones (15 is the high scores)
+REPLAY_G5_LEVELS = ["level01", "level02", "level04", "level12"]    # the verified ones (15 is the high scores)
 
 
 def replayg5():

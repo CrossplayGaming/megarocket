@@ -133,7 +133,7 @@
     "AND-02"
    ],
    "notes": {
-    "matches": "Level 1 proven picture for picture. The original's memory manager is now modelled and proven against the original's own memory map; the other levels match until Keen first dies, where one refresh of the restart is still open"
+    "matches": "Levels 1, 2 and 4 proven against the original (2 and 4 with each picture held to the original's timing, which checks the game itself); the others now match well past Keen's deaths, up to 969 of 1077 pictures"
    }
   },
   {
@@ -161,7 +161,7 @@
     "AND-02"
    ],
    "notes": {
-    "matches": "Boot matches to the refresh through the title; memory manager proven against its own map; 14 level recordings made"
+    "matches": "Boot matches to the refresh through the title; memory manager proven; levels 1, 2, 4 and 12 proven against the original; five others stop at the level's first frame, a timing matter still open"
    }
   },
   {
@@ -251,6 +251,10 @@
   }
  ],
  "milestones": [
+  {
+   "date": "2026-10-09",
+   "text": "Keen 4 levels 2 and 4 and Keen 5 level 2 proven against the original; a new check holds each picture to the original's timing so the game's own logic can be proven through deaths and restarts"
+  },
   {
    "date": "2026-10-08",
    "text": "The original's memory manager modelled and proven against its own memory map (Keen 4 and 5)"
