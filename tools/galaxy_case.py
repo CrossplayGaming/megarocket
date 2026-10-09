@@ -65,12 +65,12 @@ def _port_spec(game, case):
 
 
 def case_seed_ticks(game, case):
-    """BIOS ticks added to the clock's n-th reading, {n: ticks}, fitted per restart (HARN-12)."""
+    """BIOS ticks added to the clock's n-th reading, {n: ticks}, fitted per restart (HARN-20)."""
     return {int(n): int(d) for n, d in _port_spec(game, case).get("seed_ticks", {}).items()}
 
 
 def case_lock(game, case):
-    """Whether the session was fitted under HARN-12's frame lock."""
+    """Whether the session was fitted under HARN-20's frame lock."""
     return bool(_port_spec(game, case).get("lock", False))
 
 
@@ -83,7 +83,7 @@ def case_keys(game, case, source="port"):
 
 
 def lock_file(game, case):
-    """HARN-12's frame lock for a session: for each of the recording's blacks (the level's, then each
+    """HARN-20's frame lock for a session: for each of the recording's blacks (the level's, then each
     restart's), the refresh at which each following picture first shows, counted from the first picture
     after the black, up to the next restart's pictures (whose timing is the load's, TIME-G)."""
     oracle = Path(common.config()["oracle_runs"]) / f"{game}_{case}_a"
@@ -214,7 +214,7 @@ def main():
     ap.add_argument("case")
     ap.add_argument("--keys-from", default="port", choices=["case", "port"])
     ap.add_argument("--tag", default="")
-    ap.add_argument("--lock", action="store_true", help="hold each picture to the recording's refresh (HARN-12)")
+    ap.add_argument("--lock", action="store_true", help="hold each picture to the recording's refresh (HARN-20)")
     a = ap.parse_args()
     out = WORK / f"gcase_{a.game}_{a.case}{('_' + a.tag) if a.tag else ''}{'_lock' if a.lock else ''}"
     code = run_port(a.game, a.case, case_keys(a.game, a.case, a.keys_from), out, lock=True if a.lock else None)

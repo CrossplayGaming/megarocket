@@ -389,7 +389,7 @@ def replayv3():
 
 
 # the verified ones; level 18 is the ending (no session). Sessions whose .port.json says "lock" are held
-# under HARN-12's frame lock (the game's logic, not the frames' timing); the others are frame for frame.
+# under HARN-20's frame lock (the game's logic, not the frames' timing); the others are frame for frame.
 REPLAY_G4_LEVELS = ["level01", "level02", "level04"]
 
 

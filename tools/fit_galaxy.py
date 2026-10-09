@@ -13,7 +13,7 @@ this moves keys until the port's pictures and their durations follow the recordi
   further is kept. When no single event helps, the newest one is moved with every key after
   it (the "tail"). It stops when the whole recording matches or nothing helps.
 
-With --lock (HARN-12) every picture after a fade-in is held to the refresh the recording shows it
+With --lock (HARN-20) every picture after a fade-in is held to the refresh the recording shows it
 (the original's frames take processing time the port does not model), and a mismatch soon after a
 death's restart first tries the restart's two clock readings (the reload's and the fade-in's random
 seeds) a BIOS tick either way: the reload comes right after the last frame, whose processing the port
@@ -54,8 +54,8 @@ def say(*a):
 
 OFFSET = [0]    # the timer phase in use (machine units)
 CLOCK = [None]  # the DOS clock at the program's start in use (microseconds; None: the case's)
-LOCK = [False]  # HARN-12's frame lock
-SEEDS = [{}]    # BIOS ticks added to the clock's n-th reading (HARN-12)
+LOCK = [False]  # HARN-20's frame lock
+SEEDS = [{}]    # BIOS ticks added to the clock's n-th reading (HARN-20)
 SEED_COMBOS = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1)]
 
 
@@ -110,7 +110,7 @@ def main():
     ap.add_argument("--start", default="case", choices=["case", "port"])
     ap.add_argument("--workers", type=int, default=10)
     ap.add_argument("--rounds", type=int, default=80)
-    ap.add_argument("--lock", action="store_true", help="hold pictures to the recording's refreshes (HARN-12)")
+    ap.add_argument("--lock", action="store_true", help="hold pictures to the recording's refreshes (HARN-20)")
     a = ap.parse_args()
     oracle = Path(common.config()["oracle_runs"]) / f"{a.game}_{a.case}_a"
     blacks = galaxy_case.black_pictures(oracle)

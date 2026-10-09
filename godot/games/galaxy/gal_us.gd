@@ -365,7 +365,7 @@ var us_randomSeed: int = 0
 ## 21h 2Ch) and DL, the hundredths of a second, which DOS works out from the BIOS
 ## tick count (18.2 a second). -1: unset, us_randomSeed instead.
 var us_dosClockAtStart: int = -1
-## HARN-12 (tests only, set from outside): BIOS ticks added to the n-th reading of
+## HARN-20 (tests only, set from outside): BIOS ticks added to the n-th reading of
 ## the clock (1 = the first). A death's restart reads it right after the last
 ## frame, where the original's frame took processing time the port does not
 ## model, so its tick is fitted per restart as the clock at the start is. Not state.

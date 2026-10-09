@@ -760,9 +760,9 @@ func VL_FadeFromBlack(flip: bool = true) -> void:
 		VL_SetPaletteAndBorderColor(vl_palette[i])
 		if flip:
 			VL_Present()
-		elif not vm.in_retrace():
-			vm.wait_retrace_start()
-		VL_DelayTics(6)
+			VL_DelayTics(6)
+		else:
+			vm.wait_vbl(6)    # VW_WaitVBL(6): out of any retrace, then to the start of the next, six times
 	vl_screenFaded = false
 
 
@@ -1137,7 +1137,7 @@ func VL_SwapOnNextPresent() -> void:
 	pass
 
 
-## A verification harness's hold on each picture (HARN-12, tests only): called
+## A verification harness's hold on each picture (HARN-20, tests only): called
 ## with the page just written, before it is put on display. Not game state.
 var present_lock: Callable = Callable()
 

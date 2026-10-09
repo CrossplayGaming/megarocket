@@ -385,7 +385,9 @@ func RFL_AnimateTiles() -> void:
 	for i: int in range(rf_numAnimTileTimers):
 		var att: RF_AnimTileTimer = rf_animTileTimers[i]
 		att.timeToSwitch -= SD_GetSpriteSync()
-		if att.timeToSwitch <= 0:
+		# ID_RF.C: `while (anim->count < 1)`: a fast animation steps as often as the frame's tics
+		# cover it (omnispeak steps it once a frame)
+		while att.timeToSwitch <= 0:
 			if (att.tileNumber & 0x8000) != 0:
 				var tile: int = att.tileNumber & ~0x8000
 				tile += TI_ForeAnimTile(tile)
@@ -399,6 +401,8 @@ func RFL_AnimateTiles() -> void:
 			if ck_currentEpisode_ep == EP_CK6:
 				if att.numOfOnScreenTiles != 0 and att.tileNumber == att.tileWithSound and (att.sound & 0xFFFF) != 0xFFFF:
 					SD_PlaySound(att.sound)
+			if quitting:
+				return
 	var ost: RF_OnscreenAnimTile = rf_firstOnscreenAnimTile
 	while ost != null:
 		var tile: int = rf_animTileTimers[ost.timerIndex].tileNumber & ~0x8000

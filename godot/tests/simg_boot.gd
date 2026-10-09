@@ -13,7 +13,7 @@ extends SceneTree
 ##          --seed=n (the random index US_InitRndT(true) takes)
 ##          --clock=us (or the DOS clock at the start, microseconds since 00:00:00)
 ##          --seed_ticks=n:d,... (BIOS ticks added to the clock's n-th reading)
-##          --lock=<json> (HARN-12: each picture after a fade-in held until the
+##          --lock=<json> (HARN-20: each picture after a fade-in held until the
 ##            refresh the recording first shows it, counted from that fade-in)
 
 const GAMES: Dictionary = {"keen4": "keen4", "keen5": "keen5", "keen6": "keen6e14"}
@@ -97,7 +97,7 @@ func _init() -> void:
 	t.finish(self)
 
 
-# ----------------------------------------------------------------- HARN-12
+# ----------------------------------------------------------------- HARN-20
 
 ## The frame lock: segments[i] holds, for the i-th fade-in (the level's first, then each restart's),
 ## the refresh at which the recording first shows each picture from the first one after the black.
