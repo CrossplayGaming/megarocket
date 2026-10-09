@@ -71,6 +71,15 @@ const BE_GAMEVER_KDREAMS2015: int = 6
 
 ## The release running, from DreamsData's identification (e100 or e193).
 var refkeen_current_gamever: int = BE_GAMEVER_KDREAMSE100
+## The command line (id_heads.h's id0_argc / id0_argv: the program's arguments after its name,
+## as US_CheckParm reads them).
+var id0_argv: PackedStringArray = PackedStringArray()
+
+
+func id0_argc() -> int:
+	return id0_argv.size() + 1
+
+
 ## id_heads.h: the graphics mode (EGA for both supported releases).
 var GRMODE: int = 2    # EGAGR
 var current_gamever_int: int = 0
