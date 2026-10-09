@@ -141,6 +141,24 @@ func BE_ST_EGASetPaletteAndBorder(palette: PackedByteArray) -> void:
 	vm.card.bios_set_palette(palette)
 
 
+## INT 10h AX=1001h: the overscan (border) colour.
+func BE_ST_SetBorderColor(color: int) -> void:
+	vm.card.bios_set_border(color & 0xFF)
+
+
+## The CRTC offset register: `widthInBytes` from one row to the next (in words, so even).
+func BE_ST_EGASetLineWidth(widthInBytes: int) -> void:
+	vm.out8(EgaCard.CRTC_INDEX, EgaCard.CRTC_OFFSET)
+	vm.out8(EgaCard.CRTC_DATA, (widthInBytes & 0xFF) >> 1)
+
+
+## A byte XORed into the planes of `planeMask` (map mask and the data rotate register's XOR).
+func BE_ST_EGAXorGFXByteByPlaneMask(destOff: int, srcVal: int, planeMask: int) -> void:
+	for p: int in range(4):
+		if (planeMask >> p) & 1:
+			BE_ST_EGAUpdateGFXByteInPlane(destOff, BE_ST_EGAFetchGFXByteFromPlane(destOff, p) ^ (srcVal & 0xFF), p)
+
+
 ## INT 10h: the video mode (3 text, 0Dh EGA 320x200).
 func BE_ST_SetScreenMode(mode: int) -> void:
 	vm.card.bios_set_video_mode(mode)
