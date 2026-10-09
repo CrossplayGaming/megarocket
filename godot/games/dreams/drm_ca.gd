@@ -314,7 +314,7 @@ func CA_Shutdown() -> void:
 
 ## The tile info and the map headers are linked into the program (MAPHEADERLINKED).
 func CAL_SetupMapFile() -> void:
-	tinf = data.tileinfo
+	tinf = data.map_header()    # the whole MAPHEAD: tinf[SPEED + tile] etc. count from its start
 	mapheaderseg.resize(NUMMAPS)
 	mapheaderseg.fill(null)
 

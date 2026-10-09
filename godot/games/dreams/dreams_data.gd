@@ -435,6 +435,12 @@ func map_plane_sizes(i: int) -> Array:
 	return out
 
 
+## The map header as the program links it in (mapfiletype: RLEW tag, offsets, sizes, then the
+## tile info id_ca.c's tinf indexes from the start: tinf[SPEED + tile], SPEED = 502).
+func map_header() -> PackedByteArray:
+	return _map_head
+
+
 func num_audio_chunks() -> int:
 	return _au_starts.size() / 4 - 1
 

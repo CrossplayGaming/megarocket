@@ -631,3 +631,89 @@ func restore(s: Dictionary) -> void:
 	dac_component = s.dac_component
 	video_mode = s.video_mode
 	_status_reads = s.status_reads
+
+
+# ----------------------------------------------------------------- direct plane access
+# For engines that write video memory the way ReflectionHLE's back end does (a byte of a plane,
+# a latch copy, a colour through a bit mask), done here so the planes change in place: a plane
+# fetched from outside and written would be copied whole (a PackedByteArray is copy-on-write).
+
+func _pl(p: int) -> PackedByteArray:
+	match p & 3:
+		0: return plane0
+		1: return plane1
+		2: return plane2
+	return plane3
+
+
+func plane_byte(p: int, off: int) -> int:
+	return _pl(p)[off & 0xFFFF]
+
+
+func set_plane_byte(p: int, off: int, v: int) -> void:
+	match p & 3:
+		0: plane0[off & 0xFFFF] = v & 0xFF
+		1: plane1[off & 0xFFFF] = v & 0xFF
+		2: plane2[off & 0xFFFF] = v & 0xFF
+		_: plane3[off & 0xFFFF] = v & 0xFF
+
+
+## `num` bytes of every plane (planes with `mask`'s bits) from `src` to `dst`, in order.
+func copy_planes(dst: int, src: int, num: int, mask: int = 0xF) -> void:
+	for i: int in range(num):
+		var d: int = (dst + i) & 0xFFFF
+		var s: int = (src + i) & 0xFFFF
+		if mask & 1: plane0[d] = plane0[s]
+		if mask & 2: plane1[d] = plane1[s]
+		if mask & 4: plane2[d] = plane2[s]
+		if mask & 8: plane3[d] = plane3[s]
+
+
+## The bits of `bits` in every plane copied from `src` to `dst`.
+func copy_plane_bits(dst: int, src: int, bits: int) -> void:
+	var d: int = dst & 0xFFFF
+	var s: int = src & 0xFFFF
+	var keep: int = ~bits & 0xFF
+	plane0[d] = (plane0[d] & keep) | (plane0[s] & bits)
+	plane1[d] = (plane1[d] & keep) | (plane1[s] & bits)
+	plane2[d] = (plane2[d] & keep) | (plane2[s] & bits)
+	plane3[d] = (plane3[d] & keep) | (plane3[s] & bits)
+
+
+## The bits of `bits` set to `color` at `off` (write mode 2 through the bit mask).
+func color_bits(off: int, color: int, bits: int) -> void:
+	var d: int = off & 0xFFFF
+	var keep: int = ~bits & 0xFF
+	plane0[d] = (plane0[d] & keep) | (bits if color & 1 else 0)
+	plane1[d] = (plane1[d] & keep) | (bits if color & 2 else 0)
+	plane2[d] = (plane2[d] & keep) | (bits if color & 4 else 0)
+	plane3[d] = (plane3[d] & keep) | (bits if color & 8 else 0)
+
+
+## `count` bytes from `off` set to `color` in every plane.
+func color_fill(off: int, color: int, count: int) -> void:
+	var v0: int = 0xFF if color & 1 else 0
+	var v1: int = 0xFF if color & 2 else 0
+	var v2: int = 0xFF if color & 4 else 0
+	var v3: int = 0xFF if color & 8 else 0
+	for i: int in range(count):
+		var d: int = (off + i) & 0xFFFF
+		plane0[d] = v0
+		plane1[d] = v1
+		plane2[d] = v2
+		plane3[d] = v3
+
+
+## `num` bytes of `src` (from `so`) into one plane at `off`.
+func write_plane(p: int, off: int, src: PackedByteArray, so: int, num: int) -> void:
+	for i: int in range(num):
+		set_plane_byte(p, off + i, src[so + i])
+
+
+## A byte XORed into the planes of `mask`.
+func xor_planes(off: int, v: int, mask: int) -> void:
+	var d: int = off & 0xFFFF
+	if mask & 1: plane0[d] ^= v & 0xFF
+	if mask & 2: plane1[d] ^= v & 0xFF
+	if mask & 4: plane2[d] ^= v & 0xFF
+	if mask & 8: plane3[d] ^= v & 0xFF

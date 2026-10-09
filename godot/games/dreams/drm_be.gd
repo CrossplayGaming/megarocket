@@ -13,101 +13,56 @@ extends DrmDecl
 
 
 # ===================================================================== EGA memory (be_video_emu.c)
-
-func _plane(p: int) -> PackedByteArray:
-	match p & 3:
-		0: return vm.card.plane0
-		1: return vm.card.plane1
-		2: return vm.card.plane2
-	return vm.card.plane3
-
-
-func _set_plane(p: int, a: PackedByteArray) -> void:
-	match p & 3:
-		0: vm.card.plane0 = a
-		1: vm.card.plane1 = a
-		2: vm.card.plane2 = a
-		_: vm.card.plane3 = a
-
+# Each through the card's own in-place operations (EgaCard's direct plane access: a plane taken
+# out and written here would be copied whole on every byte).
 
 ## One byte into one plane.
 func BE_ST_EGAUpdateGFXByteInPlane(destOff: int, srcVal: int, planeNum: int) -> void:
-	var a: PackedByteArray = _plane(planeNum)
-	a[destOff & 0xFFFF] = srcVal & 0xFF
-	_set_plane(planeNum, a)
+	vm.card.set_plane_byte(planeNum, destOff, srcVal)
 
 
 ## `num` bytes of `src` (from `srcOff`) into one plane.
 func BE_ST_EGAUpdateGFXBufferInPlane(destOff: int, src: PackedByteArray, srcOff: int, num: int, planeNum: int) -> void:
-	var a: PackedByteArray = _plane(planeNum)
-	for i: int in range(num):
-		a[(destOff + i) & 0xFFFF] = src[srcOff + i]
-	_set_plane(planeNum, a)
+	vm.card.write_plane(planeNum, destOff, src, srcOff, num)
 
 
 ## A byte of every plane copied within video memory (a latch copy).
 func BE_ST_EGAUpdateGFXByteInAllPlanesScrToScr(destOff: int, srcOff: int) -> void:
-	for p: int in range(4):
-		var a: PackedByteArray = _plane(p)
-		a[destOff & 0xFFFF] = a[srcOff & 0xFFFF]
-		_set_plane(p, a)
+	vm.card.copy_planes(destOff, srcOff, 1)
 
 
 func BE_ST_EGAUpdateGFXByteInPlaneScrToScr(destOff: int, srcOff: int, planeNum: int) -> void:
-	var a: PackedByteArray = _plane(planeNum)
-	a[destOff & 0xFFFF] = a[srcOff & 0xFFFF]
-	_set_plane(planeNum, a)
+	vm.card.copy_planes(destOff, srcOff, 1, 1 << (planeNum & 3))
 
 
 ## The bits of `bitsMask` of every plane copied within video memory.
 func BE_ST_EGAUpdateGFXBitsInAllPlanesScrToScr(destOff: int, srcOff: int, bitsMask: int) -> void:
-	for p: int in range(4):
-		var a: PackedByteArray = _plane(p)
-		var d: int = destOff & 0xFFFF
-		a[d] = (a[d] & ~bitsMask & 0xFF) | (a[srcOff & 0xFFFF] & bitsMask)
-		_set_plane(p, a)
+	vm.card.copy_plane_bits(destOff, srcOff, bitsMask & 0xFF)
 
 
 ## `num` bytes of every plane copied within video memory, in order.
 func BE_ST_EGAUpdateGFXBufferInAllPlanesScrToScr(destOff: int, srcOff: int, num: int) -> void:
-	for p: int in range(4):
-		var a: PackedByteArray = _plane(p)
-		for i: int in range(num):
-			a[(destOff + i) & 0xFFFF] = a[(srcOff + i) & 0xFFFF]
-		_set_plane(p, a)
+	vm.card.copy_planes(destOff, srcOff, num)
 
 
 func BE_ST_EGAFetchGFXByteFromPlane(srcOff: int, planeNum: int) -> int:
-	return _plane(planeNum)[srcOff & 0xFFFF]
+	return vm.card.plane_byte(planeNum, srcOff)
 
 
 ## `num` bytes of one plane into `dest` from `destOff`.
 func BE_ST_EGAFetchGFXBufferFromPlane(dest: PackedByteArray, destOff: int, srcOff: int, num: int, planeNum: int) -> void:
-	var a: PackedByteArray = _plane(planeNum)
 	for i: int in range(num):
-		dest[destOff + i] = a[(srcOff + i) & 0xFFFF]
+		dest[destOff + i] = vm.card.plane_byte(planeNum, srcOff + i)
 
 
 ## The bits of `bitsMask` set to a colour in every plane (write mode 2 through the bit mask).
 func BE_ST_EGAUpdateGFXBitsFrom4bitsPixel(destOff: int, color: int, bitsMask: int) -> void:
-	color &= 0xF
-	var d: int = destOff & 0xFFFF
-	for p: int in range(4):
-		var a: PackedByteArray = _plane(p)
-		var on: int = bitsMask if (color >> p) & 1 else 0
-		a[d] = (a[d] & ~bitsMask & 0xFF) | on
-		_set_plane(p, a)
+	vm.card.color_bits(destOff, color & 0xF, bitsMask & 0xFF)
 
 
 ## `count` bytes (8 pixels each) set to a colour.
 func BE_ST_EGAUpdateGFXBufferFrom4bitsPixel(destOff: int, color: int, count: int) -> void:
-	color &= 0xF
-	for p: int in range(4):
-		var a: PackedByteArray = _plane(p)
-		var v: int = 0xFF if (color >> p) & 1 else 0
-		for i: int in range(count):
-			a[(destOff + i) & 0xFFFF] = v
-		_set_plane(p, a)
+	vm.card.color_fill(destOff, color & 0xF, count)
 
 
 func BE_ST_EGAUpdateGFXBufferFrom4bitsPixelInPairs(destOff: int, color: int, pairsCount: int) -> void:
@@ -154,9 +109,7 @@ func BE_ST_EGASetLineWidth(widthInBytes: int) -> void:
 
 ## A byte XORed into the planes of `planeMask` (map mask and the data rotate register's XOR).
 func BE_ST_EGAXorGFXByteByPlaneMask(destOff: int, srcVal: int, planeMask: int) -> void:
-	for p: int in range(4):
-		if (planeMask >> p) & 1:
-			BE_ST_EGAUpdateGFXByteInPlane(destOff, BE_ST_EGAFetchGFXByteFromPlane(destOff, p) ^ (srcVal & 0xFF), p)
+	vm.card.xor_planes(destOff, srcVal, planeMask)
 
 
 ## INT 10h: the video mode (3 text, 0Dh EGA 320x200).
