@@ -117,14 +117,14 @@ SKIP_MAX = 16
 def level_score(port, orc):
     """REPLAY-D's measure: (j, note, n, load_error, skips, k): j the recording's picture reached, k the port's.
 
-    The pictures must follow the recording's in order; each lasts as long as the recording's, one-refresh
-    slips that recover passed (timing_score's transient rule). Where the original shows its work in
-    progress (SKIP_ORACLE, SKIP_PORT, SKIP_MAX) the extra pictures are passed, the running offset starts again
+    The pictures must follow the recording's in order; each lasts as long as the recording's, give or take
+    a refresh (counted as slips). Where the original shows its work in
+    progress (SKIP_ORACLE, SKIP_PORT, SKIP_MAX) the extra pictures are passed
     and the next picture's duration is free (it absorbs the load's time); the time so absorbed is summed
     as the load error, reported, not failed (J-20: loading time the player cannot tell apart)."""
     n = len(orc) - 1                      # the recording's last picture is partial
     k = j = 0
-    offset, slips, skips, load_err, free = 0, [], [], 0, False
+    slips, skips, load_err, free = [], [], 0, False
 
     def resync(k, j):
         for total in range(1, SKIP_MAX + 1):
@@ -151,16 +151,20 @@ def level_score(port, orc):
             load_err += abs(sum(p[1] for p in port[k:k + a]) - sum(o[1] for o in orc[j:j + b]))
             k += a
             j += b
-            offset, free = 0, True
+            free = True
             continue
         if free:
             load_err += abs(port[k][1] - orc[j][1])
             free = False
         else:
-            if offset != 0:
-                slips.append(j - 1)
-            offset += port[k][1] - orc[j][1]
-            if abs(offset) > 1 or (offset != 0 and slips and slips[-1] == j - 1):
+            # a picture may last one refresh more or less than the recording's: the original's frame or
+            # load took that much longer or shorter, a timing the port does not model to the refresh
+            # (J-20); everything after is compared from there. A difference in play shows as a different
+            # picture (the game's motion follows its tics), so this passes no different play.
+            d = port[k][1] - orc[j][1]
+            if d:
+                slips.append(j)
+            if abs(d) > 1:
                 return j, f"picture {j} lasts {port[k][1]} refreshes in the port, {orc[j][1]} in the recording" +                     timing_score._slips(slips), n, load_err, skips, k
         k += 1
         j += 1

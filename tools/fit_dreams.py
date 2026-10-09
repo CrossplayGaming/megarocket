@@ -28,14 +28,32 @@ from pathlib import Path
 import common
 import dreams_case
 import frames
-from fit_galaxy import moved
+from fit_galaxy import moved as _moved_galaxy
+
+
+def moved(keys, i, field, d):
+    """fit_galaxy's moves, but the tail (field 3) moves every press and release at or after event i's
+    press, a release included when its key went down earlier (a load's drift moves them all)."""
+    if field != 3:
+        return _moved_galaxy(keys, i, field, d)
+    out = [k[:] for k in keys]
+    s = d * REFRESH
+    t0 = keys[i][0]
+    for k in out:
+        if k[0] >= t0:
+            k[0] = round(k[0] + s, 4)
+        elif k[0] + k[2] >= t0:
+            k[2] = round(k[2] + s, 4)    # down before, up after: only its release moves
+    return out if all(k[2] > 0.02 for k in out) else None
 
 REFRESH = 1 / dreams_case.REFRESH_HZ
-SPAN = 10                  # refreshes each way an event is tried
+SPAN = 20                  # refreshes each way an event is tried (DOSBox delays a press more than its release: holds come out shorter by up to ~0.25 s)
 WINDOW = 1.0               # seconds before a mismatch whose events are tried
 WORK = Path("F:/KeenReworkWork/port_runs")
 BOOT = 3.2                 # port seconds before the first EGA picture (the start-up screens), and a margin
-CLOCKS = list(range(0, 1000000, 27000))   # a BIOS tick is 54.9 ms: two tries a tick
+CLOCKS = list(range(0, 1000000, 27000))
+AHEAD = 60                 # pictures after the first mismatch that a trial's score also counts
+PAIR = 10                  # refreshes each way two events are moved together (in steps of two)   # a BIOS tick is 54.9 ms: two tries a tick
 
 
 def say(*a):
@@ -58,7 +76,11 @@ def trial(game, case, keys, tag, until=None, clock=None, tc_adds=None):
         j, note, n, port, orc, k = dreams_case.score(game, case, out)
     except Exception as err:          # a run that wrote nothing scores nothing
         return -1, str(err)[-80:], 0, out, None
-    return j, note, n, out, (port, orc, k, list(dreams_case.score.skips))
+    # the score: the first mismatch, then (as a fraction) how many of the next AHEAD pictures match, so a
+    # move that leaves the first mismatch where it is but makes more of what follows agree counts (keys
+    # that only together take the match further)
+    ahead = sum(1 for x in range(AHEAD) if k + x < len(port) and j + x < len(orc) and port[k + x][0] == orc[j + x][0])
+    return j + ahead / 1000.0, note, n, out, (port, orc, k, list(dreams_case.score.skips))
 
 
 def mismatch(game, case, j, extra):
@@ -69,11 +91,19 @@ def mismatch(game, case, j, extra):
     oseq = frames.Sequence(Path(common.config()["oracle_runs"]) / f"{game}_{case}_a" / "frames")
     t = (oseq.repeats(0) + sum(r for _, r in orc[:j])) * REFRESH
     drift = sum(r for _, r in orc[:j]) - sum(r for _, r in port[:k])
+    # the lag: how much later the port first shows the recording's next picture (a key that came too
+    # late shows as that picture coming late), refreshes; 0 when it does not show it soon
+    lag = 0
+    want = orc[j + 1][0] if j + 1 < len(orc) and k < len(port) and port[k][0] == orc[j][0] else (orc[j][0] if j < len(orc) else None)
+    for x in range(k, min(k + 40, len(port))):
+        if port[x][0] == want:
+            lag = sum(r for _, r in port[:x]) - sum(r for _, r in orc[:j + (1 if want != orc[j][0] else 0)])
+            break
     if k < len(port) and j < len(orc) and port[k][0] == orc[j][0]:
-        return t + min(port[k][1], orc[j][1]) * REFRESH, 0, orc[j][1] - port[k][1], drift
+        return t + min(port[k][1], orc[j][1]) * REFRESH, 0, orc[j][1] - port[k][1], drift, lag
     ahead = k < len(port) and any(j + x < len(orc) and orc[j + x][0] == port[k][0] for x in range(1, 6))
     behind = j < len(orc) and any(k + x < len(port) and port[k + x][0] == orc[j][0] for x in range(1, 6))
-    return t, (1 if ahead and not behind else -1 if behind and not ahead else 0), 0, drift
+    return t, (1 if ahead and not behind else -1 if behind and not ahead else 0), 0, drift, lag
 
 
 def main():
@@ -115,7 +145,7 @@ def main():
     clock_tried = False
     while best < n and rounds < a.rounds and extra is not None:
         rounds += 1
-        t_mis, way, gap, drift = mismatch(g, c, best, extra)
+        t_mis, way, gap, drift, lag = mismatch(g, c, int(best), extra)
         events = []
         for i, (t, _key, h) in enumerate(keys):
             for field, at in ((0, t), (2, t + h)):
@@ -123,18 +153,23 @@ def main():
                     events.append((at, i, field))
         events.sort(reverse=True)
         dirs = [way] if way else [1, -1]
-        say(f"round {rounds}: mismatch at picture {best}, {t_mis:.3f} s, direction {way}, gap {gap}, drift {drift}; "
+        say(f"round {rounds}: mismatch at picture {int(best)} (+{round((best % 1) * 1000)} after), {t_mis:.3f} s, direction {way}, gap {gap}, drift {drift}, lag {lag}; "
             f"events {[(i, f) for _, i, f in events]}")
         found = None
         # a large drift is a load's time: the tail first, before single keys take part of it each
-        for field_set in (((3,), (0, 2)) if abs(drift) > SPAN // 2 else ((0, 2), (3,))):
-            for _, i, field in (events if field_set != (3,) else events[:1]):
+        for field_set in (((3,), (0, 2)) if max(abs(drift), abs(lag)) > SPAN // 2 else ((0, 2), (3,))):
+            for _, i, field in (events if field_set != (3,) else events[:2]):
                 f = field if field_set != (3,) else 3
                 shifts = [sgn * d for sgn in dirs for d in range(1, SPAN + 1)]
                 if abs(gap) > SPAN // 2:
                     shifts = list(range(gap - 4, gap + 5)) + [s for s in shifts if abs(s) <= 3]
-                if f == 3 and abs(drift) > SPAN // 2:
-                    shifts = list(range(-drift - 4, -drift + 5)) + shifts
+                if max(abs(drift), abs(lag)) > SPAN // 2:
+                    # the drift and the lag bracket the move (the lag can lock onto a blinking
+                    # picture early): the whole range between them, with a margin
+                    lo, hi = sorted((-drift, -lag))
+                    shifts = list(range(lo - 14, hi + 5)) + shifts
+                elif abs(lag) > SPAN // 2:
+                    shifts = list(range(-lag - 4, -lag + 5)) + shifts
                 tries = []
                 for d in dict.fromkeys(shifts):
                     cand = moved(keys, i, f, d) if d != 0 else None
@@ -149,26 +184,47 @@ def main():
                     break
             if found:
                 break
+        if not found and len(events) >= 2:
+            # keys that only together take the match further (a throw as an enemy arrives, the
+            # direction key with it): every pair of the window's events moved together, coarsely
+            pairs = [(events[x], events[y]) for x in range(len(events)) for y in range(x + 1, len(events))][:6]
+            futs = {}
+            for (_, i1, f1), (_, i2, f2) in pairs:
+                for d1 in range(-PAIR, PAIR + 1, 2):
+                    for d2 in range(-PAIR, PAIR + 1, 2):
+                        if not d1 or not d2:
+                            continue
+                        c1 = moved(keys, i1, f1, d1)
+                        cand = moved(c1, i2, f2, d2) if c1 is not None else None
+                        if cand is not None:
+                            futs[pool.submit(trial, g, c, cand, f"p{rounds}_{i1}{f1}_{i2}{f2}_{d1}_{d2}", t_mis + 3.0)] = (cand, i1, f1, d1, i2, f2, d2)
+            res = sorted(((fu.result()[0], futs[fu]) for fu in futs), key=lambda r: r[0], reverse=True)
+            if res and res[0][0] > best:
+                cand, i1, f1, d1, i2, f2, d2 = res[0][1]
+                keys = cand
+                best, note, n, out, extra = trial(g, c, keys, "best")
+                say(f"  kept events {i1}/{f1} {d1:+d} and {i2}/{f2} {d2:+d} together: {best} of {n} ({note})")
+                continue
         if not found and extra is not None:
-            # the game clock's parity in play: the original's loads ran it on further (HARN-21); try the
-            # last load's drift, either parity, at the first picture after it
+            # the game clock's parity in play (HARN-21): the frames accelerate and fall on its odd tics,
+            # and a load's first frame clamps the clock, so the parity in play is the one carried
+            # through the loads, which the original's slower loads can leave a tic apart. One tic
+            # added just before each load before the mismatch, one at a time.
             port, orc, _k, skips = extra
-            before = [sk for sk in skips if sk[0] <= best]
-            oseq = frames.Sequence(Path(common.config()["oracle_runs"]) / f"{g}_{c}" "_a" / "frames")
-            if before:
-                j0, a0, b0, k0 = before[-1]
-                at = round(START[0] + (oseq.repeats(0) + sum(r for _, r in port[:k0 + a0]) - 1.5) / dreams_case.REFRESH_HZ, 4)
-                if not any(abs(x[0] - at) < 0.05 for x in TC_ADDS[0]):
-                    tries = {}
-                    for nt in sorted({max(drift, 0) + d for d in (-1, 0, 1)} | {1}):
-                        cand = sorted(TC_ADDS[0] + [[at, nt]])
-                        tries[pool.submit(trial, g, c, keys, f"tc{rounds}_{nt}", t_mis + 3.0, None, cand)] = cand
-                    res = sorted(((fu.result()[0], tries[fu]) for fu in tries), key=lambda r: r[0], reverse=True)
-                    if res and res[0][0] > best:
-                        TC_ADDS[0] = res[0][1]
-                        best, note, n, out, extra = trial(g, c, keys, "best")
-                        say(f"  game clock +{[x[1] for x in TC_ADDS[0]]} tics at {[x[0] for x in TC_ADDS[0]]} s: {best} of {n} ({note})")
-                        continue
+            oseq = frames.Sequence(Path(common.config()["oracle_runs"]) / f"{g}_{c}_a" / "frames")
+            tries = {}
+            for j0, _a0, _b0, k0 in [sk for sk in skips if sk[0] <= int(best)]:
+                at = round(START[0] + (oseq.repeats(0) + sum(r for _, r in port[:k0])) / dreams_case.REFRESH_HZ - 0.04, 4)
+                if any(abs(x[0] - at) < 0.05 for x in TC_ADDS[0]):
+                    continue
+                cand = sorted(TC_ADDS[0] + [[at, 1]])
+                tries[pool.submit(trial, g, c, keys, f"tc{rounds}_{j0}", t_mis + 3.0, None, cand)] = cand
+            res = sorted(((fu.result()[0], tries[fu]) for fu in tries), key=lambda r: r[0], reverse=True)
+            if res and res[0][0] > best:
+                TC_ADDS[0] = res[0][1]
+                best, note, n, out, extra = trial(g, c, keys, "best")
+                say(f"  game clock +1 tic at {[x[0] for x in TC_ADDS[0]]} s: {best} of {n} ({note})")
+                continue
         if not found:
             if not clock_tried:
                 clock_tried = True
@@ -189,7 +245,7 @@ def main():
         best, note, n, out, extra = trial(g, c, keys, "best")
         say(f"  kept event {i} ({keys[i][1]}) {['press', '', 'release', 'tail'][f]} {d:+d} refreshes: "
             f"{best} of {n} ({note})")
-    result = "PASS" if n > 0 and best >= n else f"first difference at picture {best}"
+    result = "PASS" if n > 0 and best >= n else f"first difference at picture {int(best)}"
     spec = dreams_case._port_spec(g, c)
     spec.update({"keys": keys, "start": START[0], "clock": CLOCK[0], "tc_adds": TC_ADDS[0], "result": result})
     target.write_text(json.dumps(spec, indent=1) + "\n", encoding="utf-8")
