@@ -355,7 +355,7 @@ newer, the choice is all-or-nothing for the game, and the copy not chosen is los
 | Sync when a game is opened (fetch) and when it is saved or closed (send); in the background otherwise; play is never blocked (a few seconds of "Syncing…", then play with this device's saves) | planned | Steam's and Xbox's rhythm, which players know | automated test (simulator) | research |
 | Only one device changed: its progress is taken without a question, with a short notice ("Continuing from Living-room PC · 12 min ago") | planned | No needless prompts (Switch, Steam) | automated test | research |
 | Each slot on its own: different slots changed on different devices are both kept without a question (Xbox's choice is for the whole game) | planned | Fewer conflicts than the platforms | automated test | research |
-| The same slot changed on both: at the game's start a choice of two cards, side by side, each naming the device and saying when, with what the save holds (game, level or map position, score, lives, items, time played) and a picture of where it was saved; "Continue from Phone" / "Continue from PC"; the newer one focused; pad, keyboard, touch | planned | The user's request: choose which device's progress to go on with, in the words players know | automated test + path walk | user + research |
+| The same slot changed on both: at the game's start a choice of two cards, side by side, each naming the device and saying when, with what the save holds (game, level or map position, score, lives, items, time played) and a picture of where it was saved; "Continue from Phone" / "Continue from PC"; the newer one focused; pad, keyboard, touch; a setting "always continue from the newest" skips it (J-23) | planned | The user's request: choose which device's progress to go on with, in the words players know | automated test + path walk | user + research |
 | The copy not chosen is kept: a save history per game (the last versions of each slot, with device and time), restorable from the game's menu (the platforms discard it) | planned | No progress ever lost by a wrong tap | automated test | research |
 | A game open on the other device: "You're playing Keen 4 on Living-room PC. Continue here?" | planned | Xbox's "signed in on another device" | automated test | research |
 | The other device or the cloud unreachable: play with this device's saves ("Use offline"); the sync happens next time, by the same rules | planned | Offline play must always work | automated test | research |
@@ -366,12 +366,16 @@ newer, the choice is all-or-nothing for the game, and the copy not chosen is los
 | Turning sync on with saves on both devices: a one-time choice (keep both where they differ, or take one device's) | planned | The first sync is the riskiest | automated test + path walk | catalog |
 | Transport 1, home network: pair once by scanning a code the PC shows; the two talk directly on the same Wi-Fi; no account, no server, nothing leaves the house | planned | Simplest and private; Godot's own networking | automated test + device test | user |
 | Transport 2, the player's own Google Drive (its hidden app-data folder, which the app alone can see): sync anywhere; opt-in; no server of ours, no player data held by the project | planned | Away from home; every Android phone has the account | device test | research |
-| Transport 3, a folder the player already syncs (Syncthing, Dropbox, OneDrive): pick it on each device | planned | Power users; Android's folder access limits it | device test | catalog |
+| Transport 3, a folder the player already syncs (Syncthing, Dropbox, OneDrive): pick it on each device | later (J-22) | Power users; Android's folder access limits it | device test | catalog |
 | A sync settings page: on/off, paired devices (names editable), transports, "sync now", the history | planned | Control and trust | path walk | catalog |
 
 Not planned: a server run by the project (accounts, passwords, hosting and security duties a free
-project should not take on). Open choices for the user: J-21 (when it ships), J-22 (which transport
-first), J-23 (whether the choice of cards may be skipped by a rule).
+project should not take on).
+
+Decided (user, 2026-10-09): J-21, in the public release (the ports are used privately as soon as they
+work; the public showing waits for the special features, this among them); J-22, home Wi-Fi as the
+main way and the player's Google Drive beside it from the start (the folder transport later); J-23,
+ask by default, with a setting for "always continue from the newest".
 
 ## Deferred and not-applicable
 
