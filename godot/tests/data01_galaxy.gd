@@ -68,13 +68,18 @@ func _init() -> void:
 			continue
 		if g[0] == "keen6":
 			t.ok("keen6: the three version tables come from the executable (%s)" % d.exe_build, d.exe_build != "")
-			# v1.0's own strings and ledge-climb states (DATA-01G6)
+			# v1.0's own strings (always), and its ledge-climb states only with exe_behaviour on
+			# (J-19: Keen 6 plays by v1.4's rules)
 			var entry: String = d.episode.string_arrays.get("ck_str_levelEntryText", PackedStringArray())[8]
-			t.ok("keen6: v1.0's level-8 text from the executable (%s)" % entry.replace("
-", " "), entry.begins_with("Keen hungily enters"))
-			var pull1: Array = d.episode.actions.get("CK_ACT_keenPull1", [])
-			var pull4: Array = d.episode.actions.get("CK_ACT_keenPull4", [])
-			t.ok("keen6: v1.0's ledge climb (pull 1 moves %s,%s with think %s, collide %s; pull 4 goes to %s)" %
+			t.ok("keen6: v1.0's level-8 text from the executable (%s)" % entry.replace("\n", " "), entry.begins_with("Keen hungily enters"))
+			var pull14: Array = d.episode.actions.get("CK_ACT_keenPull1", [])
+			t.ok("keen6: v1.4's ledge climb by default (pull 1 think %s)" % pull14[9], pull14[9] == "CK_KeenPullThink1")
+			var d10: GalData = GalData.new()
+			d10.exe_behaviour = true
+			d10.load_game(dir, meta_root.path_join(g[1]))
+			var pull1: Array = d10.episode.actions.get("CK_ACT_keenPull1", [])
+			var pull4: Array = d10.episode.actions.get("CK_ACT_keenPull4", [])
+			t.ok("keen6: v1.0's ledge climb read when asked (pull 1 moves %s,%s with think %s, collide %s; pull 4 goes to %s)" %
 				[pull1[7], pull1[8], pull1[9], pull1[10], pull4[12]],
 				pull1[7] == "128" and pull1[8] == "-128" and pull1[9] == "NULL" and pull1[10] == "CK_KeenColFunc" and pull4[12] == "CK_ACT_keenStanding")
 			_without_exe(t, dir, meta_root.path_join(g[1]))

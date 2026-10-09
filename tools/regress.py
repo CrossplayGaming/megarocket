@@ -418,9 +418,9 @@ REPLAY_G6_LEVELS = ["level04"]    # the verified ones, against the user's v1.0 (
 
 
 # keen6_boot_a's first demo against the user's v1.0, from the first picture after the title: the
-# pictures matched in order (deterministic play: v1.0's own rules, DATA-01G6). A floor, raised as
-# v1.0's differences are ported (192 on v1.4's rules; 577 with R_Walk's ledge step-back).
-REPLAY_G6_DEMO_FLOOR = 577
+# pictures matched in order (deterministic play). Keen 6 plays by v1.4's rules (J-19), which part from
+# v1.0's at picture 1336 (R_Walk's ledge step-back, DATA-01G6): a floor against regressions.
+REPLAY_G6_DEMO_FLOOR = 192
 
 
 def replayg6():

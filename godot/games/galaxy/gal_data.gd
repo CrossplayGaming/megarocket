@@ -69,9 +69,10 @@ var _exe_map_head: PackedByteArray = PackedByteArray()
 var _exe_strings: Dictionary = {}    # the build's own strings, by STRINGS name (KNOWN_EXES "strings")
 var _exe_actions: Dictionary = {}    # action name -> its eight words, think kept or not, next (KNOWN_EXES "actions")
 var _exe_ints: Dictionary = {}    # episode values for the build's own code (KNOWN_EXES "ints")
-## The build's own behaviour (its action records and code values) applies; false keeps v1.4's, as
-## omnispeak has it (SIM-G-01h holds the port's code against omnispeak's). Set before load_game.
-var exe_behaviour: bool = true
+## The build's own behaviour (its action records and code values) applies when true. Off: every
+## Keen 6 plays by v1.4's rules, as omnispeak has them (J-19, decided 2026-10-09: v1.4 always); the
+## v1.0 differences found stay here, documented, for a later choice. Set before load_game.
+var exe_behaviour: bool = false
 var dir: String = ""            # the player's game folder
 var meta_dir: String = ""       # omnispeak's data folder for this episode
 var ext: String = ""            # "CK4" ...
