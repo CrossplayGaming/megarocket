@@ -351,6 +351,7 @@ poles, slopes, keygems and switch-linked bridges, a world map), so the lessons c
 | Item | Status | Why it matters | Verification | Source |
 |---|---|---|---|---|
 | Build and play are one button apart: play starts from the cursor (or the level's start), and back in the editor everything is where it was; Keen's last test run stays on screen as a fading trail of his positions | planned | Mario Maker's core loop; Keen's jumps and pogo arcs are learned by seeing them | automated test (round trip) + path walk | research |
+| Start from scratch or from an existing level: any level of the player's games (or a shared level) opens as a copy to remix, harder, easier or just different; with quick remix helpers (thin out or add enemies, swap an enemy for its tougher or gentler kin, add or remove items and lives, move the exit) | planned | The user's request (2026-10-09); remixing the classics is how most people start | automated test + path walk | user |
 | Every part from the game's own sets, in palettes of the game's own art and font: ground, platforms, poles, slopes, hazards, keygems and doors, switches and bridges, items, enemies, the exit | planned | The Keen look; nothing generic | path walk | user |
 | Parts with variants: pick one up and wiggle it to change it (a gem's colour, which enemy of a family, a platform's direction) | planned | Mario Maker's shake, applied to Keen's families | path walk | research |
 | Brushes that pick the right tiles: paint "ground" or "a slope" and its edges, corners and joins choose themselves from the tileset; a raw-tile mode for experts | planned | Keen's tilesets have dozens of edge pieces; this is what makes it easy for anyone | automated test (brush tables) | project |
@@ -362,7 +363,7 @@ poles, slopes, keygems and switch-linked bridges, a world map), so the lessons c
 | A world builder: link levels into an episode on a world map (Keen 1–3's and 4–6's maps), playable start to finish | planned | Mario Maker 2's World Maker; Keen is an episode game | automated test + path walk | research |
 | Zoom out to see the whole level; pad, keyboard and touch all first-class (A16); touch was what made Mario Maker easy | planned | Comfort on phone and PC | path walk | research |
 | Before sharing, you finish your own level (the clear check) | planned | Every shared level is beatable | automated test | research |
-| Sharing as a small file, and as a QR code for small levels (no server); a "runs in the original" badge when the level also loads in the DOS game (checked by the oracle harness) | planned | Keen levels are tiny; the original formats are the point | automated test | project |
+| Sharing as a small file, and as a QR code for small levels (no server); a remix of an original level is shared as its changes only, applied to the receiver's own copy of the game, so no id level data leaves the sender (and the file is tiny); a "runs in the original" badge when the level also loads in the DOS game (checked by the oracle harness) | planned | Keen levels are tiny; the original formats are the point; the legal line (A12) | automated test | project |
 
 **Asset Studio: see any asset, replace it, restyle it.** Same look, sounds and controls as Keen Maker.
 
