@@ -319,7 +319,7 @@ user decides.
 Two systems that follow the v1.0 release. They are recorded now so v1.0's architecture keeps them
 possible (the draw list keys every image by name, which is what makes replacement packs cheap;
 levels are loaded through one loader per engine, which is what a map builder needs to write to).
-Each gets its own blueprint pass before it is built.
+Each gets its own blueprint pass before it is built. The full plan is "v1.5 creative suite" below.
 
 | Item | Status | Why it matters | Verification | Source |
 |---|---|---|---|---|
@@ -327,6 +327,73 @@ Each gets its own blueprint pass before it is built.
 | Map builder: an in-program editor where the player picks a game, draws tiles and places objects from that game's own sets, sets level flags, saves to that engine's level format, and plays the result in place | deferred (v1.5) | The user's stated goal; user levels are a big part of the Keen community | automated test (round trip through the engine's loader) + by eye | project |
 | Map builder: an intuitive, pad- and touch-operable interface (A16 applies) | deferred (v1.5) | Same rule as everything else | path walk | project |
 | Player-made maps in a library screen, launchable from the launcher, sharable as files | deferred (v1.5) | Playing them is the point | automated test | project |
+
+### v1.5 creative suite (user, 2026-10-09) — planned, prepared for in v1.0
+
+Three tools that share one look and feel: **Keen Maker** (levels), **Asset Studio** (replacing and
+restyling any image or sound) and **Keen's Closet** (customising Keen). They are built after v1.0,
+but v1.0 keeps them cheap (A18).
+
+**What Mario Maker teaches (research, 2026-10-09).** Nintendo's starting idea was "wouldn't it be fun
+if these tools became a game, so anyone could create these levels"; the in-house editor needed a
+keyboard and mouse, and moving it to the GamePad's touch screen "lowered the hurdle for everyone"
+(Tezuka). What made it play like a game: switching between building and playing with one button,
+from where you are, with the last seconds of Mario's run left on screen as a ghost; parts you pick
+up and shake to change (a green Koopa turns red, a big enemy shrinks); music and sounds that answer
+every placement; playful helpers for erasing and undoing (Mr. Eraser, Undodog); and in the sequel a
+zoom, game styles each with their own moves, lessons from a tutor (Yamamura's Dojo, three levels of
+fifteen lessons), and the rule that you must finish your own course before sharing it. The parts are
+few but they combine, which is where the depth comes from. Keen is not Mario (no power-ups; pogo,
+poles, slopes, keygems and switch-linked bridges, a world map), so the lessons carry, not the parts.
+
+**Keen Maker: the level builder as a game.**
+
+| Item | Status | Why it matters | Verification | Source |
+|---|---|---|---|---|
+| Build and play are one button apart: play starts from the cursor (or the level's start), and back in the editor everything is where it was; Keen's last test run stays on screen as a fading trail of his positions | planned | Mario Maker's core loop; Keen's jumps and pogo arcs are learned by seeing them | automated test (round trip) + path walk | research |
+| Every part from the game's own sets, in palettes of the game's own art and font: ground, platforms, poles, slopes, hazards, keygems and doors, switches and bridges, items, enemies, the exit | planned | The Keen look; nothing generic | path walk | user |
+| Parts with variants: pick one up and wiggle it to change it (a gem's colour, which enemy of a family, a platform's direction) | planned | Mario Maker's shake, applied to Keen's families | path walk | research |
+| Brushes that pick the right tiles: paint "ground" or "a slope" and its edges, corners and joins choose themselves from the tileset; a raw-tile mode for experts | planned | Keen's tilesets have dozens of edge pieces; this is what makes it easy for anyone | automated test (brush tables) | project |
+| Links drawn as lines: a switch to its bridge, a gem holder to its door, a platform to its path, a teleporter to its exit; drag to connect | planned | Galaxy's info plane made visible | path walk | project |
+| Rules that teach instead of failing: what the engine cannot do is refused at once with a Keen sound and a short reason (too many objects, outside the map, a door with no gem); meters for the engine's limits | planned | Levels always load and play in the faithful engine | automated test | research |
+| Playful helpers in the Keen spirit: the Dopefish swallows what you erase and spits back what you undo; every placement has a sound from the game | planned | Undodog and Mr. Eraser are why building is fun | by eye / ear | research + user |
+| Lessons from a tutor out of the games themselves (Keen 4's Princess Lindsey, who gives hints in Keen 4): short playable lessons in three levels | planned | Yamamura's Dojo: teach by doing | path walk | research |
+| Game styles: a level is made for one engine (Keen 1–3, Keen 4, 5, 6, Dreams), each with its own moves; switching style converts what can be converted and says what could not | planned | Mario Maker 2's styles; the engines really differ | automated test | research |
+| A world builder: link levels into an episode on a world map (Keen 1–3's and 4–6's maps), playable start to finish | planned | Mario Maker 2's World Maker; Keen is an episode game | automated test + path walk | research |
+| Zoom out to see the whole level; pad, keyboard and touch all first-class (A16); touch was what made Mario Maker easy | planned | Comfort on phone and PC | path walk | research |
+| Before sharing, you finish your own level (the clear check) | planned | Every shared level is beatable | automated test | research |
+| Sharing as a small file, and as a QR code for small levels (no server); a "runs in the original" badge when the level also loads in the DOS game (checked by the oracle harness) | planned | Keen levels are tiny; the original formats are the point | automated test | project |
+
+**Asset Studio: see any asset, replace it, restyle it.** Same look, sounds and controls as Keen Maker.
+
+| Item | Status | Why it matters | Verification | Source |
+|---|---|---|---|---|
+| Browse every asset of every game by kind: sprites by character and animation, tiles by tileset and use, screens, fonts, sounds, music | planned | Full access, organised | path walk | user |
+| An inspector for each: size in pixels, frames, its anchor and hit box drawn over it, the colours it uses (EGA index and colour), the animation at game speed, where it appears (levels, states) | planned | "See its shape, dimensions and colours" | automated test (metadata) + path walk | user |
+| Drop in a replacement (an image or several): checked at once (size or a whole multiple for HD, transparency, frame count and alignment of an animation), shown before and after, in place in a level, and for tiles repeated 3×3 so seams show | planned | "Know it matches and tiles well" | automated test | user |
+| Restyle without drawing: shift or swap colours across a set (a whole tileset at night, a sprite family recoloured) | planned | Restyling for everyone, not only artists | automated test | user |
+| Templates out: any asset or set exported as a PNG sheet with guide layers (grid, hit boxes), for outside editors (Aseprite and the like) | planned | Artists keep their tools | automated test | project |
+| Everything saved as a pack (the mods folder, A18), switched on and off and stacked in the launcher; one-click revert of any asset; packs hold only what the player made, never the originals | planned | Safe experimenting; the legal line | automated test | project |
+| Sounds and music replaced the same way, with a preview | planned | Full access | automated test | user |
+
+**Keen's Closet: customise Keen.**
+
+| Item | Status | Why it matters | Verification | Source |
+|---|---|---|---|---|
+| Colours for Keen's helmet, shirt, pants and shoes, applied to every frame of Keen in every game; presets, a random button, and Keen previewed running, jumping and pogoing | planned | The user's first step | automated test + by eye | user |
+| Classic keeps to the 16 EGA colours; Enhanced allows any colour | planned | The fidelity line | automated test | project |
+| Which pixels are helmet, shirt, pants or shoes is worked out at run time from the player's files by rules (colour and place per frame), never stored as art (A12); frames a rule cannot settle are listed for a hand fix in the Asset Studio | planned | The legal line; Keen's art differs per game | automated test | project |
+| Characters later: whole replacement characters as packs with Keen's exact frame list, sizes and hit boxes (exported as a template), so play is unchanged; the id-family homages the user wants (B.J. Blazkowicz, Keen's grandfather in id's lore, and the Doom marine) as such packs | planned | The user's goal; the family lore | automated test (frame list and hit boxes) | user |
+
+**What this asks of v1.0 (A18).** Every image and sound reachable by a stable name with its metadata
+(size, frames, anchor, hit box, colours used); one load-time asset stage through which every engine's
+graphics and sounds pass (where packs, restyles and Keen's colours are applied, the same in Classic and
+Enhanced); every engine's levels written as well as read, round-trip tested; the tilesets' tiles named
+by use (solid, slope and its angle, pole, hazard, edge piece and which edges join), which brushes and
+style conversion need; starting a level at any place with Keen set down there (A7 plus a spawn).
+
+**Open choices for the user:** J-24 (one Keen Maker with game styles, or a builder per game first),
+J-25 (Keen's colours beyond the EGA 16 in Enhanced), J-26 (where the id-family characters come from).
 
 ### Save sync between devices (user, 2026-10-09) — planned
 
