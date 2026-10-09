@@ -218,7 +218,8 @@
     "AND-02"
    ],
    "notes": {
-    "files": "v1.00 and v1.93 (your Steam Definitive Edition) read"
+    "files": "v1.00 and v1.93 (your Steam Definitive Edition) read",
+    "runs": "The engine is ported (about 500 functions); v1.00 and v1.93 boot through the start screen, title and high scores; playing a level is next"
    }
   }
  ],
@@ -251,6 +252,10 @@
   }
  ],
  "milestones": [
+  {
+   "date": "2026-10-09",
+   "text": "Keen Dreams runs in Megarocket: its engine ported and checked piece by piece; both releases boot to the title"
+  },
   {
    "date": "2026-10-09",
    "text": "Keen 4-6 parity review done: every remaining difference checked; none is a game-logic bug"
