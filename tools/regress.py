@@ -464,6 +464,39 @@ def replayg4():
     return max(results)
 
 
+def _dreams_test(name):
+    import gdtest
+    code, out = gdtest.run(name, [], timeout=900.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
+def simd01a():
+    """The Dreams library draws what the data says: every picture, masked picture, tile 8/16, sprite at
+    every shift and the font drawn on the emulated card equal DreamsData's decode (BE, CA, VW)."""
+    return max(_dreams_test("drm_parse"), _dreams_test("drm_vw_draw"))
+
+
+def simd01b():
+    """The Dreams refresh manager: a real map's tables, animated tile chains, origins, scrolling in every
+    direction and the sprite lists as id_rf.c computes them."""
+    return _dreams_test("drm_rf_check")
+
+
+def simd01c():
+    """The Dreams input and sound managers on the DOS machine: the 140 Hz timer and TimeCount, keys through
+    INT 9, controls, demo playback, PC speaker and AdLib effects."""
+    return _dreams_test("drm_io_check")
+
+
+def simd01d():
+    """The Dreams user manager: parameters, the random table and its seed, windows and printing, the
+    start screens, config, saved game headers, high scores, gelib's buffered reads and ILBM unpacking."""
+    return _dreams_test("drm_us_check")
+
+
 def simg01a():
     """The Galaxy library layer draws what the data says: every tile, bitmap, sprite (all
     shifts) and a font string read back from the surface as GalData decodes them; VL_Present
@@ -902,6 +935,10 @@ CHECKS = {
     "SIM-G-01g": (simg01g, "slow"),
     "SIM-G-01h": (simg01h, "slow"),
     "SIM-G-01i": (simg01i, "slow"),
+    "SIM-D-01a": (simd01a, "fast"),
+    "SIM-D-01b": (simd01b, "fast"),
+    "SIM-D-01c": (simd01c, "fast"),
+    "SIM-D-01d": (simd01d, "fast"),
     "TIME-G4": (timeg4, "slow"),
     "TIME-G5": (timeg5, "slow"),
     "TIME-G6": (timeg6, "slow"),
