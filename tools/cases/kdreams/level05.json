@@ -1,0 +1,104 @@
+{
+ "seconds": 36.6,
+ "keys": "",
+ "cycles": 20000,
+ "press_until_picture": {
+  "key": "enter",
+  "from": 8.0,
+  "every": 1.5
+ },
+ "held": [
+  [
+   3.0,
+   "space",
+   0.2
+  ],
+  [
+   6.0,
+   "enter",
+   0.2
+  ],
+  [
+   10.0,
+   "f10",
+   1.5
+  ],
+  [
+   10.5,
+   "w",
+   0.2
+  ],
+  [
+   12.0,
+   "5",
+   0.2
+  ],
+  [
+   13.0,
+   "enter",
+   0.2
+  ],
+  [
+   16.6,
+   "left",
+   3.0
+  ],
+  [
+   17.6,
+   "ctrl",
+   0.3
+  ],
+  [
+   20.1,
+   "right",
+   2.0
+  ],
+  [
+   20.6,
+   "alt",
+   0.2
+  ],
+  [
+   23.1,
+   "left",
+   4.0
+  ],
+  [
+   24.1,
+   "ctrl",
+   0.3
+  ],
+  [
+   25.6,
+   "alt",
+   0.2
+  ],
+  [
+   27.6,
+   "right",
+   3.0
+  ],
+  [
+   28.6,
+   "ctrl",
+   0.3
+  ],
+  [
+   31.1,
+   "up",
+   0.3
+  ],
+  [
+   32.1,
+   "left",
+   2.5
+  ],
+  [
+   32.6,
+   "space",
+   0.2
+  ]
+ ],
+ "note": "F10+W warp to level 5 from the world map after a new game (Space at the title opens the control panel, Enter starts a normal game), then the same moves, jumps, throws and a Boobus Bomb in every level. Held times are seconds after the recording's first picture. may_exit: a map the release lacks (v1.00: 6, 8, 11) makes the warp's load quit to DOS with 'CA_CacheMap: Tried to load a non existant map!', the original as the port; the session is then that refusal.",
+ "may_exit": true
+}

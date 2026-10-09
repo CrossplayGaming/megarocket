@@ -392,6 +392,14 @@ func wait_retrace_start() -> void:
 	_run_to(next_vbl)
 
 
+## Wait until a retrace is on: at once if one is, else the next (the "test al,8 / jz" loop
+## entered at any moment, as id_vw_ae.asm's VW_SetScreen does before the pel panning).
+func wait_in_retrace() -> void:
+	_settle()
+	if not in_retrace():
+		_run_to(next_vbl)
+
+
 ## The library's WaitVBL: `n` times, let any retrace end, then wait for the next.
 func wait_vbl(n: int) -> void:
 	for i: int in range(n):

@@ -12,7 +12,11 @@ extends SceneTree
 ##
 ## Options: --game_data=<folder> --out=<folder> --seconds=40
 ##          --only=<folder> (one release) --keys=<at:scancode:hold,...> (more keys, seconds)
+##          --case_keys=<at:scancode:hold,...> (keys timed from the first EGA picture, as the
+##          recordings' held keys are: REPLAY-D, tools/dreams_case.py)
 ##          --cycles= --vbl_period= --timer_offset= (the machine's timing)
+##          --clock=us (the DOS clock at the start, microseconds since 00:00:00: the random
+##          table's seed is its hundredths at US_Startup; unset, the port's own seed)
 
 ## DOSBox's timing as the Vorticons fit found it (same runner settings)
 const DOSBOX: Dictionary = {"cycles": 20000, "vbl_period": 17024400, "timer_offset": 0}
@@ -62,6 +66,7 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	vm.set_cycles(int(opts.get("cycles", DOSBOX.cycles)))
 	vm.vbl_period = int(opts.get("vbl_period", DOSBOX.vbl_period))
 	vm.timer_offset = int(opts.get("timer_offset", DOSBOX.timer_offset))
+	g.us_dosClockAtStart = int(opts.get("clock", "-1"))
 	# the files the program opens itself (gelib's reads): v1.93's title archive
 	if d.version == "e193":
 		g.us_files["KDREAMS.CMP"] = d._read("KDREAMS.CMP")
@@ -70,6 +75,9 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	for spec: String in str(opts.get("keys", "")).split(",", false):
 		var parts: PackedStringArray = spec.split(":")
 		vm.add_key(float(parts[0]), int(parts[1]), float(parts[2]) if parts.size() > 2 else 0.1)
+	for spec: String in str(opts.get("case_keys", "")).split(",", false):
+		var parts: PackedStringArray = spec.split(":")
+		vm.add_key_after("ega", float(parts[0]), int(parts[1]), float(parts[2]) if parts.size() > 2 else 0.1)
 	DirAccess.make_dir_recursive_absolute(out)
 	var writer: FrameWriter = FrameWriter.new()
 	if not writer.open(out):
@@ -81,6 +89,9 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	var st: Dictionary = {"ega": 0, "text": "", "title": 0.0, "colours": 0, "last": 0, "pictures": 0}
 	vm.on_display = func() -> void:
 		if card.video_mode == EgaCard.MODE_EGA:
+			if st.ega == 0:
+				vm.mark("ega")    # the recording's start: DOSBox's first entry into the EGA mode
+				print("  %s: the first EGA picture at %.2f s" % [name, vm.seconds()])
 			if card.frame_mixed:
 				writer.add(card.frame_rgb(), "P")
 			else:

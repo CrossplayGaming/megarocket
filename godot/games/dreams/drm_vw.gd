@@ -732,10 +732,17 @@ func VWL_UpdateScreenBlocks() -> void:
 
 
 ## The CRTC start address and the pel panning, then a retrace.
+## As the original's assembly (id_vw_ae.asm) does it: wait for the display to begin (out of any
+## blanking), set the start address, then wait for a vertical retrace (at once if one is on) and set
+## the pel panning in it, so both show together from the next picture. ReflectionHLE sets the panning
+## at once and waits for the retrace after (its TODO notes the difference); on a card that pans line
+## by line, as this one and the EGA do, that tears a scrolling picture where the beam was (REPLAY-D:
+## the v1.00 title's logo moved a refresh before the rest).
 func VW_SetScreen_EGA(CRTC: int, pelpan: int) -> void:
+	vm.wait_retrace_end()
 	BE_ST_SetScreenStartAddress(u16(CRTC))
+	vm.wait_in_retrace()
 	BE_ST_EGASetPelPanning(pelpan)
-	VW_WaitVBL(1)
 
 
 # ---- general font drawing routines
