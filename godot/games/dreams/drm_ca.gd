@@ -586,6 +586,7 @@ func CA_CacheMap(mapnum: int) -> void:
 			MM_GetPtr("bigbufferseg", compressed)
 		MM_GetPtr("buffer2seg", sizes[plane][1])
 		mapsegs[plane] = m.plane[plane]
+		cost_n("mapbyte", compressed)    # CAL_HuffExpand's time goes with the bytes read (TIME-D)
 		cost_n("mapword", hdr.width * hdr.height)
 		MM_FreePtr("buffer2seg")
 		if compressed > BUFFERSIZE:

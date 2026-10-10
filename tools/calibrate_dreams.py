@@ -30,7 +30,11 @@ COSTS = Path(__file__).parent / "cases" / "dreams_costs.json"
 WORK = Path("F:/KeenReworkWork/port_runs")
 # the costs fitted and where each starts (Galaxy's TIME-G values for the shared engine's work)
 # (lzhbyte: v1.93's title, LZH-packed, takes the original 0.6 s after the mode set: 28500 a byte)
-START = {"grbyte": 5100, "mapword": 0, "sprchunk": 0, "sprbyte": 0, "mmmove": 0, "audiobyte": 0, "lzhbyte": 28500}
+# (mapbyte, mapword: CA_CacheMap's Huffman input bytes and RLEW words a plane; their start is the fit of the
+# recordings' plain "Loading" box, from the warp to the level's title, on the map's sizes: 0.93 refreshes +
+# 2.79e-4 a compressed byte + 2.57e-4 a word of the three planes)
+START = {"grbyte": 5100, "mapbyte": 4750, "mapword": 1457, "sprchunk": 0, "sprbyte": 0, "mmmove": 0, "audiobyte": 0,
+         "lzhbyte": 28500}
 FACTORS = (0.5, 0.75, 0.9, 1.1, 1.25, 1.5, 2.0)
 
 
@@ -40,7 +44,8 @@ def say(*a):
 
 def load_costs():
     if COSTS.exists():
-        return {k: int(v) for k, v in json.loads(COSTS.read_text(encoding="utf-8"))["costs"].items()}
+        # (a cost new since the file was written starts at 0, the port's time before it)
+        return {**{k: 0 for k in START}, **{k: int(v) for k, v in json.loads(COSTS.read_text(encoding="utf-8"))["costs"].items()}}
     return dict(START)
 
 
@@ -63,26 +68,28 @@ def costs_arg(costs):
 
 
 def session_score(g, c, costs):
-    """(pictures matched, of n, total |drift| at the passes, the drifts)."""
+    """(pictures matched, of n, total |drift| at the passes, the drifts, (the drift at the stop, the stop's note))."""
     arg = costs_arg(costs)
     tag = hashlib.md5(f"{g}{c}{arg}".encode()).hexdigest()[:10]
     out = WORK / f"cald_{g}_{c}_{tag}"
     spec = json.loads((dreams_case.CASES / g / f"{c}.json").read_text(encoding="utf-8"))
-    dreams_case.run_feed(g, spec["held"], out, spec["seconds"] + 12, extra=(f"--costs={arg}",) if arg else ())
+    dreams_case.run_feed(g, spec["held"], out, spec["seconds"] + 12, extra=(f"--costs={arg}",) if arg else (), case=c)
     oracle = Path(common.config()["oracle_runs"]) / f"{g}_{c}_a"
     try:
         port = timing_score.pictures(frames.Sequence(out / g), False)
         orc = timing_score.pictures(frames.Sequence(oracle / "frames"), True)
     except FileNotFoundError:
-        return 0, 1, 0, []
+        return 0, 1, 0, [], (0, "no run")
     port, orc = dreams_case.align(port, orc)
     if not port:
-        return 0, len(orc) - 1, 0, []
-    j, _note, n, _err, skips, _k = dreams_case.level_score(port, orc)
+        return 0, len(orc) - 1, 0, [], (0, "the recording's first pictures are not in the port's run")
+    j, note, n, _err, skips, k = dreams_case.level_score(port, orc)
     drifts = []
     for jj, a, b, kk in skips:
         drifts.append(sum(r for _, r in orc[:jj + b]) - sum(r for _, r in port[:kk + a]))
-    return j, n, sum(abs(x) for x in drifts), drifts
+    # how far the recording runs behind the port where they part (refreshes): the time of the loads before
+    stop = sum(r for _, r in orc[:j]) - sum(r for _, r in port[:k])
+    return j, n, sum(abs(x) for x in drifts), drifts, (stop, note.split(" (")[0])
 
 
 def evaluate(pool, runs, costs):
@@ -99,6 +106,7 @@ def main():
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--rounds", type=int, default=6)
     ap.add_argument("--report", action="store_true")
+    ap.add_argument("--names", nargs="*", help="fit only these costs (default: all)")
     a = ap.parse_args()
     runs = sessions(a.games)
     if not runs:
@@ -109,12 +117,14 @@ def main():
     best, res = evaluate(pool, runs, costs)
     say(f"{len(runs)} sessions; costs {costs}: {best[0]} pictures matched, drift {-best[1]}")
     if a.report:
-        for (g, c), (j, n, d, drifts) in sorted(res.items()):
-            print(f"  {g} {c}: {j} of {n}; drifts {drifts[:10]}")
+        for (g, c), (j, n, d, drifts, (stop, note)) in sorted(res.items()):
+            # (the sessions share their start, a new game and the warp: its drifts are the same in each)
+            print(f"  {g} {c}: {j} of {n}; at the stop the recording {stop:+d} refreshes on ({note}); "
+                  f"last drifts {drifts[-6:]}")
         return 0
     for rnd in range(a.rounds):
         moved = False
-        for name in list(costs):
+        for name in (a.names or list(costs)):
             base = costs[name]
             trials = [int(base * f) for f in FACTORS] if base else [1000, 3000, 10000, 30000, 100000]
             trials = [t for t in dict.fromkeys(trials) if t != base]

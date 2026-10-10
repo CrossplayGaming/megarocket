@@ -1,13 +1,14 @@
 {
  "costs": {
-  "grbyte": 7650,
-  "mapword": 0,
+  "grbyte": 6500,
+  "mapbyte": 5225,
+  "mapword": 1457,
   "sprchunk": 0,
   "sprbyte": 0,
   "mmmove": 0,
   "audiobyte": 0,
   "lzhbyte": 28500
  },
- "matched": 4391,
- "drift": 718
+ "matched": 6132,
+ "drift": 206
 }

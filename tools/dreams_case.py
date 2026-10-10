@@ -84,14 +84,54 @@ def measured_start(game, case, out):
     return None
 
 
-def run_feed(game, held, out, seconds, extra=(), clock=-1):
+# HARN-22: the seconds from KEYFEED.COM's loading to the program's start, per release. KEYFEED's start-up
+# Enter taps (every PRE_PERIOD + PRE_HOLD ticks from its loading, tools/keyfeed.py) answer the start-up
+# screens, and the runner's autoexec sets the DOS clock to 00:00:00 just before it loads, so this one
+# time places the taps, the game clock's start (SD_Startup) against the key timetable, and the random
+# table's seed (the hundredths at US_Startup). Measured on the recordings' text-mode captures (video0001:
+# v1.00's piracy screen at frame 4, the first tap's text screen at frame 104, 1.427 s on; v1.93's text
+# screen at frame 3-4, the mode set at frame 104-105), less the port's first display (0.014 s): about
+# 0.06 s, give or take a frame. Within that the value is fitted on the pictures matched in all (2.5 ms
+# steps from 0.045 to 0.075 s; the outcome swings with it, which frame a key or the mode set falls in),
+# with the costs of dreams_costs.json: fit it again when they change.
+FEED_PRE = {"kdreams": 0.05, "kdreams193": 0.045}
+COSTS = CASES / "dreams_costs.json"
+
+
+def feed_pre(game, case=None):
+    """Seconds from KEYFEED.COM's loading to the program's start: the case's "feed_pre", else the release's."""
+    spec = json.loads((CASES / game / f"{case}.json").read_text(encoding="utf-8")) if case else {}
+    return float(spec.get("feed_pre", FEED_PRE.get(game, 0.0)))
+
+
+def feed_clock(game, case=None):
+    """The DOS clock at the program's start, microseconds: the case's fitted "clock" (a random draw that
+    decides a stop, with how it was found in "clock_note"), else the runner's 00:00:00 at KEYFEED's loading
+    plus feed_pre."""
+    spec = json.loads((CASES / game / f"{case}.json").read_text(encoding="utf-8")) if case else {}
+    return int(spec.get("clock", round(feed_pre(game, case) * 1e6)))
+
+
+def calibrated_costs():
+    """TIME-D's fitted costs (tools/calibrate_dreams.py), as drm_boot's --costs argument ("" if none)."""
+    if not COSTS.exists():
+        return ""
+    costs = json.loads(COSTS.read_text(encoding="utf-8"))["costs"]
+    return ",".join(f"{k}:{int(v)}" for k, v in sorted(costs.items()) if int(v))
+
+
+def run_feed(game, held, out, seconds, extra=(), clock=None, case=None, pre=None):
     """HARN-22: drm_boot for the one release with KEYFEED.COM's timetable (`held`: seconds after the EGA
-    mode set, tools/keyfeed.py's ticks), frames to `out`."""
+    mode set, tools/keyfeed.py's ticks) and its start-up taps, frames to `out`. `clock` and `pre` default
+    to the case's (feed_clock, feed_pre)."""
     import keyfeed
     arg = ",".join(f"{m}:{c}:{b}" for m, c, b in keyfeed.feed_pairs(held))
+    pre = feed_pre(game, case) if pre is None else pre
+    clock = feed_clock(game, case) if clock is None else clock
     shutil.rmtree(out, ignore_errors=True)
     p = subprocess.run([sys.executable, "tools/gdtest.py", "drm_boot", "--", f"--only={game}", f"--seconds={seconds}",
-                        f"--out={Path(out).as_posix()}", f"--feed_keys={arg}", f"--clock={clock}", *extra],
+                        f"--out={Path(out).as_posix()}", f"--feed_keys={arg}", f"--feed_pre={pre}", f"--clock={clock}",
+                        *extra],
                        cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
     return p.returncode, p.stdout + p.stderr
 
@@ -101,8 +141,13 @@ def run_port(game, case, keys, out, seconds=None, extra=(), start=None, clock=No
     spec = json.loads((CASES / game / f"{case}.json").read_text(encoding="utf-8"))
     if spec.get("keyfeed"):
         # HARN-22: the keys are the case's own timetable, typed into the original inside DOS
+        # with the calibrated costs, as tools/calibrate_dreams.py scores it
+        costs = calibrated_costs()
+        if costs and not any(str(x).startswith("--costs=") for x in extra):
+            extra = (f"--costs={costs}", *extra)
+        # (the runner sets the DOS clock: no "port's own seed" here, -1 is the case's)
         return run_feed(game, keys, out, seconds or spec["seconds"] + 12, extra,
-                        case_clock(game, case) if clock is None else clock)
+                        None if clock is None or clock < 0 else clock, case)
     start = case_start(game, case) if start is None else start
     tc_adds = case_tc_adds(game, case) if tc_adds is None else tc_adds
     if tc_adds:
@@ -231,7 +276,8 @@ def main():
             if not (out / a.game / "frames.json").exists():
                 print(f"COULD-NOT-RUN: the port's run failed ({code})\n{log[-2000:]}")
                 return 2
-            got = measured_start(a.game, a.case, out)
+            keyfed = json.loads((CASES / a.game / f"{a.case}.json").read_text(encoding="utf-8")).get("keyfeed")
+            got = None if keyfed else measured_start(a.game, a.case, out)    # (HARN-22: no start to measure)
             if got is None or abs(got - start) < 0.5 / REFRESH_HZ:
                 break
             print(f"  the recording starts {got:.3f} s after the first EGA picture (ran with {start:.3f}): again")

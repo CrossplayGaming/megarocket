@@ -196,6 +196,19 @@ func _live_key(code: int) -> void:
 	_expand_repeats()
 
 
+## Takes a scripted key event not yet delivered (scan code `code`, at `at` machine units) back out of
+## the script: a key whose release never comes (KEYFEED's start-up tap cut short by the mode set).
+## False if there was none.
+func cancel_key(code: int, at: int) -> bool:
+	for i: int in range(_key_script.size()):
+		var e: Array = _key_script[i]
+		if int(e[0]) == at and int(e[1]) == code and at > now:
+			_key_script.remove_at(i)
+			_expand_repeats()
+			return true
+	return false
+
+
 ## A key pressed `after` seconds past the moment the program marks `mark`.
 func add_key_after(mark: String, after: float, scancode: int, hold: float = 0.1) -> void:
 	keys_after_mark.append([mark, after, scancode, hold])

@@ -21,6 +21,8 @@ extends SceneTree
 ##          the tic each frame accelerates on; fitted by tools/fit_dreams.py)
 ##          --feed_keys=<make_tick:scancode:break_tick,...> (HARN-22: KEYFEED.COM's timetable, 1024 ticks a
 ##          second from the EGA mode set, no typematic repeat: tools/keyfeed.py)
+##          --feed_pre=<seconds> (with --feed_keys: the start-up screens get KEYFEED.COM's own Enter taps
+##          instead of RELEASES' keys, the program starting that long after KEYFEED loads; default 0)
 ##          --costs=<name:units,...> (TIME-D: the original's time where the port does the work at once)
 ##          --clock=us (the DOS clock at the start, microseconds since 00:00:00: the random
 ##          table's seed is its hundredths at US_Startup; unset, the port's own seed)
@@ -33,6 +35,9 @@ const RELEASES: Array = [
 	["kdreams", [[1.0, 0x1c], [3.0, 0x1c]]],
 	["kdreams193", [[2.0, 0x1c]]],
 ]
+## KEYFEED.COM's start-up taps (tools/keyfeed.py PRE_PERIOD, PRE_HOLD: ticks of 1024 a second)
+const KEYFEED_PRE_PERIOD: int = 1536
+const KEYFEED_PRE_HOLD: int = 300
 
 var t: T = T.new()
 
@@ -80,8 +85,27 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	# the files the program opens itself (gelib's reads): v1.93's title archive
 	if d.version == "e193":
 		g.us_files["KDREAMS.CMP"] = d._read("KDREAMS.CMP")
-	for k: Array in keys:
-		vm.add_key(k[0], k[1], 0.1)
+	var feeding: bool = str(opts.get("feed_keys", "")) != ""
+	if not feeding:
+		for k: Array in keys:
+			vm.add_key(k[0], k[1], 0.1)
+	# HARN-22: KEYFEED.COM's phase 0: until the BIOS mode is 0Dh, Enter goes down PRE_PERIOD ticks
+	# (1024 a second) after it loads and up PRE_HOLD later, the count then starting again; a tap
+	# not yet made when the mode is set never comes (tools/keyfeed.py)
+	var pre: Dictionary = {"n": 0, "up": -1, "offset": float(opts.get("feed_pre", "0"))}
+	var feed_taps: Callable = func() -> void:
+		while feeding and not vm.marks.has("mode_0d"):
+			var at: float = (KEYFEED_PRE_PERIOD + pre.n * (KEYFEED_PRE_PERIOD + KEYFEED_PRE_HOLD)) / 1024.0 - pre.offset
+			if at > vm.seconds() + 0.25:
+				break
+			vm.add_key(maxf(at, vm.seconds()), 0x1c, KEYFEED_PRE_HOLD / 1024.0)
+			pre.up = DosMachine.seconds_to_units(maxf(at, vm.seconds())) + DosMachine.seconds_to_units(KEYFEED_PRE_HOLD / 1024.0)
+			pre.n += 1
+		# the mode set within a tap: KEYFEED never sends its break (phase 1 starts), Enter stays down
+		if feeding and vm.marks.has("mode_0d") and pre.up > int(vm.marks["mode_0d"]):
+			vm.cancel_key(0x9c, int(pre.up))
+			pre.up = -1
+	feed_taps.call()
 	for spec: String in str(opts.get("keys", "")).split(",", false):
 		var parts: PackedStringArray = spec.split(":")
 		vm.add_key(float(parts[0]), int(parts[1]), float(parts[2]) if parts.size() > 2 else 0.1)
@@ -106,12 +130,14 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	# [EGA displays, text screen seen, best title match, most colours in a picture, last hash]
 	var st: Dictionary = {"ega": 0, "text": "", "title": 0.0, "colours": 0, "last": 0, "pictures": 0}
 	vm.on_display = func() -> void:
+		feed_taps.call()
 		if card.video_mode == EgaCard.MODE_EGA:
 			if not tc_adds.is_empty() and vm.marks.has("ega") and vm.now - int(vm.marks["ega"]) >= int(tc_adds[0][0]):
 				g.TimeCount = (g.TimeCount + int(tc_adds.pop_front()[1])) & 0xFFFFFFFF
 			if st.ega == 0:
 				vm.mark("ega")    # the recording's start: DOSBox's first entry into the EGA mode
-				print("  %s: the first EGA picture at %.2f s" % [name, vm.seconds()])
+				print("  %s: the first EGA picture at %.2f s%s" % [name, vm.seconds(),
+					(" (%d start-up taps by KEYFEED)" % pre.n) if feeding else ""])
 			if card.frame_mixed:
 				writer.add(card.frame_rgb(), "P")
 			else:
