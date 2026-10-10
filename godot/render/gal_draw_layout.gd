@@ -16,6 +16,11 @@ extends RefCounted
 
 const W: int = 320
 const H: int = 200
+## J-31 (decided 2026-10-10): filler, the background tiles a map is padded with where the original's camera
+## never goes, by game (the data's extension) and map: in the wide view these cells are black (the wider
+## view reaches a little past where the camera ever went). Keen 5's world map: the flat yellow round the
+## station (tile 850, 1735 cells). At 320 nothing changes: the original's picture exactly.
+const FILLER: Dictionary = {"CK5": {0: [850]}}
 
 
 static func ops(eng: Object, list: Dictionary, scale: Vector2 = Vector2.ONE, snap: bool = true, view_w: int = W) -> Array:
@@ -50,11 +55,16 @@ static func ops(eng: Object, list: Dictionary, scale: Vector2 = Vector2.ONE, sna
 	var gh: int = int(list.gh)
 	var bg: PackedInt32Array = list.bg
 	var fg: PackedInt32Array = list.fg
+	var filler: Array = []
+	if view_w > W and eng != null and "data" in eng and eng.data != null:
+		filler = FILLER.get(str(eng.data.ext), {}).get(int(list.get("map", -1)), [])
 	for ty: int in range(gh):
 		for tx: int in range(gw):
 			var b: int = bg[ty * gw + tx]
 			if b < 0:
 				continue    # past the map
+			if not filler.is_empty() and b in filler and fg[ty * gw + tx] == 0:
+				continue    # filler: black in the wide view
 			var x: float = ((gx + tx) * 16 - vx) * scale.x
 			var y: float = ((gy + ty) * 16 - vy) * scale.y
 			out.append({"kind": "tile", "id": b, "x": x, "y": y, "k": "b%d,%d" % [gx + tx, gy + ty]})

@@ -1018,6 +1018,6 @@ func _capture_draw_list(func_name: StringName) -> void:
 		# the columns the camera never crosses (the map's edges and the level's own scroll blocks): the
 		# wide view stops at them too, so it shows nothing the original's camera keeps out of sight
 		"hblocks": rf_horzScrollBlocks.slice(0, rf_numHorzScrollBlocks),
-		"gx": gx, "gy": gy, "gw": gw, "gh": gh, "bg": bg, "fg": fg,
+		"map": ca_mapOn, "gx": gx, "gy": gy, "gw": gw, "gh": gh, "bg": bg, "fg": fg,
 		"sprites": sprites, "hud": hud, "dyn": dyn,
 		"hud_mid": int(call("IN_DemoGetMode")) != 0}    # the demo sign sits mid-top, the score box at the left

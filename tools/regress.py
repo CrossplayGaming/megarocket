@@ -390,6 +390,9 @@ def rend09():
     pushed to either side at 416, scaled."""
     import gdtest
     code, out = gdtest.run("rend09_place", [], timeout=120.0, quiet=True)
+    code2, out2 = gdtest.run("rend04_filler", [], timeout=120.0, quiet=True)    # J-31's map filler
+    code = max(code, code2)
+    out = out + out2
     for line in out.splitlines():
         if "FAIL" in line or "checks" in line or "ERROR" in line:
             print("  " + line.strip())
