@@ -197,13 +197,13 @@ func _go() -> void:
 	await _press(JOY_BUTTON_A)
 	await _leave(true)    # back out of Options with B
 
-	# Reset to defaults (Controls page: Keyboard, Controller, Fire button, Quicksave, Quicksave asks, Reset)
+	# Reset to defaults (Controls page: Keyboard, Controller, Fire button, Reset)
 	await _tap(KEY_F3)
 	await _pause(0.4)
 	await _tap(KEY_ESCAPE)    # from the Keyboard page up to Controls
 	await _pause(0.3)
 	await _shot("ctrl03_controls")
-	for i: int in range(5):
+	for i: int in range(3):
 		await _tap(KEY_DOWN)
 	await _tap(KEY_ENTER)
 	await _pause(0.3)

@@ -97,15 +97,15 @@ func _walk(root: String, game: String, out: String, model: OptionsModel) -> Dict
 	var vm: DosMachine = s[0]
 	var g: VortActs = s[1]
 	g.options = model
-	# from the first intro picture: a key to the title menu, down to Options (row 6), open it; down to
-	# Cheats... (row 6, after Fixes...), open it, God mode chosen (greyed: a word why), a key, back, back (the title
-	# menu's caret is on New Game again), New Game chosen; on the world map F3 (the Keyboard page, CTRL-03),
-	# back twice (to Options, the caret on Controls...), down to Cheats..., open it, God mode chosen, down,
-	# Infinite ammo moved on, back, back
-	var script: Array = [[8.0, KEY_ENTER], [10.0, KEY_DOWN], [11.0, KEY_DOWN], [12.0, KEY_DOWN], [13.0, KEY_DOWN],
-		[14.0, KEY_DOWN], [15.0, KEY_ENTER], [17.0, KEY_DOWN], [18.0, KEY_DOWN], [19.0, KEY_DOWN], [20.0, KEY_DOWN],
-		[20.5, KEY_DOWN], [21.0, KEY_ENTER], [22.5, KEY_ENTER], [24.0, KEY_SPACE], [25.5, KEY_ESC], [27.5, KEY_ESC], [30.0, KEY_ENTER],
-		[35.0, KEY_F3], [37.0, KEY_ESC], [38.0, KEY_ESC], [39.5, KEY_DOWN], [40.5, KEY_DOWN], [41.0, KEY_ENTER],
+	# from the first intro picture: a key to the title menu, down to Cheats..., open it, God mode chosen
+	# (greyed: a word why), a key, back (the title menu's caret is on New Game again), New Game chosen; on
+	# the world map Escape (the pause menu), down to Cheats..., open it, God mode chosen, down, Infinite
+	# ammo moved on
+	# (MENU-08: Cheats... the title menu's fourth row, after New Game, Load Game, Options; in a game the
+	# pause menu's (Escape) sixth, after Resume, New Game, Load Game, Save Game, Options)
+	var script: Array = [[8.0, KEY_ENTER], [10.0, KEY_DOWN], [11.0, KEY_DOWN], [12.0, KEY_DOWN], [15.0, KEY_ENTER],
+		[22.5, KEY_ENTER], [24.0, KEY_SPACE], [25.5, KEY_ESC], [30.0, KEY_ENTER],
+		[35.0, KEY_ESC], [36.5, KEY_DOWN], [37.0, KEY_DOWN], [37.5, KEY_DOWN], [38.0, KEY_DOWN], [38.5, KEY_DOWN], [41.0, KEY_ENTER],
 		[42.5, KEY_ENTER], [43.5, KEY_DOWN], [44.5, KEY_RIGHT],
 		# then down to Level select... (the twelfth row), into it, down to Level 3, chosen: the window
 		# closes and the world map enters level 3

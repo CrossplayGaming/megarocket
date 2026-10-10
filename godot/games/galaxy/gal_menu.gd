@@ -2140,12 +2140,12 @@ func CK_US_ShellCards() -> void:
 		ck_us_optionsMenuItems.insert(0, _shell_row_item(r.key, "option"))
 	# SAVE-02: QUICKSAVE F5/F9 and QUICKSAVE ASKS after MODE
 	var after_mode: int = 1
-	for r: Dictionary in options.page("options"):
+	for r: Dictionary in options.page("gameplay"):    # (MENU-08: the model's Gameplay page)
 		if r.key in ["quicksave", "quicksave_confirm"]:
 			ck_us_optionsMenuItems.insert(after_mode, _shell_row_item(r.key, "option"))
 			after_mode += 1
 	# Keen 6: CREATURE QUESTION last (on: the original asks before a new game)
-	for r: Dictionary in options.page("options"):
+	for r: Dictionary in options.page("gameplay"):
 		if r.key == "creature_question":
 			ck_us_optionsMenuItems.insert(ck_us_optionsMenuItems.size() - 1, _shell_row_item(r.key, "option"))
 	# SVGA COMPATIBILITY steers the original's EGA register writes, which the shell's display does not use
@@ -2346,7 +2346,7 @@ func CK_US_ShellCaptions() -> void:
 	if options == null:
 		return
 	var rows: Dictionary = {}
-	for page_name: String in ["options", "display", "fixes", "controls", "keys", "pad"]:
+	for page_name: String in ["options", "gameplay", "display", "fixes", "controls", "keys", "pad"]:
 		for r: Dictionary in options.page(page_name):
 			rows[r.key] = r
 	for item: US_CardItem in _shell_bind_items:

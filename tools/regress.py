@@ -1029,6 +1029,20 @@ def ctrl05():
     return code
 
 
+def menu08():
+    """Every game's main menu in the modern order (MENU-08): Keen 1-3's title menu and Extras, the pause
+    menu (Escape in a game), its New Game and Load Game by the title; Keen 4-6's MAIN card."""
+    import gdtest
+    worst = 0
+    for test in ("menu08_vorticons",):
+        code, out = gdtest.run(test, [], timeout=400.0, quiet=True)
+        for line in out.splitlines():
+            if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+                print("  %s: %s" % (test, line.strip()))
+        worst = max(worst, code)
+    return worst
+
+
 def perf01():
     """Keen 4-6's faster drawing (PERF-01): the screen's conversion into the card's planes, the surface copies,
     tiles, sprites, the intro's one-bit picture and the masked fill give byte for byte what the per-pixel loops
@@ -1381,6 +1395,7 @@ CHECKS = {
     "CTRL-03": (ctrl03, "fast"),
     "CTRL-04": (ctrl04, "fast"),
     "CTRL-05": (ctrl05, "fast"),
+    "MENU-08": (menu08, "fast"),
     "SECRET-01": (secret01, "fast"),
     "SECRET-02": (secret02, "fast"),
     "AND-02a": (and02a, "fast"),

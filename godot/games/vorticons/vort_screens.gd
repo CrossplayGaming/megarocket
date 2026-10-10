@@ -1057,6 +1057,9 @@ func OptionsMenu(start: String = "options") -> void:
 				_options_draw(rows, wx, wy)
 				_options_release()
 			elif c == 13 or c == 32 or ctrl.button1:
+				if not str(row.key).begins_with("cheat:") and not row.get("enabled", true):
+					act = "say:" + str(row.get("why", "Not now"))
+					break
 				act = _options_cheat(row) if str(row.key).begins_with("cheat:") else options.activate(row.key)
 				if act == "":
 					rows = _options_rows(page_name)
@@ -1072,8 +1075,27 @@ func OptionsMenu(start: String = "options") -> void:
 			stack.append([page_name, pos])
 			page_name = act.substr(5)
 			pos = 0
-		elif act == "action:close":
-			break    # Level select chose a level: back to the game at once
+		elif act == "action:close" or act == "action:resume":
+			break    # Level select chose a level, or Resume: back to the game at once
+		elif act == "action:new_game" or act == "action:load_game":
+			# MENU-08: this game left (asked first) for the title, where the menu starts the new one or
+			# opens Load Game at once
+			ExpWin(24, 1)
+			Print("Leave this game (Y/N)?")
+			if _toupper(Get() & 0xFF) == 89:
+				set(&"shell_menu_go", "new" if act == "action:new_game" else "load")
+				set(&"forcemenu", true)
+				resetgame = true
+				break
+			ExpWin(OPTIONS_W, OPTIONS_H)
+		elif act == "action:save_game":
+			SaveMenu()
+			ExpWin(OPTIONS_W, OPTIONS_H)
+		elif act == "action:quit":
+			AskQuit()    # the original's (D)os or (T)itle
+			if resetgame or exited:
+				break
+			ExpWin(OPTIONS_W, OPTIONS_H)
 		elif act == "action:exit":
 			if stack.is_empty():
 				break
@@ -1216,6 +1238,14 @@ func _options_rows(page_name: String) -> Array:
 		return _options_level_rows(int(page_name.substr(7)))
 	if page_name == "codes":
 		return _options_code_rows()
+	if page_name == "pause":
+		# MENU-08: the pause menu; High Scores and Extras live on the title's map, so not here
+		var pause: Array = options.main_rows(true)
+		for r: Dictionary in pause:
+			if r.key in ["high_scores", "extras"]:
+				r["enabled"] = false
+				r["why"] = "From the title screen"
+		return pause
 	if page_name != "cheats":
 		return options.page(page_name)
 	var rows: Array = []

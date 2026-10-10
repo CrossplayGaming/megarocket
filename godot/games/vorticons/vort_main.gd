@@ -779,7 +779,12 @@ func DoFkeys() -> bool:
 			i += 1
 		KEY_ESC:
 			PauseSound()
-			AskQuit()
+			# MENU-08: with a player at the controls, in a game, Escape is the pause menu (every game's main
+			# menu, Resume first); on the title and headless, the original's question
+			if get(&"options") != null and shell_playing and not resetgame:    # (not over the scores on the way out)
+				call(&"OptionsMenu", "pause")
+			else:
+				AskQuit()
 			i += 1
 		KEY_F7, KEY_F9:
 			# SAVE-02 (Enhanced): quicksave and quickload (vort_acts.gd); nothing in the original or Classic

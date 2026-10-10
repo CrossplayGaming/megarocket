@@ -189,7 +189,7 @@ func WorldMap() -> void:
 				ShowStatusScreen()
 			if resetgame or exited:
 				shell_on_map = false
-				if not exited:
+				if not exited and not _shell_skip_scores():
 					CheckHighScore()
 				return
 			anim += 1
@@ -205,7 +205,7 @@ func WorldMap() -> void:
 			shell_in_level = false
 			if resetgame or exited:
 				resetgame = false
-				if not exited:
+				if not exited and not _shell_skip_scores():
 					CheckHighScore()
 				return
 			elif exitcode != ex_nothing:
@@ -915,6 +915,8 @@ func MenuLoop() -> void:
 
 
 func MainMenuLoop(_screen: int) -> bool:
+	if options != null:
+		return _modern_menu_loop()
 	var startgame: bool = false
 	var menupos: int = 0
 	# MENU-01: an Options row between High Scores and Ordering Info while a player is at the controls
@@ -1040,7 +1042,147 @@ func MainMenuLoop(_screen: int) -> bool:
 const OPTIONS_ROW: int = mm_HighScores + 1
 
 
+## MENU-08 (the user, 2026-10-10): with a player at the controls the title menu is every game's main menu
+## (OptionsModel.main_rows: New Game, Load Game, Options, Cheats, High Scores, Extras, Quit), drawn and
+## moved as the original's; Extras is its own list (Story, About ID, Ordering Info, Previews, Restart Demo).
+## The pause menu's New Game and Load Game come here through the title (shell_menu_go).
+var _menu_page: String = "main"
+var shell_menu_go: String = ""
+
+
+## MENU-08: a game left from the pause menu for a new one or a saved one skips the game-over and the
+## score table unless the score earns a place in it (then the name is asked, as always).
+func _shell_skip_scores() -> bool:
+	if shell_menu_go == "":
+		return false
+	for i: int in range(HIGHSCORE_NUMENTRIES):
+		if highscores.scores[i] < gamestate.score:
+			return false
+	return true
+
+
+func _menu_rows() -> Array:
+	return options.page("extras") if _menu_page == "extras" else options.main_rows(false)
+
+
+func _modern_menu_loop() -> bool:
+	var go: String = shell_menu_go
+	shell_menu_go = ""
+	if go == "new":
+		return true
+	if go == "load" and RestoreMenu():
+		return true
+	_menu_page = "main"
+	while not exited:
+		if originx != X_TITLE:
+			DrawMainMenuScreen()
+			FadeIn()
+		else:
+			DrawMainMenuScreen()
+		ClearKeys()
+		var rows: Array = _menu_rows()
+		var maxpos: int = rows.size() - 1
+		var anim: int = 0
+		var menupos: int = 0
+		var delay: int = 20
+		var ctrl: Dictionary = {"dir": nodir, "button1": false, "button2": false}
+		var back: bool = false
+		while not exited:
+			for i: int in range(6):
+				WaitVBL(1)
+				ctrl = ControlPlayer(1)
+				if ctrl.dir != nodir:
+					break
+			DrawChar(sx, sy * 8, anim + 9)
+			anim = (anim + 1) % 3
+			if ctrl.dir == north or ctrl.dir == south:
+				var step: int = -1 if ctrl.dir == north else 1
+				DrawChar(sx, sy * 8, 32)
+				menupos = (menupos + step + rows.size()) % rows.size()
+				sy = oldy + menupos
+				DrawChar(sx, sy * 8, anim + 9)
+				while delay > 0 and ctrl.dir != nodir and not exited:
+					delay -= 1
+					ctrl = ControlPlayer(1)
+					WaitVBL(1)
+				delay = 20
+				ClearKeys()
+			else:
+				WaitVBL(7)
+			var c: int = NoBiosKey(1) & 0xFF
+			if c == 27:
+				NoBiosKey(0)
+				back = true
+				break
+			if c == 32 or c == 13:
+				ctrl.button1 = true
+			if DoFkeys():
+				DrawMainMenuScreen()
+				sy = oldy + menupos
+			if ctrl.button1 or exited:
+				break
+			if ctrl.button2:
+				back = true
+				break
+		ClearKeys()
+		WaitVBL(8)
+		var key: String = "exit" if back else str(rows[mini(menupos, maxpos)].key)
+		match key:
+			"exit":
+				if _menu_page == "extras":
+					_menu_page = "main"
+				else:
+					AskQuit()    # Escape on the title menu: the original's Quit (Y/N)?
+			"new_game":
+				return true
+			"load_game":
+				if RestoreMenu():
+					return true
+			"options":
+				OptionsMenu()
+			"cheats":
+				OptionsMenu("cheats")
+			"high_scores":
+				FadeOut()
+				ShowScoreScreen()
+				FadeOut()
+			"extras":
+				_menu_page = "extras"
+			"quit":
+				AskQuit()
+			"story":
+				ShowStoryText()
+			"about_id":
+				FadeOut()
+				ShowAboutId()
+				FadeOut()
+			"ordering_info":
+				FadeOut()
+				ShowOrderingScreen(false)
+				FadeOut()
+			"previews":
+				FadeOut()
+				Previews()
+				FadeOut()
+			"demo":
+				FadeOut()
+				return false
+	return false
+
+
 func DrawMainMenu() -> void:
+	if options != null:
+		# MENU-08: the rows of the menu shown (the main menu's, or Extras'), as the original draws its own
+		var rows: Array = _menu_rows()
+		ExpWin(18, rows.size() + 2)
+		oldx = sx
+		oldy = sy
+		for r: Dictionary in rows:
+			Print("   " + str(r.label) + "\n")
+		Print("\nUse the arrows")
+		sx = oldx + 1
+		sy = oldy
+		return
 	ExpWin(18, 11 if options != null else 10)
 	oldx = sx
 	oldy = sy

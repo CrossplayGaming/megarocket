@@ -58,10 +58,10 @@ func _run(root: String, game: String, out: String, model: OptionsModel) -> Dicti
 	g.save_dir = OS.get_temp_dir().path_join("mr_menu01_save_%d" % Time.get_ticks_usec())
 	g.options = model
 	g.apply_dosbox_timing({})
-	# from the first intro picture: a key to the title menu, down to Options (row 6), open it,
+	# from the first intro picture: a key to the title menu, down to Options (MENU-08: the third row, after
+	# New Game and Load Game), open it,
 	# Mode right, down to Display, open it, down to Fullscreen (after View, Native resolution and Smooth motion), right, back, back
-	var script: Array = [[8.0, KEY_ENTER], [10.0, KEY_DOWN], [11.0, KEY_DOWN], [12.0, KEY_DOWN], [13.0, KEY_DOWN],
-		[14.0, KEY_DOWN], [15.0, KEY_ENTER], [17.0, KEY_RIGHT], [18.0, KEY_DOWN], [19.0, KEY_ENTER],
+	var script: Array = [[8.0, KEY_ENTER], [10.0, KEY_DOWN], [11.0, KEY_DOWN], [15.0, KEY_ENTER], [17.0, KEY_RIGHT], [18.0, KEY_DOWN], [19.0, KEY_ENTER],
 		[20.3, KEY_DOWN], [20.8, KEY_DOWN], [21.3, KEY_DOWN], [21.9, KEY_RIGHT], [22.6, KEY_ESC], [23.5, KEY_ESC]]
 	if model == null:
 		script = script.slice(0, 1)    # the original: a key, then nothing (the title menu waits)

@@ -73,8 +73,9 @@ func _model() -> void:
 	t.ok("and off again, Classic (%s)" % m.mode_text(), m.mode_text() == "Classic")
 	m.step("mode", 1)
 	t.ok("Enhanced turns them on again (%s)" % m.mode_text(), m.mode_text() == "Enhanced" and all.call(true))
-	var rows: Array = m.page("options").map(func(r: Dictionary) -> String: return r.key)
-	t.ok("the Options page has Fixes... before Cheats... (%s)" % [rows], rows.find("fixes") >= 0 and rows.find("fixes") + 1 == rows.find("cheats"))
+	# (MENU-08: Fixes... on the Gameplay page, after quicksave's rows, before Back)
+	var rows: Array = m.page("gameplay").map(func(r: Dictionary) -> String: return r.key)
+	t.ok("the Gameplay page has Fixes... before Back (%s)" % [rows], rows.find("fixes") >= 0 and rows.find("fixes") + 1 == rows.find("exit"))
 	t.ok("the Fixes page: the three, each with its line, and Back", m.page("fixes").size() == 4 and m.page("fixes")[0].has("desc"))
 	DirAccess.remove_absolute(cfg)
 

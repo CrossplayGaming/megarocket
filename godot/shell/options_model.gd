@@ -44,20 +44,29 @@ func page(name: String) -> Array:
 		return bind_rows(p[1], p[2])
 	match name:
 		"options":
+			# MENU-08 (the user, 2026-10-10: the menus' contents modern and simple): Mode, then one page a
+			# subject; Cheats and Quit are the main menu's now
 			return [
 				_value("mode", "Mode", mode_text()),
-			] + ([_value("creature_question", "Creature question", _on_off(get_value("creature_question")))] if game_id == "keen6" else []) + (
-				# SAVE-02: Keen 4-6's quicksave (F5) and quickload (F9), and whether they ask first
-				[_value("quicksave", "Quicksave F5/F9", _on_off(get_value("quicksave"))),
-				_value("quicksave_confirm", "Quicksave asks", _on_off(get_value("quicksave_confirm")))] if engine == "galaxy" else []) + [
 				_row("display", "Display...", "page"),
 				_row("sound", "Sound...", "page"),
 				_row("controls", "Controls...", "page"),
-			] + ([_row("fixes", "Fixes...", "page")] if engine == "vorticons" and not FixesModel.for_game(game_id).is_empty() else []) + (
-				[_row("cheats", "Cheats...", "page")] if engine == "vorticons" else []) + [
-				_row("quit_game", "Quit game", "action"),
-				_row("exit", "Exit", "action"),
+				_row("gameplay", "Gameplay...", "page"),
+				_row("exit", "Back", "action"),
 			]
+		"gameplay":
+			# what changes the play itself: quicksave and quickload (SAVE-02; Keen 1-3's F7/F9, 4-6's F5/F9),
+			# Keen 6's creature question, the fixes
+			var rows: Array = []
+			if engine != "dreams":
+				rows.append(_value("quicksave", "Quicksave F7/F9" if engine == "vorticons" else "Quicksave F5/F9", _on_off(get_value("quicksave"))))
+				rows.append(_value("quicksave_confirm", "Quicksave asks", _on_off(get_value("quicksave_confirm"))))
+			if game_id == "keen6":
+				rows.append(_value("creature_question", "Creature question", _on_off(get_value("creature_question"))))
+			if not FixesModel.for_game(game_id).is_empty():
+				rows.append(_row("fixes", "Fixes...", "page"))
+			rows.append(_row("exit", "Back", "action"))
+			return rows
 		"display":
 			# the wide view, native resolution and smooth motion: Keen 1-6 (REND-02..04); not Dreams yet
 			return ([_value("wide_view", "View", "Wide" if bool(get_value("wide_view")) else "4:3"),
@@ -92,11 +101,18 @@ func page(name: String) -> Array:
 			elif engine == "galaxy":
 				# TWO-BUTTON FIRING, the original's option, as this row's Jump + Pogo
 				rows.append(_value("two_button_fire", "Fire button", "Jump + Pogo" if bool(get_value("two_button_fire")) else "Own button"))
-			if engine == "vorticons":
-				# SAVE-02: Keen 1-3's quicksave keys (F5 stays the original's save menu: 1.0's F7 and F9)
-				rows.append(_value("quicksave", "Quicksave F7/F9", _on_off(get_value("quicksave"))))
-				rows.append(_value("quicksave_confirm", "Quicksave asks", _on_off(get_value("quicksave_confirm"))))
 			rows.append(_row("reset_controls", "Reset to defaults", "action"))
+			rows.append(_row("exit", "Back", "action"))
+			return rows
+		"extras":
+			# MENU-08: what the main menus had beside the game itself
+			var rows: Array = []
+			if engine == "vorticons":
+				rows = [_row("story", "Story", "action"), _row("about_id", "About ID...", "action"),
+					_row("ordering_info", "Ordering Info", "action"), _row("previews", "Previews!", "action"),
+					_row("demo", "Restart Demo", "action")]
+			elif engine == "galaxy":
+				rows = [_row("paddle_war", "Paddle War", "action"), _row("demo", "Restart Demo", "action")]
 			rows.append(_row("exit", "Back", "action"))
 			return rows
 		"keys", "pad":
@@ -169,6 +185,25 @@ func _action_label(action: String) -> String:
 	return "Throw" if engine == "dreams" and action == "fire" else str(ControlsModel.LABELS.get(action, action))
 
 
+## MENU-08 (the user, 2026-10-10): every game's main menu in one order, each in its own style: Resume (in a
+## game), New Game, Load Game, Save Game (in a game), Options, Cheats, High Scores, Extras, Quit. `in_game`:
+## a game in progress (the pause menu). The engines draw them their own way and do each thing their way.
+func main_rows(in_game: bool) -> Array:
+	var rows: Array = []
+	if in_game:
+		rows.append(_row("resume", "Resume", "action"))
+	rows.append(_row("new_game", "New Game", "action"))
+	rows.append(_row("load_game", "Load Game", "action"))
+	if in_game:
+		rows.append(_row("save_game", "Save Game", "action"))
+	rows.append(_row("options", "Options...", "page"))
+	rows.append(_row("cheats", "Cheats...", "page"))
+	rows.append(_row("high_scores", "High Scores", "action"))
+	rows.append(_row("extras", "Extras...", "page"))
+	rows.append(_row("quit", "Quit", "action"))
+	return rows
+
+
 ## A value row moved left (dir -1) or right (+1).
 func step(key: String, dir: int) -> void:
 	match key:
@@ -197,7 +232,7 @@ func step(key: String, dir: int) -> void:
 ## What choosing a row does.
 func activate(key: String) -> String:
 	# "cheats": the engine builds that page itself from CheatsModel (its rows are the engine's flags)
-	for name: String in ["display", "sound", "controls", "cheats", "fixes", "keys", "pad"]:
+	for name: String in ["options", "display", "sound", "controls", "gameplay", "cheats", "fixes", "keys", "pad", "extras"]:
 		if key == name:
 			return "page:" + name
 	if key.begins_with("bind:"):
@@ -205,7 +240,8 @@ func activate(key: String) -> String:
 	if key.begins_with("capture:") or key.begins_with("clear:"):
 		return "action:" + key
 	match key:
-		"quit_game", "exit", "reset_controls":
+		"quit_game", "exit", "reset_controls", "resume", "new_game", "load_game", "save_game", "high_scores", "quit", \
+				"story", "about_id", "ordering_info", "previews", "demo", "paddle_war":
 			return "action:" + key
 		"pad_fixed":
 			return ""    # (the fixed movement: nothing to choose)
