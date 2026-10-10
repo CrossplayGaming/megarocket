@@ -453,6 +453,20 @@ var RF_Refresh: StringName = &""
 
 # id_in.h
 var Keyboard: Array[bool] = []
+## CTRL-02: the player's keys and pad buttons (ControlsModel.table(): action -> scan codes), read by
+## IN_ReadControl and the status key in place of KbdDefs; empty (the tests, the recordings) the original's.
+## The throw (button 1) is Fire's and Pogo's (the second button, as Alt is the original's).
+var shell_controls: Dictionary = {}
+## The refresh the controls were last read on: the host's pad is the controls while they are being read,
+## the menus' arrows, Enter and Escape otherwise.
+var controls_read_vbl: int = -1000000
+
+
+func shell_held(action: String) -> bool:
+	for c: int in shell_controls.get(action, PackedInt32Array()):
+		if c < Keyboard.size() and Keyboard[c]:
+			return true
+	return false
 var MousePresent: bool = false
 var JoysPresent: Array[bool] = [false, false]
 var DemoMode: int = 0

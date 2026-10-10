@@ -11,8 +11,10 @@ extends Control
 ## screen while no pad is being used.
 
 ## [name, label, scan codes]
-const VORTICONS: Array = [["Jump", "Jump", [0x1D]], ["Pogo", "Pogo", [0x38]], ["Fire", "Fire", [0x1D, 0x38]]]
-const GALAXY: Array = [["Jump", "Jump", [0x1D]], ["Pogo", "Pogo", [0x38]], ["Fire", "Fire", [0x39]]]
+## (CTRL-02: Jump, Pogo and Fire are the touch screen's own codes, ControlsModel.TOUCH_CODES, which the
+## games' readers count whatever keys the player has bound)
+const VORTICONS: Array = [["Jump", "Jump", [0x70]], ["Pogo", "Pogo", [0x71]], ["Fire", "Fire", [0x72]]]
+const GALAXY: Array = [["Jump", "Jump", [0x70]], ["Pogo", "Pogo", [0x71]], ["Fire", "Fire", [0x72]]]
 const TOP: Array = [["Menu", "Menu", [0x01]], ["OK", "OK", [0x1C]]]
 const UP: int = 0x48
 const DOWN: int = 0x50

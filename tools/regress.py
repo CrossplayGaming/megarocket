@@ -967,6 +967,30 @@ def menu07():
     return code
 
 
+def ctrl01():
+    """The controls model (CTRL-01): one set of keys and pad buttons for every game; a key given to one
+    action taken from another, two at most, the fixed keys refused, clear and reset, kept in the settings
+    file, the games' table of scan codes."""
+    import gdtest
+    code, out = gdtest.run("ctrl01_model", [], timeout=120.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
+def ctrl02():
+    """The three engines' control readers with the player's bindings (CTRL-02): directions, jump, pogo,
+    fire and status as bound, the pad's and touch screen's codes, Keen 4-6's two-button firing, Dreams'
+    throw; no bindings, the original's keys."""
+    import gdtest
+    code, out = gdtest.run("ctrl02_readers", [], timeout=120.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def perf01():
     """Keen 4-6's faster drawing (PERF-01): the screen's conversion into the card's planes, the surface copies,
     tiles, sprites, the intro's one-bit picture and the masked fill give byte for byte what the per-pixel loops
@@ -1314,6 +1338,8 @@ CHECKS = {
     "HARN-23": (harn23, "slow"),
     "MENU-07": (menu07, "fast"),
     "PERF-01": (perf01, "fast"),
+    "CTRL-01": (ctrl01, "fast"),
+    "CTRL-02": (ctrl02, "fast"),
     "SECRET-01": (secret01, "fast"),
     "SECRET-02": (secret02, "fast"),
     "AND-02a": (and02a, "fast"),

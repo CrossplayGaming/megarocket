@@ -26,6 +26,7 @@ const SPEC: Dictionary = {
 	"smooth_motion": [true, "bool", null],        # REND-03: pictures between the game's (Enhanced)
 	"wide_view": [true, "bool", null],            # REND-04: the screen's own shape, more of the level (Enhanced)
 	"one_button_fire": [true, "bool", null],
+	"two_button_fire": [false, "bool", null],    # CTRL-02: Keen 4-6's Fire button row at Jump + Pogo (TWO-BUTTON FIRING)
 	"quicksave": [true, "bool", null],            # SAVE-02: Keen 4-6's F5 / F9 quicksave and quickload (Enhanced)
 	"quicksave_confirm": [true, "bool", null],    # and whether they ask Y/N first (omnispeak's default: they do)      # J-06: Keen 1-3's fire on one key (Left Shift) or pad button
 	# the bug-fix toggles (FixesModel), on by default (J-03); the Classic mode turns them off
@@ -36,6 +37,10 @@ const SPEC: Dictionary = {
 	"fix_keen_over_scenery": [true, "bool", null],
 	"fix_dreams_keys_kept": [true, "bool", null],
 	"fix_dreams_death_box": [true, "bool", null],
+	# CTRL-01: the keys and pad buttons of every game (ControlsModel; global only): action -> [codes], an
+	# action missing its defaults'
+	"keys": [{}, "bindings", null],
+	"pad": [{}, "bindings", null],
 }
 
 var path: String = PATH
@@ -63,10 +68,11 @@ func load_file() -> void:
 		_cfg = ConfigFile.new()
 
 
-## Every line a [section], a key=value, a comment or blank: checked first, so
-## a broken file is set aside without the parser's complaints.
+## Every line a [section], a key=value, a comment or blank (or a line of a dictionary's value, which the
+## file writes one entry a line: "name": value, and its closing brace): checked first, so a broken file is
+## set aside without the parser's complaints.
 static func _looks_like_config(text: String) -> bool:
-	var re: RegEx = RegEx.create_from_string(r"^\s*(\[[^\]]+\]|[A-Za-z0-9_./\-]+\s*=.*|;.*|#.*)?\s*$")
+	var re: RegEx = RegEx.create_from_string(r"^\s*(\[[^\]]+\]|[A-Za-z0-9_./\-]+\s*=.*|\"[^\"]*\"\s*:.*|\}|;.*|#.*)?\s*$")
 	for line: String in text.split("\n"):
 		if re.search(line) == null:
 			return false
@@ -86,6 +92,16 @@ static func valid(name: String, value: Variant) -> bool:
 			return value is int and int(value) >= int(spec[2][0]) and int(value) <= int(spec[2][1])
 		"enum":
 			return value is String and (spec[2] as Array).has(value)
+		"bindings":
+			if not value is Dictionary:
+				return false
+			for a: Variant in value:
+				if not a is String or not value[a] is Array or (value[a] as Array).size() > 2:
+					return false
+				for c: Variant in value[a]:
+					if not c is int:
+						return false
+			return true
 		"folders":
 			if not value is Array:
 				return false
@@ -109,7 +125,7 @@ func get_value(name: String, game: String = "") -> Variant:
 		if valid(name, g):
 			return g
 	var d: Variant = spec[0]
-	return d.duplicate() if d is Array else d
+	return d.duplicate() if d is Array or d is Dictionary else d
 
 
 ## False (and nothing changes) for a value of the wrong type or range.

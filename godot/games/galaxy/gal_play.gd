@@ -785,7 +785,7 @@ func CK_CheckKeys() -> void:
 		return
 
 	# Drop down status
-	if IN_GetKeyState(IN_SC_Enter) or IN_IsJoyButtonDown(IN_joy_status):
+	if (IN_GetKeyState(IN_SC_Enter) if shell_controls.is_empty() else shell_held("status")) or IN_IsJoyButtonDown(IN_joy_status):
 		CK_ShowStatusWindow()
 		RF_ForceRefresh() # Reanimate the tiles
 		SD_SetLastTimeCount(SD_GetTimeCount())

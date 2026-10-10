@@ -695,6 +695,23 @@ var in_PausedMessage: String = "PAUSED"
 var in_controlType: int = IN_ctrl_Keyboard1
 var in_backupControlType: int = IN_ctrl_Keyboard1
 var in_keyStates: PackedByteArray = PackedByteArray()
+## CTRL-02: the player's keys and pad buttons (ControlsModel.table(): action -> scan codes), read by
+## IN_ReadControls and the status key in place of in_kbdControls; empty (the tests, the recordings) the
+## original's. Fire is the fire button, or jump and pogo together with TWO-BUTTON FIRING on.
+var shell_controls: Dictionary = {}
+## Fire on its own button (TWO-BUTTON FIRING off) or jump and pogo together: the player's Fire button row,
+## over the settings file's (US_LoadConfig) while the bindings are in use.
+var shell_one_fire: bool = true
+## The refresh the controls were last read on: the host's pad is the controls while they are being read,
+## the menus' arrows, Enter and Escape otherwise.
+var controls_read_vbl: int = -1000000
+
+
+func shell_held(action: String) -> bool:
+	for c: int in shell_controls.get(action, PackedInt32Array()):
+		if in_keyStates[c] != 0:
+			return true
+	return false
 var in_lastKeyScanned: int = IN_SC_None
 var in_useTextEvents: bool = false
 var in_lastASCII: int = 0
@@ -948,7 +965,19 @@ func IN_ReadControls(_player: int, controls: IN_ControlFrame) -> void:
 		Quit("Demo playback exceeded")
 		return
 	else:
-		if in_controlType == IN_ctrl_Keyboard1 or in_controlType == IN_ctrl_Keyboard2 or in_controlType == IN_ctrl_All:
+		controls_read_vbl = vm.vbl_count
+		if not shell_controls.is_empty():
+			controls.xDirection = (IN_motion_Right if shell_held("right") else IN_motion_None) if not shell_held("left") else IN_motion_Left
+			controls.yDirection = (IN_motion_Down if shell_held("down") else IN_motion_None) if not shell_held("up") else IN_motion_Up
+			controls.jump = shell_held("jump")
+			controls.pogo = shell_held("pogo")
+			if shell_held("fire"):
+				if bool(get("ck_twoButtonFiring")):    # (gal_us.gd)
+					controls.jump = true
+					controls.pogo = true
+				else:
+					controls.button2 = true
+		elif in_controlType == IN_ctrl_Keyboard1 or in_controlType == IN_ctrl_Keyboard2 or in_controlType == IN_ctrl_All:
 			if IN_GetKeyState(in_kbdControls.upLeft):
 				controls.xDirection = IN_motion_Left
 				controls.yDirection = IN_motion_Up

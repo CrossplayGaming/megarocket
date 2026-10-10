@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 STATE_OF = {"verified": "done", "in progress": "partial", "ready": "ready", "blocked": "todo",
             "awaiting-user": "you", "deferred": "later"}
-AREA_ORDER = ["HARN", "DATA", "SIM", "TIME", "REPLAY", "SCREENS", "MENU", "CHEAT", "FIX", "SHELL", "SAVE", "AUDIO", "REND", "ANDROID", "DIST", "V15"]
+AREA_ORDER = ["HARN", "DATA", "SIM", "TIME", "REPLAY", "SCREENS", "MENU", "CTRL", "CHEAT", "FIX", "SHELL", "SAVE", "AUDIO", "REND", "ANDROID", "DIST", "V15"]
 WORDS = {"done": "Done", "partial": "Under way", "ready": "Ready to start", "todo": "Not started",
          "you": "Needs you", "later": "Later"}
 

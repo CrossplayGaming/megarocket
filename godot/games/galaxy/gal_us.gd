@@ -588,6 +588,8 @@ func US_LoadConfig() -> void:
 		in_gamepadButtons[1] = 1
 		in_gamepadButtons[2] = -1
 		in_gamepadButtons[3] = -1
+	if not shell_controls.is_empty():
+		ck_twoButtonFiring = not shell_one_fire    # CTRL-02: the player's Fire button row
 	SD_SetQuietSfx(hadQuietSfx)
 	SD_Default(configFileLoaded and (hadAdlib == SD_IsAdlibPresent()), sd, sm)
 	IN_Default(configFileLoaded, inputDevice)

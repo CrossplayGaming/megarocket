@@ -103,43 +103,21 @@ void fragment() {
 }
 """
 
-## Godot keys -> PC set-1 scan codes (the keypad's codes for the arrows and
-## the block above them, as the originals read them).
-const SCANCODES: Dictionary = {
-	KEY_ESCAPE: 0x01, KEY_1: 0x02, KEY_2: 0x03, KEY_3: 0x04, KEY_4: 0x05, KEY_5: 0x06, KEY_6: 0x07,
-	KEY_7: 0x08, KEY_8: 0x09, KEY_9: 0x0A, KEY_0: 0x0B, KEY_MINUS: 0x0C, KEY_EQUAL: 0x0D,
-	KEY_BACKSPACE: 0x0E, KEY_TAB: 0x0F, KEY_Q: 0x10, KEY_W: 0x11, KEY_E: 0x12, KEY_R: 0x13,
-	KEY_T: 0x14, KEY_Y: 0x15, KEY_U: 0x16, KEY_I: 0x17, KEY_O: 0x18, KEY_P: 0x19,
-	KEY_BRACKETLEFT: 0x1A, KEY_BRACKETRIGHT: 0x1B, KEY_ENTER: 0x1C, KEY_KP_ENTER: 0x1C,
-	KEY_CTRL: 0x1D, KEY_A: 0x1E, KEY_S: 0x1F, KEY_D: 0x20, KEY_F: 0x21, KEY_G: 0x22, KEY_H: 0x23,
-	KEY_J: 0x24, KEY_K: 0x25, KEY_L: 0x26, KEY_SEMICOLON: 0x27, KEY_APOSTROPHE: 0x28,
-	KEY_QUOTELEFT: 0x29, KEY_SHIFT: 0x2A, KEY_BACKSLASH: 0x2B, KEY_Z: 0x2C, KEY_X: 0x2D,
-	KEY_C: 0x2E, KEY_V: 0x2F, KEY_B: 0x30, KEY_N: 0x31, KEY_M: 0x32, KEY_COMMA: 0x33,
-	KEY_PERIOD: 0x34, KEY_SLASH: 0x35, KEY_KP_MULTIPLY: 0x37, KEY_ALT: 0x38, KEY_SPACE: 0x39,
-	KEY_CAPSLOCK: 0x3A, KEY_F1: 0x3B, KEY_F2: 0x3C, KEY_F3: 0x3D, KEY_F4: 0x3E, KEY_F5: 0x3F,
-	KEY_F6: 0x40, KEY_F7: 0x41, KEY_F8: 0x42, KEY_F9: 0x43, KEY_F10: 0x44, KEY_NUMLOCK: 0x45,
-	KEY_SCROLLLOCK: 0x46, KEY_HOME: 0x47, KEY_UP: 0x48, KEY_PAGEUP: 0x49, KEY_KP_SUBTRACT: 0x4A,
-	KEY_LEFT: 0x4B, KEY_RIGHT: 0x4D, KEY_KP_ADD: 0x4E, KEY_END: 0x4F, KEY_DOWN: 0x50,
-	KEY_PAGEDOWN: 0x51, KEY_INSERT: 0x52, KEY_DELETE: 0x53, KEY_F11: 0x57, KEY_F12: 0x58,
-}
-
-## A pad, until SHELL-04's mapping: the d-pad and left stick are the arrows,
-## A jump (Ctrl), B pogo (Alt), X fire (Space), Y Enter, Start Escape.
-const PAD_BUTTONS: Dictionary = {
+## Godot keys -> PC set-1 scan codes (ControlsModel's table).
+const SCANCODES: Dictionary = ControlsModel.SCANCODES
+## CTRL-02: the pad in a game's menus (while it is not reading its play controls): the d-pad and the
+## left stick the arrows, A Enter, B Escape, X Space, Y Enter. In play each button is its own code
+## (ControlsModel.PAD_CODES) and the player's bindings say what it does; Start is Escape always.
+const PAD_MENU: Dictionary = {
 	JOY_BUTTON_DPAD_UP: 0x48, JOY_BUTTON_DPAD_DOWN: 0x50, JOY_BUTTON_DPAD_LEFT: 0x4B, JOY_BUTTON_DPAD_RIGHT: 0x4D,
-	JOY_BUTTON_A: 0x1D, JOY_BUTTON_B: 0x38, JOY_BUTTON_X: 0x39, JOY_BUTTON_Y: 0x1C, JOY_BUTTON_START: 0x01,
+	JOY_BUTTON_A: 0x1C, JOY_BUTTON_B: 0x01, JOY_BUTTON_X: 0x39, JOY_BUTTON_Y: 0x1C,
 }
-## Keen 1-3 with one-button fire (J-06, Megarocket 1.0's map): X, Y and the triggers fire (jump and pogo
-## together), the shoulders jump, Back is the status screen (Space)
-const PAD_BUTTONS_VORT_FIRE: Dictionary = {
-	JOY_BUTTON_LEFT_SHOULDER: 0x1D, JOY_BUTTON_RIGHT_SHOULDER: 0x1D, JOY_BUTTON_BACK: 0x39,
-}
+const ARROWS: Dictionary = {"up": 0x48, "down": 0x50, "left": 0x4B, "right": 0x4D}
 const STICK_DEADZONE: float = 0.5
-## One-button fire on (Keen 1-3)
-var _one_fire: bool = false
-var _fire_held: Dictionary = {}    # what holds the fire down: "key", "x", "y", "lt", "rt"
-var _kb_held: Dictionary = {}      # scan code -> held on the keyboard (one-button fire's release)
-var _stick: Dictionary = {}    # arrow scan code -> held by the stick
+## CTRL-01/02: the player's keys and buttons (shared by every game), and what each pad button, trigger
+## and stick direction held down sent (so its release lets go of the same code, whatever has changed)
+var controls: ControlsModel = null
+var _pad_sent: Dictionary = {}
 
 const GALAXY_META: Dictionary = {"keen4": "keen4", "keen5": "keen5", "keen6": "keen6e14"}
 
@@ -273,6 +251,7 @@ func start(found: Dictionary) -> bool:
 	# MENU-01: the Options rows, for the engines whose menus show them so far
 	options = OptionsModel.new(settings, game_id, "vorticons" if engine is VortScreens else ("galaxy" if engine is GalGame else "dreams"))
 	options.applier = apply_setting
+	controls = ControlsModel.new(settings)
 	if "options" in engine:
 		engine.set("options", options)
 	if "fixes" in engine:
@@ -293,7 +272,7 @@ func start(found: Dictionary) -> bool:
 	apply_setting("native_resolution")
 	apply_setting("smooth_motion")
 	apply_setting("wide_view")
-	apply_setting("one_button_fire")
+	apply_setting("controls")
 	_player = AudioStreamPlayer.new()
 	var gen: AudioStreamGenerator = AudioStreamGenerator.new()
 	gen.mix_rate = HostAudio.RATE
@@ -318,8 +297,16 @@ func apply_setting(name: String) -> void:
 		if engine != null and "fixes" in engine:
 			engine.set("fixes", options.fixes())    # read by the engine at each fix's point
 		return
-	if name == "one_button_fire":
-		_one_fire = engine is VortScreens and bool(options.get_value("one_button_fire"))
+	if name in ["controls", "keys", "pad", "one_button_fire", "two_button_fire"]:
+		# CTRL-02: the bindings to the game's control reader; the fire button's mode (Keen 1-3: Fire is the
+		# player's own key, or only the original's two together; Keen 4-6: TWO-BUTTON FIRING)
+		if controls != null and "shell_controls" in engine:
+			engine.set("shell_controls", controls.table())
+		if "shell_one_fire" in engine:
+			var own: bool = bool(options.get_value("one_button_fire")) if engine is VortScreens else not bool(options.get_value("two_button_fire"))
+			engine.set("shell_one_fire", own)
+			if "ck_twoButtonFiring" in engine:
+				engine.set("ck_twoButtonFiring", not own)
 		return
 	if name == "native_resolution" or name == "smooth_motion" or name == "wide_view":
 		if _native != null:
@@ -394,7 +381,7 @@ func set_paused(on: bool) -> void:
 	if on:
 		for code: int in _held.keys():
 			send_key(code, false)
-		_stick.clear()
+		_pad_sent.clear()
 	_mutex.lock()
 	paused = on
 	_mutex.unlock()
@@ -607,25 +594,40 @@ func _shown_list_galaxy() -> Dictionary:
 	return list
 
 
-## J-06: one control fires Keen 1-3's gun, pressing jump and pogo (Ctrl, Alt) together; let go, it lets
-## go of each unless something else still holds it (the keys themselves, another fire control).
-func _fire(who: String, down: bool) -> void:
-	var was: bool = not _fire_held.is_empty()
-	if down:
-		_fire_held[who] = true
-	else:
-		_fire_held.erase(who)
-	var now: bool = not _fire_held.is_empty()
-	if now == was:
+## CTRL-02: whether the game is reading its play controls (the last few refreshes): the pad is then the
+## player's bindings, otherwise the menus' keys.
+func controls_live() -> bool:
+	return engine != null and vm != null and "controls_read_vbl" in engine and vm.vbl_count - int(engine.get("controls_read_vbl")) <= 6
+
+
+## A pad button (or a trigger, as ControlsModel.PAD_LT / PAD_RT) pressed or let go. Its press sends one code
+## and its release lets go of that same code: the quicksave or quickload key (SAVE-02, while quicksave is
+## on), Escape for Start, the button's own code in play, the menus' key otherwise.
+func _pad(b: Variant, down: bool) -> void:
+	if not down:
+		if _pad_sent.has(b):
+			send_key(int(_pad_sent[b]), false)
+			_pad_sent.erase(b)
 		return
-	# the game's own jump and pogo keys (Keyboard Commands' button1 and button2, Ctrl and Alt unless changed):
-	# a fire on fixed Ctrl and Alt did nothing once the player had moved them
-	var codes: Array = [0x1D, 0x38]
-	if engine != null and "keyB1" in engine and "keyB2" in engine and int(engine.get("keyB1")) > 0 and int(engine.get("keyB2")) > 0:
-		codes = [int(engine.get("keyB1")), int(engine.get("keyB2"))]
-	for code: int in codes:
-		if now or not _kb_held.get(code, false):
-			send_key(code, now)
+	if _pad_sent.has(b):
+		return
+	var code: int = 0
+	var quick: bool = options != null and bool(options.get_value("quicksave")) and (engine is VortScreens or engine is GalGame)
+	if b is int and quick and controls != null and controls.buttons("quicksave").has(b):
+		code = 0x41 if engine is VortScreens else 0x3F    # Keen 1-3's F7, Keen 4-6's F5
+	elif b is int and quick and controls != null and controls.buttons("quickload").has(b):
+		code = 0x43    # F9
+	elif b is int and b == JOY_BUTTON_START:
+		code = 0x01
+	elif b is String:
+		code = int(ControlsModel.PAD_MOVE[b]) if controls_live() else int(ARROWS[b])
+	elif controls_live():
+		code = int(ControlsModel.PAD_CODES.get(b, 0))
+	else:
+		code = int(PAD_MENU.get(b, 0))
+	if code != 0:
+		_pad_sent[b] = code
+		send_key(code, true)
 
 
 ## The overlay shows on a touch screen while no pad is in use; hiding it lets
@@ -747,12 +749,10 @@ func _release() -> void:
 
 
 ## The stick on one axis as the two arrows it stands for.
-func _stick_axis(v: float, negative: int, positive: int) -> void:
+func _stick_axis(v: float, negative: String, positive: String) -> void:
 	for pair: Array in [[negative, v <= -STICK_DEADZONE], [positive, v >= STICK_DEADZONE]]:
-		var held: bool = _stick.get(pair[0], false)
-		if pair[1] != held:
-			_stick[pair[0]] = pair[1]
-			send_key(pair[0], pair[1])
+		if bool(pair[1]) != _pad_sent.has(pair[0]):
+			_pad(pair[0], pair[1])
 
 
 ## A key from the player (or a test): queued for the engine thread.
@@ -779,43 +779,23 @@ func _input(event: InputEvent) -> void:
 		pad_device = event.device
 	if event is InputEventJoypadButton:
 		var jb: InputEventJoypadButton = event
-		# SAVE-02 (the user, 2026-10-10): the left shoulder quicksaves, the right quickloads, in every game
-		# while quicksave is on (Keen 1-3's F7 / F9, Keen 4-6's F5 / F9)
-		if (jb.button_index == JOY_BUTTON_LEFT_SHOULDER or jb.button_index == JOY_BUTTON_RIGHT_SHOULDER) \
-				and options != null and bool(options.get_value("quicksave")) and (engine is VortScreens or engine is GalGame):
-			var save_key: int = 0x41 if engine is VortScreens else 0x3F
-			send_key(save_key if jb.button_index == JOY_BUTTON_LEFT_SHOULDER else 0x43, jb.pressed)
-			get_viewport().set_input_as_handled()
-			return
-		if _one_fire:
-			if jb.button_index == JOY_BUTTON_X or jb.button_index == JOY_BUTTON_Y:
-				_fire("x" if jb.button_index == JOY_BUTTON_X else "y", jb.pressed)
-				get_viewport().set_input_as_handled()
-				return
-			if PAD_BUTTONS_VORT_FIRE.has(jb.button_index):
-				send_key(PAD_BUTTONS_VORT_FIRE[jb.button_index], jb.pressed)
-				get_viewport().set_input_as_handled()
-				return
-		var pcode: int = PAD_BUTTONS.get(jb.button_index, 0)
-		if pcode != 0:
-			send_key(pcode, jb.pressed)
-			get_viewport().set_input_as_handled()
+		_pad(jb.button_index, jb.pressed)
+		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventJoypadMotion:
 		var jm: InputEventJoypadMotion = event
-		if jm.axis == JOY_AXIS_LEFT_X:
-			_stick_axis(jm.axis_value, 0x4B, 0x4D)
-		elif jm.axis == JOY_AXIS_LEFT_Y:
-			_stick_axis(jm.axis_value, 0x48, 0x50)
-		elif _one_fire and (jm.axis == JOY_AXIS_TRIGGER_LEFT or jm.axis == JOY_AXIS_TRIGGER_RIGHT):
-			_fire("lt" if jm.axis == JOY_AXIS_TRIGGER_LEFT else "rt", jm.axis_value > STICK_DEADZONE)
+		match jm.axis:
+			JOY_AXIS_LEFT_X:
+				_stick_axis(jm.axis_value, "left", "right")
+			JOY_AXIS_LEFT_Y:
+				_stick_axis(jm.axis_value, "up", "down")
+			JOY_AXIS_TRIGGER_LEFT:
+				_pad(ControlsModel.PAD_LT, jm.axis_value > STICK_DEADZONE)
+			JOY_AXIS_TRIGGER_RIGHT:
+				_pad(ControlsModel.PAD_RT, jm.axis_value > STICK_DEADZONE)
 		return
 	var k: InputEventKey = event as InputEventKey
 	if k == null or k.echo:
-		return
-	if _one_fire and k.keycode == KEY_SHIFT and k.location == KEY_LOCATION_LEFT:
-		_fire("key", k.pressed)
-		get_viewport().set_input_as_handled()
 		return
 	if k.keycode == KEY_F11:
 		# F11 is fullscreen everywhere: the game's own Fullscreen row moves (and applies) with it
@@ -829,6 +809,5 @@ func _input(event: InputEvent) -> void:
 	var code: int = SCANCODES.get(k.keycode, 0)
 	if code == 0:
 		return
-	_kb_held[code] = k.pressed    # (one-button fire lets go only of what the keyboard is not holding itself)
 	send_key(code, k.pressed)
 	get_viewport().set_input_as_handled()

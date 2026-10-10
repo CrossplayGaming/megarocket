@@ -272,6 +272,29 @@ var tile_anim: PackedInt32Array = PackedInt32Array()   # four tables of MAXTILES
 var ylookup: PackedInt32Array = PackedInt32Array()
 
 var keydown: PackedByteArray = PackedByteArray()
+## CTRL-02: the player's keys and pad buttons (ControlsModel.table(): action -> scan codes), read by
+## ControlPlayer and the status key in place of the control panel's keys; empty (the tests, the
+## recordings) the original's. Fire (with shell_one_fire) holds both buttons, the original's fire.
+var shell_controls: Dictionary = {}
+var shell_one_fire: bool = false
+## The refresh the play controls were last read on: the host's pad is the controls while they are being
+## read, the menus' arrows, Enter and Escape otherwise.
+var controls_read_vbl: int = -1000000
+
+
+func shell_held(action: String) -> bool:
+	for c: int in shell_controls.get(action, PackedInt32Array()):
+		if keydown[c] != 0:
+			return true
+	return false
+
+
+## The player's controls through the shared bindings (CTRL-02).
+func _shell_control() -> Dictionary:
+	var xmove: int = (1 if shell_held("right") else 0) - (1 if shell_held("left") else 0)
+	var ymove: int = (1 if shell_held("down") else 0) - (1 if shell_held("up") else 0)
+	var fire: bool = shell_one_fire and shell_held("fire")
+	return {"dir": _dir_of(xmove, ymove), "button1": shell_held("jump") or fire, "button2": shell_held("pogo") or fire}
 var NBKscan: int = 0
 var NBKascii: int = 0
 var passtobios: bool = true
@@ -677,11 +700,15 @@ func ControlJoystick(joynum: int) -> Dictionary:
 func ControlPlayer(player: int) -> Dictionary:
 	var ret: Dictionary = {"dir": nodir, "button1": false, "button2": false}
 	if indemo == notdemo or indemo == recording:
-		match playermode[player]:
-			keyboard: ret = ControlKBD()
-			mouse: ret = ControlMouse()
-			joystick1: ret = ControlJoystick(1)
-			joystick2: ret = ControlJoystick(2)
+		controls_read_vbl = vm.vbl_count
+		if not shell_controls.is_empty():
+			ret = _shell_control()
+		else:
+			match playermode[player]:
+				keyboard: ret = ControlKBD()
+				mouse: ret = ControlMouse()
+				joystick1: ret = ControlJoystick(1)
+				joystick2: ret = ControlJoystick(2)
 		if indemo == recording:
 			var val: int = (ret.dir << 2) | ((1 if ret.button2 else 0) << 1) | (1 if ret.button1 else 0)
 			if demoptr < demobuffer.size():

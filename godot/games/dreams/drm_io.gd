@@ -477,7 +477,16 @@ func IN_ReadControl(player: int, info: CursorInfo) -> void:
 	elif DemoMode == demo_PlayDone:
 		Quit("Demo playback exceeded")
 		return
+	elif not shell_controls.is_empty():
+		controls_read_vbl = vm.vbl_count
+		mx = motion_Left if shell_held("left") else (motion_Right if shell_held("right") else motion_None)
+		my = motion_Up if shell_held("up") else (motion_Down if shell_held("down") else motion_None)
+		if shell_held("jump"):
+			buttons += 1 << 0
+		if shell_held("fire") or shell_held("pogo"):
+			buttons += 1 << 1
 	else:
+		controls_read_vbl = vm.vbl_count
 		var type: int = Controls[player]
 		match type:
 			ctrl_Keyboard1, ctrl_Keyboard2:

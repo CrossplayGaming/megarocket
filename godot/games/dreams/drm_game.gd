@@ -964,7 +964,7 @@ func CheckKeys() -> void:
 		return
 
 	# space for status screen
-	if Keyboard[sc_Space]:
+	if Keyboard[sc_Space] if shell_controls.is_empty() else shell_held("status"):
 		StatusWindow()
 		IN_ClearKeysDown()
 		RF_ForceRefresh()

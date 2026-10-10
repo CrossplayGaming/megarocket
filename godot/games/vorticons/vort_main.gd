@@ -932,7 +932,7 @@ func HandleUserKeys() -> void:
 		RF_ForceRefresh()
 		if fix_on("god_lurch"):
 			lasttimecount = timecount    # V22: the clock starts again after the wait, as the F-key windows do
-	elif keydown[KEY_SPACE] != 0:
+	elif (keydown[KEY_SPACE] != 0) if shell_controls.is_empty() else shell_held("status"):
 		PauseSound()
 		ShowStatusScreen()
 		ContinueSound()

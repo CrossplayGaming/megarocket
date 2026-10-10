@@ -1,11 +1,12 @@
 # Copyright (C) 2026 the Megarocket contributors. GPL v2 or later. See LICENSE.md.
 extends SceneTree
-## SHELL-11: the host's added controls (Keen 1, real time). One-button fire (J-06, on by default): Left
-## Shift presses jump and pogo together (Ctrl and Alt, or the keys Keyboard Commands moved them to) and lets go of both; the shoulders are quicksave (F7)
-## and quickload (F9); the pad's X and its right
-## trigger do the same; Back is the status screen (Space); with the Fire button row at Two keys, Left
-## Shift fires nothing. F11 moves the game's Fullscreen row. The intro, a screen and not play, is shown
-## as the 320x200 picture in the frame (REND-08).
+## SHELL-11 and CTRL-02: the host's controls in Keen 1 (real time, a level). The game reads the player's
+## bindings (ControlsModel): Fire's keys (Space, Shift) hold both buttons, the original's fire, with the
+## Fire button row at Left Shift... "Own button"; at Two keys they do nothing. The pad, while the game reads
+## its play controls, is the bindings (A jump, X and the right trigger fire, Back the status screen); in a
+## menu it is Enter and Escape. The shoulders quicksave (F7) and quickload (F9). A key rebound is the
+## action at once, and a key taken away does nothing. F11 moves the game's Fullscreen row. The intro, a
+## screen and not play, is shown as the 320x200 picture in the frame (REND-08).
 ##
 ## Options: --game_data=<folder>
 
@@ -25,12 +26,18 @@ func _wait(cond: Callable, seconds: float) -> bool:
 	return cond.call()
 
 
-func _shift(host: GameHost, down: bool) -> void:
+func _key(host: GameHost, code: Key, down: bool) -> void:
 	var k: InputEventKey = InputEventKey.new()
-	k.keycode = KEY_SHIFT
-	k.location = KEY_LOCATION_LEFT
+	k.keycode = code
 	k.pressed = down
 	host._input(k)
+
+
+func _button(host: GameHost, b: JoyButton, down: bool) -> void:
+	var e: InputEventJoypadButton = InputEventJoypadButton.new()
+	e.button_index = b
+	e.pressed = down
+	host._input(e)
 
 
 func _go() -> void:
@@ -40,6 +47,7 @@ func _go() -> void:
 		t.finish(self)
 		return
 	var cfg: String = OS.get_temp_dir().path_join("mr_shell11_%d.cfg" % Time.get_ticks_usec())
+	# first the intro (not play): a screen in the frame, and the pad is the menus' keys
 	var host: GameHost = GameHost.new()
 	host.settings_path = cfg
 	host.speed = 1.0
@@ -50,63 +58,75 @@ func _go() -> void:
 		t.finish(self)
 		return
 	await _wait(func() -> bool: return host.frames_shown >= 30, 60.0)
-	var g: VortActs = host.engine
-	var both: Callable = func(v: int) -> bool: return g.keydown[0x1D] == v and g.keydown[0x38] == v
 	t.ok("the intro is a screen: the 320x200 picture, framed (%s)" % host._backdrop.frame_rect,
 		host._view.visible and host._backdrop.frame_rect.size.x > 0.0)
-	_shift(host, true)
-	t.ok("Left Shift presses jump and pogo together", await _wait(func() -> bool: return both.call(1), 3.0))
-	_shift(host, false)
-	t.ok("and lets go of both", await _wait(func() -> bool: return both.call(0), 3.0))
-	var x: InputEventJoypadButton = InputEventJoypadButton.new()
-	x.button_index = JOY_BUTTON_X
-	x.pressed = true
-	host._input(x)
-	t.ok("the pad's X fires", await _wait(func() -> bool: return both.call(1), 3.0))
-	x.pressed = false
-	host._input(x)
-	await _wait(func() -> bool: return both.call(0), 3.0)
+	t.ok("in the intro the game is not reading its play controls", not host.controls_live())
+	var g0: VortActs = host.engine
+	_button(host, JOY_BUTTON_A, true)
+	t.ok("there the pad's A is Enter", await _wait(func() -> bool: return g0.keydown[0x1C] == 1, 3.0))
+	_button(host, JOY_BUTTON_A, false)
+	await _wait(func() -> bool: return g0.keydown[0x1C] == 0, 3.0)
+	host.stop()
+	await _wait(func() -> bool: return host.thread == null, 10.0)
+	host.queue_free()
+
+	# then a level
+	host = GameHost.new()
+	host.settings_path = cfg
+	host.speed = 1.0
+	root.add_child(host)
+	host.start({"id": "keen1", "title": "Keen 1", "version": "v1.31 EGA", "folder": root_dir.path_join("keen1"), "play_level": 1})
+	var g: VortActs = host.engine
+	t.ok("in a level the game reads its play controls", await _wait(func() -> bool: return host.controls_live(), 30.0))
+	var c: Callable = func() -> Dictionary: return g._shell_control()
+	var buttons: Callable = func(b1: bool, b2: bool) -> bool: return c.call().button1 == b1 and c.call().button2 == b2
+	_key(host, KEY_SHIFT, true)
+	t.ok("Shift (Fire) holds both buttons: the original's fire", await _wait(func() -> bool: return buttons.call(true, true), 3.0))
+	_key(host, KEY_SHIFT, false)
+	t.ok("and lets go", await _wait(func() -> bool: return buttons.call(false, false), 3.0))
+	_key(host, KEY_SPACE, true)
+	t.ok("Space is Fire too", await _wait(func() -> bool: return buttons.call(true, true), 3.0))
+	_key(host, KEY_SPACE, false)
+	await _wait(func() -> bool: return buttons.call(false, false), 3.0)
+	_button(host, JOY_BUTTON_A, true)
+	t.ok("the pad's A is Jump alone", await _wait(func() -> bool: return buttons.call(true, false), 3.0))
+	_button(host, JOY_BUTTON_A, false)
+	t.ok("and lets go", await _wait(func() -> bool: return buttons.call(false, false), 3.0))
+	_button(host, JOY_BUTTON_X, true)
+	t.ok("the pad's X fires", await _wait(func() -> bool: return buttons.call(true, true), 3.0))
+	_button(host, JOY_BUTTON_X, false)
+	await _wait(func() -> bool: return buttons.call(false, false), 3.0)
 	var rt: InputEventJoypadMotion = InputEventJoypadMotion.new()
 	rt.axis = JOY_AXIS_TRIGGER_RIGHT
 	rt.axis_value = 1.0
 	host._input(rt)
-	t.ok("the right trigger fires", await _wait(func() -> bool: return both.call(1), 3.0))
+	t.ok("the right trigger fires", await _wait(func() -> bool: return buttons.call(true, true), 3.0))
 	rt.axis_value = 0.0
 	host._input(rt)
-	t.ok("and lets go", await _wait(func() -> bool: return both.call(0), 3.0))
-	# the game's own jump and pogo keys moved (Keyboard Commands' button1 and button2, here Z and X):
-	# one-button fire presses those, not Ctrl and Alt
-	var kb1: int = g.keyB1
-	var kb2: int = g.keyB2
-	g.keyB1 = 0x2C
-	g.keyB2 = 0x2D
-	var moved: Callable = func(v: int) -> bool: return g.keydown[0x2C] == v and g.keydown[0x2D] == v
-	_shift(host, true)
-	t.ok("with jump and pogo moved to Z and X, Left Shift presses Z and X", await _wait(func() -> bool: return moved.call(1), 3.0))
-	t.ok("and not Ctrl or Alt", g.keydown[0x1D] == 0 and g.keydown[0x38] == 0)
-	_shift(host, false)
-	t.ok("and lets go of both", await _wait(func() -> bool: return moved.call(0), 3.0))
-	g.keyB1 = kb1
-	g.keyB2 = kb2
-	var back: InputEventJoypadButton = InputEventJoypadButton.new()
-	back.button_index = JOY_BUTTON_BACK
-	back.pressed = true
-	host._input(back)
-	t.ok("Back is the status screen's Space", await _wait(func() -> bool: return g.keydown[0x39] == 1, 3.0))
-	back.pressed = false
-	host._input(back)
-	await _wait(func() -> bool: return g.keydown[0x39] == 0, 3.0)
+	t.ok("and lets go", await _wait(func() -> bool: return buttons.call(false, false), 3.0))
+	_button(host, JOY_BUTTON_BACK, true)
+	t.ok("Back is the status screen", await _wait(func() -> bool: return g.shell_held("status"), 3.0))
+	_button(host, JOY_BUTTON_BACK, false)
+	await _wait(func() -> bool: return not g.shell_held("status"), 3.0)
 	# SAVE-02 (the user's choice): the left shoulder quicksaves (F7), the right quickloads (F9)
 	for pair: Array in [[JOY_BUTTON_LEFT_SHOULDER, 0x41], [JOY_BUTTON_RIGHT_SHOULDER, 0x43]]:
-		var sh: InputEventJoypadButton = InputEventJoypadButton.new()
-		sh.button_index = pair[0]
-		sh.pressed = true
-		host._input(sh)
+		_button(host, pair[0], true)
 		var held: bool = host._held.has(pair[1])
-		sh.pressed = false
-		host._input(sh)
+		_button(host, pair[0], false)
 		t.ok("the %s shoulder is %s" % ["left" if pair[0] == JOY_BUTTON_LEFT_SHOULDER else "right", "F7 (quicksave)" if pair[1] == 0x41 else "F9 (quickload)"],
 			held and not host._held.has(pair[1]))
+	# a key rebound is the action at once; a key taken from an action does nothing
+	host.controls.bind("keys", "jump", KEY_Q, 0)
+	host.controls.clear("keys", "pogo")
+	host.apply_setting("controls")
+	_key(host, KEY_Q, true)
+	t.ok("Q given to Jump jumps", await _wait(func() -> bool: return buttons.call(true, false), 3.0))
+	_key(host, KEY_Q, false)
+	await _wait(func() -> bool: return buttons.call(false, false), 3.0)
+	_key(host, KEY_ALT, true)
+	await _wait(func() -> bool: return false, 0.4)
+	t.ok("Alt, taken from Pogo, does nothing", buttons.call(false, false) and g.keydown[0x38] == 1)
+	_key(host, KEY_ALT, false)
 	var f11: InputEventKey = InputEventKey.new()
 	f11.keycode = KEY_F11
 	f11.pressed = true
@@ -115,11 +135,11 @@ func _go() -> void:
 	t.ok("F11 moves the game's Fullscreen row (%s -> %s)" % [was, host.options.get_value("fullscreen")], bool(host.options.get_value("fullscreen")) != was)
 	host.options.step("fullscreen", 1)
 	host.options.step("one_button_fire", 1)
-	await _wait(func() -> bool: return not host._one_fire, 2.0)
-	_shift(host, true)
+	await _wait(func() -> bool: return not g.shell_one_fire, 2.0)
+	_key(host, KEY_SHIFT, true)
 	await _wait(func() -> bool: return false, 0.5)
-	t.ok("with Two keys, Left Shift fires nothing", both.call(0))
-	_shift(host, false)
+	t.ok("with Two keys, Fire's keys fire nothing", buttons.call(false, false))
+	_key(host, KEY_SHIFT, false)
 	host.stop()
 	await _wait(func() -> bool: return host.thread == null, 10.0)
 	host.queue_free()
