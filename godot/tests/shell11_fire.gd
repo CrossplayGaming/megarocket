@@ -1,7 +1,7 @@
 # Copyright (C) 2026 the Megarocket contributors. GPL v2 or later. See LICENSE.md.
 extends SceneTree
 ## SHELL-11: the host's added controls (Keen 1, real time). One-button fire (J-06, on by default): Left
-## Shift presses jump and pogo together (Ctrl and Alt) and lets go of both; the shoulders are quicksave (F7)
+## Shift presses jump and pogo together (Ctrl and Alt, or the keys Keyboard Commands moved them to) and lets go of both; the shoulders are quicksave (F7)
 ## and quickload (F9); the pad's X and its right
 ## trigger do the same; Back is the status screen (Space); with the Fire button row at Two keys, Left
 ## Shift fires nothing. F11 moves the game's Fullscreen row. The intro, a screen and not play, is shown
@@ -74,6 +74,20 @@ func _go() -> void:
 	rt.axis_value = 0.0
 	host._input(rt)
 	t.ok("and lets go", await _wait(func() -> bool: return both.call(0), 3.0))
+	# the game's own jump and pogo keys moved (Keyboard Commands' button1 and button2, here Z and X):
+	# one-button fire presses those, not Ctrl and Alt
+	var kb1: int = g.keyB1
+	var kb2: int = g.keyB2
+	g.keyB1 = 0x2C
+	g.keyB2 = 0x2D
+	var moved: Callable = func(v: int) -> bool: return g.keydown[0x2C] == v and g.keydown[0x2D] == v
+	_shift(host, true)
+	t.ok("with jump and pogo moved to Z and X, Left Shift presses Z and X", await _wait(func() -> bool: return moved.call(1), 3.0))
+	t.ok("and not Ctrl or Alt", g.keydown[0x1D] == 0 and g.keydown[0x38] == 0)
+	_shift(host, false)
+	t.ok("and lets go of both", await _wait(func() -> bool: return moved.call(0), 3.0))
+	g.keyB1 = kb1
+	g.keyB2 = kb2
 	var back: InputEventJoypadButton = InputEventJoypadButton.new()
 	back.button_index = JOY_BUTTON_BACK
 	back.pressed = true

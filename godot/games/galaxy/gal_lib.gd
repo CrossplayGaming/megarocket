@@ -780,6 +780,48 @@ func VL_Clip(src_w: int, src_h: int, dst_x: int, dst_y: int, dst_w: int, dst_h: 
 # index outside the surface's array is skipped, and one that only wraps to the
 # previous or next row lands there, as it did in C.
 
+## Eight pixels' worth of one plane byte: byte k of the result (k = 0 the leftmost pixel) is 1 where bit 7 - k
+## of the plane byte is set (the card's order), so four of them shifted and OR'd make eight pixel bytes.
+static var _spread_table: PackedInt64Array = PackedInt64Array()
+## The same with 0xFF in place of 1: a mask byte made a mask of eight screen bytes.
+static var _spread_mask_table: PackedInt64Array = PackedInt64Array()
+
+
+## A byte repeated in all eight bytes of an int.
+static func _rep8(v: int) -> int:
+	return v | (v << 8) | (v << 16) | (v << 24) | (v << 32) | (v << 40) | (v << 48) | (v << 56)
+
+
+static func _spread_bits() -> PackedInt64Array:
+	if _spread_table.is_empty():
+		_build_spread()
+	return _spread_table
+
+
+static func _spread_mask() -> PackedInt64Array:
+	if _spread_mask_table.is_empty():
+		_build_spread()
+	return _spread_mask_table
+
+
+static func _build_spread() -> void:
+	var bits: PackedInt64Array = PackedInt64Array()
+	var mask: PackedInt64Array = PackedInt64Array()
+	bits.resize(256)
+	mask.resize(256)
+	for b: int in range(256):
+		var v: int = 0
+		var m: int = 0
+		for k: int in range(8):
+			if ((b >> (7 - k)) & 1) != 0:
+				v |= 1 << (8 * k)
+				m |= 0xFF << (8 * k)
+		bits[b] = v
+		mask[b] = m
+	_spread_mask_table = mask
+	_spread_table = bits
+
+
 static func _put(dst: PackedByteArray, i: int, v: int) -> void:
 	if i >= 0 and i < dst.size():
 		dst[i] = v
@@ -787,6 +829,26 @@ static func _put(dst: PackedByteArray, i: int, v: int) -> void:
 
 func VL_UnmaskedToPAL8(src: PackedByteArray, so: int, dst: PackedByteArray, x: int, y: int, pitch: int, w: int, h: int) -> void:
 	var plane: int = (w / 8) * h
+	if (w & 7) == 0:
+		# eight pixels at a time where all eight land inside the destination (the four plane bytes spread)
+		var spread: PackedInt64Array = _spread_bits()
+		var dsize: int = dst.size()
+		var row_bytes: int = w >> 3
+		for sy: int in range(h):
+			for g: int in range(row_bytes):
+				var po: int = so + sy * row_bytes + g
+				var i: int = (sy + y) * pitch + x + (g << 3)
+				if i >= 0 and i + 8 <= dsize and po >= 0 and po + plane * 3 < src.size():
+					dst.encode_s64(i, spread[src[po]] | (spread[src[po + plane]] << 1)
+							| (spread[src[po + plane * 2]] << 2) | (spread[src[po + plane * 3]] << 3))
+				else:
+					for k: int in range(8):
+						var sx: int = (g << 3) + k
+						var plane_off: int = so + ((sy * w + sx) >> 3)
+						var plane_bit: int = 1 << (7 - ((sy * w + sx) & 7))
+						var pixel: int = (8 if (src[plane_off + plane * 3] & plane_bit) != 0 else 0) | 							(4 if (src[plane_off + plane * 2] & plane_bit) != 0 else 0) | 							(2 if (src[plane_off + plane] & plane_bit) != 0 else 0) | 							(1 if (src[plane_off] & plane_bit) != 0 else 0)
+						_put(dst, (sy + y) * pitch + (sx + x), pixel)
+		return
 	for sy: int in range(h):
 		for sx: int in range(w):
 			var plane_off: int = so + ((sy * w + sx) >> 3)
@@ -833,8 +895,21 @@ func VL_MaskedBlitClipToPAL8(src: PackedByteArray, so: int, dst: PackedByteArray
 	var initialY: int = CK_Cross_max(-y, 0)
 	var finalW: int = CK_Cross_min(CK_Cross_max(dw - x, 0), w)
 	var finalH: int = CK_Cross_min(CK_Cross_max(dh - y, 0), h)
+	var spread: PackedInt64Array = _spread_bits()
+	var keep: PackedInt64Array = _spread_mask()
+	var aligned: bool = (w & 7) == 0
 	for sy: int in range(initialY, finalH):
-		for sx: int in range(initialX, finalW):
+		var sx: int = initialX
+		while sx < finalW:
+			if aligned and (sx & 7) == 0 and sx + 8 <= finalW:
+				# eight pixels at once: where the mask's bit is clear the screen's byte goes, then the colour is OR'd in
+				var po: int = so + ((sy * w + sx) >> 3)
+				var i8: int = (sy + y) * pitch + (sx + x)
+				dst.encode_s64(i8, (dst.decode_s64(i8) & keep[src[po]]) | spread[src[po + plane]]
+						| (spread[src[po + plane * 2]] << 1) | (spread[src[po + plane * 3]] << 2)
+						| (spread[src[po + plane * 4]] << 3))
+				sx += 8
+				continue
 			var plane_off: int = so + ((sy * w + sx) >> 3)
 			var plane_bit: int = 1 << (7 - ((sy * w + sx) & 7))
 			var i: int = (sy + y) * pitch + (sx + x)
@@ -845,6 +920,7 @@ func VL_MaskedBlitClipToPAL8(src: PackedByteArray, so: int, dst: PackedByteArray
 				(2 if (src[plane_off + plane * 2] & plane_bit) != 0 else 0) | \
 				(1 if (src[plane_off + plane] & plane_bit) != 0 else 0)
 			dst[i] = dst[i] | pixel
+			sx += 1
 
 
 func VL_1bppToPAL8(src: PackedByteArray, so: int, dst: PackedByteArray, x: int, y: int, pitch: int, w: int, h: int, colour: int) -> void:
@@ -857,6 +933,31 @@ func VL_1bppToPAL8(src: PackedByteArray, so: int, dst: PackedByteArray, x: int, 
 
 func VL_1bppToPAL8_PM(src: PackedByteArray, so: int, dst: PackedByteArray, x: int, y: int, pitch: int, w: int, h: int, colour: int, mapmask: int) -> void:
 	mapmask &= 0xF
+	if (w & 7) == 0:
+		# eight pixels at a time where all eight land inside the destination
+		var keep: PackedInt64Array = _spread_mask()
+		var on8: int = _rep8((colour & mapmask) & 0xFF)
+		var off8: int = _rep8((colour & 0xF0 & mapmask) & 0xFF)
+		var other8: int = _rep8(~mapmask & 0xFF)
+		var dsize: int = dst.size()
+		var row_bytes: int = w >> 3
+		for sy: int in range(h):
+			for g: int in range(row_bytes):
+				var po: int = so + sy * row_bytes + g
+				var i: int = (sy + y) * pitch + x + (g << 3)
+				if i >= 0 and i + 8 <= dsize and po >= 0 and po < src.size():
+					var m: int = keep[src[po]]
+					dst.encode_s64(i, (dst.decode_s64(i) & other8) | (m & on8) | (~m & off8))
+				else:
+					for k: int in range(8):
+						var sx: int = (g << 3) + k
+						var plane_off: int = so + ((sy * w + sx) >> 3)
+						var plane_bit: int = 1 << (7 - ((sy * w + sx) & 7))
+						var pixel: int = (colour if (src[plane_off] & plane_bit) != 0 else colour & 0xF0) & mapmask
+						var j: int = (sy + y) * pitch + (sx + x)
+						if j >= 0 and j < dsize:
+							dst[j] = (dst[j] & ~mapmask) | pixel
+		return
 	for sy: int in range(h):
 		for sx: int in range(w):
 			var plane_off: int = so + ((sy * w + sx) >> 3)
@@ -951,11 +1052,27 @@ func VL_SurfaceRect(dst: VL_Surface, x: int, y: int, w: int, h: int, colour: int
 func VL_SurfaceRect_PM(dst: VL_Surface, x: int, y: int, w: int, h: int, colour: int, mapmask: int) -> void:
 	mapmask &= 0xF
 	colour &= mapmask
+	var px: PackedByteArray = dst.pixels
+	var size: int = px.size()
+	var other8: int = _rep8(~mapmask & 0xFF)
+	var colour8: int = _rep8(colour & 0xFF)
 	for py: int in range(y, y + h):
-		for px: int in range(x, x + w):
-			var i: int = py * dst.w + px
-			if i >= 0 and i < dst.pixels.size():
-				dst.pixels[i] = (dst.pixels[i] & ~mapmask) | colour
+		var i0: int = py * dst.w + x
+		if w > 0 and i0 >= 0 and i0 + w <= size:
+			# the row inside the surface: eight bytes at a time
+			var k: int = 0
+			while k + 8 <= w:
+				px.encode_s64(i0 + k, (px.decode_s64(i0 + k) & other8) | colour8)
+				k += 8
+			while k < w:
+				px[i0 + k] = (px[i0 + k] & ~mapmask) | colour
+				k += 1
+			continue
+		for pxx: int in range(x, x + w):
+			var i: int = py * dst.w + pxx
+			if i >= 0 and i < size:
+				px[i] = (px[i] & ~mapmask) | colour
+	dst.pixels = px
 
 
 func VL_ScreenRect(x: int, y: int, w: int, h: int, colour: int) -> void:
@@ -967,6 +1084,29 @@ func VL_ScreenRect_PM(x: int, y: int, w: int, h: int, colour: int) -> void:
 
 
 func VL_SurfaceToSurface(src: VL_Surface, dst: VL_Surface, x: int, y: int, sx: int, sy: int, sw: int, sh: int) -> void:
+	if src != dst:
+		# rows wholly inside both surfaces copied eight bytes at a time; the rest as before, byte by byte
+		var sp: PackedByteArray = src.pixels
+		var dp: PackedByteArray = dst.pixels
+		var ssize: int = sp.size()
+		var dsize: int = dp.size()
+		for _y: int in range(sy, sy + sh):
+			var d: int = (_y - sy + y) * dst.w + x
+			var s: int = _y * src.w + sx
+			if d >= 0 and d + sw <= dsize and s >= 0 and s + sw <= ssize:
+				var k: int = 0
+				while k + 8 <= sw:
+					dp.encode_s64(d + k, sp.decode_s64(s + k))
+					k += 8
+				while k < sw:
+					dp[d + k] = sp[s + k]
+					k += 1
+			else:
+				for k: int in range(sw):
+					if d + k >= 0 and d + k < dsize and s + k >= 0 and s + k < ssize:
+						dp[d + k] = sp[s + k]
+		dst.pixels = dp
+		return
 	for _y: int in range(sy, sy + sh):
 		var d: int = (_y - sy + y) * dst.w + x
 		var s: int = _y * src.w + sx
@@ -977,18 +1117,34 @@ func VL_SurfaceToSurface(src: VL_Surface, dst: VL_Surface, x: int, y: int, sx: i
 
 func VL_SurfaceToSelf(surf: VL_Surface, x: int, y: int, sx: int, sy: int, sw: int, sh: int) -> void:
 	var rows: Array = range(sh) if sy > y else range(sh - 1, -1, -1)
+	var px: PackedByteArray = surf.pixels
+	var size: int = px.size()
 	for yi: int in rows:
 		var d: int = (yi + y) * surf.w + x
 		var s: int = (sy + yi) * surf.w + sx
-		# memmove: a copy that survives overlap
-		var line: PackedByteArray = PackedByteArray()
-		line.resize(sw)
-		for k: int in range(sw):
-			if s + k >= 0 and s + k < surf.pixels.size():
-				line[k] = surf.pixels[s + k]
-		for k: int in range(sw):
-			if d + k >= 0 and d + k < surf.pixels.size():
-				surf.pixels[d + k] = line[k]
+		# memmove: a copy that survives overlap (the row taken whole when it lies inside the surface)
+		var line: PackedByteArray
+		if s >= 0 and s + sw <= size:
+			line = px.slice(s, s + sw)
+		else:
+			line = PackedByteArray()
+			line.resize(sw)
+			for k: int in range(sw):
+				if s + k >= 0 and s + k < size:
+					line[k] = px[s + k]
+		if d >= 0 and d + sw <= size:
+			var k: int = 0
+			while k + 8 <= sw:
+				px.encode_s64(d + k, line.decode_s64(k))
+				k += 8
+			while k < sw:
+				px[d + k] = line[k]
+				k += 1
+		else:
+			for k: int in range(sw):
+				if d + k >= 0 and d + k < size:
+					px[d + k] = line[k]
+	surf.pixels = px
 
 
 func VL_ScreenToScreen(x: int, y: int, sx: int, sy: int, sw: int, sh: int) -> void:
@@ -1344,9 +1500,26 @@ func _write_rows(base: int, y0: int, y1: int, colour: int) -> void:
 	var p1: PackedByteArray = card.plane1
 	var p2: PackedByteArray = card.plane2
 	var p3: PackedByteArray = card.plane3
+	var pairs: Array = _plane_pairs()
+	var t0: PackedInt32Array = pairs[0]
+	var t1: PackedInt32Array = pairs[1]
+	var t2: PackedInt32Array = pairs[2]
+	var t3: PackedInt32Array = pairs[3]
+	var size: int = src.size()
 	for y: int in range(y0, y1):
 		var srow: int = (y + vl_scrollYpixels) * pitch + vl_scrollXpixels
 		var drow: int = base + y * (VL_EGAVGA_GFX_WIDTH / 8)
+		if colour < 0 and srow >= 0 and srow + VL_EGAVGA_GFX_WIDTH <= size:
+			# eight pixels at a time: each pair of pixel bytes looked up as its bits in the four planes
+			var s8: int = srow
+			for bx: int in range(VL_EGAVGA_GFX_WIDTH / 8):
+				var acc: int = t0[src.decode_u16(s8)] | t1[src.decode_u16(s8 + 2)] 						| t2[src.decode_u16(s8 + 4)] | t3[src.decode_u16(s8 + 6)]
+				p0[drow + bx] = acc & 0xFF
+				p1[drow + bx] = (acc >> 8) & 0xFF
+				p2[drow + bx] = (acc >> 16) & 0xFF
+				p3[drow + bx] = (acc >> 24) & 0xFF
+				s8 += 8
+			continue
 		for bx: int in range(VL_EGAVGA_GFX_WIDTH / 8):
 			var b0: int = 0
 			var b1: int = 0
@@ -1372,6 +1545,45 @@ func _write_rows(base: int, y0: int, y1: int, colour: int) -> void:
 	card.plane1 = p1
 	card.plane2 = p2
 	card.plane3 = p3
+
+
+## The four pair tables of _write_rows (built once a run): for the pair of pixels at 2j and 2j+1 of a group of
+## eight, indexed by their two bytes as a little-endian u16, the plane bits they set: plane p's in bits 8p-8p+7
+## (pixel k of the eight at bit 7 - k, the card's order). Only a pixel's low four bits count, as in the loop.
+static var _pair_tables: Array = []
+static var _pair_mutex: Mutex = Mutex.new()
+
+
+static func _plane_pairs() -> Array:
+	_pair_mutex.lock()
+	if _pair_tables.is_empty():
+		var single: Array = []
+		for k: int in range(8):
+			var t: PackedInt32Array = PackedInt32Array()
+			t.resize(256)
+			for c: int in range(256):
+				var acc: int = 0
+				for p: int in range(4):
+					if ((c >> p) & 1) != 0:
+						acc |= (0x80 >> k) << (8 * p)
+				t[c] = acc
+			single.append(t)
+		var tables: Array = []
+		for j: int in range(4):
+			var lo: PackedInt32Array = single[2 * j]
+			var hi: PackedInt32Array = single[2 * j + 1]
+			var t: PackedInt32Array = PackedInt32Array()
+			t.resize(65536)
+			var i: int = 0
+			for b: int in range(256):
+				var h: int = hi[b]
+				for a: int in range(256):
+					t[i] = lo[a] | h
+					i += 1
+			tables.append(t)
+		_pair_tables = tables
+	_pair_mutex.unlock()
+	return _pair_tables
 
 
 # ===================================================================== id_vh
@@ -2072,6 +2284,14 @@ func MM_GetPtr(key: String, size: int) -> bool:
 				startseg = lastscan.start + lastscan.length
 			scan = scan.next
 	if mm_bombonerror:
+		# (the port's own report, for finding a leak: what was asked for and what holds the memory)
+		var held: Dictionary = {}
+		var b: MMBlock = mm_head
+		while b != null:
+			var kind: String = b.key.substr(0, b.key.find(":")) if b.key.find(":") >= 0 else b.key
+			held[kind] = int(held.get(kind, 0)) + b.length
+			b = b.next
+		push_warning("MM_GetPtr: out of memory for %s (%d bytes); paragraphs held by kind: %s" % [key, size, held])
 		Quit("MM_GetPtr: Out of memory!")
 	else:
 		mm_error = true

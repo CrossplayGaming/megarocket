@@ -2899,6 +2899,12 @@ func CK_DrawTerminator() -> void:
 	VL_ResizeScreen(TERMINATORSCREENWIDTH * 8 + 64, 200)
 	VL_ClearScreen(0)
 
+	# Megarocket: the last demo's graphics made purgeable first, as the story text does (CK_DrawStarWars). The
+	# demo loop comes back here straight after demo 3, whose level's chunks are still at purge level 0, and the
+	# eight shifted COMMANDER copies (about 168 KB) then found no room in the manager's memory (MM-01): "Out of
+	# memory" three and a half minutes into the attract loop. omnispeak never meets it (its memory is malloc's).
+	CA_SetGrPurge()
+
 	# Cache Intro Bitmaps
 	CA_CacheGrChunk(CK_CHUNKNUM("PIC_TITLESCREEN"))
 	CA_CacheGrChunk(CK_CHUNKNUM("EXTERN_COMMANDER"))
@@ -3297,13 +3303,21 @@ func _sw_draw_rows(scrollDistance: int) -> void:
 		# The x-coordinate of the current pixel in the offscreen text buffer, in SWunits.
 		var masterX: int = 0
 
-		# For each screen pixel: the master pixel, read and masked to the screen in plane 4.
+		# For each screen pixel: the master pixel, read and masked to the screen in plane 4 (VL_SurfacePGet and
+		# VL_ScreenRect_PM's 1x1 fill, written out here: forty thousand calls a frame cost more than their work)
+		var src: PackedByteArray = ck_starWarsTextSurface.pixels
+		var src_row: int = masterRowToDraw * ck_starWarsTextSurface.w
+		var dst: PackedByteArray = vl_screen.pixels
+		var dsize: int = dst.size()
+		var mm: int = vl_mapMask & 0xF
+		var dst_row: int = row * vl_screen.w
+		var step: int = ck_SWRowPixelDistance[row]
 		for screenX: int in range(rowStart, rowEnd):
-			var masterPixelX: int = CK_SWunitsToPixels(masterX)
-			var pixelValue: int = VL_SurfacePGet(ck_starWarsTextSurface, masterPixelX, masterRowToDraw)
-
-			VL_ScreenRect_PM(screenX, row, 1, 1, pixelValue)
-			masterX += ck_SWRowPixelDistance[row]
+			var pixelValue: int = src[src_row + (masterX >> log2_SWunitsPerPixel)] & mm
+			var i: int = dst_row + screenX
+			if i >= 0 and i < dsize:
+				dst[i] = (dst[i] & ~mm) | pixelValue
+			masterX += step
 
 
 func CK_DrawStarWars() -> void:

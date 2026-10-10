@@ -547,7 +547,9 @@ func CalibrateKeys() -> void:
 		if exited:
 			break
 		if c < 48 or c > 57:
-			continue
+			# the C's `continue` in a do-while goes to its test, `while (ch >= '0' && ch <= '9')`: any key but a
+			# digit leaves the window (a `continue` in this `while true` looped for ever: the window could not be left)
+			break
 		var select: int = c - 48
 		DrawChar(sx, sy * 8, c)
 		Print("\n\rPress the new key:")

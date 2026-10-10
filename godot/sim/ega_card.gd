@@ -503,6 +503,37 @@ var _frame_serial: int = 0
 var _frame_rgb_mixed: PackedByteArray = PackedByteArray()
 
 
+## A band the beam scans with everything it reads as it was the last time this band was scanned (the four
+## planes' bytes for its rows, the start address, panning, line width and split) leaves frame_pixels as they are:
+## those rows already hold that picture. Only for the usual case (the rows' bytes one contiguous run inside the
+## 64 KB, no split in the band); anything else is composed. A speed-up only: the picture is the same.
+var _band_keys: Dictionary = {}    # y0 -> [state, plane0 bytes, plane1, plane2, plane3]
+
+
+func _band_unchanged(y0: int, y1: int) -> bool:
+	if video_mode != MODE_EGA or frame_pixels.size() != WIDTH * HEIGHT:
+		_band_keys.clear()
+		return false
+	var stride: int = line_width()
+	var split: int = split_row()
+	if split < y1:
+		_band_keys.erase(y0)
+		return false
+	var a0: int = display_start + y0 * stride
+	var a1: int = display_start + (y1 - 1) * stride + 41    # the last row's 40 bytes and the one panning reads
+	if a0 < 0 or a1 > 0x10000:
+		_band_keys.erase(y0)
+		return false
+	var state: PackedInt32Array = PackedInt32Array([display_start, stride, split, atc[ATR_PELPAN] & 7, atc[ATR_MODE] & 0x20])
+	var k0: PackedByteArray = plane0.slice(a0, a1)
+	var k1: PackedByteArray = plane1.slice(a0, a1)
+	var k2: PackedByteArray = plane2.slice(a0, a1)
+	var k3: PackedByteArray = plane3.slice(a0, a1)
+	var old: Variant = _band_keys.get(y0)
+	_band_keys[y0] = [state, k0, k1, k2, k3]
+	return old != null and old[0] == state and old[1] == k0 and old[2] == k1 and old[3] == k2 and old[4] == k3
+
+
 func begin_frame() -> void:
 	if frame_pixels.size() != WIDTH * HEIGHT:
 		frame_pixels.resize(WIDTH * HEIGHT)
@@ -512,7 +543,8 @@ func begin_frame() -> void:
 
 
 func scan_rows(y0: int, y1: int) -> void:
-	compose_rows(frame_pixels, y0, y1)
+	if not _band_unchanged(y0, y1):
+		compose_rows(frame_pixels, y0, y1)
 	if palette_serial != _frame_serial and not frame_mixed:
 		frame_mixed = true
 		_frame_rgb_mixed.resize(WIDTH * HEIGHT * 3)
@@ -608,6 +640,7 @@ func snapshot() -> Dictionary:
 
 
 func restore(s: Dictionary) -> void:
+	_band_keys.clear()
 	plane0 = s.planes[0].duplicate()
 	plane1 = s.planes[1].duplicate()
 	plane2 = s.planes[2].duplicate()

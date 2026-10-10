@@ -1034,7 +1034,7 @@ func OptionsMenu() -> void:
 				NoBiosKey(0)
 			var row: Dictionary = rows[pos]
 			if ctrl.dir == north or ctrl.dir == south:
-				DrawChar(wx + 1, (wy + pos) * 8, 32)
+				DrawChar(wx + 1, (wy + pos) * 8, _options_blank(rows, pos))
 				pos = (pos + (rows.size() - 1 if ctrl.dir == north else 1)) % rows.size()
 				_options_desc(rows, pos, wx, wy)
 				_options_release()
@@ -1059,7 +1059,7 @@ func OptionsMenu() -> void:
 			elif c == CHAR_ESCAPE or ctrl.button2:
 				act = "action:exit"
 				break
-		DrawChar(wx + 1, (wy + pos) * 8, 32)
+		DrawChar(wx + 1, (wy + pos) * 8, _options_blank(rows, pos))
 		if act.begins_with("page:"):
 			stack.append([page_name, pos])
 			page_name = act.substr(5)
@@ -1090,6 +1090,12 @@ func OptionsMenu() -> void:
 			Get()
 			ExpWin(OPTIONS_W, OPTIONS_H)
 	ClearKeys()
+
+
+## The blank the cursor leaves behind on a row: a greyed row's (PrintGrey's characters are 0x80 on) on a
+## greyed row, so moving the cursor leaves no white squares down the greyed rows.
+func _options_blank(rows: Array, pos: int) -> int:
+	return 0xA0 if pos < rows.size() and not rows[pos].get("enabled", true) else 32
 
 
 ## A page's rows in the window at (wx, wy): the label from the fourth column, a value row's value at

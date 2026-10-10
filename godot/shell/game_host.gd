@@ -138,6 +138,7 @@ const STICK_DEADZONE: float = 0.5
 ## One-button fire on (Keen 1-3)
 var _one_fire: bool = false
 var _fire_held: Dictionary = {}    # what holds the fire down: "key", "x", "y", "lt", "rt"
+var _kb_held: Dictionary = {}      # scan code -> held on the keyboard (one-button fire's release)
 var _stick: Dictionary = {}    # arrow scan code -> held by the stick
 
 const GALAXY_META: Dictionary = {"keen4": "keen4", "keen5": "keen5", "keen6": "keen6e14"}
@@ -617,9 +618,13 @@ func _fire(who: String, down: bool) -> void:
 	var now: bool = not _fire_held.is_empty()
 	if now == was:
 		return
-	for code: int in [0x1D, 0x38]:
-		var own: int = KEY_CTRL if code == 0x1D else KEY_ALT
-		if now or not Input.is_key_pressed(own):
+	# the game's own jump and pogo keys (Keyboard Commands' button1 and button2, Ctrl and Alt unless changed):
+	# a fire on fixed Ctrl and Alt did nothing once the player had moved them
+	var codes: Array = [0x1D, 0x38]
+	if engine != null and "keyB1" in engine and "keyB2" in engine and int(engine.get("keyB1")) > 0 and int(engine.get("keyB2")) > 0:
+		codes = [int(engine.get("keyB1")), int(engine.get("keyB2"))]
+	for code: int in codes:
+		if now or not _kb_held.get(code, false):
 			send_key(code, now)
 
 
@@ -824,5 +829,6 @@ func _input(event: InputEvent) -> void:
 	var code: int = SCANCODES.get(k.keycode, 0)
 	if code == 0:
 		return
+	_kb_held[code] = k.pressed    # (one-button fire lets go only of what the keyboard is not holding itself)
 	send_key(code, k.pressed)
 	get_viewport().set_input_as_handled()

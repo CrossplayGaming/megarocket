@@ -956,6 +956,29 @@ def shell13():
     return code
 
 
+def menu07():
+    """Keen 1-3's Keyboard Commands window can be left (MENU-07): any key but a digit closes it, as the C's
+    do-while does; a digit then a key moves that action first."""
+    import gdtest
+    code, out = gdtest.run("menu07_keyboard", [], timeout=120.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+            print("  " + line.strip())
+    return code
+
+
+def perf01():
+    """Keen 4-6's faster drawing (PERF-01): the screen's conversion into the card's planes, the surface copies,
+    tiles, sprites, the intro's one-bit picture and the masked fill give byte for byte what the per-pixel loops
+    gave, on random cases (the loops kept in the test as the reference)."""
+    import gdtest
+    code, out = gdtest.run("perf01_blits", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def secret01():
     """The Reveal secrets lists (SECRET-01): each game's godot/data/secrets/<game>.json well formed (ids
     unique, every entry with cells), and no item sprite Keen 4-6 hide under foreground (75% of its cell
@@ -1289,6 +1312,8 @@ CHECKS = {
     "SHELL-12": (shell12, "fast"),
     "SHELL-13": (shell13, "fast"),
     "HARN-23": (harn23, "slow"),
+    "MENU-07": (menu07, "fast"),
+    "PERF-01": (perf01, "fast"),
     "SECRET-01": (secret01, "fast"),
     "SECRET-02": (secret02, "fast"),
     "AND-02a": (and02a, "fast"),
