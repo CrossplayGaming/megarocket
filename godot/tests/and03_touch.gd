@@ -67,7 +67,7 @@ func _go() -> void:
 	o1._place()
 	# (CTRL-02: the touch screen's own codes, which the games' readers count as Jump, Pogo and Fire)
 	t.ok("Fire is the touch screen's own Fire code in Keen 4 and Keen 1",
-		o4.codes_at(o4.button_rect("Fire").get_center()) == [0x72] and o1.codes_at(o1.button_rect("Fire").get_center()) == [0x72])
+		o4.codes_at(o4.button_rect("Fire").get_center()) == [0x73] and o1.codes_at(o1.button_rect("Fire").get_center()) == [0x73])
 	o4.free()
 	o1.free()
 
@@ -99,20 +99,20 @@ func _go() -> void:
 	_touch(o, 0, jump, true)
 	await _wait(0.3)
 	var k: Array = got.call()
-	t.ok("Jump: its code pressed (%s)" % str(k), k.has(0x70))
+	t.ok("Jump: its code pressed (%s)" % str(k), k.has(0x71))
 	_touch(o, 0, jump, false)
 	await _wait(0.3)
 	k = got.call()
-	t.ok("lifted: let go (%s)" % str(k), k.has(0xF0))
+	t.ok("lifted: let go (%s)" % str(k), k.has(0xF1))
 	var fire: Vector2 = o.button_rect("Fire").get_center()
 	_touch(o, 1, fire, true)
 	await _wait(0.3)
 	k = got.call()
-	t.ok("Fire: its code pressed (%s)" % str(k), k.has(0x72))
+	t.ok("Fire: its code pressed (%s)" % str(k), k.has(0x73))
 	_touch(o, 1, fire, false)
 	await _wait(0.3)
 	k = got.call()
-	t.ok("lifted: let go (%s)" % str(k), k.has(0xF2))
+	t.ok("lifted: let go (%s)" % str(k), k.has(0xF3))
 	var d: Rect2 = o.dpad_rect()
 	var c: Vector2 = d.get_center()
 	var cell: float = d.size.x / 3.0
@@ -131,11 +131,11 @@ func _go() -> void:
 	_touch(o, 3, jump, true)
 	await _wait(0.3)
 	k = got.call()
-	t.ok("a second finger: Jump too, Left kept (%s)" % str(k), k.has(0x70) and not k.has(0xCB))
+	t.ok("a second finger: Jump too, Left kept (%s)" % str(k), k.has(0x71) and not k.has(0xCB))
 	_touch(o, 3, jump, false)
 	await _wait(0.3)
 	k = got.call()
-	t.ok("that finger lifted: Jump let go, Left kept (%s)" % str(k), k.has(0xF0) and not k.has(0xCB))
+	t.ok("that finger lifted: Jump let go, Left kept (%s)" % str(k), k.has(0xF1) and not k.has(0xCB))
 	# a pad comes into use: hidden, and what the fingers held let go
 	host.connected_pads = func() -> Array: return [0]
 	host.pad_device = 0

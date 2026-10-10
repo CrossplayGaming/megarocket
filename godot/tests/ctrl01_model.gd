@@ -22,10 +22,10 @@ func _init() -> void:
 	t.eq("Start and the d-pad stay the pad's own", m.bind("pad", "jump", JOY_BUTTON_START, 0), "!")
 	m.clear("keys", "fire")
 	t.eq("a cleared action reads none, its keys gone (the pad's X and RT and the touch screen's Fire kept)",
-		[m.shown("keys", "fire"), Array(m.table()["fire"])], ["none", [0x62, 0x67, 0x72]])
+		[m.shown("keys", "fire"), Array(m.table()["fire"])], ["none", [0x64, 0x69, 0x73]])
 	var tb: Dictionary = m.table()
-	t.ok("the table: Up is the up arrow and the d-pad's up (%s)" % tb["up"], Array(tb["up"]) == [0x48, 0x6B])
-	t.ok("Jump: Q and Z, the pad's A, the touch screen's Jump (%s)" % tb["jump"], Array(tb["jump"]) == [0x10, 0x2C, 0x60, 0x70])
+	t.ok("the table: Up is the up arrow and the d-pad's up (%s)" % tb["up"], Array(tb["up"]) == [0x48, 0x6D])
+	t.ok("Jump: Q and Z, the pad's A, the touch screen's Jump (%s)" % tb["jump"], Array(tb["jump"]) == [0x10, 0x2C, 0x62, 0x71])
 	var again: ControlsModel = ControlsModel.new(Settings.new(path))
 	t.eq("kept in the settings file", [again.keys("jump"), again.keys("fire"), again.keys("pogo")], [[KEY_Q, KEY_Z], [], [KEY_X]])
 	m.bind("pad", "status", JOY_BUTTON_A, 0)

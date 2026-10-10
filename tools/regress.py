@@ -1017,6 +1017,18 @@ def ctrl04():
     return worst
 
 
+def ctrl05():
+    """Keen Dreams' Controls (CTRL-05): the control panel's keyboard and controller buttons open the
+    Keyboard and Controller lists in the panel's box; a key caught for Jump, the Controller list walked with
+    the pad alone, a button caught for Status."""
+    import gdtest
+    code, out = gdtest.run("ctrl05_dreams", [], timeout=400.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+            print("  " + line.strip())
+    return code
+
+
 def perf01():
     """Keen 4-6's faster drawing (PERF-01): the screen's conversion into the card's planes, the surface copies,
     tiles, sprites, the intro's one-bit picture and the masked fill give byte for byte what the per-pixel loops
@@ -1368,6 +1380,7 @@ CHECKS = {
     "CTRL-02": (ctrl02, "fast"),
     "CTRL-03": (ctrl03, "fast"),
     "CTRL-04": (ctrl04, "fast"),
+    "CTRL-05": (ctrl05, "fast"),
     "SECRET-01": (secret01, "fast"),
     "SECRET-02": (secret02, "fast"),
     "AND-02a": (and02a, "fast"),

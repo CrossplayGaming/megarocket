@@ -2263,6 +2263,16 @@ func USL_CtlCButtonCustom(call_: int, i: int, n: int) -> bool:
 	if ip.sel & ui_Disabled:
 		return false
 
+	if options != null and n < 2:
+		# CTRL-05: the keyboard and the controller as Megarocket's lists, in place of the keycaps and the
+		# joystick calibration
+		TheItems[i + 1] = null
+		USL_ClearBottom()
+		_shell_controls_list("keys" if n == 0 else "pad")
+		USL_ClearBottom()
+		USL_ShowHelp(ip.help)
+		return false
+
 	USL_ClearBottom()
 	var list: Array
 	if n == 0:    # Keyboard
@@ -2280,6 +2290,162 @@ func USL_CtlCButtonCustom(call_: int, i: int, n: int) -> bool:
 		j += 1
 
 	return false
+
+
+# ===================================================================== the shell's controls (CTRL-05)
+
+## The shell's Options rows (an OptionsModel) while a player is at the controls; null in headless runs and
+## the recordings, which see the original panel.
+var options: Object = null
+
+## The list's place: the panel's lower box (the keycaps' box), and its rows' height.
+const SHELL_LIST_X: int = CtlPanel3X + 8
+const SHELL_LIST_Y: int = CtlPanel3Y + 2
+const SHELL_LIST_W: int = 38 * 8 - CtlPanel3X - 16
+const SHELL_LIST_ROW: int = 10
+
+
+## CTRL-05 (the user, 2026-10-10: the same Controls pages in every game, in its own style): Megarocket's
+## Keyboard or Controller page as a list in the panel's box: each action and its keys or buttons, Reset all
+## controls, Back. Up and down move, Enter (the jump button) chooses, Escape (the throw button) goes back;
+## an action's own list: Change, Add second, Clear, Back. The help line says what to do; the capture is
+## said there with Esc (or Start) and a countdown, the host handing the next press over.
+func _shell_controls_list(device: String) -> void:
+	VW_HideCursor()
+	var page: String = device
+	var pos: int = 0
+	var back_pos: int = 0
+	var info: CursorInfo = CursorInfo.new()
+	var was: Array = [true, true, 0]    # the buttons held and the stick's y last time (one step a press)
+	var said: String = ""
+	while not quitting:
+		var rows: Array = _shell_list_rows(page, device)
+		pos = clampi(pos, 0, rows.size() - 1)
+		_shell_list_draw(rows, pos, page)
+		var hint: String = "Arrows Move  Enter Chooses  Esc Goes Back" if device == "keys" else "D-pad Moves  A Chooses  B Goes Back"
+		USL_ShowHelp(said if said != "" else hint)
+		VW_UpdateScreen()
+		var act: int = 0    # -1 up, 1 down, 2 choose, 3 back
+		while not quitting and act == 0:
+			BE_ST_ShortSleep()
+			IN_ReadControl(0, info)
+			var scan: int = LastScan
+			if scan in [sc_UpArrow, sc_DownArrow, sc_Return, sc_Space, sc_Escape]:
+				_clearkey(scan)
+				act = {sc_UpArrow: -1, sc_DownArrow: 1, sc_Return: 2, sc_Space: 2, sc_Escape: 3}[scan]
+				continue
+			LastScan = sc_None    # (another key, or the pad's own codes, read as held below)
+			if info.yaxis != 0 and info.yaxis != was[2]:
+				act = info.yaxis
+			elif info.button0 and not was[0]:
+				act = 2
+			elif info.button1 and not was[1]:
+				act = 3
+			was = [info.button0, info.button1, info.yaxis]
+		was = [true, true, info.yaxis]
+		said = ""
+		if act == -1 or act == 1:
+			pos = (pos + act + rows.size()) % rows.size()
+			continue
+		var key: String = "exit" if act == 3 else str(rows[pos].key)
+		if key == "exit":
+			if page == device:
+				break
+			page = device
+			pos = back_pos
+			continue
+		if key.begins_with("bind:"):
+			back_pos = pos
+			page = "bindact:" + key.substr(5)
+			pos = 0
+		elif key.begins_with("capture:"):
+			var cp: PackedStringArray = key.split(":")
+			said = _shell_capture(cp[1], cp[2], int(cp[3]))
+			page = device
+			pos = back_pos
+		elif key.begins_with("clear:"):
+			var cl: PackedStringArray = key.split(":")
+			options.clear_binding(cl[1], cl[2])
+			said = "%s: none" % options.action_label(cl[2])
+			page = device
+			pos = back_pos
+		elif key == "reset_controls":
+			USL_ShowHelp("Reset Every Control? Press Y")
+			VW_UpdateScreen()
+			IN_ClearKeysDown()
+			while not quitting and LastScan == sc_None:
+				BE_ST_ShortSleep()
+			if LastScan == sc_Y:
+				options.reset_controls()
+				said = "The Controls Are Reset"
+			IN_ClearKeysDown()
+	IN_ClearKeysDown()
+	VWB_Bar(SHELL_LIST_X - 6, SHELL_LIST_Y - 1, SHELL_LIST_W + 10, 13 * 8 - 2, WHITE)
+	VW_ShowCursor()
+	VW_UpdateScreen()
+
+
+## A list page's rows: the model's (Keyboard, Controller, an action's own), Reset all controls before Back.
+func _shell_list_rows(page: String, device: String) -> Array:
+	var rows: Array = (options.page(page) as Array).filter(func(r: Dictionary) -> bool: return r.key != "pad_fixed")
+	if page == device:
+		rows.insert(rows.size() - 1, {"key": "reset_controls", "label": "Reset all controls", "kind": "action"})
+	return rows
+
+
+## The list in the box: on an action's page its keys first, as a heading; the row chosen in the panel's
+## red (its own highlight: the chosen button's frame, the help's second colour) with a red mark before it.
+func _shell_list_draw(rows: Array, pos: int, page: String) -> void:
+	VWB_Bar(SHELL_LIST_X - 6, SHELL_LIST_Y - 1, SHELL_LIST_W + 10, 13 * 8 - 2, WHITE)
+	var y: int = SHELL_LIST_Y
+	if page.begins_with("bindact:"):
+		fontcolor = F_SECONDCOLOR
+		px = SHELL_LIST_X
+		py = y
+		call(USL_DrawString, str(rows[0].get("desc", "")), -1)
+		y += SHELL_LIST_ROW + 4
+	for k: int in range(rows.size()):
+		var r: Dictionary = rows[k]
+		if k == pos:
+			VWB_Bar(SHELL_LIST_X - 5, y + 1, 3, SHELL_LIST_ROW - 4, 12)    # (EGA light red)
+		fontcolor = F_SECONDCOLOR if k == pos else F_BLACK
+		px = SHELL_LIST_X
+		py = y
+		call(USL_DrawString, str(r.label), -1)
+		if r.kind == "value":
+			var v: String = str(r.value)
+			px = SHELL_LIST_X + SHELL_LIST_W - _measure(v, -1)[0]
+			py = y
+			call(USL_DrawString, v, -1)
+		y += SHELL_LIST_ROW
+	fontcolor = F_BLACK
+
+
+## CTRL-05: a key or button caught for an action, the help line saying what to press, Esc (Start) cancels
+## and the seconds left; the host hands the next press over (controls_captured) and the game never sees it.
+func _shell_capture(device: String, action: String, slot: int) -> String:
+	var prompt: String = options.capture_prompt(device, action)
+	var cancel: String = "Esc" if device == "keys" else "Start"
+	controls_captured = -2
+	controls_capture = device
+	var start: int = SD_GetTimeCount()
+	var shown: int = -1
+	while not quitting and controls_captured == -2:
+		var left: int = 5 - int(u32(SD_GetTimeCount() - start) / 70)
+		if left <= 0:
+			break
+		if left != shown:
+			shown = left
+			fontcolor = F_SECONDCOLOR
+			USL_ShowHelp("%s (%s Cancels) %d" % [prompt, cancel, left])
+			fontcolor = F_BLACK
+			VW_UpdateScreen()
+		BE_ST_ShortSleep()
+	controls_capture = ""
+	var code: int = controls_captured
+	controls_captured = -2
+	IN_ClearKeysDown()
+	return options.capture_done(device, action, slot, code if code != -2 else -1)
 
 
 ## After a hotkey was hit, move the cursor to the first selected item in the group after the
@@ -2381,6 +2547,12 @@ func USL_SetUpCtlPanel() -> void:
 	USL_TurnOff(CtlCPanels)
 	CtlCPanels[1].sel = ui_Normal if JoysPresent[0] else ui_Disabled
 	CtlCPanels[2].sel = ui_Normal if JoysPresent[1] else ui_Disabled
+	if options != null:
+		# CTRL-05: the keyboard and the controller lists (the second joystick's button not used)
+		CtlCPanels[0].help = "Choose Your Keys"
+		CtlCPanels[1].help = "Choose Your Controller Buttons"
+		CtlCPanels[1].sel = ui_Normal
+		CtlCPanels[2].sel = ui_Disabled
 	if Controls[0] == ctrl_Keyboard:
 		i = 0
 	else:
@@ -2418,6 +2590,8 @@ func USL_SetUpCtlPanel() -> void:
 ## Given the state of the control panel, sets the modes and values as appropriate.
 func USL_TearDownCtlPanel() -> void:
 	var i: int = USL_FindDown(CtlCPanels)
+	if i != -1 and options != null:
+		i = 0    # CTRL-05: the bindings are read whatever the button (the keyboard's reader stays)
 	if i != -1:
 		i = (ctrl_Joystick1 if i == 1 else ctrl_Joystick2) if i else ctrl_Keyboard
 		IN_SetControlType(0, i)

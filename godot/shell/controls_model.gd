@@ -52,12 +52,14 @@ const SCANCODES: Dictionary = {
 	KEY_LEFT: 0x4B, KEY_RIGHT: 0x4D, KEY_KP_ADD: 0x4E, KEY_END: 0x4F, KEY_DOWN: 0x50,
 	KEY_PAGEDOWN: 0x51, KEY_INSERT: 0x52, KEY_DELETE: 0x53, KEY_F11: 0x57, KEY_F12: 0x58,
 }
-## The pad's own codes into the machine while a game reads its play controls (0x60-0x6E: no PC key's).
+## The pad's own codes into the machine while a game reads its play controls (0x62-0x70: no PC key's;
+## not 0x60 or 0x61, whose release codes 0xE0 and 0xE1 the games' keyboard routines take for the extended
+## keys' prefix and Pause, so A was never let go in Keen Dreams).
 const PAD_CODES: Dictionary = {
-	JOY_BUTTON_A: 0x60, JOY_BUTTON_B: 0x61, JOY_BUTTON_X: 0x62, JOY_BUTTON_Y: 0x63,
-	JOY_BUTTON_LEFT_SHOULDER: 0x64, JOY_BUTTON_RIGHT_SHOULDER: 0x65, PAD_LT: 0x66, PAD_RT: 0x67,
-	JOY_BUTTON_BACK: 0x68, JOY_BUTTON_LEFT_STICK: 0x69, JOY_BUTTON_RIGHT_STICK: 0x6A,
-	JOY_BUTTON_DPAD_UP: 0x6B, JOY_BUTTON_DPAD_DOWN: 0x6C, JOY_BUTTON_DPAD_LEFT: 0x6D, JOY_BUTTON_DPAD_RIGHT: 0x6E,
+	JOY_BUTTON_A: 0x62, JOY_BUTTON_B: 0x63, JOY_BUTTON_X: 0x64, JOY_BUTTON_Y: 0x65,
+	JOY_BUTTON_LEFT_SHOULDER: 0x66, JOY_BUTTON_RIGHT_SHOULDER: 0x67, PAD_LT: 0x68, PAD_RT: 0x69,
+	JOY_BUTTON_BACK: 0x6A, JOY_BUTTON_LEFT_STICK: 0x6B, JOY_BUTTON_RIGHT_STICK: 0x6C,
+	JOY_BUTTON_DPAD_UP: 0x6D, JOY_BUTTON_DPAD_DOWN: 0x6E, JOY_BUTTON_DPAD_LEFT: 0x6F, JOY_BUTTON_DPAD_RIGHT: 0x70,
 }
 const PAD_NAMES: Dictionary = {
 	JOY_BUTTON_A: "A", JOY_BUTTON_B: "B", JOY_BUTTON_X: "X", JOY_BUTTON_Y: "Y",
@@ -67,9 +69,9 @@ const PAD_NAMES: Dictionary = {
 	JOY_BUTTON_DPAD_LEFT: "D-left", JOY_BUTTON_DPAD_RIGHT: "D-right",
 }
 ## The d-pad's codes, part of the four directions whatever is bound.
-const PAD_MOVE: Dictionary = {"up": 0x6B, "down": 0x6C, "left": 0x6D, "right": 0x6E}
+const PAD_MOVE: Dictionary = {"up": 0x6D, "down": 0x6E, "left": 0x6F, "right": 0x70}
 ## The touch screen's Jump, Pogo and Fire (TouchOverlay): their own codes, part of those actions always.
-const TOUCH_CODES: Dictionary = {"jump": 0x70, "pogo": 0x71, "fire": 0x72}
+const TOUCH_CODES: Dictionary = {"jump": 0x71, "pogo": 0x72, "fire": 0x73}
 
 var settings: Settings = null
 

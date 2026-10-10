@@ -38,9 +38,9 @@ func _init() -> void:
 	t.ok("Ctrl, still Jump's second key, too", vhold.call([0x1D]).button1)
 	t.ok("Alt, taken from Pogo, nothing", not vhold.call([0x38]).button2)
 	t.ok("Space (Fire): both buttons", vhold.call([0x39]) == {"dir": VortLib.nodir, "button1": true, "button2": true})
-	t.ok("the pad's X (Fire) and the touch screen's Fire: both buttons", vhold.call([pad[JOY_BUTTON_X]]).button2 and vhold.call([0x72]).button1)
+	t.ok("the pad's X (Fire) and the touch screen's Fire: both buttons", vhold.call([pad[JOY_BUTTON_X]]).button2 and vhold.call([0x73]).button1)
 	t.ok("up and right together: north-east", vhold.call([0x48, 0x4D]).dir == VortLib.northeast)
-	t.ok("the d-pad's left: west", vhold.call([0x6D]).dir == VortLib.west)
+	t.ok("the d-pad's left: west", vhold.call([0x6F]).dir == VortLib.west)
 	t.ok("the original's PgUp (its north-east key): nothing", vhold.call([0x49]).dir == VortLib.nodir)
 	v.shell_one_fire = false
 	t.ok("Two keys: Fire's Space fires nothing", not vhold.call([0x39]).button1)
