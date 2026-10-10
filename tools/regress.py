@@ -1035,7 +1035,7 @@ def menu08():
     import gdtest
     worst = 0
     for test, extra in (("menu08_vorticons", []), ("menu08_galaxy", ["--game=keen4"]), ("menu08_galaxy", ["--game=keen5"]),
-                        ("menu08_galaxy", ["--game=keen6"])):
+                        ("menu08_galaxy", ["--game=keen6"]), ("menu08_dreams", [])):
         code, out = gdtest.run(test, extra, timeout=600.0, quiet=True)
         for line in out.splitlines():
             if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:

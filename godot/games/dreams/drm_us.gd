@@ -2305,70 +2305,90 @@ const SHELL_LIST_W: int = 38 * 8 - CtlPanel3X - 16
 const SHELL_LIST_ROW: int = 10
 
 
-## CTRL-05 (the user, 2026-10-10: the same Controls pages in every game, in its own style): Megarocket's
-## Keyboard or Controller page as a list in the panel's box: each action and its keys or buttons, Reset all
-## controls, Back. Up and down move, Enter (the jump button) chooses, Escape (the throw button) goes back;
-## an action's own list: Change, Add second, Clear, Back. The help line says what to do; the capture is
-## said there with Esc (or Start) and a countdown, the host handing the next press over.
-func _shell_controls_list(device: String) -> void:
+## CTRL-05 / MENU-08 (the user, 2026-10-10: the same pages in every game, in its own style): one of
+## Megarocket's Options pages (OptionsModel: controls, keys, pad, display, gameplay, fixes, an action's
+## own) as a list in the panel's box, the pages it opens in turn. Up and down move, Enter (the jump
+## button) chooses, left and right change a value, Escape (the throw button) goes back a page; the help
+## line says how, or what the row chosen does (a fix's line). A capture is said there with Esc (Start)
+## and a countdown, the host handing the next press over.
+func _shell_page_list(start: String) -> void:
 	VW_HideCursor()
-	var page: String = device
+	var stack: Array = []    # [page, cursor] to come back to
+	var page: String = start
 	var pos: int = 0
-	var back_pos: int = 0
 	var info: CursorInfo = CursorInfo.new()
-	var was: Array = [true, true, 0]    # the buttons held and the stick's y last time (one step a press)
+	var was: Array = [true, true, 0, 0]    # the buttons held and the stick's y and x last time (one step a press)
 	var said: String = ""
+	var device: String = "pad" if start == "pad" else "keys"
 	while not quitting:
-		var rows: Array = _shell_list_rows(page, device)
+		var rows: Array = _shell_list_rows(page)
 		pos = clampi(pos, 0, rows.size() - 1)
 		_shell_list_draw(rows, pos, page)
-		var hint: String = "Arrows Move  Enter Chooses  Esc Goes Back" if device == "keys" else "D-pad Moves  A Chooses  B Goes Back"
-		USL_ShowHelp(said if said != "" else hint)
+		var hint: String = "D-pad Moves  A Chooses  B Goes Back" if device == "pad" else "Arrows Move  Enter Chooses  Esc Goes Back"
+		var desc: String = str(rows[pos].get("desc", "")) if not page.begins_with("bindact:") else ""
+		USL_ShowHelp(said if said != "" else (desc if desc != "" else hint))
 		VW_UpdateScreen()
-		var act: int = 0    # -1 up, 1 down, 2 choose, 3 back
+		var act: int = 0    # -1 up, 1 down, 2 choose, 3 back, 4 left, 5 right
 		while not quitting and act == 0:
 			BE_ST_ShortSleep()
 			IN_ReadControl(0, info)
 			var scan: int = LastScan
-			if scan in [sc_UpArrow, sc_DownArrow, sc_Return, sc_Space, sc_Escape]:
+			if scan in [sc_UpArrow, sc_DownArrow, sc_Return, sc_Space, sc_Escape, sc_LeftArrow, sc_RightArrow]:
 				_clearkey(scan)
-				act = {sc_UpArrow: -1, sc_DownArrow: 1, sc_Return: 2, sc_Space: 2, sc_Escape: 3}[scan]
+				act = {sc_UpArrow: -1, sc_DownArrow: 1, sc_Return: 2, sc_Space: 2, sc_Escape: 3, sc_LeftArrow: 4, sc_RightArrow: 5}[scan]
+				device = "keys"
 				continue
 			LastScan = sc_None    # (another key, or the pad's own codes, read as held below)
 			if info.yaxis != 0 and info.yaxis != was[2]:
 				act = info.yaxis
+			elif info.xaxis != 0 and info.xaxis != was[3]:
+				act = 4 if info.xaxis < 0 else 5
 			elif info.button0 and not was[0]:
 				act = 2
 			elif info.button1 and not was[1]:
 				act = 3
-			was = [info.button0, info.button1, info.yaxis]
-		was = [true, true, info.yaxis]
+			if act != 0 and not _keydown(sc_UpArrow) and not _keydown(sc_DownArrow) and not _keydown(sc_LeftArrow) and not _keydown(sc_RightArrow):
+				device = "pad"
+			was = [info.button0, info.button1, info.yaxis, info.xaxis]
+		was = [true, true, info.yaxis, info.xaxis]
 		said = ""
 		if act == -1 or act == 1:
 			pos = (pos + act + rows.size()) % rows.size()
 			continue
-		var key: String = "exit" if act == 3 else str(rows[pos].key)
-		if key == "exit":
-			if page == device:
-				break
-			page = device
-			pos = back_pos
+		var row: Dictionary = rows[pos]
+		if act == 4 or act == 5:
+			if row.kind == "value" and not str(row.key).begins_with("bind:"):
+				options.step(row.key, -1 if act == 4 else 1)
 			continue
-		if key.begins_with("bind:"):
-			back_pos = pos
-			page = "bindact:" + key.substr(5)
+		var key: String = "exit" if act == 3 else str(row.key)
+		if key == "exit":
+			if stack.is_empty():
+				break
+			var back: Array = stack.pop_back()
+			page = back[0]
+			pos = back[1]
+			continue
+		if not row.get("enabled", true):
+			said = str(row.get("why", "Not Now"))
+			continue
+		var to: String = options.activate(key)
+		if to.begins_with("page:"):
+			stack.append([page, pos])
+			page = to.substr(5)
 			pos = 0
 		elif key.begins_with("capture:"):
 			var cp: PackedStringArray = key.split(":")
 			said = _shell_capture(cp[1], cp[2], int(cp[3]))
-			page = device
-			pos = back_pos
+			var back: Array = stack.pop_back()
+			page = back[0]
+			pos = back[1]
 		elif key.begins_with("clear:"):
 			var cl: PackedStringArray = key.split(":")
 			options.clear_binding(cl[1], cl[2])
 			said = "%s: none" % options.action_label(cl[2])
-			page = device
-			pos = back_pos
+			var back: Array = stack.pop_back()
+			page = back[0]
+			pos = back[1]
 		elif key == "reset_controls":
 			USL_ShowHelp("Reset Every Control? Press Y")
 			VW_UpdateScreen()
@@ -2385,12 +2405,14 @@ func _shell_controls_list(device: String) -> void:
 	VW_UpdateScreen()
 
 
-## A list page's rows: the model's (Keyboard, Controller, an action's own), Reset all controls before Back.
-func _shell_list_rows(page: String, device: String) -> Array:
-	var rows: Array = (options.page(page) as Array).filter(func(r: Dictionary) -> bool: return r.key != "pad_fixed")
-	if page == device:
-		rows.insert(rows.size() - 1, {"key": "reset_controls", "label": "Reset all controls", "kind": "action"})
-	return rows
+## The Keyboard or Controller list (the panel's own keyboard and joystick buttons, CTRL-05).
+func _shell_controls_list(device: String) -> void:
+	_shell_page_list(device)
+
+
+## A page's rows (the model's), the movement row of the Controller page left out (nothing to choose).
+func _shell_list_rows(page: String) -> Array:
+	return (options.page(page) as Array).filter(func(r: Dictionary) -> bool: return r.key != "pad_fixed")
 
 
 ## The list in the box: on an action's page its keys first, as a heading; the row chosen in the panel's
@@ -2446,6 +2468,102 @@ func _shell_capture(device: String, action: String, slot: int) -> String:
 	controls_captured = -2
 	IN_ClearKeysDown()
 	return options.capture_done(device, action, slot, code if code != -2 else -1)
+
+
+## MENU-08 (the user, 2026-10-10: every game's menu in one order; Dreams' in text keycaps, no new art): the
+## icons Start or Resume, Load / Save / Quit, Options (the Controls icon: Controls, Display and Gameplay
+## keycaps, each one of Megarocket's pages in the box), Sound, Music, Extras (the Help icon: the help,
+## the story, High Scores). Only with a player at the controls; the recordings see the original's panel.
+var _shell_panel_done: bool = false
+
+
+## A keycap in the icons' row, as the keycaps' own rectangle (CtlPanelKC3R's: its label centred on the cap,
+## whose face holds some 38 pixels of the panel's font).
+static func CtlPanelKC2R(x: int, y: int) -> Array:
+	return [CtlPanel2X + x * 8, CtlPanel2Y + y * 8, CtlPanel2X + 56 + x * 8, CtlPanel2Y + 32 + y * 8]
+
+
+func _shell_panel_setup() -> void:
+	if _shell_panel_done:
+		return
+	_shell_panel_done = true
+	# the icons' places: Start 0, Disk 1, Options 2, Sound 3, Music 4, Extras 5
+	for p: Array in [[0, 0], [2, 1], [3, 2], [4, 3], [5, 4], [1, 5]]:
+		var r: Array = CtlPanelR(p[1])
+		CtlPanels[p[0]].r = _us_rect(r[0], r[1], r[2], r[3])
+	CtlPanels[3].help = "Options: Controls, Display, Gameplay"
+	CtlPanels[1].help = "Extras: Help, the Story, High Scores"
+	CtlPanels[3].key = sc_O
+	CtlPanels[1].key = sc_E
+	var keys: Array = []
+	# (a cap's face holds some 38 pixels of the panel's font: the help line names each in full)
+	for e: Array in [[2, "Input", "controls", "Controls: Keys and Controller Buttons", sc_F3],
+			[11, "Video", "display", "Display: Fullscreen, Pixel Shape", sc_V],
+			[20, "Game", "gameplay", "Gameplay: Fixes for the Original's Bugs", sc_G]]:
+		var item: UserItem = _ui(CtlPanelKC2R(e[0], 0), uii_KeyCap, CTL_KEYCAPPIC, CTL_KEYCAPCURPIC, e[3], e[4], ui_Normal,
+			&"USL_CtlShellKeyCustom", e[1])
+		keys.append(item)
+	keys.append(_ui_end())
+	CtlPanels2[3] = keys
+	_shell_pages = ["controls", "display", "gameplay"]
+	# the help's three moved left to make room: the row of four centred in the box
+	for k: int in range(3):
+		var hr: Array = CtlPanel2R(4 + 5 * k, 0)
+		CtlHPanels[k].r = _us_rect(hr[0], hr[1], hr[2], hr[3])
+	CtlHPanels.insert(CtlHPanels.size() - 1, _ui(CtlPanelKC2R(20, 0), uii_KeyCap, CTL_KEYCAPPIC, CTL_KEYCAPCURPIC,
+		"See the High Scores", sc_S, ui_Normal, &"USL_CtlShellScoresCustom", "Score"))
+
+
+var _shell_pages: Array = []
+
+
+## An Options keycap chosen: its page as a list in the box.
+func USL_CtlShellKeyCustom(call_: int, i: int, n: int) -> bool:
+	if call_ != uic_Hit:
+		return false
+	TheItems[i + 1] = null
+	USL_ClearBottom()
+	_shell_page_list(_shell_pages[n])
+	USL_ClearBottom()
+	USL_ShowHelp(TheItems[i][n].help)
+	return true
+
+
+## Extras' High Scores keycap: the table in its window over the panel, a key, the panel drawn again.
+func USL_CtlShellScoresCustom(call_: int, i: int, n: int) -> bool:
+	if call_ != uic_Hit:
+		return false
+	VW_HideCursor()
+	var wr: WindowRec = WindowRec.new()
+	US_SaveWindow(wr)
+	US_DisplayHighScores(-1)
+	VW_UpdateScreen()
+	IN_ClearKeysDown()
+	IN_Ack()
+	US_RestoreWindow(wr)
+	_shell_redraw_panel(i)
+	USL_ShowHelp(TheItems[i][n].help)
+	VW_ShowCursor()
+	VW_UpdateScreen()
+	return true
+
+
+## The panel drawn again as US_ControlPanel draws it, with the row of the icon chosen.
+func _shell_redraw_panel(row: int) -> void:
+	VWB_Bar(0, 0, MaxX, MaxY, FIRSTCOLOR)
+	US_DrawWindow(8, 22, 30, 2)
+	US_DrawWindow(8, 7, 30, 14)
+	US_DrawWindow(8, 1, 30, 20)
+	var k: int = 0
+	while CtlPanels[k].type != uii_Bad:
+		USL_DrawItem(0, k)
+		k += 1
+	var list: Variant = TheItems[row] if row < TheItems.size() else null
+	if list != null:
+		for j: int in range((list as Array).size()):
+			if (list as Array)[j].type == uii_Bad:
+				break
+			USL_DrawItem(row, j)
 
 
 ## After a hotkey was hit, move the cursor to the first selected item in the group after the
@@ -2553,6 +2671,7 @@ func USL_SetUpCtlPanel() -> void:
 		CtlCPanels[1].help = "Choose Your Controller Buttons"
 		CtlCPanels[1].sel = ui_Normal
 		CtlCPanels[2].sel = ui_Disabled
+		_shell_panel_setup()
 	if Controls[0] == ctrl_Keyboard:
 		i = 0
 	else:

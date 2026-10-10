@@ -1,7 +1,8 @@
 # Copyright (C) 2026 the Megarocket contributors. GPL v2 or later. See LICENSE.md.
 extends SceneTree
-## CTRL-05: Keen Dreams' control panel, its Controls subject (v1.93 in the host, real time). The keyboard
-## button (F3) opens Megarocket's Keyboard list in the panel's box: each action and its keys (no Pogo, Fire
+## CTRL-05: Keen Dreams' control panel, its Options icon (v1.93 in the host, real time; MENU-08: the
+## Controls icon, its row of keycaps). The Controls keycap (F3) opens the Controls page; Keyboard...
+## opens Megarocket's Keyboard list in the panel's box: each action and its keys (no Pogo, Fire
 ## is Throw), Reset all controls, Back; Jump's own list; Change catches Q (the game never sees it) and the
 ## help line says so; Escape goes back. The controller button (F4, usable with no joystick) opens the
 ## Controller list, walked with the pad alone, and a button caught for Status. Pictures to --shots.
@@ -96,10 +97,14 @@ func _go() -> void:
 	await _pause(5.0)
 	await _tap(KEY_ENTER)    # the title: the control panel
 	await _pause(2.0)
-	await _tap(KEY_C)        # Controls
+	await _tap(KEY_O)        # Options (MENU-08: the Controls icon, its row of keycaps)
 	await _pause(1.0)
-	await _tap(KEY_F3)       # the keyboard button
+	await _shot("ctrl05_options")
+	await _tap(KEY_F3)       # the Controls keycap: the Controls page
 	await _pause(1.0)
+	await _shot("ctrl05_controls")
+	await _tap(KEY_ENTER)    # Keyboard...
+	await _pause(0.6)
 	await _shot("ctrl05_keys")
 	var rows: Array = host.options.page("keys").map(func(r: Dictionary) -> String: return r.label)
 	t.eq("the Keyboard list's actions (Dreams: no Pogo, Fire is Throw)", rows, ["Up", "Down", "Left", "Right", "Jump", "Throw", "Status", "Back"])
@@ -116,9 +121,10 @@ func _go() -> void:
 	await _pause(0.5)
 	await _shot("ctrl05_after")
 	t.ok("the game never saw Q", not bool(g.Keyboard[0x10]))
-	await _tap(KEY_ESCAPE)   # out of the list, back to the panel
-	await _pause(0.8)
-	await _tap(KEY_F4)       # the controller button
+	await _tap(KEY_ESCAPE)   # back to the Controls page
+	await _pause(0.6)
+	await _tap(KEY_DOWN)     # Controller...
+	await _tap(KEY_ENTER)
 	await _pause(1.0)
 	await _shot("ctrl05_pad")
 	t.ok("the Controller list is open", await _wait(func() -> bool: return host.controls_live(), 3.0))
@@ -130,7 +136,8 @@ func _go() -> void:
 	await _press(JOY_BUTTON_RIGHT_STICK)
 	t.ok("the right stick's button caught for Status (%s)" % m.shown("pad", "status"),
 		await _wait(func() -> bool: return m.buttons("status") == [JOY_BUTTON_RIGHT_STICK, JOY_BUTTON_Y], 3.0))
-	await _press(JOY_BUTTON_B)    # back out of the list
+	await _press(JOY_BUTTON_B)    # back to the Controls page
+	await _press(JOY_BUTTON_B)    # and out of the list
 	await _pause(0.5)
 	t.ok("out of the list, the panel's own again", not host.controls_live())
 	host.stop()
