@@ -272,6 +272,10 @@
  "milestones": [
   {
    "date": "2026-10-10",
+   "text": "Reveal secrets cheat in Keen 1-6: 194 secrets from the official hint sheets, the wiki and walkthroughs, plus every hidden stash the level data shows, each checked by eye; a check confirms no hidden item is left out"
+  },
+  {
+   "date": "2026-10-10",
    "text": "Keen Dreams' gameplay proven against the original's code: every level of v1.00 and v1.93 played through ReflectionHLE alongside Megarocket, all objects identical on every frame"
   },
   {
