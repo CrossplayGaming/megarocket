@@ -1045,9 +1045,16 @@ func VidRefresh() -> void:
 var draw_capture: bool = false
 var draw_list: Dictionary = {}
 var draw_list_prev: Dictionary = {}
-## The sprites placed this refresh, [x, y, shape, owner] in world units (RF_PlaceSprite's own
-## arguments, and who placed it: an object's slot, or a number of the caller's; -1 for none).
+## The sprites placed this refresh, [x, y, shape, owner, on the page] in world units (RF_PlaceSprite's
+## own arguments, who placed it: an object's slot, or a number of the caller's, -1 for none; and whether
+## the original's page took it, which the wide view's extra sprites don't).
 var sprite_world: Array = []
+## REND-04: the wide view's extra tiles each side of the original's 20 (the host sets it from the
+## window's shape; 0 in Classic, headless and the oracle runs: the original exactly). Read where
+## creatures wake and are retired (LevelLoop, RemoveInactive: J-30, they follow the wide view's edges),
+## and by the draw list (a wider grid, sprites past the page kept).
+var wide_tiles: int = 0
+
 ## REND-03: set around a placement by its caller, so smooth motion can follow one thing from refresh
 ## to refresh. The level's objects are their slots; the others are named here.
 var draw_owner: int = -1
@@ -1060,10 +1067,11 @@ var draw_forced: Array = [false, false]
 
 
 func _capture_draw_list() -> void:
-	# the visible grid with a tile all round (REND-03 scrolls a little between refreshes)
-	var ox0: int = (originx >> 12) - 1
+	# the visible grid with a tile all round (REND-03 scrolls a little between refreshes), and the wide
+	# view's tiles each side (REND-04)
+	var ox0: int = (originx >> 12) - 1 - wide_tiles
 	var oy0: int = (originy >> 12) - 1
-	var gw: int = PORTTILESWIDE + 2
+	var gw: int = PORTTILESWIDE + 2 + 2 * wide_tiles
 	var grid: PackedInt32Array = PackedInt32Array()
 	grid.resize(gw * (PORTTILESHIGH + 2))
 	for ty: int in range(PORTTILESHIGH + 2):
@@ -1074,8 +1082,8 @@ func _capture_draw_list() -> void:
 		draw_forced[page] = false
 		draw_overlaid[page] = false
 	draw_list_prev = draw_list
-	draw_list = {"page": page, "t": vm.seconds(), "originx": originx, "originy": originy, "animtable": animtable, "grid": grid,
-		"sprites": spritelist.slice(0, spritesshown), "world": sprite_world.slice(0, spritesshown),
+	draw_list = {"page": page, "t": vm.seconds(), "wide": wide_tiles, "map_w": mapwwide, "originx": originx, "originy": originy, "animtable": animtable, "grid": grid,
+		"sprites": spritelist.slice(0, spritesshown), "world": sprite_world.duplicate(),    # all placed (the wide view keeps more than the page)
 		"tiles": tilelist.slice(0, tilesshown),
 		"pics": piclist.slice(0, picsshown), "user": uservect,
 		"start": screenstart & 0xFFFF, "pan": screenpan, "written_vbl": -1}

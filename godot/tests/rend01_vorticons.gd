@@ -11,7 +11,12 @@ extends SceneTree
 ## unshifted images is the same picture, and at 4x (native) places every image under two original pixels
 ## from its 1x place.
 ##
+## REND-04 (--wide=N, the wide view's tiles each side): the snapped layout at 320 is still the card's
+## picture, at 320 + 32N the same images each shifted by the same amount (inside the map), and creatures
+## wake past the original's edge (J-30); without it, none ever does.
+##
 ## Options: --game_data=<folder> --games=keen1,keen2,keen3 --levels=1,2,3 --seconds=10 --out=<folder>
+##          [--wide=N]
 
 var t: T = T.new()
 
@@ -35,26 +40,36 @@ func _init() -> void:
 	var seconds: float = float(opts.get("seconds", "10"))
 	var out: String = opts.get("out", OS.get_temp_dir().path_join("mr_rend01"))
 	DirAccess.make_dir_recursive_absolute(out)
+	var wide: int = int(opts.get("wide", "0"))
 	for game: String in games:
-		var r: Dictionary = _game(root, game, levels, seconds, out)
+		var r: Dictionary = _game(root, game, levels, seconds, out, wide)
 		print("  %s: %d pictures compared, %d match, %d differ; %d not from the list (windows, user routines)" % [
 			game, r.get("compared", 0), r.get("match", 0), r.get("differ", 0), r.get("skipped", 0)])
 		for k: String in r:
 			if k.begins_with("user ") or k == "overlaid":
 				print("    set aside: %s %d" % [k, r[k]])
-		t.ok("%s: the draw list's 1x picture equals the card's (%d of %d)" % [game, r.get("match", 0), r.get("compared", 0)],
-			r.get("compared", 0) > 300 and r.get("differ", 1) == 0)
+		if wide == 0:
+			t.ok("%s: the draw list's 1x picture equals the card's (%d of %d)" % [game, r.get("match", 0), r.get("compared", 0)],
+				r.get("compared", 0) > 300 and r.get("differ", 1) == 0)
+		else:
+			t.ok("%s: REND-04, at %d pixels every image shifted alike (%d of %d)" % [game, 320 + 32 * wide, r.get("shifted", 0), r.get("compared", 0)],
+				r.get("compared", 0) > 300 and r.get("shifted", 0) == r.get("compared", 0))
+		print("    creatures awake past the original's edge: %d times" % r.get("beyond", 0))
+		var rules: Array = r.get("rules", [])
+		t.ok("%s: J-30's edges: a creature 24 tiles out wakes, 30 out is kept, only with the wide view (%s)" % [game, rules],
+			rules == ([true, true] if wide > 0 else [false, false]))
 		t.ok("%s: REND-02's layout at 1x, with the unshifted images, equals the card's (%d of %d)" % [game, r.get("laid", 0), r.get("compared", 0)],
 			r.get("compared", 0) > 300 and r.get("laid", 0) == r.get("compared", 0))
-		t.ok("%s: REND-02's native layout at 4x places every image under two original pixels from 1x (%d of %d)" % [game, r.get("placed", 0), r.get("compared", 0)],
-			r.get("compared", 0) > 300 and r.get("placed", 0) == r.get("compared", 0))
-		print("    smooth motion: %d pairs, %d right, %d sprites slid" % [r.get("smooth_pairs", 0), r.get("smooth", 0), r.get("slid", 0)])
-		t.ok("%s: REND-03 between two refreshes: at 1 the newest picture, at a half each followed sprite midway (%d of %d)" % [game, r.get("smooth", 0), r.get("smooth_pairs", 0)],
-			r.get("smooth_pairs", 0) > 100 and r.get("smooth", 0) == r.get("smooth_pairs", 0) and r.get("slid", 0) > 100)
+		if wide == 0:
+			t.ok("%s: REND-02's native layout at 4x places every image under two original pixels from 1x (%d of %d)" % [game, r.get("placed", 0), r.get("compared", 0)],
+				r.get("compared", 0) > 300 and r.get("placed", 0) == r.get("compared", 0))
+			print("    smooth motion: %d pairs, %d right, %d sprites slid" % [r.get("smooth_pairs", 0), r.get("smooth", 0), r.get("slid", 0)])
+			t.ok("%s: REND-03 between two refreshes: at 1 the newest picture, at a half each followed sprite midway (%d of %d)" % [game, r.get("smooth", 0), r.get("smooth_pairs", 0)],
+				r.get("smooth_pairs", 0) > 100 and r.get("smooth", 0) == r.get("smooth_pairs", 0) and r.get("slid", 0) > 100)
 	t.finish(self)
 
 
-func _game(root: String, game: String, levels: Array, seconds: float, out: String) -> Dictionary:
+func _game(root: String, game: String, levels: Array, seconds: float, out: String, wide: int = 0) -> Dictionary:
 	var data: VortData = VortData.new()
 	if not data.load_game(root.path_join(game), "CK" + game.substr(4, 1)):
 		t.blocked("%s data: %s" % [game, data.error])
@@ -65,6 +80,7 @@ func _game(root: String, game: String, levels: Array, seconds: float, out: Strin
 	g.data = data
 	g.save_dir = OS.get_temp_dir().path_join("mr_rend01_save_%d" % Time.get_ticks_usec())
 	g.draw_capture = true
+	g.wide_tiles = wide
 	var renderer: VortDrawRenderer = VortDrawRenderer.new()
 	var r: Dictionary = {"compared": 0, "match": 0, "differ": 0, "skipped": 0, "saved": 0}
 	var card: EgaCard = vm.card
@@ -80,6 +96,47 @@ func _game(root: String, game: String, levels: Array, seconds: float, out: Strin
 			return
 		if card.display_start != int(list.start) or (card.atc[EgaCard.ATR_PELPAN] & 7) != int(list.pan):
 			r.skipped += 1    # a page the lists don't account for
+			return
+		# J-30: a creature waking past the original's waking edge (the 23rd tile): the same creature
+		# (slot and class) asleep at the last picture, awake at this one, a tile or more past it (the
+		# camera may have moved since it woke; a creature spawned into a free slot doesn't count)
+		var awake: Dictionary = r.get("awake", {})
+		for i: int in range(1, g.numobj):
+			var o: Object = g.objlist[i]
+			if o.obclass != g.nothing and o.active and awake.has(i) and awake[i] == [o.obclass, false] and (o.x >> 12) >= g.ox + 24:
+				r.beyond = r.get("beyond", 0) + 1
+			awake[i] = [o.obclass, o.active]
+		r["awake"] = awake
+		if wide > 0:
+			if g.draw_overlaid[int(list.page)] or str(list.user) != "":
+				r.skipped += 1
+				return
+			r.compared += 1
+			var o320: Array = VortDrawLayout.ops(g, list)
+			var c320: PackedByteArray = VortDrawLayout.compose(g, o320)
+			if c320 == card.frame_pixels or _same_colours(c320, card.frame_pixels, card.frame_palette):
+				r.laid = r.get("laid", 0) + 1
+			elif r.get("wide_saved", 0) < 3:
+				r.wide_saved = r.get("wide_saved", 0) + 1
+				_save(card, c320, out.path_join("%s_wide_differ_%d.png" % [game, r.wide_saved]))
+			# at 320 + 32 * wide every map tile and sprite the 320 view has, shifted by the same amount
+			var ow: Array = VortDrawLayout.ops(g, list, Vector2.ONE, true, 320 + 32 * wide)
+			var by_k: Dictionary = {}
+			for op: Dictionary in ow:
+				if op.has("k"):
+					by_k[op.k] = op
+			var shift: float = NAN
+			var same: bool = true
+			for op: Dictionary in o320:
+				if not op.has("k") or not by_k.has(op.k):
+					continue
+				var other: Dictionary = by_k[op.k]
+				if is_nan(shift):
+					shift = other.x - op.x
+				elif absf(other.x - op.x - shift) > 0.001 or absf(other.y - op.y) > 0.001:
+					same = false
+			if same:
+				r.shifted = r.get("shifted", 0) + 1
 			return
 		var pic: PackedByteArray = renderer.render(g, list)
 		if pic.is_empty():
@@ -174,6 +231,15 @@ func _game(root: String, game: String, levels: Array, seconds: float, out: Strin
 			g.restoredGame = false
 			g.WorldMap())
 	g.main()
+	# the J-30 rules themselves: a creature 24 tiles past the camera's left (the original wakes at 22 and
+	# under), and one 30 past (the original retires past 28), at the camera where the run left it
+	var wakes: bool = g.Wakes(g.ox + 24, g.oy + 2)
+	g.obon = VortMain.Obj.new()
+	g.obon.obclass = 2
+	g.obon.x = (g.ox + 30) << 12
+	g.obon.y = (g.oy + 2) << 12
+	var kept: bool = not g.RemoveInactive()
+	r["rules"] = [wakes, kept]
 	vm.int8 = Callable()
 	vm.int9 = Callable()
 	vm.on_display = Callable()

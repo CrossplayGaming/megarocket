@@ -373,6 +373,18 @@ def _replay(game, levels):
     return common.COULD_NOT_RUN if common.COULD_NOT_RUN in results else max(results)
 
 
+def rend04():
+    """The wide view (REND-04), Keen 1-3, three tiles more each side: the snapped list is still the
+    original at 320, at 416 every image shifts alike, and J-30's edges: creatures wake and stay by the
+    wide view's edges only with it on."""
+    import gdtest
+    code, out = gdtest.run("rend01_vorticons", ["--games=keen1,keen2,keen3", "--wide=3"], timeout=2400.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "compared" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend03():
     """REND-03: native resolution and smooth motion leave the game alone: Keen 1's level sessions run with
     the draw lists kept (sprites' owners, the grid's margin, the capture time) and still match the
@@ -1040,6 +1052,7 @@ CHECKS = {
     "CHEAT-01": (cheat01, "fast"),
     "REND-01": (rend01, "slow"),
     "REND-03": (rend03, "slow"),
+    "REND-04": (rend04, "slow"),
     "FIX-01": (fix01, "slow"),
     "SHELL-05": (shell05, "fast"),
     "SHELL-06": (shell06, "slow"),

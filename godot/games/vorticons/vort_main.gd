@@ -492,6 +492,12 @@ func RF_PlaceSprite(x: int, y: int, shapenum: int) -> bool:
 		print("TRACE sprite x=%d y=%d sx=%d sy=%d shape=%d" % [x, y, (x - originx) >> 8, (y - originy) >> 8, shapenum])
 	var px: int = (x / PIXGLOBAL) - ((originx / PIXGLOBAL) & ~15)
 	var py: int = (y / PIXGLOBAL) - ((originy / PIXGLOBAL) & ~15)
+	var kept: bool = false
+	if draw_capture and wide_tiles > 0:
+		# REND-04: the wide view shows past the page's edges: every sprite placed is kept for it, marked
+		# when the page itself takes it too (below)
+		sprite_world.append([x, y, shapenum, draw_owner, false])
+		kept = true
 	if px < -32 or py < -32 or px > 336 or py > 199:
 		return false
 	var num: int = shapenum * 4 + (px & 7) / 2
@@ -533,8 +539,10 @@ func RF_PlaceSprite(x: int, y: int, shapenum: int) -> bool:
 				tilesshown += 1
 				tilelist.append(t)
 	spritelist.append([px, py, num])
-	if draw_capture:
-		sprite_world.append([x, y, shapenum, draw_owner])    # REND-02: where it is, not where the 1x page puts it
+	if kept:
+		sprite_world.back()[4] = true
+	elif draw_capture:
+		sprite_world.append([x, y, shapenum, draw_owner, true])    # REND-02: where it is, not where the 1x page puts it
 	spritesshown += 1
 	return true
 

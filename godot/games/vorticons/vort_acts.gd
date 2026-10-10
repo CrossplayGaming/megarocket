@@ -323,6 +323,12 @@ func PushObj(ob: Obj, solid: Obj) -> void:
 	ScrollScreen()
 
 
+## Whether a sleeping creature at a tile wakes: inside the screen and a tile or two round it (the
+## original's inline test in its object loop); the wide view's edges with it on (J-30, REND-04).
+func Wakes(tx: int, ty: int) -> bool:
+	return ox - 2 - wide_tiles < tx and oy - 2 < ty and ox + 23 + wide_tiles > tx and oy + 12 > ty
+
+
 func RemoveInactive() -> bool:
 	var tx: int = GLOBAL_TO_TILE(obon.x)
 	var ty: int = GLOBAL_TO_TILE(obon.y)
@@ -331,7 +337,7 @@ func RemoveInactive() -> bool:
 	if obon.x > monxmax or obon.x < 0 or obon.y > monymax:
 		obon.obclass = nothing
 		return true
-	if ox - 8 > tx or oy - 8 > ty or ox + 28 < tx or oy + 18 < ty:
+	if ox - 8 - wide_tiles > tx or oy - 8 > ty or ox + 28 + wide_tiles < tx or oy + 18 < ty:    # J-30: the wide view's edges
 		if obon.obclass < volatileobj:
 			obon.active = false
 		else:
@@ -1208,7 +1214,7 @@ func LevelLoop(currentlevel: int) -> int:
 			else:
 				var tx: int = GLOBAL_TO_TILE(obon.x)
 				var ty: int = GLOBAL_TO_TILE(obon.y)
-				if ox - 2 < tx and oy - 2 < ty and ox + 23 > tx and oy + 12 > ty:
+				if Wakes(tx, ty):
 					obon.active = true
 					_reactivate()
 					updated += 1

@@ -24,6 +24,10 @@ var _eng: Object = null
 var _list: Dictionary = {}
 ## REND-03: smooth motion between the list before and this one, by the machine's clock
 var smooth: bool = false
+## REND-04: the view's width in the original's pixels (320, or wider for the wide view)
+var view_w: int = VortDrawLayout.W
+## Native resolution off with the wide view on: the original's whole-pixel places, scaled
+var snap: bool = false
 var _prev: Dictionary = {}
 var _machine_t: float = 0.0
 var _shown_at: float = 0.0    # the machine's time when the newest list was first shown
@@ -80,16 +84,16 @@ func show_frame(eng: Object, list: Dictionary, palette: PackedByteArray, machine
 func _draw() -> void:
 	if _eng == null or _list.is_empty() or _tiles.is_empty():
 		return
-	var scale: Vector2 = Vector2(size.x / VortDrawLayout.W, size.y / VortDrawLayout.H)
+	var scale: Vector2 = Vector2(size.x / view_w, size.y / VortDrawLayout.H)
 	var layout: Array
 	var gap: float = float(_list.get("t", 0.0)) - float(_prev.get("t", 0.0))
-	if smooth and not _prev.is_empty() and gap > 0.0 and gap <= MAX_GAP:
+	if smooth and not snap and not _prev.is_empty() and gap > 0.0 and gap <= MAX_GAP:
 		# one refresh behind: from the one before to the newest, over the time between them, counted from
 		# when the newest was first shown (a list shows a retrace or more after it is made)
 		var alpha: float = clampf((_machine_t - _shown_at) / gap, 0.0, 1.0)
-		layout = VortDrawLayout.between(_eng, _prev, _list, alpha, scale)
+		layout = VortDrawLayout.between(_eng, _prev, _list, alpha, scale, view_w)
 	else:
-		layout = VortDrawLayout.ops(_eng, _list, scale, false)
+		layout = VortDrawLayout.ops(_eng, _list, scale, snap, view_w)
 	for op: Dictionary in layout:
 		var tex: Texture2D = null
 		match op.kind:

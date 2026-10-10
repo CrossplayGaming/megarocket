@@ -4,46 +4,64 @@ extends RefCounted
 ## REND-02 (Keen 1-3): where each part of a refresh's draw list goes on a picture of any size. The ops,
 ## in drawing order (the map, the sprites, the tiles placed over them, the pictures):
 ##   {kind: "tile" | "mtile" | "sprite" | "pic", id: the tile, sprite or picture number, x, y: its
-##    top-left on the picture, in that picture's pixels}
+##    top-left on the picture, in that picture's pixels, k: what it is in the list (a map cell "m<x>,<y>",
+##    a sprite "s<n>"; the same at any size, for the tests)}
 ## With `snap` the positions are the original's at 1x: the map and the tiles scroll by whole pixels and
 ## a sprite sits on an even pixel (its four pre-shifted copies move it two at a time). Without it, at
 ## `scale` (x, y) picture pixels to the original's one (4:3 makes them differ), everything sits where the
 ## game says it is, to the 256th of a pixel: smoother scrolling and every sprite on its own pixel
-## (native resolution). The images are the data's own (VortData.tiles, sprites, pics), unshifted.
+## (native resolution). `view_w` (REND-04): the view's width in the original's pixels, wider than 320 for
+## the wide view, centred on the game's camera and kept inside the map. The images are the data's own
+## (VortData.tiles, sprites, pics), unshifted.
 
 const W: int = 320
 const H: int = 200
 
 
-static func ops(eng: Object, list: Dictionary, scale: Vector2 = Vector2.ONE, snap: bool = true) -> Array:
+static func ops(eng: Object, list: Dictionary, scale: Vector2 = Vector2.ONE, snap: bool = true, view_w: int = W) -> Array:
 	var out: Array = []
 	var anim: PackedInt32Array = eng.tile_anim
 	var abase: int = int(list.animtable) * eng.MAXTILES
 	var pg: int = eng.PIXGLOBAL
-	var ox_px: int = int(list.originx) / pg     # the view's top-left, in world pixels (whole)
+	var wide: int = int(list.get("wide", 0))
+	var ox_px: int = int(list.originx) / pg     # the game's view's top-left, in world pixels (whole)
 	var oy_px: int = int(list.originy) / pg
-	var vx: float = float(ox_px) if snap else float(list.get("view_x", float(int(list.originx)) / pg))
+	# the game's camera (smooth motion may put it between two refreshes), then the view drawn: as wide as
+	# asked (REND-04), centred on the camera and kept inside the map
+	var cx: float = float(ox_px) if snap else float(list.get("view_x", float(int(list.originx)) / pg))
 	var vy: float = float(oy_px) if snap else float(list.get("view_y", float(int(list.originy)) / pg))
-	var gx: int = (int(list.originx) >> 12) * 16    # the tile grid's first tile, in world pixels
+	var vx: float = cx
+	if view_w > W:
+		var map_px: float = float(int(list.get("map_w", 0)) * 16)
+		vx = cx - float(view_w - W) / 2.0
+		if map_px > float(view_w):
+			vx = clampf(vx, 0.0, map_px - float(view_w))
+		if snap:
+			vx = floorf(vx)
+	var gx: int = (int(list.originx) >> 12) * 16    # the grid's first visible tile, in world pixels
 	var gy: int = (int(list.originy) >> 12) * 16
 	var grid: PackedInt32Array = list.grid
-	var wide: int = eng.PORTTILESWIDE + 2    # the list's grid: a tile's margin all round the page's
+	var wide_cols: int = eng.PORTTILESWIDE + 2 + 2 * wide    # a tile's margin all round, and the wide view's
+	var x0: int = gx - (1 + wide) * 16
 	for ty: int in range(eng.PORTTILESHIGH + 2):
-		for tx: int in range(wide):
-			var tile: int = grid[ty * wide + tx]
+		for tx: int in range(wide_cols):
+			var tile: int = grid[ty * wide_cols + tx]
 			var t: int = (anim[abase + tile] >> 5) if tile < eng.MAXTILES else 0
-			out.append({"kind": "tile", "id": t, "x": (gx + (tx - 1) * 16 - vx) * scale.x, "y": (gy + (ty - 1) * 16 - vy) * scale.y})
-	for w: Array in list.world:
+			out.append({"kind": "tile", "id": t, "x": (x0 + tx * 16 - vx) * scale.x, "y": (gy + (ty - 1) * 16 - vy) * scale.y,
+				"k": "m%d,%d" % [x0 / 16 + tx, gy / 16 + ty - 1]})
+	for n: int in range(list.world.size()):
+		var w: Array = list.world[n]
+		if snap and view_w == W and w.size() > 4 and not w[4]:
+			continue    # the original at 1x: the sprites its page took, no more
+		var x: float = float(w[0]) / pg
+		var y: float = float(w[1]) / pg
 		if snap:
 			# RF_PlaceSprite: x from the grid's tile-aligned start, one of four copies two pixels apart,
 			# so the 1x page puts it on the even pixel of that offset; y is whole
-			var sx: int = int(w[0]) / pg
 			var base: int = ox_px & ~15
-			out.append({"kind": "sprite", "id": int(w[2]), "x": float(base + ((sx - base) & ~1) - ox_px),
-				"y": float(int(w[1]) / pg - oy_px)})
-		else:
-			out.append({"kind": "sprite", "id": int(w[2]), "x": (float(w[0]) / pg - vx) * scale.x,
-				"y": (float(w[1]) / pg - vy) * scale.y})
+			x = float(base + ((int(w[0]) / pg - base) & ~1))
+			y = float(int(w[1]) / pg)
+		out.append({"kind": "sprite", "id": int(w[2]), "x": (x - vx) * scale.x, "y": (y - vy) * scale.y, "k": "s%d" % n})
 	for t: Array in list.tiles:
 		# [byte column, page row, tile]: the grid cell it covers
 		var tx: int = (int(t[0]) - 4) / 2
@@ -52,10 +70,32 @@ static func ops(eng: Object, list: Dictionary, scale: Vector2 = Vector2.ONE, sna
 		var kind: String = "mtile" if (num & 0x8000) != 0 else "tile"
 		var id: int = (num & 0x7FFF) if kind == "mtile" else (anim[abase + num] >> 5)
 		out.append({"kind": kind, "id": id, "x": (gx + tx * 16 - vx) * scale.x, "y": (gy + ty * 16 - vy) * scale.y})
+	if wide > 0:
+		# the wide margins: the original drew no foreground over sprites off its page; the tiles each
+		# sprite stands behind, as RF_PlaceSprite chooses them, over it (on the page, the same again)
+		var sprites: Array = eng.data.sprites
+		var intile: PackedInt32Array = eng.intile
+		for w: Array in list.world:
+			if int(w[2]) >= sprites.size():
+				continue
+			var spr: Dictionary = sprites[int(w[2])]
+			var sx: int = int(w[0]) / pg
+			var sy: int = int(w[1]) / pg
+			for cy: int in range((sy - gy) >> 4, ((sy + int(spr.h) - 1 - gy) >> 4) + 1):
+				for cxx: int in range((sx - x0) >> 4, ((sx + int(spr.w) - 1 - x0) >> 4) + 1):
+					if cxx < 0 or cxx >= wide_cols or cy + 1 < 0 or cy + 1 >= eng.PORTTILESHIGH + 2:
+						continue
+					var tilenum: int = grid[(cy + 1) * wide_cols + cxx]
+					var tiletype: int = int(intile[tilenum]) if tilenum < intile.size() else 0
+					if tiletype >= 0:
+						continue
+					var kind: String = "mtile" if tiletype == -2 else "tile"
+					var id: int = tilenum if kind == "mtile" else (anim[abase + tilenum] >> 5)
+					out.append({"kind": kind, "id": id, "x": (x0 + cxx * 16 - vx) * scale.x, "y": (gy + cy * 16 - vy) * scale.y})
 	for p: Array in list.pics:
-		# pictures are placed on the page, not in the world: the window the page shows, scaled
+		# pictures are placed on the page, not in the world: where the page's window puts them
 		out.append({"kind": "pic", "id": int(p[2]),
-			"x": (int(p[0]) * 8 - 32 - (ox_px & 15)) * scale.x, "y": (int(p[1]) - 32 - (oy_px & 15)) * scale.y})
+			"x": (int(p[0]) * 8 - 32 - (ox_px & 15) + ox_px - vx) * scale.x, "y": (int(p[1]) - 32 - (oy_px & 15) + oy_px - vy) * scale.y})
 	return out
 
 
@@ -67,7 +107,7 @@ static func ops(eng: Object, list: Dictionary, scale: Vector2 = Vector2.ONE, sna
 const JUMP: float = 48.0    # pixels between two refreshes; more is a jump, not a move
 
 
-static func between(eng: Object, a: Dictionary, b: Dictionary, alpha: float, scale: Vector2) -> Array:
+static func between(eng: Object, a: Dictionary, b: Dictionary, alpha: float, scale: Vector2, view_w: int = W) -> Array:
 	var pg: float = eng.PIXGLOBAL
 	var mid: Dictionary = b.duplicate()
 	var bx: float = float(int(b.originx)) / pg
@@ -91,7 +131,7 @@ static func between(eng: Object, a: Dictionary, b: Dictionary, alpha: float, sca
 				continue
 		world.append(w)
 	mid["world"] = world
-	return ops(eng, mid, scale, false)
+	return ops(eng, mid, scale, false, view_w)
 
 
 ## The ops drawn at 1x on a 320x200 picture (palette indices), with the original's rules: tiles and

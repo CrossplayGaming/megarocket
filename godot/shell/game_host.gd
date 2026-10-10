@@ -43,6 +43,10 @@ var _frame_new: bool = false
 var _frame_list: Dictionary = {}
 var _native: VortNativeView = null
 var _native_view: VortNativeView = null
+## REND-04: the wide view on (Keen 1-3), and the window size it was last fitted to
+var _wide: bool = false
+var _fitted: Vector2 = Vector2.ZERO
+const WIDE_MAX: int = 448    # the widest view, in the original's pixels (four tiles more each side)
 var _done: bool = false
 var _quit_message: String = ""
 ## SHELL-06: paused while the window is out of focus (or by set_paused).
@@ -140,7 +144,12 @@ func _ready() -> void:
 	_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_view.stretch_mode = TextureRect.STRETCH_SCALE
 	_view.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	aspect.add_child(_view)
+	# in a plain holder the container sizes, so the wide view can put the 320x200 in its middle
+	var holder: Control = Control.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	aspect.add_child(holder)
+	_view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	holder.add_child(_view)
 	_index_image = Image.create(320, 200, false, Image.FORMAT_R8)
 	_index_tex = ImageTexture.create_from_image(_index_image)
 	_palette_image = Image.create(16, 1, false, Image.FORMAT_RGB8)
@@ -222,6 +231,7 @@ func start(found: Dictionary) -> bool:
 		_native.setup((engine as VortScreens).data)
 	apply_setting("native_resolution")
 	apply_setting("smooth_motion")
+	apply_setting("wide_view")
 	_player = AudioStreamPlayer.new()
 	var gen: AudioStreamGenerator = AudioStreamGenerator.new()
 	gen.mix_rate = HostAudio.RATE
@@ -246,10 +256,15 @@ func apply_setting(name: String) -> void:
 		if engine != null and "fixes" in engine:
 			engine.set("fixes", options.fixes())    # read by the engine at each fix's point
 		return
-	if name == "native_resolution" or name == "smooth_motion":
+	if name == "native_resolution" or name == "smooth_motion" or name == "wide_view":
 		if engine is VortScreens and _native != null:
-			(engine as VortScreens).draw_capture = bool(options.get_value("native_resolution"))
+			var native: bool = bool(options.get_value("native_resolution"))
+			var wide: bool = bool(options.get_value("wide_view"))
+			(engine as VortScreens).draw_capture = native or wide
 			_native.smooth = bool(options.get_value("smooth_motion"))
+			_native.snap = not native
+			_wide = wide
+			_fit_view()
 		return
 	match name:
 		"fullscreen":
@@ -258,8 +273,7 @@ func apply_setting(name: String) -> void:
 				get_window().mode = Window.MODE_FULLSCREEN if full else Window.MODE_WINDOWED
 		"pixel_shape":
 			# 4:3 is the monitor's shape the games were drawn for; square pixels show 320x200 as 16:10
-			if _aspect != null:
-				_aspect.ratio = 4.0 / 3.0 if options.get_value("pixel_shape") == "4:3" else 320.0 / 200.0
+			_fit_view()
 		"music_volume", "effects_volume":
 			if audio != null:
 				audio.configure(float(options.get_value("music_volume")) / 100.0, float(options.get_value("effects_volume")) / 100.0)
@@ -426,6 +440,32 @@ func _on_display() -> void:
 	_mutex.unlock()
 
 
+## The picture's shape: the original's (4:3, or 16:10 with square pixels), or with the wide view
+## (REND-04) the window's own, as many of the original's pixels wide as fit (up to WIDE_MAX); the
+## engine is told how many tiles the view shows past the original's each side (J-30: creatures wake by
+## them), and the 320x200 picture (a window over the play) sits in the middle.
+func _fit_view() -> void:
+	if _aspect == null or options == null:
+		return
+	var tall: float = 240.0 if options.get_value("pixel_shape") == "4:3" else 200.0    # pixels wide per 1:1
+	var base: float = 320.0 / tall    # the original's shape
+	var w_px: int = 320
+	if _wide and engine is VortScreens and size.y > 0.0:
+		w_px = clampi(int(roundf(tall * size.x / size.y)), 320, WIDE_MAX)
+	_aspect.ratio = base * float(w_px) / 320.0
+	_fitted = size
+	if engine is VortScreens:
+		(engine as VortScreens).wide_tiles = (w_px - 320 + 31) / 32 if w_px > 320 else 0
+	if _native != null:
+		_native.view_w = w_px
+	if _view != null:
+		var half: float = 160.0 / float(w_px)
+		_view.anchor_left = 0.5 - half
+		_view.anchor_right = 0.5 + half
+		_view.offset_left = 0
+		_view.offset_right = 0
+
+
 ## On the engine's thread: the draw list of the picture just shown, if native resolution is on and the
 ## picture is the list's alone (REND-01's rules: the newest refresh whose start the card took, its page
 ## with no window printed over it, no user routine); {} otherwise.
@@ -459,6 +499,8 @@ func _update_overlay() -> void:
 
 func _process(_delta: float) -> void:
 	_update_overlay()
+	if _wide and size != _fitted:
+		_fit_view()    # the window changed shape: the wide view follows it
 	_mutex.lock()
 	var fresh: bool = _frame_new
 	var idx: PackedByteArray = _frame_indices

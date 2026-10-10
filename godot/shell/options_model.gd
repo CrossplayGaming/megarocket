@@ -18,12 +18,12 @@ var game_id: String = ""
 var engine: String = ""
 ## Called (deferred to the main thread) with a setting's name after it changed.
 var applier: Callable = Callable()
-## The Mode presets: the rows each sets (MENUS.md "The Mode row"). Native resolution, smooth motion and the fixes so far
-## (FixesModel): all off in Classic, on in Enhanced; the wide view and one-button fire join
+## The Mode presets: the rows each sets (MENUS.md "The Mode row"). The wide view, native resolution, smooth motion and the fixes so far
+## (FixesModel): all off in Classic, on in Enhanced; one-button fire joins
 ## as they are built.
 const PRESETS: Dictionary = {
-	"classic": {"native_resolution": false, "smooth_motion": false, "fix_k2_esc_skips": false, "fix_k2_tantalus_fade": false, "fix_k3_messie_double": false, "fix_god_lurch": false, "fix_keen_over_scenery": false, "fix_dreams_keys_kept": false, "fix_dreams_death_box": false},
-	"enhanced": {"native_resolution": true, "smooth_motion": true, "fix_k2_esc_skips": true, "fix_k2_tantalus_fade": true, "fix_k3_messie_double": true, "fix_god_lurch": true, "fix_keen_over_scenery": true, "fix_dreams_keys_kept": true, "fix_dreams_death_box": true},
+	"classic": {"wide_view": false, "native_resolution": false, "smooth_motion": false, "fix_k2_esc_skips": false, "fix_k2_tantalus_fade": false, "fix_k3_messie_double": false, "fix_god_lurch": false, "fix_keen_over_scenery": false, "fix_dreams_keys_kept": false, "fix_dreams_death_box": false},
+	"enhanced": {"wide_view": true, "native_resolution": true, "smooth_motion": true, "fix_k2_esc_skips": true, "fix_k2_tantalus_fade": true, "fix_k3_messie_double": true, "fix_god_lurch": true, "fix_keen_over_scenery": true, "fix_dreams_keys_kept": true, "fix_dreams_death_box": true},
 }
 const VOLUME_STEP: int = 10
 
@@ -51,7 +51,8 @@ func page(name: String) -> Array:
 			]
 		"display":
 			# Native resolution: Keen 1-3's so far (REND-02)
-			return ([_value("native_resolution", "Native resolution", _on_off(get_value("native_resolution"))),
+			return ([_value("wide_view", "View", "Wide" if bool(get_value("wide_view")) else "4:3"),
+				_value("native_resolution", "Native resolution", _on_off(get_value("native_resolution"))),
 				_value("smooth_motion", "Smooth motion", _on_off(get_value("smooth_motion")))] if engine == "vorticons" else []) + [
 				_value("fullscreen", "Fullscreen", _on_off(get_value("fullscreen"))),
 				_value("pixel_shape", "Pixel shape", "4:3" if get_value("pixel_shape") == "4:3" else "Square"),
@@ -94,7 +95,7 @@ func step(key: String, dir: int) -> void:
 			_put("fullscreen", not bool(get_value("fullscreen")))
 		"creature_question":
 			_put("creature_question", not bool(get_value("creature_question")))
-		"native_resolution", "smooth_motion":
+		"native_resolution", "smooth_motion", "wide_view":
 			_put(key, not bool(get_value(key)))
 		"pixel_shape":
 			_put("pixel_shape", "square" if get_value("pixel_shape") == "4:3" else "4:3")

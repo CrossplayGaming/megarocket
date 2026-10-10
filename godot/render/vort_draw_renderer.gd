@@ -30,16 +30,19 @@ func render(eng: Object, list: Dictionary) -> PackedByteArray:
 	var anim: PackedInt32Array = eng.tile_anim
 	var abase: int = int(list.animtable) * eng.MAXTILES
 	var grid: PackedInt32Array = list.grid
-	var gw: int = eng.PORTTILESWIDE + 2    # the grid has a tile's margin all round
+	var wide: int = int(list.get("wide", 0))
+	var gw: int = eng.PORTTILESWIDE + 2 + 2 * wide    # the grid has a tile's margin all round, and the wide view's
 	# the map's visible tiles (as the refresh saw them), as _draw_page lays them
 	for ty: int in range(eng.PORTTILESHIGH):
 		for tx: int in range(eng.PORTTILESWIDE):
-			var tile: int = grid[(ty + 1) * gw + tx + 1]
+			var tile: int = grid[(ty + 1) * gw + tx + 1 + wide]
 			var t: int = (anim[abase + tile] >> 5) if tile < eng.MAXTILES else 0
 			_tile(tiles, t, GRID + tx * 16, GRID + ty * 16)
 	# the sprites (xcoord in bytes), merged plane by plane under their masks as DrawSprite does
 	var sprites: PackedByteArray = eng.egasprites
 	var plane: int = eng.spriteplanesize
+	if wide > 0:
+		return PackedByteArray()    # the page's own picture only (the wide list keeps sprites off the page)
 	for s: Array in list.sprites:
 		var e: Dictionary = eng.spritetable[s[2]]
 		_sprite(sprites, plane, e, int(s[0]) * 8, int(s[1]))
