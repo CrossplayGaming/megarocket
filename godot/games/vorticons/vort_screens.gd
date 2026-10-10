@@ -994,7 +994,7 @@ func UpdateObjHitbox(ob: Obj) -> void:
 ## The Options window's size: every page in one window of this size, so going from page to page
 ## leaves nothing of the last behind.
 const OPTIONS_W: int = 26
-const OPTIONS_H: int = 7
+const OPTIONS_H: int = 11    # the Cheats page's rows and Back
 
 
 ## The Options window (docs/MENUS.md): the shell's rows in an ExpWin with the game's caret cursor.
@@ -1010,7 +1010,7 @@ func OptionsMenu() -> void:
 	var wx: int = sx
 	var wy: int = sy
 	while not exited:
-		var rows: Array = options.page(page_name)
+		var rows: Array = _options_rows(page_name)
 		_options_draw(rows, wx, wy)
 		pos = clampi(pos, 0, rows.size() - 1)
 		var anim: int = 0
@@ -1035,14 +1035,19 @@ func OptionsMenu() -> void:
 				pos = (pos + (rows.size() - 1 if ctrl.dir == north else 1)) % rows.size()
 				_options_release()
 			elif (ctrl.dir == west or ctrl.dir == east) and row.kind == "value":
-				options.step(row.key, -1 if ctrl.dir == west else 1)
-				rows = options.page(page_name)
+				if str(row.key).begins_with("cheat:"):
+					act = _options_cheat(row)
+				else:
+					options.step(row.key, -1 if ctrl.dir == west else 1)
+				if act != "":
+					break
+				rows = _options_rows(page_name)
 				_options_draw(rows, wx, wy)
 				_options_release()
 			elif c == 13 or c == 32 or ctrl.button1:
-				act = options.activate(row.key)
+				act = _options_cheat(row) if str(row.key).begins_with("cheat:") else options.activate(row.key)
 				if act == "":
-					rows = options.page(page_name)
+					rows = _options_rows(page_name)
 					_options_draw(rows, wx, wy)
 					_options_release()
 				else:
@@ -1071,6 +1076,13 @@ func OptionsMenu() -> void:
 		elif act == "action:keyboard_commands":
 			CalibrateKeys()
 			ExpWin(OPTIONS_W, OPTIONS_H)
+		elif act.begins_with("say:"):
+			# a cheat's word: what a one-shot did, or why a row can't be used now
+			var said: String = act.substr(4)
+			ExpWin(said.length(), 1)
+			Print(said)
+			Get()
+			ExpWin(OPTIONS_W, OPTIONS_H)
 	ClearKeys()
 
 
@@ -1089,10 +1101,40 @@ func _options_draw(rows: Array, wx: int, wy: int) -> void:
 		sy = wy + i
 		var keep: int = leftedge
 		leftedge = wx
-		Print(line)
+		if i < rows.size() and not rows[i].get("enabled", true):
+			PrintGrey(line)
+		else:
+			Print(line)
 		leftedge = keep
 	sx = wx
 	sy = wy
+
+
+## A page's rows: the model's, or (Cheats) the engine's cheats from CheatsModel: a toggle reads On or
+## Off, a one-shot is a plain row; with no game in progress every one is greyed (CHEAT-01).
+func _options_rows(page_name: String) -> Array:
+	if page_name != "cheats":
+		return options.page(page_name)
+	var rows: Array = []
+	for r: Dictionary in CheatsModel.rows(self):
+		if r.kind == "toggle":
+			rows.append({"key": "cheat:" + r.key, "label": r.label, "kind": "value", "value": "On" if r.value else "Off", "enabled": r.enabled})
+		elif r.kind == "once":
+			rows.append({"key": "cheat:" + r.key, "label": r.label, "kind": "action", "enabled": r.enabled})
+	rows.append({"key": "exit", "label": "Back", "kind": "action"})
+	return rows
+
+
+## A cheat row chosen (or moved): a toggle flips; a one-shot is applied and says what it did; with no
+## game in progress nothing happens but a word why. Returns the window's next act ("" to stay).
+func _options_cheat(row: Dictionary) -> String:
+	if not row.get("enabled", true):
+		return "say:Only during a game"
+	var key: String = str(row.key).substr(6)
+	if row.kind == "value":
+		CheatsModel.toggle(self, key)
+		return ""
+	return "say:" + str(call("shell_cheat_fire", key))
 
 
 ## Waits for the stick and the buttons to be let go (one press, one step).

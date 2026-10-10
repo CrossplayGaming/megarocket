@@ -1108,7 +1108,8 @@ func CK_TryAgainMenu() -> bool:
 	ck_gameState.keyGems = PackedInt32Array([0, 0, 0, 0])
 
 	# If lives remain, see if they want to try this level again
-	ck_gameState.numLives = s16(ck_gameState.numLives - 1)
+	if not cheat_infiniteLives:
+		ck_gameState.numLives = s16(ck_gameState.numLives - 1)
 	if ck_gameState.numLives >= 0:
 		VL_FixRefreshBuffer()
 		US_CenterWindow(20, 8)

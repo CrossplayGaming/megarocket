@@ -610,6 +610,8 @@ var ck_us_mainMenuItems: Array = [
 	_us_item_end()]
 
 var ck_us_mainMenu: US_Card = _us_card(32, 4, "PIC_MENUCARD", 0, ck_us_mainMenuItems, &"", 0, 0, 0)
+## The original eight MAIN items, by reference (the shell's CHEATS goes in after CONFIGURE).
+var ck_us_mainOriginal: Array = ck_us_mainMenuItems.slice(0, 8)
 
 
 func CK_US_ControlsMenuProc(msg: int, item: US_CardItem) -> bool:
@@ -1782,17 +1784,18 @@ func USL_UpdateCards() -> void:
 		(ck_us_joystickItems[0] as US_CardItem).state |= US_IS_Disabled
 	if true:    # !joystick_present[1] )
 		(ck_us_joystickItems[1] as US_CardItem).state |= US_IS_Disabled
-	(ck_us_mainMenuItems[4] as US_CardItem).caption = "RETURN TO GAME" if game_in_progress != 0 else "RETURN TO DEMO"
+	(ck_us_mainOriginal[4] as US_CardItem).caption = "RETURN TO GAME" if game_in_progress != 0 else "RETURN TO DEMO"
 	# Save game and end game items
 	if game_in_progress == 0:
-		(ck_us_mainMenuItems[2] as US_CardItem).state |= US_IS_Disabled
-		(ck_us_mainMenuItems[5] as US_CardItem).state |= US_IS_Disabled
+		(ck_us_mainOriginal[2] as US_CardItem).state |= US_IS_Disabled
+		(ck_us_mainOriginal[5] as US_CardItem).state |= US_IS_Disabled
 
 	# Hilite 'return to game' or 'new game' option
-	ck_us_mainMenu.selectedItem = 4 if game_in_progress != 0 else 0
+	ck_us_mainMenu.selectedItem = ck_us_mainMenuItems.find(ck_us_mainOriginal[4]) if game_in_progress != 0 else 0
 
 	# Update the options menu
 	CK_US_UpdateOptionsMenus()
+	CK_US_ShellCaptions()
 
 
 func USL_BeginCards() -> void:
@@ -2092,35 +2095,59 @@ var ck_us_displayMenu: US_Card = null
 
 
 ## MENU-02 (docs/MENUS.md): MODE first on the OPTIONS card (SVGA COMPATIBILITY gone), and a DISPLAY card
-## on CONFIGURE after MUSIC. Each row is an item reading "LABEL (VALUE)" that, chosen, flips its value and says so, as the
-## original OPTIONS items do.
+## on CONFIGURE after MUSIC; CHEAT-01: a CHEATS card on MAIN after CONFIGURE (the toggles, then MORE
+## CHEATS for the one-shots). Each row is an item reading "LABEL (VALUE)" (a one-shot: its label) that,
+## chosen, does its thing and says so, as the original OPTIONS items do.
 func CK_US_ShellCards() -> void:
 	if options == null or _shell_cards_built:
 		return
 	_shell_cards_built = true
 	var mode_rows: Array = (options.page("options") as Array).filter(func(r: Dictionary) -> bool: return r.key == "mode")
 	for r: Dictionary in mode_rows:
-		ck_us_optionsMenuItems.insert(0, _shell_row_item(r))
+		ck_us_optionsMenuItems.insert(0, _shell_row_item(r.key, "option"))
 	# SVGA COMPATIBILITY steers the original's EGA register writes, which the shell's display does not use
 	ck_us_optionsMenuItems.erase(ck_us_optionsOriginal[3])
 	var display_items: Array = []
 	for r: Dictionary in options.page("display"):
 		if r.kind == "value":
-			display_items.append(_shell_row_item(r))
+			display_items.append(_shell_row_item(r.key, "option"))
 	display_items.append(_us_item_end())
 	ck_us_displayMenu = _us_card(8, 0, "TEXT:DISPLAY", 0, display_items, &"", 0, 0, 0)
 	ck_us_configureMenuItems.insert(2, _us_item(US_ITEM_Submenu, 0, IN_SC_D, "DISPLAY", US_Comm_None, ck_us_displayMenu))
+	# the cheats: toggles on the CHEATS card, the one-shots a card below it
+	var more_items: Array = []
+	for r: Dictionary in CheatsModel.rows(self, "once"):
+		more_items.append(_shell_row_item(r.key, "once"))
+	var cheat_items: Array = []
+	for r: Dictionary in CheatsModel.rows(self, "toggle"):
+		cheat_items.append(_shell_row_item(r.key, "cheat"))
+	if not more_items.is_empty():
+		more_items.append(_us_item_end())
+		var more: US_Card = _us_card(8, 0, "TEXT:MORE CHEATS", 0, more_items, &"", 0, 0, 0)
+		cheat_items.append(_us_item(US_ITEM_Submenu, 0, IN_SC_M, "MORE CHEATS", US_Comm_None, more))
+	if not cheat_items.is_empty():
+		cheat_items.append(_us_item_end())
+		ck_us_cheatsMenu = _us_card(8, 0, "TEXT:CHEATS", 0, cheat_items, &"", 0, 0, 0)
+		ck_us_mainMenuItems.insert(ck_us_mainMenuItems.find(ck_us_mainOriginal[3]) + 1,
+			_us_item(US_ITEM_Submenu, 0, IN_SC_None, "CHEATS", US_Comm_None, ck_us_cheatsMenu))
+		# nine items: the card's items start where CONFIGURE's do, so QUIT clears the footer's line
+		ck_us_mainMenu.y = 0
 	CK_US_ShellCaptions()
 
 
-func _shell_row_item(r: Dictionary) -> US_CardItem:
+## The card the CHEATS item opens.
+var ck_us_cheatsMenu: US_Card = null
+
+
+func _shell_row_item(key: String, kind: String) -> US_CardItem:
 	var card: US_Card = _us_card(0, 0, "", 0, [], &"CK_US_ShellRowProc", 0, 0, 0)
 	var item: US_CardItem = _us_item(US_ITEM_Submenu, 0, IN_SC_None, "", US_Comm_None, card)
-	_shell_toggles[card] = [r.key, item]
+	_shell_toggles[card] = [key, item, kind]
 	return item
 
 
-## Every shell row's caption from the model's current values.
+## Every shell row's caption from the model's current values (and the engine's, for the cheats, which
+## the originals' key combinations may have changed); the cheat rows greyed with no game in progress.
 func CK_US_ShellCaptions() -> void:
 	if options == null:
 		return
@@ -2128,20 +2155,109 @@ func CK_US_ShellCaptions() -> void:
 	for page_name: String in ["options", "display"]:
 		for r: Dictionary in options.page(page_name):
 			rows[r.key] = r
+	for r: Dictionary in CheatsModel.rows(self):
+		rows["cheat:" + r.key] = r
 	for card: US_Card in _shell_toggles:
 		var key: String = _shell_toggles[card][0]
-		if rows.has(key):
-			(_shell_toggles[card][1] as US_CardItem).caption = "%s (%s)" % [str(rows[key].label).to_upper(), str(rows[key].value).to_upper()]
+		var kind: String = _shell_toggles[card][2]
+		var item: US_CardItem = _shell_toggles[card][1]
+		var r: Dictionary = rows.get(key if kind == "option" else "cheat:" + key, {})
+		if r.is_empty():
+			continue
+		match kind:
+			"option":
+				item.caption = "%s (%s)" % [str(r.label).to_upper(), str(r.value).to_upper()]
+			"cheat":
+				item.caption = "%s (%s)" % [str(r.label).to_upper(), "ON" if r.value else "OFF"]
+			"once":
+				item.caption = str(r.label).to_upper()
+		if kind != "option":
+			if r.enabled:
+				item.state &= ~US_IS_Disabled
+			else:
+				item.state |= US_IS_Disabled
 
 
-## A shell row chosen: its value moves on, and the change is said as the original toggles say theirs.
+## A shell row chosen: its value moves on (a one-shot: applied), and what happened is said as the
+## original toggles say theirs.
 func CK_US_ShellRowProc(msg: int, _item: US_CardItem) -> bool:
 	if msg != US_MSG_CardEntered or not _shell_toggles.has(us_currentCard):
 		return false
 	var key: String = _shell_toggles[us_currentCard][0]
-	options.step(key, 1)
+	var kind: String = _shell_toggles[us_currentCard][2]
+	var said: String = ""
+	match kind:
+		"option":
+			options.step(key, 1)
+		"cheat":
+			CheatsModel.toggle(self, key)
+		"once":
+			said = shell_cheat_fire(key)
 	CK_US_ShellCaptions()
 	var caption: String = (_shell_toggles[us_currentCard][1] as US_CardItem).caption
-	USL_CtlDialog(caption, "Press any key", "")
+	USL_CtlDialog(caption, said if said != "" else "Press any key", "")
 	return true
+
+
+# ===================================================================== the shell's cheats (CHEAT-01)
+
+## The cheats this engine has so far (CheatsModel's keys).
+func shell_cheat_supported() -> Array:
+	return ["god", "infinite_ammo", "infinite_lives", "no_clip", "jump", "slow_motion", "freeze_enemies",
+		"free_items", "extra_lives", "skip_level"]
+
+
+func shell_in_game() -> bool:
+	return game_in_progress != 0
+
+
+func shell_cheat_get(key: String) -> bool:
+	match key:
+		"god": return ck_godMode
+		"infinite_ammo": return cheat_infiniteAmmo
+		"infinite_lives": return cheat_infiniteLives
+		"no_clip": return cheat_noClip
+		"jump": return ck_gameState.jumpCheat
+		"slow_motion": return ck_slowMotionEnabled
+		"freeze_enemies": return cheat_freezeEnemies
+	return false
+
+
+func shell_cheat_set(key: String, on: bool) -> void:
+	match key:
+		"god": ck_godMode = on
+		"infinite_ammo": cheat_infiniteAmmo = on
+		"infinite_lives": cheat_infiniteLives = on
+		"no_clip":
+			cheat_noClip = on
+			# at once in a level, as F10+N does (the world map's Keen keeps walking on paths)
+			if ck_keenObj != null and ck_keenObj.type == CT_Player and ck_gameState.currentLevel != 0:
+				ck_keenObj.clipped = CLIP_not if on else CLIP_normal
+		"jump": ck_gameState.jumpCheat = on
+		"slow_motion": ck_slowMotionEnabled = on
+		"freeze_enemies": cheat_freezeEnemies = on
+
+
+## A one-shot applied; what it did, for the dialog.
+func shell_cheat_fire(key: String) -> String:
+	match key:
+		"free_items":
+			# B+A+T's items, without its window and wait
+			ck_gameState.numShots = 99
+			ck_gameState.numLives = s16(ck_gameState.numLives + 1)
+			ck_gameState.ck5_securityCard = 1
+			for i: int in range(4):
+				ck_gameState.keyGems[i] = 1
+			return "All keys, 99 shots, 1 life"
+		"extra_lives":
+			var before: int = ck_gameState.numLives
+			ck_gameState.numLives = s16(mini(before + CheatsModel.EXTRA_LIVES, CheatsModel.MAX_LIVES))
+			return "%d lives" % ck_gameState.numLives if ck_gameState.numLives != before else "Lives are full"
+		"skip_level":
+			if ck_gameState.currentLevel == 0:
+				return "Only inside a level"
+			# as F10+E: the level ends as if Keen walked out of it
+			ck_gameState.levelState = LS_LevelComplete
+			return "Level skipped"
+	return ""
 

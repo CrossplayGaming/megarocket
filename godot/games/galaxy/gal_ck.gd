@@ -532,6 +532,12 @@ var ck_debugActive: bool = false
 var ck_gameState: CK_GameState = CK_GameState.new()
 var ck_scrollDisabled: bool = false
 var ck_godMode: bool = false
+## The shell's cheats (CHEAT-01, docs/MENUS.md): each read at one named point; off unless a player
+## turns one on from the CHEATS card (headless runs and the oracle comparisons never do).
+var cheat_infiniteAmmo: bool = false     # read in CK_SpawnShot
+var cheat_infiniteLives: bool = false    # read in CK_TryAgainMenu
+var cheat_noClip: bool = false           # read in CK_SpawnKeen
+var cheat_freezeEnemies: bool = false    # read in CK_PlayLoop, at CK_RunAction
 var ck_invincibilityTimer: int = 0
 var ck_scoreBoxObj: CK_object = null
 var ck_pogoTimer: int = 0

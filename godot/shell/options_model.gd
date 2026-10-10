@@ -40,6 +40,7 @@ func page(name: String) -> Array:
 				_row("display", "Display...", "page"),
 				_row("sound", "Sound...", "page"),
 				_row("controls", "Controls...", "page"),
+			] + ([_row("cheats", "Cheats...", "page")] if engine == "vorticons" else []) + [
 				_row("quit_game", "Quit game", "action"),
 				_row("exit", "Exit", "action"),
 			]
@@ -84,7 +85,8 @@ func step(key: String, dir: int) -> void:
 
 ## What choosing a row does.
 func activate(key: String) -> String:
-	for name: String in ["display", "sound", "controls"]:
+	# "cheats": the engine builds that page itself from CheatsModel (its rows are the engine's flags)
+	for name: String in ["display", "sound", "controls", "cheats"]:
 		if key == name:
 			return "page:" + name
 	match key:

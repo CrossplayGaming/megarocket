@@ -732,6 +732,51 @@ def menu02():
     return code
 
 
+def cheat_read_points(folder):
+    """CHEAT-01's rule: each `cheat_*` flag an engine declares with "# read in <Function>" is read only in
+    that function, outside the shell's adapter (the part after "the shell's cheats" banner)."""
+    import re
+    root = Path(__file__).resolve().parent.parent
+    sources = {}
+    for f in sorted((root / folder).glob("*.gd")):
+        text = f.read_text(encoding="utf-8")
+        cut = text.find("the shell's cheats (CHEAT-01)")
+        sources[f.name] = text if cut < 0 else text[:cut]
+    flags = {}
+    for name, text in sources.items():
+        for m in re.finditer(r"^var (cheat_\w+): bool = false\s*# read in (\w+)", text, re.M):
+            flags[m.group(1)] = m.group(2)
+    bad = []
+    for flag, where in flags.items():
+        found = set()
+        for name, text in sources.items():
+            func = None
+            for line in text.splitlines():
+                m = re.match(r"^func (\w+)", line)
+                if m:
+                    func = m.group(1)
+                if re.search(r"\b%s\b" % flag, line) and not line.startswith("var "):
+                    found.add(func)
+        if found != {where}:
+            bad.append(f"{flag}: read in {sorted(map(str, found))}, declared for {where}")
+    print(f"  {len(flags)} cheat flags, each read at its one named point" if not bad and flags else "  " + "; ".join(bad or ["no cheat flags found"]))
+    return common.PASS if flags and not bad else common.FAIL
+
+
+def cheat01():
+    """The cheats (CHEAT-01/02), Keen 1-6: each flag read at its one named point; Keen 4-6's CHEATS card
+    and Keen 1-3's Cheats page, greyed with no game; the effects in a level."""
+    import gdtest
+    code = max(cheat_read_points("godot/games/galaxy"), cheat_read_points("godot/games/vorticons"))
+    for test, mark in (("cheat01_galaxy", "objects"), ("cheat01_vorticons", "keen1:")):
+        code2, out = gdtest.run(test, [], timeout=600.0, quiet=True)
+        code = max(code, code2)
+        for line in out.splitlines():
+            if "FAIL" in line or "checks" in line or "ERROR" in line or mark in line:
+                print("  " + line.strip())
+    return code
+
+
 def shell05():
     """Settings persist, reset, survive damage value by value, per-game values win, and no
     simulation script reads them (A15)."""
@@ -960,6 +1005,7 @@ CHECKS = {
     "SHELL-01": (shell01, "fast"),
     "MENU-01": (menu01, "fast"),
     "MENU-02": (menu02, "fast"),
+    "CHEAT-01": (cheat01, "fast"),
     "SHELL-05": (shell05, "fast"),
     "SHELL-06": (shell06, "slow"),
     "SHELL-07": (shell07, "fast"),

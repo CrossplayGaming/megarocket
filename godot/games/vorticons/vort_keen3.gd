@@ -1574,3 +1574,7 @@ func _ordering_info_other() -> void:
 	PrintGrey(" Garland, TX 75047   and handling.\n\n")
 	PrintGrey("Specify 5.25/3.5 disk size when ordering\n")
 	PrintGrey("   Or order toll free: 1-800-852-5659 ")
+
+
+func _cheat_keeps_going(ob: Obj) -> bool:
+	return ob.obclass in [ballobj, platformobj]

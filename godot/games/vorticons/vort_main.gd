@@ -370,6 +370,19 @@ var KBDstarted: bool = false
 var resetgame: bool = false
 var joystickok: bool = false
 var cheatmode: bool = false
+## The shell's cheats (CHEAT-01, docs/MENUS.md): each read at one named point; off unless a player
+## turns one on from the Options window's Cheats page (headless runs and the oracle comparisons never do).
+var cheat_god: bool = false              # read in LevelLoop (each level's start sets cheatmode from it)
+var cheat_jump: bool = false             # read in KeenPogoAir (G+O+D's flight on its own)
+var cheat_infiniteAmmo: bool = false     # read in KeenShoot
+var cheat_infiniteLives: bool = false    # read in WorldMap
+var cheat_noClip: bool = false           # read in ClipMoveObon
+var cheat_slowMotion: bool = false       # read in LevelLoop
+var cheat_freezeEnemies: bool = false    # read in LevelLoop
+## A game in progress (the world map and its levels): the Cheats rows are greyed otherwise.
+var shell_playing: bool = false
+## A level in progress (not the world map): Skip this level works only there.
+var shell_in_level: bool = false
 var LevelNumber: int = 0
 var lastextra: int = 0
 var lastdir: int = 0

@@ -1601,6 +1601,13 @@ func CK_NormalCamera(obj: CK_object) -> void:
 
 
 # Play a level.
+## Freeze enemies (CHEAT-01): the objects that stop thinking. Keen, his shots, platforms (he may be
+## riding one), items and the friendly and decorative objects keep going.
+func CK_CheatFrozen(obj: CK_object) -> bool:
+	return not (obj.type == CT_Player or obj.type == CT_Stunner or obj.type == CT_Nothing or obj.type == CT_Friendly
+		or obj.type == CT_CLASS("Platform") or obj.type == CT_CLASS("Item") or obj.type == CT_CLASS("MapFlag"))
+
+
 func CK_PlayLoop() -> void:
 	StartMusic(ck_gameState.currentLevel)
 	ck_pogoTimer = 0
@@ -1673,7 +1680,8 @@ func CK_PlayLoop() -> void:
 							currentObj.active = OBJ_INACTIVE
 							currentObj = currentObj.next
 							continue
-				CK_RunAction(currentObj)
+				if not (cheat_freezeEnemies and CK_CheatFrozen(currentObj)):
+					CK_RunAction(currentObj)
 			currentObj = currentObj.next
 		# (CK_ENABLE_PLAYLOOP_DUMPER is not defined in the vanilla build)
 
@@ -1896,7 +1904,7 @@ func CK_SpawnKeen(tileX: int, tileY: int, direction: int) -> void:
 	ck_keenObj.active = OBJ_ALWAYS_ACTIVE
 	ck_keenObj.visible = true
 	ck_keenObj.zLayer = 1
-	ck_keenObj.clipped = CLIP_normal
+	ck_keenObj.clipped = CLIP_not if cheat_noClip else CLIP_normal
 	ck_keenObj.posX = u16(RF_TileToUnit(tileX))
 	ck_keenObj.posY = u16(RF_TileToUnit(tileY) - 241)
 	ck_keenObj.xDirection = s16(direction)
@@ -3147,7 +3155,8 @@ func CK_SpawnShot(x: int, y: int, direction: int) -> void:
 		SD_PlaySound(CK_SOUNDNUM("SOUND_KEENOUTOFAMMO"))
 		return
 
-	ck_gameState.numShots = s16(ck_gameState.numShots - 1)
+	if not cheat_infiniteAmmo:
+		ck_gameState.numShots = s16(ck_gameState.numShots - 1)
 
 	var shot: CK_object = CK_GetNewObj(true)
 	shot.posX = u16(x)

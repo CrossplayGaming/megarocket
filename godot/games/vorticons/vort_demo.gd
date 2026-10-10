@@ -60,7 +60,9 @@ func DemoLoop() -> void:
 		MenuLoop()
 		if exited:
 			break
+		shell_playing = true
 		WorldMap()
+		shell_playing = false
 
 
 func _save_scores() -> void:
@@ -191,6 +193,7 @@ func WorldMap() -> void:
 		if idx >= 0 and idx < NUMLEVELS and not gamestate.leveldone[idx]:
 			PlaySound(SND.WLDENTERSND)
 			exitcode = LevelLoop(LevelNumber & 0xFF)
+			shell_in_level = false
 			if resetgame or exited:
 				resetgame = false
 				if not exited:
@@ -213,7 +216,7 @@ func WorldMap() -> void:
 					DoFinale()
 					CheckHighScore()
 					return
-			else:
+			elif not cheat_infiniteLives:
 				gamestate.lives -= 1
 		if gamestate.lives <= -1:
 			break

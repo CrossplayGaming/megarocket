@@ -183,6 +183,10 @@ func ClipMoveObon() -> int:
 		obon.ymove = 15 * PIXGLOBAL
 	elif obon.ymove < -15 * PIXGLOBAL:
 		obon.ymove = -15 * PIXGLOBAL
+	if cheat_noClip and obon.obclass == keenobj:
+		obon.bottom += obon.ymove
+		obon.top += obon.ymove
+		return result
 	obon.bottom += obon.ymove
 	obon.top += obon.ymove
 	var tileleft: int = GLOBAL_TO_TILE(obon.left)
@@ -660,7 +664,8 @@ func KeenShoot() -> void:
 	if obon.temp2 == 0 and obon.temp1 > 1:
 		if gamestate.ammo != 0:
 			PlaySound(SND.KEENFIRESND)
-			gamestate.ammo -= 1
+			if not cheat_infiniteAmmo:
+				gamestate.ammo -= 1
 			SpawnPlayerShot(obon.x, obon.y)
 		else:
 			PlaySound(SND.GUNCLICKSND)
@@ -693,7 +698,7 @@ func KeenPogoAir() -> void:
 				ctrl.dir = nodir
 	if ctrl.button1 and obon.yspeed < 0:
 		AccelerateY(200, -1)
-	if cheatmode and ctrl.button1:
+	if (cheatmode or cheat_jump) and ctrl.button1:
 		obon.yspeed = -200
 	if obon.xspeed != 0:
 		lastdir = obon.xspeed
@@ -1125,7 +1130,7 @@ func LevelLoop(currentlevel: int) -> int:
 	lasttimecount = 0
 	tics = 0
 	LevelDone = ex_nothing
-	cheatmode = false
+	cheatmode = cheat_god
 	ankhtime = 0
 	if trace_frames:
 		print("TRACE load_begin t=%.6f" % (float(vm.now) / float(DosMachine.PIT_HZ * DosMachine.UNIT)))
@@ -1159,6 +1164,7 @@ func LevelLoop(currentlevel: int) -> int:
 	FadeIn()
 	ox = GLOBAL_TO_TILE(originx)
 	oy = GLOBAL_TO_TILE(originy)
+	shell_in_level = true
 	var traced_first: bool = false
 	while true:
 		RF_Clear()
@@ -1193,7 +1199,8 @@ func LevelLoop(currentlevel: int) -> int:
 					obon.ymove = 0
 					if trace_frames and trace_sprites > 0:
 						print("TRACE think i=%d class=%d tc=%d t=%.6f next_tick=%.6f" % [i, obon.obclass, timecount, float(vm.now) / float(DosMachine.PIT_HZ * DosMachine.UNIT), float(vm.next_tick) / float(DosMachine.PIT_HZ * DosMachine.UNIT)])
-					call(obon.think)
+					if not (cheat_freezeEnemies and _cheat_frozen(obon)):
+						call(obon.think)
 					cost("levelthink")
 					obon.x += obon.xmove
 					obon.y += obon.ymove
@@ -1210,7 +1217,8 @@ func LevelLoop(currentlevel: int) -> int:
 					obon.ymove = 0
 					if trace_frames and trace_sprites > 0:
 						print("TRACE think i=%d class=%d tc=%d t=%.6f next_tick=%.6f" % [i, obon.obclass, timecount, float(vm.now) / float(DosMachine.PIT_HZ * DosMachine.UNIT), float(vm.next_tick) / float(DosMachine.PIT_HZ * DosMachine.UNIT)])
-					call(obon.think)
+					if not (cheat_freezeEnemies and _cheat_frozen(obon)):
+						call(obon.think)
 					cost("levelthink")
 					obon.x += obon.xmove
 					obon.y += obon.ymove
@@ -1259,6 +1267,11 @@ func LevelLoop(currentlevel: int) -> int:
 		HandleUserKeys()
 		if DoFkeys():
 			lasttimecount = timecount
+		if cheat_slowMotion:
+			var until: int = timecount + 14
+			while timecount < until and not exited:
+				vm.poll()
+			lasttimecount = timecount
 		if resetgame or exited:
 			return ex_nothing
 		if LevelDone != ex_nothing or objlist[0].obclass == nothing:
@@ -1283,3 +1296,74 @@ func _boss_intro() -> void:
 ## KEENnACT.C's; the episode class supplies it.
 func LoadLevel(_number: int) -> void:
 	pass
+
+
+## Freeze enemies (CHEAT-01): the objects that stop thinking. Keen, his shots and what he may be riding
+## keep going.
+func _cheat_frozen(ob: Obj) -> bool:
+	return ob.obclass != keenobj and ob.obclass != shotobj and not _cheat_keeps_going(ob)
+
+
+## An episode's objects Keen rides (platforms, Keen 3's ball): they keep going under Freeze enemies.
+func _cheat_keeps_going(_ob: Obj) -> bool:
+	return false
+
+
+# ===================================================================== the shell's cheats (CHEAT-01)
+
+## The cheats this engine has so far (CheatsModel's keys).
+func shell_cheat_supported() -> Array:
+	return ["god", "infinite_ammo", "infinite_lives", "no_clip", "jump", "slow_motion", "freeze_enemies",
+		"free_items", "extra_lives", "skip_level"]
+
+
+func shell_in_game() -> bool:
+	return shell_playing
+
+
+func shell_cheat_get(key: String) -> bool:
+	match key:
+		"god": return cheat_god
+		"infinite_ammo": return cheat_infiniteAmmo
+		"infinite_lives": return cheat_infiniteLives
+		"no_clip": return cheat_noClip
+		"jump": return cheat_jump
+		"slow_motion": return cheat_slowMotion
+		"freeze_enemies": return cheat_freezeEnemies
+	return false
+
+
+func shell_cheat_set(key: String, on: bool) -> void:
+	match key:
+		"god":
+			cheat_god = on
+			cheatmode = on    # at once, as G+O+D does (and so G+O+D and the row agree)
+		"infinite_ammo": cheat_infiniteAmmo = on
+		"infinite_lives": cheat_infiniteLives = on
+		"no_clip": cheat_noClip = on
+		"jump": cheat_jump = on
+		"slow_motion": cheat_slowMotion = on
+		"freeze_enemies": cheat_freezeEnemies = on
+
+
+## A one-shot applied; what it did, for the window.
+func shell_cheat_fire(key: String) -> String:
+	match key:
+		"free_items":
+			# C+T+Space's items, without its window
+			gamestate.gotPogo = true
+			gamestate.ammo = 100
+			for i: int in range(NUMKEYS):
+				gamestate.keys[i] = true
+			return "Pogo, keys, 100 shots" if episode == 1 else "Keys, 100 shots"
+		"extra_lives":
+			var before: int = gamestate.lives
+			gamestate.lives = mini(before + CheatsModel.EXTRA_LIVES, CheatsModel.MAX_LIVES)
+			return "%d lives" % gamestate.lives if gamestate.lives != before else "Lives are full"
+		"skip_level":
+			if not shell_in_level:
+				return "Only inside a level"
+			# as walking out of the exit: the level is marked done on the map
+			LevelDone = ex_completed
+			return "Level skipped"
+	return ""

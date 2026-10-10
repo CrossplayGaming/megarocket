@@ -103,11 +103,11 @@ keep working unchanged and are listed at the bottom of the card so people can fi
 
 | Cheat | Kind | 1–3 | 4–6 | Dreams | Notes |
 |---|---|---|---|---|---|
-| God mode | toggle | ✓ | ✓ | ✓ | Original: G+O+D (1–3), F10+G (4–6, Dreams). |
+| God mode | toggle | ✓ | ✓ | ✓ | Original: G+O+D (1–3), F10+G (4–6, Dreams). In 1–3 it is G+O+D's own effect (the halo and the pogo flight with it), kept from level to level where the original clears it. |
 | Infinite ammo | toggle | ✓ | ✓ | ✓ (flowers) | A shot uses nothing. |
 | Infinite lives | toggle | ✓ | ✓ | ✓ | Death still plays; the count never falls. |
 | No clipping | toggle | ✓ | ✓ | ✓ | Original F10+N in 4–6/Dreams; new for 1–3 (same effect: solid tiles ignored). |
-| Jump cheat | toggle | ✓ | ✓ | ✓ | Original F10+J: hold jump to keep rising. |
+| Jump cheat | toggle | ✓ | ✓ | ✓ | Original F10+J: hold jump to keep rising. In 1–3, G+O+D's flight alone: hold jump while pogoing. |
 | Slow motion | toggle | ✓ | ✓ | ✓ | Original F10+S in 4–6/Dreams; new for 1–3. |
 | Free items | one-shot | ✓ | ✓ | ✓ | 1–3: C+T+Space (pogo, keycards, ammo); 4–6: B+A+T; Dreams: F10+I. |
 | Extra lives | one-shot | ✓ | ✓ | ✓ | +9 each press (the originals count lives in a byte). |

@@ -989,3 +989,7 @@ func _ordering_info_other() -> void:
 	PrintGrey("   Include $2 postage & handling\n")
 	PrintGrey("Specify 5.25/3.5 disk when ordering.\n")
 	PrintGrey(" Or order toll free: 1-800-852-5659 ")
+
+
+func _cheat_keeps_going(ob: Obj) -> bool:
+	return ob.obclass in [platformobj]
