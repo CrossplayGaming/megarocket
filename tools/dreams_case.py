@@ -112,11 +112,13 @@ def feed_clock(game, case=None):
     return int(spec.get("clock", round(feed_pre(game, case) * 1e6)))
 
 
-def calibrated_costs():
-    """TIME-D's fitted costs (tools/calibrate_dreams.py), as drm_boot's --costs argument ("" if none)."""
+def calibrated_costs(game=None):
+    """TIME-D's fitted costs (tools/calibrate_dreams.py), as drm_boot's --costs argument ("" if none): the
+    shared ones, with the release's own where it has them (by_game: v1.93's loads differ from v1.00's)."""
     if not COSTS.exists():
         return ""
-    costs = json.loads(COSTS.read_text(encoding="utf-8"))["costs"]
+    doc = json.loads(COSTS.read_text(encoding="utf-8"))
+    costs = {**doc["costs"], **doc.get("by_game", {}).get(game, {})}
     return ",".join(f"{k}:{int(v)}" for k, v in sorted(costs.items()) if int(v))
 
 
@@ -142,7 +144,7 @@ def run_port(game, case, keys, out, seconds=None, extra=(), start=None, clock=No
     if spec.get("keyfeed"):
         # HARN-22: the keys are the case's own timetable, typed into the original inside DOS
         # with the calibrated costs, as tools/calibrate_dreams.py scores it
-        costs = calibrated_costs()
+        costs = calibrated_costs(game)
         if costs and not any(str(x).startswith("--costs=") for x in extra):
             extra = (f"--costs={costs}", *extra)
         # (the runner sets the DOS clock: no "port's own seed" here, -1 is the case's)

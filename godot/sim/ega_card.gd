@@ -646,11 +646,16 @@ func _pl(p: int) -> PackedByteArray:
 	return plane3
 
 
+## (The in-place operations below are Keen Dreams' back end's. Each counts the card memory accesses the
+## original's instructions make (`accesses`: a read or a write a byte, a latch copy or a read-modify-write
+## two), which the machine charges as time when vga_access_units is set: TIME-D.)
 func plane_byte(p: int, off: int) -> int:
+	accesses += 1
 	return _pl(p)[off & 0xFFFF]
 
 
 func set_plane_byte(p: int, off: int, v: int) -> void:
+	accesses += 1
 	match p & 3:
 		0: plane0[off & 0xFFFF] = v & 0xFF
 		1: plane1[off & 0xFFFF] = v & 0xFF
@@ -660,6 +665,7 @@ func set_plane_byte(p: int, off: int, v: int) -> void:
 
 ## `num` bytes of every plane (planes with `mask`'s bits) from `src` to `dst`, in order.
 func copy_planes(dst: int, src: int, num: int, mask: int = 0xF) -> void:
+	accesses += num * 2
 	for i: int in range(num):
 		var d: int = (dst + i) & 0xFFFF
 		var s: int = (src + i) & 0xFFFF
@@ -671,6 +677,7 @@ func copy_planes(dst: int, src: int, num: int, mask: int = 0xF) -> void:
 
 ## The bits of `bits` in every plane copied from `src` to `dst`.
 func copy_plane_bits(dst: int, src: int, bits: int) -> void:
+	accesses += 2
 	var d: int = dst & 0xFFFF
 	var s: int = src & 0xFFFF
 	var keep: int = ~bits & 0xFF
@@ -682,6 +689,7 @@ func copy_plane_bits(dst: int, src: int, bits: int) -> void:
 
 ## The bits of `bits` set to `color` at `off` (write mode 2 through the bit mask).
 func color_bits(off: int, color: int, bits: int) -> void:
+	accesses += 2
 	var d: int = off & 0xFFFF
 	var keep: int = ~bits & 0xFF
 	plane0[d] = (plane0[d] & keep) | (bits if color & 1 else 0)
@@ -692,6 +700,7 @@ func color_bits(off: int, color: int, bits: int) -> void:
 
 ## `count` bytes from `off` set to `color` in every plane.
 func color_fill(off: int, color: int, count: int) -> void:
+	accesses += count
 	var v0: int = 0xFF if color & 1 else 0
 	var v1: int = 0xFF if color & 2 else 0
 	var v2: int = 0xFF if color & 4 else 0
@@ -712,6 +721,7 @@ func write_plane(p: int, off: int, src: PackedByteArray, so: int, num: int) -> v
 
 ## A byte XORed into the planes of `mask`.
 func xor_planes(off: int, v: int, mask: int) -> void:
+	accesses += 2
 	var d: int = off & 0xFFFF
 	if mask & 1: plane0[d] ^= v & 0xFF
 	if mask & 2: plane1[d] ^= v & 0xFF

@@ -12,6 +12,8 @@ tools/cases/dreams_costs.json (tools/dreams_case.py passes them to the port).
 
     python tools/calibrate_dreams.py [--games kdreams kdreams193] [--workers 8] [--rounds 6]
     python tools/calibrate_dreams.py --report       # the current costs' score per session
+    python tools/calibrate_dreams.py --override kdreams193 [--names ...]
+                                    # one release's own costs, fitted on its sessions alone (by_game)
 """
 import argparse
 import concurrent.futures
@@ -35,11 +37,27 @@ WORK = Path("F:/KeenReworkWork/port_runs")
 # 2.79e-4 a compressed byte + 2.57e-4 a word of the three planes)
 START = {"grbyte": 5100, "mapbyte": 4750, "mapword": 1457, "sprchunk": 0, "sprbyte": 0, "mmmove": 0, "audiobyte": 0,
          "lzhbyte": 28500}
+# (not fitted: "vga", a cost per access to the card's memory, drm_boot's; tried 2026-10-10 at 20-400 on all
+# 32 sessions, every value matched fewer pictures (v1.93 2487 -> 976 at 20): DOSBox's drawing costs nothing)
 FACTORS = (0.5, 0.75, 0.9, 1.1, 1.25, 1.5, 2.0)
 
 
 def say(*a):
     print(time.strftime("%H:%M:%S"), *a, flush=True)
+
+
+def load_by_game():
+    """The releases' own costs where they differ from the shared ones: {game: {name: units}}."""
+    if COSTS.exists():
+        return json.loads(COSTS.read_text(encoding="utf-8")).get("by_game", {})
+    return {}
+
+
+def write_costs(costs, by_game, matched, drift):
+    doc = {"costs": costs, "matched": matched, "drift": drift}
+    if by_game:
+        doc["by_game"] = by_game
+    COSTS.write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
 
 
 def load_costs():
@@ -92,8 +110,9 @@ def session_score(g, c, costs):
     return j, n, sum(abs(x) for x in drifts), drifts, (stop, note.split(" (")[0])
 
 
-def evaluate(pool, runs, costs):
-    futs = {pool.submit(session_score, g, c, costs): (g, c) for g, c in runs}
+def evaluate(pool, runs, costs, by_game=None):
+    by_game = by_game or {}
+    futs = {pool.submit(session_score, g, c, {**costs, **by_game.get(g, {})}): (g, c) for g, c in runs}
     res = {futs[f]: f.result() for f in futs}
     matched = sum(r[0] for r in res.values())
     drift = sum(r[2] for r in res.values())
@@ -107,14 +126,24 @@ def main():
     ap.add_argument("--rounds", type=int, default=6)
     ap.add_argument("--report", action="store_true")
     ap.add_argument("--names", nargs="*", help="fit only these costs (default: all)")
+    ap.add_argument("--override", default="", help="fit this release's own costs on its sessions alone")
     a = ap.parse_args()
+    if a.override:
+        a.games = [a.override]
     runs = sessions(a.games)
     if not runs:
         print("COULD-NOT-RUN: no key-fed recordings")
         return 2
     pool = concurrent.futures.ThreadPoolExecutor(a.workers)
-    costs = load_costs()
-    best, res = evaluate(pool, runs, costs)
+    shared = load_costs()
+    by_game = load_by_game()
+    if a.override:
+        # the release's costs: the shared ones with its own over them; only the differences are kept
+        costs = {**shared, **by_game.get(a.override, {})}
+        best, res = evaluate(pool, runs, costs)
+    else:
+        costs = shared
+        best, res = evaluate(pool, runs, costs, by_game)
     say(f"{len(runs)} sessions; costs {costs}: {best[0]} pictures matched, drift {-best[1]}")
     if a.report:
         for (g, c), (j, n, d, drifts, (stop, note)) in sorted(res.items()):
@@ -131,20 +160,30 @@ def main():
             scored = []
             for t in trials:
                 trial = dict(costs, **{name: t})
-                scored.append((evaluate(pool, runs, trial)[0], t))
+                scored.append((evaluate(pool, runs, trial, None if a.override else by_game)[0], t))
             top = max(scored)
             if top[0] > best:
                 best, costs[name] = top[0], top[1]
                 moved = True
                 say(f"round {rnd + 1}: {name} {base} -> {top[1]}: {best[0]} pictures matched, drift {-best[1]}")
-                COSTS.write_text(json.dumps({"costs": costs, "matched": best[0], "drift": -best[1]}, indent=1) + "\n",
-                                 encoding="utf-8")
+                _save(a, costs, shared, by_game, best)
         if not moved:
             break
     say(f"costs {costs}: {best[0]} pictures matched, drift {-best[1]}")
-    COSTS.write_text(json.dumps({"costs": costs, "matched": best[0], "drift": -best[1]}, indent=1) + "\n",
-                     encoding="utf-8")
+    _save(a, costs, shared, by_game, best)
     return 0
+
+
+def _save(a, costs, shared, by_game, best):
+    """The fit so far: the shared costs, or (--override) the release's differences from them. The totals
+    kept are the shared fit's (an override's score is its release's alone: --report gives the whole)."""
+    if a.override:
+        by_game = dict(by_game)
+        by_game[a.override] = {k: v for k, v in costs.items() if v != shared.get(k)}
+        doc = json.loads(COSTS.read_text(encoding="utf-8")) if COSTS.exists() else {}
+        write_costs(shared, by_game, doc.get("matched", 0), doc.get("drift", 0))
+    else:
+        write_costs(costs, by_game, best[0], -best[1])
 
 
 if __name__ == "__main__":

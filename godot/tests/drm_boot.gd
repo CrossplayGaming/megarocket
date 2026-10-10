@@ -23,7 +23,8 @@ extends SceneTree
 ##          second from the EGA mode set, no typematic repeat: tools/keyfeed.py)
 ##          --feed_pre=<seconds> (with --feed_keys: the start-up screens get KEYFEED.COM's own Enter taps
 ##          instead of RELEASES' keys, the program starting that long after KEYFEED loads; default 0)
-##          --costs=<name:units,...> (TIME-D: the original's time where the port does the work at once)
+##          --costs=<name:units,...> (TIME-D: the original's time where the port does the work at once;
+##          vga: per access to the card's memory)
 ##          --clock=us (the DOS clock at the start, microseconds since 00:00:00: the random
 ##          table's seed is its hundredths at US_Startup; unset, the port's own seed)
 
@@ -82,6 +83,9 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	for spec: String in str(opts.get("costs", "")).split(",", false):
 		var parts: PackedStringArray = spec.split(":")
 		g.costs[parts[0]] = int(parts[1])
+	# TIME-D: "vga", the time of each access to the card's memory (all the drawing: tiles, sprites,
+	# erasing), charged by the machine at its waits
+	vm.vga_access_units = int(g.costs.get("vga", 0))
 	# the files the program opens itself (gelib's reads): v1.93's title archive
 	if d.version == "e193":
 		g.us_files["KDREAMS.CMP"] = d._read("KDREAMS.CMP")
