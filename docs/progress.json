@@ -48,7 +48,8 @@
     "AND-02"
    ],
    "notes": {
-    "matches": "Title, menu, world map and all 16 levels match the original to the refresh"
+    "matches": "Title, menu, world map and all 16 levels match the original to the refresh",
+    "extras": "Options and Cheats in the game's own menu window; more rows (fixes, quicksave, display) to come"
    }
   },
   {
@@ -77,7 +78,8 @@
    ],
    "notes": {
     "runs": "Every level plays",
-    "matches": "Title, menu, world map and all 16 levels match the original to the refresh"
+    "matches": "Title, menu, world map and all 16 levels match the original to the refresh",
+    "extras": "Options and Cheats in the game's own menu window; more rows (fixes, quicksave, display) to come"
    }
   },
   {
@@ -106,7 +108,8 @@
    ],
    "notes": {
     "runs": "Every level plays",
-    "matches": "Title, menu, world map and all 16 levels match the original to the refresh"
+    "matches": "Title, menu, world map and all 16 levels match the original to the refresh",
+    "extras": "Options and Cheats in the game's own menu window; more rows (fixes, quicksave, display) to come"
    }
   },
   {
@@ -133,7 +136,8 @@
     "AND-02"
    ],
    "notes": {
-    "matches": "Proven against the original: the start-up, title and built-in demo refresh for refresh; levels 1, 2 and 4 whole; every other recorded difference checked and found to be timing a player cannot see"
+    "matches": "Proven against the original: the start-up, title and built-in demo refresh for refresh; levels 1, 2 and 4 whole; every other recorded difference checked and found to be timing a player cannot see",
+    "extras": "Options rows, a DISPLAY card and a CHEATS card in the game's own wristwatch menus; more to come"
    }
   },
   {
@@ -161,7 +165,8 @@
     "AND-02"
    ],
    "notes": {
-    "matches": "Proven against the original: the built-in demo's play throughout, levels 1, 2, 4 and 12 whole; the remaining differences are timing a player cannot see"
+    "matches": "Proven against the original: the built-in demo's play throughout, levels 1, 2, 4 and 12 whole; the remaining differences are timing a player cannot see",
+    "extras": "Options rows, a DISPLAY card and a CHEATS card in the game's own wristwatch menus; more to come"
    }
   },
   {
@@ -190,7 +195,8 @@
    ],
    "notes": {
     "files": "Your v1.0 copy, read as it is",
-    "matches": "Plays by v1.4's rules (your decision): equal to v1.4 frame for frame on all four demos; level 4 proven against your v1.0. Your v1.0 differs from v1.4 in a few places id changed; three found and documented"
+    "matches": "Plays by v1.4's rules (your decision): equal to v1.4 frame for frame on all four demos; level 4 proven against your v1.0. Your v1.0 differs from v1.4 in a few places id changed; three found and documented",
+    "extras": "Options rows, a DISPLAY card and a CHEATS card in the game's own wristwatch menus; more to come"
    }
   },
   {
@@ -219,7 +225,9 @@
    ],
    "notes": {
     "files": "v1.00 and v1.93 (your Steam Definitive Edition) read",
-    "runs": "The engine is ported (about 500 functions); v1.00 and v1.93 boot through the start screen, title and high scores; playing a level is next"
+    "runs": "The engine is ported (about 500 functions); v1.00 and v1.93 play their levels",
+    "extras": "Starts once Dreams is proven against the original; its cheats will use the same shared parts",
+    "matches": "About 4,400 pictures across 32 recorded level sessions already match the original; the rest is being worked through"
    }
   }
  ],
