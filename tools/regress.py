@@ -777,6 +777,17 @@ def cheat01():
     return code
 
 
+def rend01():
+    """The draw list (REND-01), Keen 1-3: every gameplay picture drawn again from its refresh's list
+    equals the card's; pictures with a window over the play are set aside (shown from the card)."""
+    import gdtest
+    code, out = gdtest.run("rend01_vorticons", ["--games=keen1,keen2,keen3"], timeout=2400.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "compared" in line:
+            print("  " + line.strip())
+    return code
+
+
 def shell05():
     """Settings persist, reset, survive damage value by value, per-game values win, and no
     simulation script reads them (A15)."""
@@ -1006,6 +1017,7 @@ CHECKS = {
     "MENU-01": (menu01, "fast"),
     "MENU-02": (menu02, "fast"),
     "CHEAT-01": (cheat01, "fast"),
+    "REND-01": (rend01, "slow"),
     "SHELL-05": (shell05, "fast"),
     "SHELL-06": (shell06, "slow"),
     "SHELL-07": (shell07, "fast"),

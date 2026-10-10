@@ -790,6 +790,8 @@ func CRTCstart(start: int) -> void:
 ## DrawChar: xcoord in bytes, ycoord in pixels; an 8x8 character through the latches.
 func DrawChar(xcoord: int, ycoord: int, charnum: int) -> void:
 	vm.instructions(50)    # IDASM's DrawChar: 8 rows of movsb/add, set-up and the call
+	if draw_capture:
+		draw_overlaid = [true, true]    # a window or text on a page: the draw list doesn't hold it
 	var es: int = seg_addr(screenseg, 0)
 	var di: int = (xcoord + ylookup[ycoord]) & 0xFFFF
 	vm.out16(GC_INDEX, GC_MODE | (1 << 8))
@@ -929,6 +931,7 @@ func RF_ForceRefresh() -> void:
 	for i: int in range(PORTTILECOUNT):
 		oldtiles[i] = -1
 		oldtiles2[i] = -1
+	draw_forced = [true, true]
 
 
 func VidInitDraw() -> void:
@@ -983,6 +986,8 @@ func _draw_page(page1: bool) -> void:
 	# the unwound DrawPage: five instructions to look at a tile, three more
 	# and DrawTile16's 53 to copy one, one per row, two to set up and return
 	vm.instructions(PORTTILESWIDE * PORTTILESHIGH * 5 + drawn * 56 + PORTTILESHIGH + 3)
+	if draw_capture and drawn == PORTTILESWIDE * PORTTILESHIGH:
+		draw_overlaid[1 if page1 else 0] = false    # every tile painted again: nothing else is left on it
 
 
 ## Tests only: print each refresh's start and start-address write time (the
@@ -998,6 +1003,8 @@ func VidRefresh() -> void:
 	vm.out16(GC_INDEX, GC_MODE | (1 << 8))
 	screenofs = 0
 	animtable = ((u16(timecount) >> cyclespeed) & 6) >> 1
+	if draw_capture:
+		_capture_draw_list()
 	_draw_page(EGApage != 0)
 	var saved: int = screenseg
 	screenseg = drawseg
@@ -1019,12 +1026,48 @@ func VidRefresh() -> void:
 	# set CRTC start, wait for the end of a retrace, set it again, wait for
 	# the next retrace, then the panning
 	_set_crtc_start()
+	if draw_capture:
+		draw_list["written_vbl"] = vm.vbl_count
 	vm.wait_retrace_end()
 	_set_crtc_start()
 	vm.wait_retrace_start()
 	vm.in8(STATUS_REGISTER_1)
 	vm.out8(ATR_INDEX, ATR_PELPAN | 0x20)
 	vm.out8(ATR_INDEX, screenpan & 0xFF)
+
+
+## REND-01: the refresh's draw list, kept for a renderer when draw_capture is on (the shell and the
+## tests set it; the simulation never reads it): the origin, the animation table, the visible map
+## tiles, the sprites, tiles and pictures placed, the start address and panning the picture is shown
+## with, and the retrace count when the start was written (the picture is shown from the next
+## retrace on). The previous refresh's list is kept too: until this one's start is taken, the card
+## still shows that one.
+var draw_capture: bool = false
+var draw_list: Dictionary = {}
+var draw_list_prev: Dictionary = {}
+## Per page: something drawn on it outside the lists (DrawChar's windows and text) and not yet
+## painted over; and a forced refresh pending for it, which paints every tile again and so clears it.
+var draw_overlaid: Array = [false, false]
+var draw_forced: Array = [false, false]
+
+
+func _capture_draw_list() -> void:
+	var ox0: int = originx >> 12
+	var oy0: int = originy >> 12
+	var grid: PackedInt32Array = PackedInt32Array()
+	grid.resize(PORTTILESWIDE * PORTTILESHIGH)
+	for ty: int in range(PORTTILESHIGH):
+		for tx: int in range(PORTTILESWIDE):
+			grid[ty * PORTTILESWIDE + tx] = GETTILE(ox0 + tx, oy0 + ty, 0)
+	var page: int = 1 if EGApage != 0 else 0
+	if draw_forced[page]:
+		draw_forced[page] = false
+		draw_overlaid[page] = false
+	draw_list_prev = draw_list
+	draw_list = {"page": page, "originx": originx, "originy": originy, "animtable": animtable, "grid": grid,
+		"sprites": spritelist.slice(0, spritesshown), "tiles": tilelist.slice(0, tilesshown),
+		"pics": piclist.slice(0, picsshown), "user": uservect,
+		"start": screenstart & 0xFFFF, "pan": screenpan, "written_vbl": -1}
 
 
 func _set_crtc_start() -> void:
