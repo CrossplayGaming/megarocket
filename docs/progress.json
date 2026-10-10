@@ -233,7 +233,7 @@
     "files": "v1.00 and v1.93 (your Steam Definitive Edition) read",
     "runs": "Plays from the launcher, v1.00 and v1.93 (your Steam Definitive Edition); about 500 functions ported",
     "extras": "Starts once Dreams is proven against the original; its cheats will use the same shared parts",
-    "matches": "About 4,400 pictures across 32 recorded level sessions already match the original; the rest is being worked through"
+    "matches": "Its game logic matches the original frame by frame: one life on every level of both releases checked against ReflectionHLE, every object identical on every frame. About 6,100 pictures across 32 recorded sessions match; the remaining differences are loading-time, not gameplay"
    }
   }
  ],
@@ -270,6 +270,14 @@
   }
  ],
  "milestones": [
+  {
+   "date": "2026-10-10",
+   "text": "Keen Dreams' gameplay proven against the original's code: every level of v1.00 and v1.93 played through ReflectionHLE alongside Megarocket, all objects identical on every frame"
+  },
+  {
+   "date": "2026-10-10",
+   "text": "Answer keys for the secrets in Keen 1, 2, 5 and 6 (Keen 3 and 4 earlier), every guide-documented secret pinned to its place in the level data, for the coming Reveal secrets cheat"
+  },
   {
    "date": "2026-10-10",
    "text": "Keen Dreams plays from the launcher: both releases, its text-mode start screens drawn by Megarocket, its settings, high scores and saves kept between sessions"
