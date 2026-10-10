@@ -39,6 +39,9 @@ var _start_usec: int = 0
 var _frame_indices: PackedByteArray = PackedByteArray()
 var _frame_palette: PackedByteArray = PackedByteArray()
 var _frame_new: bool = false
+## A text-mode screen's cells (empty: the card's picture is shown)
+var _frame_text: PackedByteArray = PackedByteArray()
+var _text_view: TextScreenView = null
 ## REND-02: the draw list of the picture just shown, when native resolution draws it ({} otherwise)
 var _frame_list: Dictionary = {}
 var _native: VortNativeView = null
@@ -171,6 +174,9 @@ func _ready() -> void:
 	_gal_view = GalNativeView.new()    # Keen 4-6's
 	_gal_view.visible = false
 	add_child(_gal_view)
+	_text_view = TextScreenView.new()    # text-mode screens (Keen Dreams' start)
+	_text_view.visible = false
+	add_child(_text_view)
 	focus_mode = Control.FOCUS_ALL
 
 
@@ -226,6 +232,23 @@ func start(found: Dictionary) -> bool:
 			g.us_randomSeed = Time.get_ticks_usec() & 0xFF    # the original's time(0) (A11: set from outside)
 			vm.set_cycles(20000)
 			engine = g
+		"kdreams":
+			var dd: DreamsData = DreamsData.new()
+			if not dd.load_game(folder):
+				error = ShellMessages.cant_load(_short_title(found), dd.error)
+				return false
+			var dg: DreamsGame = DreamsGame.new()
+			dg.vm = vm
+			dg.data = dd
+			# DOSBox's timing as the recordings were made (drm_boot's)
+			vm.set_cycles(20000)
+			vm.vbl_period = 17024400
+			vm.timer_offset = 0
+			if dd.version == "e193":
+				dg.us_files["KDREAMS.CMP"] = dd._read("KDREAMS.CMP")    # v1.93's title archive, from the game
+			dg.user_dir = ProjectSettings.globalize_path("user://saves").path_join(game_id)
+			dg.load_user_files()
+			engine = dg
 		_:
 			error = ShellMessages.not_ready(_short_title(found))
 			return false
@@ -238,6 +261,9 @@ func start(found: Dictionary) -> bool:
 	vm.record_speaker = true
 	if engine is GalGame:
 		(engine as GalGame).sd_alOutHook = func(reg: int, value: int) -> void:
+			_opl_local.append([vm.seconds(), reg, value])
+	elif engine is DreamsGame:
+		(engine as DreamsGame).sd_alOutHook = func(reg: int, value: int) -> void:
 			_opl_local.append([vm.seconds(), reg, value])
 	audio = HostAudio.new()
 	var settings: Settings = Settings.new(settings_path)
@@ -398,6 +424,9 @@ func _run() -> void:
 		# the maker's play button: the original's own launch from its map editor (TED)
 		(engine as GalGame).CK_Main(PackedStringArray(["/TEDLEVEL", str(_play_level)]) if _play_level >= 0 else PackedStringArray())
 		_quit_message = (engine as GalGame).quit_message
+	elif engine is DreamsGame:
+		(engine as DreamsGame).kd_main_entry(PackedStringArray())
+		_quit_message = (engine as DreamsGame).quit_message
 	else:
 		(engine as VortActs).main()
 		_quit_message = (engine as VortActs).exit_message
@@ -436,6 +465,8 @@ func _pace() -> void:
 	if stopping:
 		if engine is GalGame:
 			(engine as GalGame).Quit("")
+		elif engine is DreamsGame:
+			(engine as DreamsGame).Quit("")
 		else:
 			(engine as VortActs).exited = true
 		return
@@ -469,6 +500,13 @@ func _pace() -> void:
 func _on_display() -> void:
 	var card: EgaCard = vm.card
 	if card.video_mode != EgaCard.MODE_EGA:
+		if engine is DreamsGame:
+			# a text-mode screen (Keen Dreams' start screens): the 80x25 cells, drawn by the shell
+			_mutex.lock()
+			_frame_text = (engine as DreamsGame).textmem.slice(0, TextScreenView.COLS * TextScreenView.ROWS * 2)
+			_frame_new = true
+			frames_made += 1
+			_mutex.unlock()
 		return
 	_mutex.lock()
 	_frame_indices = card.frame_pixels.duplicate()
@@ -512,6 +550,8 @@ func _layout_stage(native: bool) -> void:
 	var unit: Vector2 = Vector2(uh * px_w, uh)
 	var pic: Rect2 = Rect2(((size - Vector2(320.0, 200.0) * unit) / 2.0).round(), (Vector2(320.0, 200.0) * unit).round())
 	_place(_view, pic)
+	if _text_view != null:
+		_place(_text_view, pic)
 	if _native != null:
 		_native.view_w = 320
 		_place(_native, pic)
@@ -602,6 +642,8 @@ func _process(_delta: float) -> void:
 	var idx: PackedByteArray = _frame_indices
 	var pal: PackedByteArray = _frame_palette
 	var list: Dictionary = _frame_list
+	var text: PackedByteArray = _frame_text
+	_frame_text = PackedByteArray()
 	_frame_new = false
 	var done: bool = _done
 	var pending: Array = _audio_pending
@@ -609,7 +651,16 @@ func _process(_delta: float) -> void:
 	var machine_t: float = _machine_t
 	_mutex.unlock()
 	_feed_audio(pending, machine_t)
+	if fresh and not text.is_empty():
+		_text_view.show_text(text)
+		_text_view.visible = true
+		_view.visible = false
+		if _native != null:
+			_native.visible = false
+		frames_shown += 1
+		fresh = false
 	if fresh and idx.size() == 320 * 200 and pal.size() >= 48:
+		_text_view.visible = false
 		_index_image.set_data(320, 200, false, Image.FORMAT_R8, idx)
 		_index_tex.update(_index_image)
 		_palette_image.set_data(16, 1, false, Image.FORMAT_RGB8, pal.slice(0, 48))
@@ -623,6 +674,8 @@ func _process(_delta: float) -> void:
 				_native.show_frame(engine, list, pal, machine_t, idx)
 			_native.visible = native
 			_view.visible = not native
+		else:
+			_view.visible = true    # (back from a text screen, with no native view: Keen Dreams)
 	_layout_stage(_native != null and _native.visible)
 	if done and thread != null:
 		thread.wait_to_finish()
@@ -676,6 +729,10 @@ func _release() -> void:
 		(engine as GalGame).sd_alOutHook = Callable()
 		(engine as GalGame).CK_ReleaseLinks()
 		(engine as GalGame).RF_Shutdown()
+	elif engine is DreamsGame:
+		(engine as DreamsGame).sd_alOutHook = Callable()
+		(engine as DreamsGame).RF_Shutdown()
+		(engine as DreamsGame).release_links()
 	elif engine != null:
 		engine.set("vm", null)
 		if "after_startup" in engine:

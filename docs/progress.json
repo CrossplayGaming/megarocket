@@ -231,7 +231,7 @@
    ],
    "notes": {
     "files": "v1.00 and v1.93 (your Steam Definitive Edition) read",
-    "runs": "The engine is ported (about 500 functions); v1.00 and v1.93 play their levels",
+    "runs": "Plays from the launcher, v1.00 and v1.93 (your Steam Definitive Edition); about 500 functions ported",
     "extras": "Starts once Dreams is proven against the original; its cheats will use the same shared parts",
     "matches": "About 4,400 pictures across 32 recorded level sessions already match the original; the rest is being worked through"
    }
@@ -270,6 +270,10 @@
   }
  ],
  "milestones": [
+  {
+   "date": "2026-10-10",
+   "text": "Keen Dreams plays from the launcher: both releases, its text-mode start screens drawn by Megarocket, its settings, high scores and saves kept between sessions"
+  },
   {
    "date": "2026-10-10",
    "text": "Quicksave and quickload in Keen 1-6 (Keen 1-3: F7/F9, working even after dying; Keen 4-6: F5/F9), asking first unless turned off, on in Enhanced"

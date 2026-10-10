@@ -3002,6 +3002,46 @@ var textmem: PackedByteArray = _new_textmem()
 var textcursor: Vector2i = Vector2i(0, 0)
 ## The files the program reads and writes, by upper-case name (the shell supplies and keeps them, A11).
 var us_files: Dictionary = {}
+## SAVE-06 (Dreams): the folder the player's files (the config with its high scores, the saved games)
+## live in between sessions, set by the shell (user://saves/kdreams); "" (tests, oracle runs): memory only.
+var user_dir: String = ""
+
+
+## The player's files from user_dir into us_files (before kd_main_entry).
+func load_user_files() -> void:
+	if user_dir == "" or not DirAccess.dir_exists_absolute(user_dir):
+		return
+	for name: String in DirAccess.get_files_at(user_dir):
+		var key: String = name.to_upper()
+		if key.ends_with(".TMP"):
+			continue
+		if key.ends_with(".BAK"):
+			key = key.substr(0, key.length() - 4)
+			if FileAccess.file_exists(user_dir.path_join(key)) or us_files.has(key):
+				continue    # the swap finished: the .BAK is stale
+		us_files[key] = FileAccess.get_file_as_bytes(user_dir.path_join(name))
+
+
+## A file the program has just written (or removed, with no bytes), kept in user_dir: beside the old
+## one first, then swapped in, the old kept as .BAK until then.
+func _user_write(key: String, bytes: Variant) -> void:
+	if user_dir == "" or key == "KDREAMS.CMP":
+		return
+	DirAccess.make_dir_recursive_absolute(user_dir)
+	var path: String = user_dir.path_join(key)
+	if bytes == null:
+		DirAccess.remove_absolute(path)
+		return
+	var f: FileAccess = FileAccess.open(path + ".TMP", FileAccess.WRITE)
+	if f == null:
+		return
+	f.store_buffer(bytes)
+	f.close()
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path + ".BAK")
+		DirAccess.rename_absolute(path, path + ".BAK")
+	DirAccess.rename_absolute(path + ".TMP", path)
+	DirAccess.remove_absolute(path + ".BAK")
 
 
 static func _new_textmem() -> PackedByteArray:
@@ -3067,10 +3107,12 @@ func BE_Cross_open_rewritable_for_overwriting(filename: String) -> BE_FILE_T:
 func BE_Cross_close(fp: BE_FILE_T) -> void:
 	if fp != null and fp.writable:
 		us_files[fp.name] = fp.data
+		_user_write(fp.name, fp.data)
 
 
 func BE_Cross_remove(filename: String) -> void:
 	us_files.erase(filename.to_upper())
+	_user_write(filename.to_upper(), null)
 
 
 func BE_Cross_FileLengthFromHandle(fp: BE_FILE_T) -> int:

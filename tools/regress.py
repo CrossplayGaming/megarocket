@@ -945,6 +945,17 @@ def shell12():
     return code
 
 
+def shell13():
+    """Keen Dreams in the host (SHELL-13), v1.00 and v1.93: starts, its text start screen drawn by the
+    shell in the frame, Enter on to the graphics screens, its files kept in user://saves/kdreams, stops."""
+    import gdtest
+    code, out = gdtest.run("shell13_dreams", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def shell11():
     """The host's added controls (SHELL-11): one-button fire on Left Shift, the pad's X and triggers,
     Back for the status screen, F11 for fullscreen, the intro framed."""
@@ -1222,6 +1233,7 @@ CHECKS = {
     "SHELL-09": (shell09, "fast"),
     "SHELL-11": (shell11, "fast"),
     "SHELL-12": (shell12, "fast"),
+    "SHELL-13": (shell13, "fast"),
     "AND-02a": (and02a, "fast"),
     "SHELL-10b": (shell10b, "fast"),
     "AND-03a": (and03a, "fast"),
