@@ -385,6 +385,41 @@ def rend04():
     return code
 
 
+def maker01():
+    """A level from the maker plays in the game (MAKER-01): Keen 1-3's LEVELnn and Keen 4-6's map set,
+    one tile changed, loaded by the game's own ReadLevel / CA_CacheMap with nothing else changed."""
+    import gdtest
+    code, out = gdtest.run("maker01_play", [], timeout=300.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
+def rend01g():
+    """The draw list (REND-01..03, REND-05's status window), Keen 4-6: every gameplay picture of every
+    demo drawn again from its refresh's list equals the card's; the native layout within each image's
+    step; smooth motion's halfway sprites; the status window's strip from the card; the demo ends the
+    same without the lists."""
+    import gdtest
+    code, out = gdtest.run("rend01_galaxy", ["--games=keen4,keen5,keen6"], timeout=3600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "compared" in line:
+            print("  " + line.strip())
+    return code
+
+
+def rend04g():
+    """The wide view (REND-04), Keen 4-6, three tiles more each side: the 1x picture still the card's,
+    at 416 every image shifted alike with the score box kept on the screen, and J-30's edges."""
+    import gdtest
+    code, out = gdtest.run("rend01_galaxy", ["--games=keen4,keen5,keen6", "--wide=3", "--demos=0,1"], timeout=3600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "compared" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend03():
     """REND-03: native resolution and smooth motion leave the game alone: Keen 1's level sessions run with
     the draw lists kept (sprites' owners, the grid's margin, the capture time) and still match the
@@ -821,6 +856,17 @@ def fix01():
     return code
 
 
+def shell12():
+    """Keen 4-6 in the host with the default settings (SHELL-12): the first screens framed over the
+    backdrop, the title demo drawn by the shell's view, wide, the engine told its extra tiles."""
+    import gdtest
+    code, out = gdtest.run("shell12_galaxy_view", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def shell11():
     """The host's added controls (SHELL-11): one-button fire on Left Shift, the pad's X and triggers,
     Back for the status screen, F11 for fullscreen, the intro framed."""
@@ -1076,6 +1122,9 @@ CHECKS = {
     "REND-01": (rend01, "slow"),
     "REND-03": (rend03, "slow"),
     "REND-04": (rend04, "slow"),
+    "REND-01G": (rend01g, "slow"),
+    "MAKER-01": (maker01, "fast"),
+    "REND-04G": (rend04g, "slow"),
     "FIX-01": (fix01, "slow"),
     "SHELL-05": (shell05, "fast"),
     "SHELL-06": (shell06, "slow"),
@@ -1088,6 +1137,7 @@ CHECKS = {
     "AND-04": (and04, "slow"),
     "SHELL-09": (shell09, "fast"),
     "SHELL-11": (shell11, "fast"),
+    "SHELL-12": (shell12, "fast"),
     "AND-02a": (and02a, "fast"),
     "SHELL-10b": (shell10b, "fast"),
     "AND-03a": (and03a, "fast"),

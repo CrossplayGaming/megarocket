@@ -4,11 +4,12 @@ extends Control
 ## REND-08/10: what surrounds a picture that doesn't fill the window (Megarocket 1.0's design, approved in
 ## its playtests: never stretch, never black bars). A backdrop tiled from the game's own tileset (Keen
 ## 1-3: the starfield tile, in 5 cells of a 4x4 patch, the rest black, so it reads as stars and not
-## wallpaper), drawn through the frame's palette so it fades with the game; and round the picture a
+## wallpaper; Keen 4-6: 1.0's tile 87 in every cell), drawn through the frame's palette so it fades with
+## the game; and round the picture, in the EGA's fixed colours, a
 ## five-layer bevel, 10 game pixels a side: a black outline, a raised bevel (yellow top-left, dark grey
 ## bottom-right), a brown face, a sunken bevel (dark grey top-left, yellow bottom-right), a black seam.
 
-const BACKDROP_TILE: Dictionary = {"keen1": 75, "keen2": 75, "keen3": 38}
+const BACKDROP_TILE: Dictionary = {"keen1": 75, "keen2": 75, "keen3": 38, "keen4": 87, "keen5": 87, "keen6": 87}
 const PATCH_CELLS: Array = [Vector2i(0, 0), Vector2i(2, 1), Vector2i(1, 2), Vector2i(3, 2), Vector2i(2, 3)]
 const FRAME: int = 10    # game pixels each side
 
@@ -47,11 +48,21 @@ func setup(tiles: PackedByteArray, tile: int) -> void:
 	_pattern = null
 	if tile < 0 or (tile + 1) * 256 > tiles.size():
 		return
+	setup_tile(tiles.slice(tile * 256, tile * 256 + 256), PATCH_CELLS)
+
+
+## One tile's 256 pixels (palette indices), placed in these cells of the 4x4 patch.
+func setup_tile(pixels: PackedByteArray, cells: Array) -> void:
+	_pattern = null
+	if pixels.size() < 256:
+		return
+	var tiles: PackedByteArray = pixels
+	var tile: int = 0
 	var rg: PackedByteArray = PackedByteArray()
 	rg.resize(64 * 64 * 2)
 	for i: int in range(64 * 64):
 		rg[i * 2 + 1] = 255    # all shown: black (index 0) where no tile is
-	for c: Vector2i in PATCH_CELLS:
+	for c: Vector2i in cells:
 		for y: int in range(16):
 			for x: int in range(16):
 				rg[((c.y * 16 + y) * 64 + c.x * 16 + x) * 2] = tiles[tile * 256 + y * 16 + x]
@@ -89,19 +100,15 @@ func _draw() -> void:
 	draw_set_transform(Vector2.ZERO)
 
 
-func _colour(i: int) -> Color:
-	if _palette.size() < 48:
-		return Color.BLACK
-	return Color8(_palette[i * 3], _palette[i * 3 + 1], _palette[i * 3 + 2])
-
-
 func _draw_frame() -> void:
 	if frame_rect.size == Vector2.ZERO:
 		return
-	var black: Color = _colour(0)
-	var bright: Color = _colour(14)
-	var face: Color = _colour(6)
-	var dark: Color = _colour(8)
+	# the EGA's own colours, whatever the game's palette (1.0's frame: the same in a fade or a screen
+	# with a palette of its own)
+	var black: Color = Color8(0, 0, 0)
+	var bright: Color = Color8(0xFF, 0xFF, 0x55)
+	var face: Color = Color8(0xAA, 0x55, 0x00)
+	var dark: Color = Color8(0x55, 0x55, 0x55)
 	# from the outside in: [width in game pixels, top-left colour, bottom-right colour]
 	var layers: Array = [[1, black, black], [2, bright, dark], [4, face, face], [2, dark, bright], [1, black, black]]
 	var r: Rect2 = frame_rect.grow_individual(FRAME * unit.x, FRAME * unit.y, FRAME * unit.x, FRAME * unit.y)

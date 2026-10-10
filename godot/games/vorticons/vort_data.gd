@@ -103,7 +103,19 @@ func _fail(msg: String) -> bool:
 	return false
 
 
+## MAKER-01: files the shell puts in place of the game folder's (a level from the maker, played in
+## place), by name in upper case -> the file's bytes. Empty: the folder's own, always.
+var overrides: Dictionary = {}
+
+
+## Whether the game has this file (the folder's, or one put in its place).
+func has_file(name: String) -> bool:
+	return overrides.has(name.to_upper()) or FileAccess.file_exists(dir.path_join(name))
+
+
 func _read(name: String) -> PackedByteArray:
+	if overrides.has(name.to_upper()):
+		return overrides[name.to_upper()]
 	var path: String = dir.path_join(name)
 	var f: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if f == null:

@@ -50,10 +50,10 @@ func page(name: String) -> Array:
 				_row("exit", "Exit", "action"),
 			]
 		"display":
-			# Native resolution: Keen 1-3's so far (REND-02)
+			# the wide view, native resolution and smooth motion: Keen 1-6 (REND-02..04); not Dreams yet
 			return ([_value("wide_view", "View", "Wide" if bool(get_value("wide_view")) else "4:3"),
 				_value("native_resolution", "Native resolution", _on_off(get_value("native_resolution"))),
-				_value("smooth_motion", "Smooth motion", _on_off(get_value("smooth_motion")))] if engine == "vorticons" else []) + [
+				_value("smooth_motion", "Smooth motion", _on_off(get_value("smooth_motion")))] if engine != "dreams" else []) + [
 				_value("fullscreen", "Fullscreen", _on_off(get_value("fullscreen"))),
 				_value("pixel_shape", "Pixel shape", "4:3" if get_value("pixel_shape") == "4:3" else "Square"),
 				_row("exit", "Back", "action"),

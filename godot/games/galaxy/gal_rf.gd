@@ -73,6 +73,11 @@ class RF_SpriteDrawEntry:
 	var maskOnly: bool = false
 	var updateCount: int = 0
 	var shift: int = 0
+	# REND-01: where it is, for the shell's renderers (not the original's): its top-left in units, and in
+	# pixels as the original draws it (the shifted copy's offset added)
+	var ux: int = 0
+	var uy: int = 0
+	var px: int = 0
 	var prev_owner: Variant = null    # RF_SpriteDrawEntry, or the layer index (int)
 	var next: RF_SpriteDrawEntry = null
 
@@ -680,6 +685,7 @@ func RF_Reposition(scrollXunit: int, scrollYunit: int) -> void:
 	RF_RepositionLimit(scrollXunit, scrollYunit)
 	var scrollXtile: int = RF_UnitToTile(rf_scrollXUnit)
 	var scrollYtile: int = RF_UnitToTile(rf_scrollYUnit)
+	_draw_extra = Rect2i()    # REND-09: every block painted again, nothing drawn over the play is left
 	RFL_SetupOnscreenAnimList()
 	for ty: int in range(RF_BUFFER_HEIGHT_TILES):
 		for tx: int in range(RF_BUFFER_WIDTH_TILES):
@@ -847,6 +853,17 @@ func RF_AddSpriteDraw(drawEntry: RF_SpriteDrawEntry, unitX: int, unitY: int, chu
 	sde.maskOnly = allWhite
 	sde.updateCount = VL_GetNumBuffers()
 	sde.shift = shift
+	sde.ux = unitX + int(ste.originX)
+	sde.uy = unitY + int(ste.originY)
+	# the copy drawn for this shift is the sprite moved right: two pixels a shift with four copies, four
+	# for the upper two with two copies, none with one
+	match int(ste.shifts):
+		2:
+			sde.px = sde.x + (4 if shift >= 2 else 0)
+		4:
+			sde.px = sde.x + shift * 2
+		_:
+			sde.px = sde.x
 	return sde
 
 
@@ -919,10 +936,88 @@ func RF_Refresh() -> void:
 	for y: int in range(RF_BUFFER_HEIGHT_TILES):
 		for x: int in range(RF_BUFFER_WIDTH_TILES):
 			RFL_MarkBlockDirty(x, y, 0, VL_GetActiveBuffer())
+	var func_name: StringName = rf_drawFunc
 	if rf_drawFunc != &"":
 		call(rf_drawFunc)
 	# 0xef in X matches EGA Keen's 2-pixel horizontal scrolling
 	VL_SetScrollCoords(RF_UnitToPixel(rf_scrollXUnit & 0xef), RF_UnitToPixel(rf_scrollYUnit & 0xff))
+	if draw_capture:
+		_capture_draw_list(func_name)
 	VL_SwapOnNextPresent()
 	VL_Present()
 	RFL_CalcTics()
+
+
+## REND-01: the draw list of the refresh being presented (draw_list, gal_lib.gd). The picture's top-left
+## in world pixels (the tile buffer's first tile and the screen's scroll in it), the map's two planes over
+## the picture with a tile all round and the wide view's tiles each side, and the sprites in the order the
+## refresh draws them (layer by layer, each layer's list in order): [x, y (pixels, as the original draws
+## it), chunk, mask only, layer, the entry's slot (the same thing from refresh to refresh), x, y (its
+## top-left in units, for native resolution)]. The draw routine (rf_drawFunc) that drew over it is named
+## ("user"); the fade's, which draws nothing, isn't, nor the status window's, whose strip of the picture
+## is the list's "overlay" (the shell copies that from the card: the window over the wide world, no flip
+## to 4:3). The score box is named too ("hud").
+func _capture_draw_list(func_name: StringName) -> void:
+	var stx: int = RF_UnitToTile(rf_scrollXUnit)
+	var sty: int = RF_UnitToTile(rf_scrollYUnit)
+	var gx: int = stx - 1 - wide_tiles
+	var gy: int = sty - 1
+	var gw: int = RF_BUFFER_WIDTH_TILES + 2 + 2 * wide_tiles
+	var gh: int = RF_BUFFER_HEIGHT_TILES + 2
+	var bg: PackedInt32Array = PackedInt32Array()
+	var fg: PackedInt32Array = PackedInt32Array()
+	bg.resize(gw * gh)
+	fg.resize(gw * gh)
+	var mw: int = rf_mapWidthTiles
+	var mh: int = rf_mapHeightTiles
+	for ty: int in range(gh):
+		for tx: int in range(gw):
+			var x: int = gx + tx
+			var y: int = gy + ty
+			if x >= 0 and x < mw and y >= 0 and y < mh:
+				bg[ty * gw + tx] = CA_TileAtPos(x, y, 0)
+				fg[ty * gw + tx] = CA_TileAtPos(x, y, 1)
+			else:
+				bg[ty * gw + tx] = -1
+	var sprites: Array = []
+	for z: int in range(RF_NUM_SPRITE_Z_LAYERS):
+		var sde: RF_SpriteDrawEntry = rf_firstSpriteTableEntry[z]
+		while sde != null:
+			sprites.append([sde.px, sde.y, sde.chunk, sde.maskOnly, z, sde.index, sde.ux, sde.uy])
+			sde = sde.next
+	var hud: int = -1
+	var dyn: Dictionary = {}
+	var box: Variant = get("ck_scoreBoxObj")
+	if box != null and box.sde != null:
+		hud = (box.sde as RF_SpriteDrawEntry).index
+		# the score box's numbers are drawn into its cached image: a copy as it is now
+		var chunk: int = (box.sde as RF_SpriteDrawEntry).chunk
+		var spr: Variant = ca_graphChunks[chunk] if chunk >= 0 and chunk < ca_graphChunks.size() else null
+		if spr is VH_ShiftedSprite:
+			var ste: Dictionary = VH_GetSpriteTableEntry(chunk - int(ca_gfxInfoE.offSprites))
+			var n: int = int(ste.width) * int(ste.height) * 5
+			dyn[chunk] = (spr as VH_ShiftedSprite).data.slice((spr as VH_ShiftedSprite).sprShiftOffset[0], (spr as VH_ShiftedSprite).sprShiftOffset[0] + n)
+	var overlay: Rect2i = Rect2i()
+	if func_name == &"CK_ScrollStatusWindow":
+		# the window, the pictures hanging off it and the map put back under it: columns 32-271, down to
+		# a little past its bottom edge
+		overlay = Rect2i(32, 0, 240, clampi(int(get("ck_statusWindowYPx")) + 16, 0, 200))
+	if _draw_extra.size != Vector2i.ZERO:
+		# a window drawn outside the refreshes and not yet painted over (REND-09), where it is now
+		var on_pic: Rect2i = Rect2i(_draw_extra.position - Vector2i(vl_scrollXpixels, vl_scrollYpixels), _draw_extra.size) \
+			.intersection(Rect2i(0, 0, 320, 200))
+		if on_pic.size != Vector2i.ZERO:
+			overlay = on_pic if overlay.size == Vector2i.ZERO else overlay.merge(on_pic)
+	_draw_pending = {"t": vm.seconds(), "wide": wide_tiles,
+		"play": not bool(get("ck_inHighScores")),
+		"user": "" if func_name in [&"CK_UpdateFadeDrawing", &"CK_ScrollStatusWindow"] else String(func_name),
+		"overlay": overlay,
+		"sx": stx * 16 + vl_scrollXpixels, "sy": sty * 16 + vl_scrollYpixels,
+		"ux": rf_scrollXUnit, "uy": rf_scrollYUnit,
+		"xmin": RF_UnitToPixel(rf_scrollXMinUnit), "xmax": RF_UnitToPixel(rf_scrollXMaxUnit) + 320,
+		# the columns the camera never crosses (the map's edges and the level's own scroll blocks): the
+		# wide view stops at them too, so it shows nothing the original's camera keeps out of sight
+		"hblocks": rf_horzScrollBlocks.slice(0, rf_numHorzScrollBlocks),
+		"gx": gx, "gy": gy, "gw": gw, "gh": gh, "bg": bg, "fg": fg,
+		"sprites": sprites, "hud": hud, "dyn": dyn,
+		"hud_mid": int(call("IN_DemoGetMode")) != 0}    # the demo sign sits mid-top, the score box at the left

@@ -43,6 +43,7 @@ var _frame_new: bool = false
 var _frame_list: Dictionary = {}
 var _native: VortNativeView = null
 var _native_view: VortNativeView = null
+var _gal_view: GalNativeView = null
 ## REND-04: the wide view on (Keen 1-3), and the window size it was last fitted to
 var _wide: bool = false
 var _fitted: Vector2 = Vector2.ZERO
@@ -165,6 +166,9 @@ func _ready() -> void:
 	_native_view = VortNativeView.new()
 	_native_view.visible = false
 	add_child(_native_view)
+	_gal_view = GalNativeView.new()    # Keen 4-6's
+	_gal_view.visible = false
+	add_child(_gal_view)
 	focus_mode = Control.FOCUS_ALL
 
 
@@ -230,6 +234,14 @@ func start(found: Dictionary) -> bool:
 		_native = _native_view
 		_native.setup((engine as VortScreens).data)
 		_backdrop.setup((engine as VortScreens).data.tiles, StageBackdrop.BACKDROP_TILE.get(game_id, -1))
+	elif engine is GalGame:
+		_native = _gal_view
+		_native.setup((engine as GalGame).data)
+		var cells: Array = []
+		for y: int in range(4):
+			for x: int in range(4):
+				cells.append(Vector2i(x, y))
+		_backdrop.setup_tile(_gal_view.images.tile(int(StageBackdrop.BACKDROP_TILE[game_id])).get("pixels", PackedByteArray()), cells)
 	apply_setting("native_resolution")
 	apply_setting("smooth_motion")
 	apply_setting("wide_view")
@@ -262,10 +274,10 @@ func apply_setting(name: String) -> void:
 		_one_fire = engine is VortScreens and bool(options.get_value("one_button_fire"))
 		return
 	if name == "native_resolution" or name == "smooth_motion" or name == "wide_view":
-		if engine is VortScreens and _native != null:
+		if _native != null:
 			var native: bool = bool(options.get_value("native_resolution"))
 			var wide: bool = bool(options.get_value("wide_view"))
-			(engine as VortScreens).draw_capture = native or wide
+			engine.set("draw_capture", native or wide)
 			_native.smooth = bool(options.get_value("smooth_motion"))
 			_native.snap = not native
 			_wide = wide
@@ -460,8 +472,8 @@ func _layout_stage(native: bool) -> void:
 	# one original pixel's width against its height: 4:3 makes 320 pixels as wide as 266.7 tall ones
 	var px_w: float = (4.0 / 3.0 * 200.0 / 320.0) if options.get_value("pixel_shape") == "4:3" else 1.0
 	var wide_px: int = clampi(int(roundf(size.x / (size.y / 200.0) / px_w)), 320, WIDE_MAX)
-	if engine is VortScreens:
-		(engine as VortScreens).wide_tiles = (wide_px - 320 + 31) / 32 if _wide and wide_px > 320 else 0
+	if engine != null and "wide_tiles" in engine:
+		engine.set("wide_tiles", (wide_px - 320 + 31) / 32 if _wide and wide_px > 320 else 0)
 	_fitted = size
 	if native and _wide:
 		var u: Vector2 = Vector2(size.y / 200.0 * px_w, size.y / 200.0)
@@ -491,6 +503,8 @@ func _place(c: Control, r: Rect2) -> void:
 ## newest refresh whose start the card took (REND-01's rule), the game's play (a level, the world map),
 ## no user routine; a window printed over it comes along as its rectangle; {} otherwise.
 func _shown_list() -> Dictionary:
+	if engine is GalGame:
+		return _shown_list_galaxy()
 	var g: VortScreens = engine as VortScreens
 	if g == null or not g.draw_capture:
 		return {}
@@ -507,6 +521,25 @@ func _shown_list() -> Dictionary:
 	if g.draw_overlaid[int(list.page)]:
 		shown["overlay"] = g.draw_overlay_rect[int(list.page)]    # a window over the play: drawn from the card
 	return shown
+
+
+## Keen 4-6's: the newest refresh whose start the card took, if nothing else was put on the card since
+## (a menu, a window: lists marked "none" or "touched"), a level or the world map (not the high scores),
+## no routine drawing over it but the status window's (its strip comes along as the list's overlay).
+func _shown_list_galaxy() -> Dictionary:
+	var g: GalGame = engine as GalGame
+	if not g.draw_capture:
+		return {}
+	var list: Dictionary = g.draw_list
+	if int(list.get("written_vbl", -1)) < 0 or int(list.written_vbl) >= vm.vbl_count:
+		list = g.draw_list_prev
+	if list.is_empty() or int(list.get("written_vbl", -1)) < 0 or int(list.written_vbl) >= vm.vbl_count:
+		return {}
+	if vm.card.display_start != int(list.start) or list.get("none", false) or list.get("touched", false):
+		return {}
+	if str(list.get("user", "")) != "" or not list.get("play", false):
+		return {}
+	return list
 
 
 ## J-06: one control fires Keen 1-3's gun, pressing jump and pogo (Ctrl, Alt) together; let go, it lets

@@ -1330,7 +1330,7 @@ func shell_cheat_supported() -> Array:
 func shell_levels() -> Array:
 	var out: Array = []
 	for n: int in range(1, NUMLEVELS + 1):
-		if FileAccess.file_exists(data.dir.path_join(("LEVEL%02d." % n) + data.ext)):
+		if data.has_file(("LEVEL%02d." % n) + data.ext):
 			out.append([n, "Level %d" % n])
 	return out
 

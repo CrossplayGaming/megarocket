@@ -698,6 +698,21 @@ func _setup_maps() -> bool:
 	tileinfo = _read(meta_dir.path_join(episode.get_string("ca_tileInfo")))
 	if tileinfo.is_empty():
 		return false
+	return _scan_map_names()
+
+
+## MAKER-01: a set of maps from the maker (TedMaps.write: a MAPHEAD and its GAMEMAPS) in place of the
+## game's, for every map loaded from now on (a level played in place). False with `error` on fault.
+func use_maps(maphead: PackedByteArray, gamemaps: PackedByteArray) -> bool:
+	if maphead.size() < 2 + NUM_MAPS * 4 or u16(maphead, 0) != MAPHEAD_TAG:
+		return _fail("the maker's MAPHEAD is not a map table (%d bytes)" % maphead.size())
+	_map_head = maphead
+	_maps_file = gamemaps
+	rle_tag = MAPHEAD_TAG
+	return _scan_map_names()
+
+
+func _scan_map_names() -> bool:
 	map_names = PackedStringArray()
 	map_names.resize(NUM_MAPS)
 	for i: int in range(NUM_MAPS):

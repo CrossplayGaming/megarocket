@@ -129,7 +129,9 @@
    "extras": [
     "MENU-02",
     "CHEAT-01",
-    "SCR-01"
+    "SCR-01",
+    "REND-01",
+    "REND-04"
    ],
    "android": [
     "AND-01",
@@ -137,7 +139,7 @@
    ],
    "notes": {
     "matches": "Proven against the original: the start-up, title and built-in demo refresh for refresh; levels 1, 2 and 4 whole; every other recorded difference checked and found to be timing a player cannot see",
-    "extras": "Options rows, a DISPLAY card and a CHEATS card in the game's own wristwatch menus; more to come"
+    "extras": "Options rows, a DISPLAY card (widescreen, native resolution, smooth motion) and a CHEATS card in the game's own wristwatch menus"
    }
   },
   {
@@ -158,7 +160,9 @@
    "extras": [
     "MENU-02",
     "CHEAT-01",
-    "SCR-01"
+    "SCR-01",
+    "REND-01",
+    "REND-04"
    ],
    "android": [
     "AND-01",
@@ -166,7 +170,7 @@
    ],
    "notes": {
     "matches": "Proven against the original: the built-in demo's play throughout, levels 1, 2, 4 and 12 whole; the remaining differences are timing a player cannot see",
-    "extras": "Options rows, a DISPLAY card and a CHEATS card in the game's own wristwatch menus; more to come"
+    "extras": "Options rows, a DISPLAY card (widescreen, native resolution, smooth motion) and a CHEATS card in the game's own wristwatch menus"
    }
   },
   {
@@ -187,7 +191,9 @@
    "extras": [
     "MENU-02",
     "CHEAT-01",
-    "SCR-01"
+    "SCR-01",
+    "REND-01",
+    "REND-04"
    ],
    "android": [
     "AND-01",
@@ -196,7 +202,7 @@
    "notes": {
     "files": "Your v1.0 copy, read as it is",
     "matches": "Plays by v1.4's rules (your decision): equal to v1.4 frame for frame on all four demos; level 4 proven against your v1.0. Your v1.0 differs from v1.4 in a few places id changed; three found and documented",
-    "extras": "Options rows, a DISPLAY card and a CHEATS card in the game's own wristwatch menus; more to come"
+    "extras": "Options rows, a DISPLAY card (widescreen, native resolution, smooth motion) and a CHEATS card in the game's own wristwatch menus"
    }
   },
   {
@@ -251,6 +257,10 @@
  },
  "needs_you": [
   {
+   "what": "Two Keen 4-6 widescreen looks to check",
+   "why": "The score box now sits in the wide view's top-left corner and never floats; and on Keen 5's world map the wider view can show a little of the flat yellow filler the original never showed. Say if either should change."
+  },
+  {
    "what": "Look and sound decisions, later",
    "why": "Widescreen HUD placement, the sound of each engine, the added options screens and smooth motion are yours to judge once there is a build to see and hear."
   },
@@ -260,6 +270,18 @@
   }
  ],
  "milestones": [
+  {
+   "date": "2026-10-10",
+   "text": "Keen 4-6 get native resolution, smooth motion and widescreen: every gameplay picture of every built-in demo (34,633) redrawn and checked against the original's; the score box stays put in its corner; the status window opens over the wide view; menus and other screens sit in the bevelled frame over the game's own tiled backdrop"
+  },
+  {
+   "date": "2026-10-10",
+   "text": "Map builder groundwork: every level of all seven games can be read and written back byte for byte, and a level changed by the builder loads in Keen 1-6"
+  },
+  {
+   "date": "2026-10-10",
+   "text": "Playtest fixes for Keen 1-3: no stray pictures before the intro, the map opens wide straight away, the camera never shows past the level's edge, one-key fire on by default, the frame and backdrop on every 4:3 screen, a Quit button and F11 for fullscreen everywhere"
+  },
   {
    "date": "2026-10-09",
    "text": "Bug-fix toggles: the first five fixes in Keen 1-5's menus (on by default, Classic turns them off), each checked against the original behaviour; Keen 6's copy-protection question can be switched off"

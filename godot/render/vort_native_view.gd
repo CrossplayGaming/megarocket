@@ -35,6 +35,7 @@ var _shown_at: float = 0.0    # the machine's time when the newest list was firs
 ## drawn over the list's, where it sits in the world (no flip to 4:3; Megarocket 1.0's way)
 var _card: PackedByteArray = PackedByteArray()
 var _black: ImageTexture = null
+var _overlay_tex: ImageTexture = null
 const MAX_GAP: float = 0.25    # seconds between two refreshes past which nothing slides (a load, a pause)
 var _tiles: Array = []         # ImageTexture per tile
 var _mtiles: Dictionary = {}   # tile -> its masked texture
@@ -158,6 +159,12 @@ static func list_overlay(list: Dictionary) -> Rect2i:
 	return list.get("overlay", Rect2i())
 
 
+## The picture's top-left in world pixels (whole: the game's camera).
+func _camera() -> Vector2:
+	var pg: int = int(_eng.PIXGLOBAL)
+	return Vector2(float(int(_list.originx) / pg), float(int(_list.originy) / pg))
+
+
 func _draw_overlay(view: Vector2, scale: Vector2) -> void:
 	var r: Rect2i = list_overlay(_list).intersection(Rect2i(0, 0, VortDrawLayout.W, VortDrawLayout.H))
 	if r.size.x <= 0 or r.size.y <= 0 or _card.size() != VortDrawLayout.W * VortDrawLayout.H:
@@ -167,10 +174,11 @@ func _draw_overlay(view: Vector2, scale: Vector2) -> void:
 	for y: int in range(r.size.y):
 		for x: int in range(r.size.x):
 			px[y * r.size.x + x] = _card[(r.position.y + y) * VortDrawLayout.W + r.position.x + x]
-	var tex: ImageTexture = _texture(px, PackedByteArray(), r.size.x, r.size.y)
+	# kept until the next draw: the canvas draws it after this returns, and a texture freed by then is blank
+	_overlay_tex = _texture(px, PackedByteArray(), r.size.x, r.size.y)
+	var tex: ImageTexture = _overlay_tex
 	# the picture shows from the game's camera (whole pixels): where that is in this view
-	var pg: float = _eng.PIXGLOBAL
-	var cam: Vector2 = Vector2(float(int(_list.originx) / int(pg)), float(int(_list.originy) / int(pg)))
+	var cam: Vector2 = _camera()
 	var at: Vector2 = ((cam + Vector2(r.position)) - view) * scale
 	var to: Vector2 = ((cam + Vector2(r.end)) - view) * scale
 	draw_texture_rect(tex, Rect2(at.round(), (to - at).round()), false)

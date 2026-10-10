@@ -1064,6 +1064,8 @@ func VL_ScrollScreen(x: int, y: int) -> void:
 	else:
 		dy = -y
 	VL_SurfaceToSelf(vl_screen, dx, dy, sx, sy, w, h)
+	if _draw_extra.size != Vector2i.ZERO:
+		_draw_extra.position -= Vector2i(x, y)    # REND-09: a window on the screen moves with it
 
 
 func VL_GetTics(wait: int) -> int:
@@ -1141,6 +1143,112 @@ func VL_SwapOnNextPresent() -> void:
 ## with the page just written, before it is put on display. Not game state.
 var present_lock: Callable = Callable()
 
+## REND-01 (Keen 4-6): the refresh's draw list, kept for a renderer when draw_capture is on (the shell
+## and the tests set it; the simulation never reads it). RF_Refresh makes it (gal_rf.gd); every picture
+## put on the card is one, so a picture not from a refresh (a menu, a window, the title) is a list
+## marked "none": a renderer draws a list only if it is the one the card shows. The previous list is
+## kept too: until this one's start is taken at a retrace, the card still shows that one.
+var draw_capture: bool = false
+var draw_list: Dictionary = {}
+var draw_list_prev: Dictionary = {}
+## A refresh's list waiting for its present (set by RF_Refresh just before VL_Present)
+var _draw_pending: Dictionary = {}
+## REND-04: the wide view's extra tiles each side of the original's 20 (the host sets it from the
+## window's shape; 0 in Classic, headless and the oracle runs: the original exactly)
+var wide_tiles: int = 0
+
+
+## REND-09: what was drawn on the screen outside the refreshes (a window: the item cheat's, the loading
+## box) since the last full repaint, in the screen surface's pixels; the refresh's last picture as the
+## screen held it, and where the screen was scrolled then, to find it by. A refresh's list carries it as
+## its "overlay" (on the picture), so the shell copies that much of the card's picture over its own view
+## and keeps the play wide; a full repaint (RF_Reposition) clears it.
+var _draw_extra: Rect2i = Rect2i()
+var _draw_shot: PackedByteArray = PackedByteArray()
+var _draw_shot_scroll: Vector2i = Vector2i(-1, -1)
+var _draw_last_play: Dictionary = {}
+## More of the picture than this changed outside a refresh is a screen of its own, not a window.
+const DRAW_EXTRA_MAX: int = 320 * 200 * 6 / 10
+
+
+## The list for a picture just written at `base`, the retrace count when its start went to the card.
+func _draw_presented(base: int) -> void:
+	draw_list_prev = draw_list
+	if not _draw_pending.is_empty():
+		draw_list = _draw_pending
+		_draw_pending = {}
+		_draw_last_play = draw_list
+		_draw_shot = vl_screen.pixels.duplicate()
+		_draw_shot_scroll = Vector2i(vl_scrollXpixels, vl_scrollYpixels)
+	else:
+		draw_list = _draw_window_list()
+	draw_list["start"] = base
+	draw_list["written_vbl"] = vm.vbl_count
+
+
+## Something written straight onto the card's page on display: the list shown with what was drawn as its
+## overlay, if that is a window over the last refresh's picture; neither list is the picture otherwise.
+func _draw_touched() -> void:
+	if not draw_capture:
+		return
+	var shown: Dictionary = _draw_window_list()
+	if shown.get("none", false):
+		draw_list["touched"] = true
+		draw_list_prev["touched"] = true
+		return
+	shown["start"] = draw_list.get("start", -1)
+	shown["written_vbl"] = draw_list.get("written_vbl", -1)
+	draw_list = shown
+
+
+## The last refresh's list with what has been drawn over it since as its overlay; {"none": true} when the
+## screen is something else (scrolled, another surface, or mostly changed).
+func _draw_window_list() -> Dictionary:
+	if _draw_last_play.is_empty() or vl_screen == null or _draw_shot.size() != vl_screen.pixels.size() \
+			or _draw_shot_scroll != Vector2i(vl_scrollXpixels, vl_scrollYpixels):
+		return {"none": true}
+	var r: Rect2i = _draw_changed()
+	if r.size != Vector2i.ZERO:
+		_draw_extra = r if _draw_extra.size == Vector2i.ZERO else _draw_extra.merge(r)
+	var on_pic: Rect2i = Rect2i(_draw_extra.position - _draw_shot_scroll, _draw_extra.size).intersection(Rect2i(0, 0, 320, 200))
+	if on_pic.size.x * on_pic.size.y > DRAW_EXTRA_MAX:
+		return {"none": true}
+	var list: Dictionary = _draw_last_play.duplicate()
+	var over: Rect2i = list.get("overlay", Rect2i())
+	if on_pic.size != Vector2i.ZERO:
+		list["overlay"] = on_pic if over.size == Vector2i.ZERO else over.merge(on_pic)
+	return list
+
+
+## Where the screen's 320x200 window differs from the last refresh's picture (the surface's pixels).
+func _draw_changed() -> Rect2i:
+	var px: PackedByteArray = vl_screen.pixels
+	var pitch: int = vl_screen.w
+	var x0: int = 1 << 20
+	var x1: int = -1
+	var y0: int = -1
+	var y1: int = -1
+	for y: int in range(VL_EGAVGA_GFX_HEIGHT):
+		var a: int = (y + vl_scrollYpixels) * pitch + vl_scrollXpixels
+		if a + VL_EGAVGA_GFX_WIDTH > px.size():
+			break
+		if px.slice(a, a + VL_EGAVGA_GFX_WIDTH) == _draw_shot.slice(a, a + VL_EGAVGA_GFX_WIDTH):
+			continue
+		if y0 < 0:
+			y0 = y
+		y1 = y
+		for x: int in range(VL_EGAVGA_GFX_WIDTH):
+			if px[a + x] != _draw_shot[a + x]:
+				x0 = mini(x0, x)
+				break
+		for x: int in range(VL_EGAVGA_GFX_WIDTH - 1, -1, -1):
+			if px[a + x] != _draw_shot[a + x]:
+				x1 = maxi(x1, x)
+				break
+	if y0 < 0:
+		return Rect2i()
+	return Rect2i(x0 + vl_scrollXpixels, y0 + vl_scrollYpixels, x1 - x0 + 1, y1 - y0 + 1)
+
 
 ## The 320 x 200 window at the scroll position, written into the card's hidden
 ## page in write mode 0 one plane at a time, then shown from the next retrace.
@@ -1158,6 +1266,8 @@ func VL_Present() -> void:
 	vm.out8(EgaCard.CRTC_DATA, (base >> 8) & 0xFF)
 	vm.out8(EgaCard.CRTC_INDEX, EgaCard.CRTC_STARTLOW)
 	vm.out8(EgaCard.CRTC_DATA, base & 0xFF)
+	if draw_capture:
+		_draw_presented(base)
 	vl_shownPage = page
 	if not vm.in_retrace():
 		vm.wait_retrace_start()
@@ -1166,6 +1276,7 @@ func VL_Present() -> void:
 ## DOS's VW_ClearVideo: every byte of all four planes zeroed at once, the page
 ## on display too, so the black shows as the beam reaches it (TIME-G).
 func VL_ClearVideo() -> void:
+	_draw_touched()
 	var card: EgaCard = vm.card
 	for i: int in range(4):
 		var pl: PackedByteArray = card.get("plane%d" % i)
@@ -1178,12 +1289,14 @@ func VL_ClearVideo() -> void:
 ## the original draws onto the page being shown, so the card shows the work
 ## in progress at each refresh (TIME-G4: the story screen).
 func VL_ShowRows(y0: int, y1: int, colour: int = -1) -> void:
+	_draw_touched()
 	_write_rows(vl_shownPage * EgaCard.PAGE_SIZE, y0, y1, colour)
 
 
 ## The bytes holding these pixels (y * 320 + x each), from the screen, written
 ## straight into the page on display (TIME-G4: the title's fizzle).
 func VL_ShowPixels(pixels: PackedInt32Array) -> void:
+	_draw_touched()
 	var card: EgaCard = vm.card
 	var base: int = vl_shownPage * EgaCard.PAGE_SIZE
 	var src: PackedByteArray = vl_screen.pixels

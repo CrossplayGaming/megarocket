@@ -1410,8 +1410,8 @@ func CK_CentreCamera(obj: CK_object) -> void:
 		RF_Reposition(screenX, screenY)
 
 	#TODO: This is 4 in Andy's disasm.
-	ck_activeX0Tile = CK_Cross_max(RF_UnitToTile(rf_scrollXUnit) - CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT), 0)
-	ck_activeX1Tile = CK_Cross_max(RF_UnitToTile(rf_scrollXUnit) + RF_PixelToTile(320) + CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT), 0)
+	ck_activeX0Tile = CK_Cross_max(RF_UnitToTile(rf_scrollXUnit) - CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT) - wide_tiles, 0)
+	ck_activeX1Tile = CK_Cross_max(RF_UnitToTile(rf_scrollXUnit) + RF_PixelToTile(320) + CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT) + wide_tiles, 0)
 	ck_activeY0Tile = CK_Cross_max(RF_UnitToTile(rf_scrollYUnit) - CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT), 0)
 	ck_activeY1Tile = CK_Cross_max(RF_UnitToTile(rf_scrollYUnit) + RF_PixelToTile(208) + CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT), 0)
 
@@ -1464,8 +1464,8 @@ func CK_MapCamera(keen: CK_object) -> void:
 		#
 
 		#TODO: This is 4 in Andy's disasm.
-		ck_activeX0Tile = CK_Cross_max(RF_UnitToTile(rf_scrollXUnit) - CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT), 0)
-		ck_activeX1Tile = CK_Cross_max(RF_UnitToTile(rf_scrollXUnit) + RF_PixelToTile(320) + CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT), 0)
+		ck_activeX0Tile = CK_Cross_max(RF_UnitToTile(rf_scrollXUnit) - CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT) - wide_tiles, 0)
+		ck_activeX1Tile = CK_Cross_max(RF_UnitToTile(rf_scrollXUnit) + RF_PixelToTile(320) + CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT) + wide_tiles, 0)
 		ck_activeY0Tile = CK_Cross_max(RF_UnitToTile(rf_scrollYUnit) - CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT), 0)
 		ck_activeY1Tile = CK_Cross_max(RF_UnitToTile(rf_scrollYUnit) + RF_PixelToTile(208) + CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT), 0)
 
@@ -1594,8 +1594,8 @@ func CK_NormalCamera(obj: CK_object) -> void:
 		RF_SmoothScroll(deltaX, deltaY)
 
 		# Update the rectangle of active objects
-		ck_activeX0Tile = CK_Cross_max(RF_UnitToTile(rf_scrollXUnit) - CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT), 0)
-		ck_activeX1Tile = CK_Cross_max(RF_UnitToTile(rf_scrollXUnit) + RF_PixelToTile(320) + CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT), 0)
+		ck_activeX0Tile = CK_Cross_max(RF_UnitToTile(rf_scrollXUnit) - CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT) - wide_tiles, 0)
+		ck_activeX1Tile = CK_Cross_max(RF_UnitToTile(rf_scrollXUnit) + RF_PixelToTile(320) + CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT) + wide_tiles, 0)
 		ck_activeY0Tile = CK_Cross_max(RF_UnitToTile(rf_scrollYUnit) - CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT), 0)
 		ck_activeY1Tile = CK_Cross_max(RF_UnitToTile(rf_scrollYUnit) + RF_PixelToTile(208) + CK_INT("CK_activeLimit", DEFAULT_ACTIVE_LIMIT), 0)
 
@@ -1650,12 +1650,13 @@ func CK_PlayLoop() -> void:
 		IN_PumpEvents()
 		CK_HandleInput()
 
-		# Set, unset active objects.
+		# Set, unset active objects. (J-30: with the wide view, by its edges: wide_tiles more each side,
+		# here and in the limits; 0, the original's, otherwise)
 		var currentObj: CK_object = ck_keenObj
 		while currentObj != null:
 			if currentObj.active == 0 and \
-					(currentObj.clipRects.tileX2 >= RF_UnitToTile(rf_scrollXUnit) - 1) and \
-					(currentObj.clipRects.tileX1 <= RF_UnitToTile(rf_scrollXUnit) + RF_PixelToTile(320) + 1) and \
+					(currentObj.clipRects.tileX2 >= RF_UnitToTile(rf_scrollXUnit) - 1 - wide_tiles) and \
+					(currentObj.clipRects.tileX1 <= RF_UnitToTile(rf_scrollXUnit) + RF_PixelToTile(320) + 1 + wide_tiles) and \
 					(currentObj.clipRects.tileY1 <= RF_UnitToTile(rf_scrollYUnit) + RF_PixelToTile(208) + 1) and \
 					(currentObj.clipRects.tileY2 >= RF_UnitToTile(rf_scrollYUnit) - 1):
 				currentObj.active = OBJ_ACTIVE

@@ -69,9 +69,11 @@ func _run(root: String, game: String, out: String, model: OptionsModel) -> Dicti
 	# DISPLAY; FULLSCREEN, its dialog; back; OPTIONS; MODE, its dialog
 	vm.add_key(6.0, KEY_ENTER, 0.2)
 	vm.add_key(8.0, KEY_ENTER, 0.2)
+	# (DISPLAY's rows: VIEW, NATIVE RESOLUTION, SMOOTH MOTION, then FULLSCREEN)
 	var script: Array = [[1.0, KEY_DOWN], [2.0, KEY_DOWN], [3.0, KEY_DOWN], [4.0, KEY_ENTER],
-		[5.5, KEY_DOWN], [6.5, KEY_DOWN], [7.5, KEY_ENTER], [9.0, KEY_ENTER], [10.5, KEY_SPACE],
-		[12.0, KEY_ESC], [13.5, KEY_DOWN], [14.5, KEY_ENTER], [16.0, KEY_ENTER], [17.5, KEY_SPACE]]
+		[5.5, KEY_DOWN], [6.5, KEY_DOWN], [7.5, KEY_ENTER], [8.6, KEY_DOWN], [9.2, KEY_DOWN], [9.8, KEY_DOWN],
+		[10.6, KEY_ENTER], [12.1, KEY_SPACE],
+		[13.6, KEY_ESC], [15.1, KEY_DOWN], [16.1, KEY_ENTER], [17.6, KEY_ENTER], [19.1, KEY_SPACE]]
 	if model == null:
 		script = []
 	for k: Array in script:
@@ -86,7 +88,7 @@ func _run(root: String, game: String, out: String, model: OptionsModel) -> Dicti
 				writer.add(card.frame_rgb(), "P")
 			else:
 				writer.add_indexed(card.frame_pixels, card.frame_palette, "P")
-	vm.time_limit = DosMachine.seconds_to_units(28.0)
+	vm.time_limit = DosMachine.seconds_to_units(32.0)
 	vm.on_limit = func() -> void:
 		g.quitting = true
 		g.quit_message = "time limit"
