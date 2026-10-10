@@ -757,17 +757,21 @@ func DoFkeys() -> bool:
 		KEY_F3:
 			PauseSound()
 			ClearKeys()
-			# MENU-01: with a player at the controls F3 opens Options (its Controls page keeps
-			# the original Keyboard Commands walk); headless, the original
+			# CTRL-03 (the user, 2026-10-10: Keyboard Commands replaced): with a player at the controls F3
+			# opens the Keyboard page; headless, the original
 			if get(&"options") != null:
-				call(&"OptionsMenu")
+				call(&"OptionsMenu", "keys")
 			else:
 				CalibrateKeys()
 			i += 1
 		KEY_F4:
 			PauseSound()
 			ClearKeys()
-			CalibrateJoy(1)
+			# CTRL-03: the Controller page (headless, the original's joystick calibration)
+			if get(&"options") != null:
+				call(&"OptionsMenu", "pad")
+			else:
+				CalibrateJoy(1)
 			i += 1
 		KEY_F5:
 			PauseSound()

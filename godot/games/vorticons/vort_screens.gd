@@ -993,6 +993,8 @@ func UpdateObjHitbox(ob: Obj) -> void:
 
 # ----------------------------------------------------------- the Options window (MENU-01)
 
+## The Options window is open (for the tests: the game reads its controls there too).
+var shell_menu_open: bool = false
 ## The Options window's size: every page in one window of this size, so going from page to page
 ## leaves nothing of the last behind.
 const OPTIONS_W: int = 30    # the longest row: a fix's title and its value
@@ -1001,12 +1003,18 @@ const OPTIONS_H: int = 13    # the Cheats page's rows and Back
 
 ## The Options window (docs/MENUS.md): the shell's rows in an ExpWin with the game's caret cursor.
 ## Up and down move, left and right change a value, Enter / Space / the first button chooses,
-## Escape / the second button goes back a page (from the first page: leaves).
-func OptionsMenu() -> void:
+## Escape / the second button goes back a page (from the first page: leaves). `start`: the page it opens
+## on (F3 the Keyboard page, F4 the Controller page: CTRL-03).
+func OptionsMenu(start: String = "options") -> void:
 	if options == null:
 		return
+	shell_menu_open = true
 	var stack: Array = []    # [page, cursor] to come back to
-	var page_name: String = "options"
+	var page_name: String = start
+	if start == "keys" or start == "pad":
+		# Back from there goes up through Controls and Options, as it does when walked to
+		var opt: Array = options.page("options").map(func(r: Dictionary) -> String: return r.key)
+		stack = [["options", maxi(0, opt.find("controls"))], ["controls", 0 if start == "keys" else 1]]
 	var pos: int = 0
 	ExpWin(OPTIONS_W, OPTIONS_H)
 	var wx: int = sx
@@ -1079,8 +1087,30 @@ func OptionsMenu() -> void:
 				Quit("")
 				return
 			ExpWin(OPTIONS_W, OPTIONS_H)
-		elif act == "action:keyboard_commands":
-			CalibrateKeys()
+		elif act.begins_with("action:capture:") or act.begins_with("action:clear:"):
+			# CTRL-03: a key or button caught (or the action cleared), said, and back to the list
+			var p: PackedStringArray = act.substr(7).split(":")
+			var said: String = ""
+			if p[0] == "capture":
+				said = _options_capture(p[1], p[2], int(p[3]))
+			else:
+				options.clear_binding(p[1], p[2])
+				said = "%s: none" % options.action_label(p[2])
+			ExpWin(said.length(), 1)
+			Print(said)
+			Get()
+			var back: Array = stack.pop_back()
+			page_name = back[0]
+			pos = back[1]
+			ExpWin(OPTIONS_W, OPTIONS_H)
+		elif act == "action:reset_controls":
+			ExpWin(28, 1)
+			Print("Reset every control (Y/N)?")
+			if _toupper(Get() & 0xFF) == 89:
+				options.reset_controls()
+				ExpWin(22, 1)
+				Print("The controls are reset")
+				Get()
 			ExpWin(OPTIONS_W, OPTIONS_H)
 		elif act.begins_with("say:"):
 			# a cheat's word: what a one-shot did, or why a row can't be used now
@@ -1090,6 +1120,38 @@ func OptionsMenu() -> void:
 			Get()
 			ExpWin(OPTIONS_W, OPTIONS_H)
 	ClearKeys()
+	shell_menu_open = false
+
+
+## CTRL-03: catches a key or button for an action: the prompt, Esc to cancel and a five-second countdown in
+## a window; the host hands the next press over (controls_captured) and the game never sees it. Returns
+## what happened, to be said.
+func _options_capture(device: String, action: String, slot: int) -> String:
+	var prompt: String = options.capture_prompt(device, action)
+	var w: int = maxi(prompt.length(), 20)
+	ExpWin(w, 2)
+	var wx: int = sx
+	var wy: int = sy
+	Print(prompt)
+	controls_captured = -2
+	controls_capture = device
+	var until: float = vm.seconds() + 5.0
+	var shown: int = -1
+	while not exited and controls_captured == -2:
+		var left: int = ceili(until - vm.seconds())
+		if left <= 0:
+			break
+		if left != shown:
+			shown = left
+			sx = wx
+			sy = wy + 1
+			Print(("Esc cancels" if device == "keys" else "Start cancels").rpad(w - 2) + str(left).lpad(2))
+		WaitVBL(1)
+	controls_capture = ""
+	var code: int = controls_captured
+	controls_captured = -2
+	ClearKeys()
+	return options.capture_done(device, action, slot, code if code != -2 else -1)
 
 
 ## The blank the cursor leaves behind on a row: a greyed row's (PrintGrey's characters are 0x80 on) on a

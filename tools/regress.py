@@ -991,6 +991,18 @@ def ctrl02():
     return code
 
 
+def ctrl03():
+    """Keen 1-3's Controls pages (CTRL-03), walked in Keen 1 with the keys and the pad: F3 the Keyboard
+    page, a key caught for Jump (the game never sees it) and used at once, one taken from another action,
+    Clear, Escape cancelling; F4 the Controller page with the pad alone; Reset to defaults."""
+    import gdtest
+    code, out = gdtest.run("ctrl03_vorticons", [], timeout=400.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+            print("  " + line.strip())
+    return code
+
+
 def perf01():
     """Keen 4-6's faster drawing (PERF-01): the screen's conversion into the card's planes, the surface copies,
     tiles, sprites, the intro's one-bit picture and the masked fill give byte for byte what the per-pixel loops
@@ -1340,6 +1352,7 @@ CHECKS = {
     "PERF-01": (perf01, "fast"),
     "CTRL-01": (ctrl01, "fast"),
     "CTRL-02": (ctrl02, "fast"),
+    "CTRL-03": (ctrl03, "fast"),
     "SECRET-01": (secret01, "fast"),
     "SECRET-02": (secret02, "fast"),
     "AND-02a": (and02a, "fast"),

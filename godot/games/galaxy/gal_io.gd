@@ -705,6 +705,11 @@ var shell_one_fire: bool = true
 ## The refresh the controls were last read on: the host's pad is the controls while they are being read,
 ## the menus' arrows, Enter and Escape otherwise.
 var controls_read_vbl: int = -1000000
+## CTRL-03..05: a Controls page catching a key ("keys") or a button ("pad") for an action; the host puts
+## the next one pressed in controls_captured (a Godot key or pad button; -1 Escape or Start: cancelled;
+## -2 none yet) and the game never sees it.
+var controls_capture: String = ""
+var controls_captured: int = -2
 
 
 func shell_held(action: String) -> bool:

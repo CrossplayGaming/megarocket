@@ -18,6 +18,8 @@ var game_id: String = ""
 var engine: String = ""
 ## Called (deferred to the main thread) with a setting's name after it changed.
 var applier: Callable = Callable()
+## CTRL-03..05: the player's keys and buttons (shared by every game), for the Controls pages.
+var controls: ControlsModel = null
 ## The Mode presets: the rows each sets (MENUS.md "The Mode row"). The wide view, native resolution, smooth motion and the fixes so far
 ## (FixesModel): one-button fire, all off in Classic, on in Enhanced; more join
 ## as they are built.
@@ -34,8 +36,12 @@ func _init(p_settings: Settings, p_game: String, p_engine: String) -> void:
 	engine = p_engine
 
 
-## The rows of a page: "options" (the top), "display", "sound", "controls".
+## The rows of a page: "options" (the top), "display", "sound", "controls", "keys", "pad", "fixes",
+## "bindact:<device>:<action>".
 func page(name: String) -> Array:
+	if name.begins_with("bindact:"):
+		var p: PackedStringArray = name.split(":")
+		return bind_rows(p[1], p[2])
 	match name:
 		"options":
 			return [
@@ -77,18 +83,90 @@ func page(name: String) -> Array:
 			rows.append(_row("exit", "Back", "action"))
 			return rows
 		"controls":
-			var rows: Array = []
+			# CTRL-03..05 (the user, 2026-10-10): the same pages in every game, each in its own style; the old
+			# control screens (Keen 1-3's Keyboard Commands, 4-6's KEYBOARD cards, Dreams' panel) replaced
+			var rows: Array = [_row("keys", "Keyboard...", "page"), _row("pad", "Controller...", "page")]
 			if engine == "vorticons":
-				# J-06: one key fires (Left Shift; the pad's X, Y and triggers), or the original's two together
-				# (named: the user, 2026-10-10, could not tell which one key fired)
-				rows.append(_value("one_button_fire", "Fire button", "Left Shift" if bool(get_value("one_button_fire")) else "Two keys"))
+				# J-06: Fire on its own key (Fire's keys hold both buttons), or the original's two together
+				rows.append(_value("one_button_fire", "Fire button", "Own button" if bool(get_value("one_button_fire")) else "Two keys"))
+			elif engine == "galaxy":
+				# TWO-BUTTON FIRING, the original's option, as this row's Jump + Pogo
+				rows.append(_value("two_button_fire", "Fire button", "Jump + Pogo" if bool(get_value("two_button_fire")) else "Own button"))
+			if engine == "vorticons":
 				# SAVE-02: Keen 1-3's quicksave keys (F5 stays the original's save menu: 1.0's F7 and F9)
 				rows.append(_value("quicksave", "Quicksave F7/F9", _on_off(get_value("quicksave"))))
 				rows.append(_value("quicksave_confirm", "Quicksave asks", _on_off(get_value("quicksave_confirm"))))
-				rows.append(_row("keyboard_commands", "Keyboard commands", "action"))
+			rows.append(_row("reset_controls", "Reset to defaults", "action"))
+			rows.append(_row("exit", "Back", "action"))
+			return rows
+		"keys", "pad":
+			# each action and its keys or buttons; choosing one offers what to do with it
+			var rows: Array = []
+			if controls != null:
+				for r: Dictionary in controls.rows(name, engine):
+					rows.append({"key": "bind:%s:%s" % [name, r.key], "label": r.label, "kind": "value", "value": r.value})
+			if name == "pad":
+				rows.append({"key": "pad_fixed", "label": "Move: d-pad, stick", "kind": "action", "enabled": false})
 			rows.append(_row("exit", "Back", "action"))
 			return rows
 	return []
+
+
+## An action's page (CTRL-03..05): change its first key or button, add a second, clear, back. "bindact:
+## <device>:<action>"; Add second only while it has one.
+func bind_rows(device: String, action: String) -> Array:
+	var have: Array = controls.keys(action) if device == "keys" else controls.buttons(action)
+	var rows: Array = [_row("capture:%s:%s:0" % [device, action], "Change", "action")]
+	if have.size() == 1:
+		rows.append(_row("capture:%s:%s:1" % [device, action], "Add second", "action"))
+	if not have.is_empty():
+		rows.append(_row("clear:%s:%s" % [device, action], "Clear", "action"))
+	rows.append(_row("exit", "Back", "action"))
+	# what the action has now, said under every row (the engines show a row's line where they can)
+	for r: Dictionary in rows:
+		r["desc"] = "%s: %s" % [_action_label(action), controls.shown(device, action)]
+	return rows
+
+
+## What to say before a capture: "Press a key for Jump".
+func capture_prompt(device: String, action: String) -> String:
+	return "Press a %s for %s" % ["key" if device == "keys" else "button", _action_label(action)]
+
+
+## A key or button caught for an action (code < 0: cancelled, or none in time): bound, and what happened
+## in a few words ("Jump: Q", "Q was Pogo's, now Jump's", "Escape stays the game's").
+func capture_done(device: String, action: String, slot: int, code: int) -> String:
+	if code < 0:
+		return "Not changed"
+	var name: String = ControlsModel.key_name(code) if device == "keys" else ControlsModel.button_name(code)
+	var taken: String = controls.bind(device, action, code, slot)
+	if applier.is_valid():
+		applier.call_deferred("controls")
+	if taken == "!":
+		return "%s stays the game's own" % name
+	if taken != "":
+		return "%s was %s's, now %s's" % [name, _action_label(taken), _action_label(action)]
+	return "%s: %s" % [_action_label(action), controls.shown(device, action)]
+
+
+func clear_binding(device: String, action: String) -> void:
+	controls.clear(device, action)
+	if applier.is_valid():
+		applier.call_deferred("controls")
+
+
+func reset_controls() -> void:
+	controls.reset()
+	if applier.is_valid():
+		applier.call_deferred("controls")
+
+
+func action_label(action: String) -> String:
+	return _action_label(action)
+
+
+func _action_label(action: String) -> String:
+	return "Throw" if engine == "dreams" and action == "fire" else str(ControlsModel.LABELS.get(action, action))
 
 
 ## A value row moved left (dir -1) or right (+1).
@@ -104,7 +182,7 @@ func step(key: String, dir: int) -> void:
 			_put("fullscreen", not bool(get_value("fullscreen")))
 		"creature_question":
 			_put("creature_question", not bool(get_value("creature_question")))
-		"native_resolution", "smooth_motion", "wide_view", "one_button_fire", "quicksave", "quicksave_confirm":
+		"native_resolution", "smooth_motion", "wide_view", "one_button_fire", "two_button_fire", "quicksave", "quicksave_confirm":
 			_put(key, not bool(get_value(key)))
 		"pixel_shape":
 			_put("pixel_shape", "square" if get_value("pixel_shape") == "4:3" else "4:3")
@@ -119,12 +197,18 @@ func step(key: String, dir: int) -> void:
 ## What choosing a row does.
 func activate(key: String) -> String:
 	# "cheats": the engine builds that page itself from CheatsModel (its rows are the engine's flags)
-	for name: String in ["display", "sound", "controls", "cheats", "fixes"]:
+	for name: String in ["display", "sound", "controls", "cheats", "fixes", "keys", "pad"]:
 		if key == name:
 			return "page:" + name
+	if key.begins_with("bind:"):
+		return "page:bindact:" + key.substr(5)    # the action's own page
+	if key.begins_with("capture:") or key.begins_with("clear:"):
+		return "action:" + key
 	match key:
-		"quit_game", "exit", "keyboard_commands":
+		"quit_game", "exit", "reset_controls":
 			return "action:" + key
+		"pad_fixed":
+			return ""    # (the fixed movement: nothing to choose)
 	step(key, 1)    # confirm on a value row moves it on, as the engines' own toggles do
 	return ""
 

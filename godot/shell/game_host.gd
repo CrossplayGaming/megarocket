@@ -252,6 +252,7 @@ func start(found: Dictionary) -> bool:
 	options = OptionsModel.new(settings, game_id, "vorticons" if engine is VortScreens else ("galaxy" if engine is GalGame else "dreams"))
 	options.applier = apply_setting
 	controls = ControlsModel.new(settings)
+	options.controls = controls
 	if "options" in engine:
 		engine.set("options", options)
 	if "fixes" in engine:
@@ -594,6 +595,29 @@ func _shown_list_galaxy() -> Dictionary:
 	return list
 
 
+## CTRL-03..05: what a Controls page waiting for a key ("keys") or a button ("pad") catches from an event:
+## the Godot key or pad button (a trigger as ControlsModel.PAD_LT / PAD_RT), -1 for Escape or Start (cancel),
+## -2 for nothing (a release, the other device, a stick).
+func _caught(event: InputEvent, device: String) -> int:
+	var k: InputEventKey = event as InputEventKey
+	if k != null and k.pressed and not k.echo:
+		if k.keycode == KEY_ESCAPE:
+			return -1
+		return k.keycode if device == "keys" else -2
+	var jb: InputEventJoypadButton = event as InputEventJoypadButton
+	if jb != null and jb.pressed:
+		if jb.button_index == JOY_BUTTON_START:
+			return -1
+		return jb.button_index if device == "pad" else -2
+	var jm: InputEventJoypadMotion = event as InputEventJoypadMotion
+	if jm != null and device == "pad" and jm.axis_value > STICK_DEADZONE:
+		if jm.axis == JOY_AXIS_TRIGGER_LEFT:
+			return ControlsModel.PAD_LT
+		if jm.axis == JOY_AXIS_TRIGGER_RIGHT:
+			return ControlsModel.PAD_RT
+	return -2
+
+
 ## CTRL-02: whether the game is reading its play controls (the last few refreshes): the pad is then the
 ## player's bindings, otherwise the menus' keys.
 func controls_live() -> bool:
@@ -777,6 +801,12 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventJoypadButton or event is InputEventJoypadMotion:
 		pad_device = event.device
+	if engine != null and "controls_capture" in engine and str(engine.get("controls_capture")) != "":
+		var caught: int = _caught(event, str(engine.get("controls_capture")))
+		if caught != -2:
+			engine.set("controls_captured", caught)
+			get_viewport().set_input_as_handled()
+			return
 	if event is InputEventJoypadButton:
 		var jb: InputEventJoypadButton = event
 		_pad(jb.button_index, jb.pressed)
