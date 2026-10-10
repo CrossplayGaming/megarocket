@@ -262,6 +262,18 @@
  "milestones": [
   {
    "date": "2026-10-09",
+   "text": "Bug-fix toggles: the first five fixes in Keen 1-5's menus (on by default, Classic turns them off), each checked against the original behaviour; Keen 6's copy-protection question can be switched off"
+  },
+  {
+   "date": "2026-10-09",
+   "text": "Keen 1-3 pictures can now be drawn without the old graphics card: every gameplay picture matches the original's, the base for native resolution, smooth motion and widescreen"
+  },
+  {
+   "date": "2026-10-09",
+   "text": "Level select in Keen 1-6's cheat menus, and the original cheat codes listed where players can find them"
+  },
+  {
+   "date": "2026-10-09",
    "text": "Cheats in Keen 1-6, from each game's own menus: god mode, infinite ammo and lives, no clipping, jump cheat, slow motion, freeze enemies, free items, extra lives, skip level; the original cheat codes still work"
   },
   {
