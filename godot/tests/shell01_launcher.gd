@@ -90,6 +90,28 @@ func _run(scene: PackedScene) -> void:
 		await process_frame
 		t.ok("%dx%d: the how-to page opens (where it looks, what each game needs) and ui_cancel closes it" % [win.x, win.y],
 			open_ok and l.howto == null and l._page.visible)
+		# the quit box: Stay chosen first; the arrows (the pad's d-pad is the same ui_* actions) move between
+		# Quit and Stay and never to the tiles behind it; Escape stays
+		l.confirm_quit()
+		await process_frame
+		var path: Callable = func() -> String:
+			var f: Control = root.gui_get_focus_owner()
+			return str(f.name) if f != null and l.quit_box != null and l.quit_box.is_ancestor_of(f) else "outside"
+		var seen: Array = [path.call()]
+		for a: String in ["ui_left", "ui_left", "ui_up", "ui_right", "ui_down", "ui_right"]:
+			var ev: InputEventAction = InputEventAction.new()
+			ev.action = a
+			ev.pressed = true
+			root.push_input(ev)
+			await process_frame
+			seen.append(path.call())
+		var esc: InputEventAction = InputEventAction.new()
+		esc.action = "ui_cancel"
+		esc.pressed = true
+		l._unhandled_input(esc)
+		await process_frame
+		t.ok("%dx%d: the quit box keeps the keys and pad to its two buttons (%s) and Escape closes it" % [win.x, win.y, seen],
+			seen == ["Stay", "Quit", "Quit", "Quit", "Stay", "Stay", "Stay"] and l.quit_box == null)
 		l.queue_free()
 		await process_frame
 	t.finish(self)

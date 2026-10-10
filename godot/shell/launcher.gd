@@ -869,13 +869,20 @@ func confirm_quit() -> void:
 	for b: Button in [quit, stay]:
 		b.custom_minimum_size.x = w
 	add_child(quit_box)
+	# the keys and the pad move between Quit and Stay only (the user, 2026-10-10: Left left the box for the
+	# tiles behind it, the mouse was needed): each the other's neighbour every way, and nothing behind the
+	# box takes the focus while it is up
 	for b: Button in [quit, stay]:
+		var other: NodePath = (stay if b == quit else quit).get_path()
 		b.focus_neighbor_top = b.get_path()
 		b.focus_neighbor_bottom = b.get_path()
-		b.focus_next = (stay if b == quit else quit).get_path()
-		b.focus_previous = b.focus_next
+		b.focus_next = other
+		b.focus_previous = other
 	quit.focus_neighbor_left = quit.get_path()
+	quit.focus_neighbor_right = stay.get_path()
+	stay.focus_neighbor_left = quit.get_path()
 	stay.focus_neighbor_right = stay.get_path()
+	_page.focus_behavior_recursive = Control.FOCUS_BEHAVIOR_DISABLED
 	stay.grab_focus()
 
 
@@ -884,6 +891,7 @@ func close_quit() -> void:
 		return
 	quit_box.queue_free()
 	quit_box = null
+	_page.focus_behavior_recursive = Control.FOCUS_BEHAVIOR_INHERITED
 	if quit_button != null and quit_button.visible:
 		quit_button.grab_focus()
 
