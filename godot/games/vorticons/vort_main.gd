@@ -54,6 +54,8 @@ const ex_nothing: int = 0
 const ex_completed: int = 1
 const ex_warped: int = 2
 const ex_tantalus: int = 3
+## The shell's Level select left a level for another (CHEAT-04): no life lost, nothing marked done.
+const ex_shellwarp: int = 4
 
 # classtype (nothing and keenobj are the same in every episode; the rest
 # are set per episode in `classes`)
@@ -383,6 +385,8 @@ var cheat_freezeEnemies: bool = false    # read in LevelLoop
 var shell_playing: bool = false
 ## A level in progress (not the world map): Skip this level works only there.
 var shell_in_level: bool = false
+## Level select's choice (CHEAT-04): the world map enters it next, done or not; 0 for none.
+var shell_warp: int = 0
 var LevelNumber: int = 0
 var lastextra: int = 0
 var lastdir: int = 0

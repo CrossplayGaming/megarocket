@@ -1314,7 +1314,28 @@ func _cheat_keeps_going(_ob: Obj) -> bool:
 ## The cheats this engine has so far (CheatsModel's keys).
 func shell_cheat_supported() -> Array:
 	return ["god", "infinite_ammo", "infinite_lives", "no_clip", "jump", "slow_motion", "freeze_enemies",
-		"free_items", "extra_lives", "skip_level"]
+		"free_items", "extra_lives", "skip_level", "level_select"]
+
+
+## Level select's list (CHEAT-04): the levels this game's files hold, [number, name]. Keen 1-3 never
+## show a level's name, so the rows read "Level 1" and so on.
+func shell_levels() -> Array:
+	var out: Array = []
+	for n: int in range(1, NUMLEVELS + 1):
+		if FileAccess.file_exists(data.dir.path_join(("LEVEL%02d." % n) + data.ext)):
+			out.append([n, "Level %d" % n])
+	return out
+
+
+## A level chosen: the world map enters it next (from inside a level, the level is left at once with
+## nothing lost). Returns why not, or "".
+func shell_warp_to(n: int) -> String:
+	if not shell_playing:
+		return "Only during a game"
+	shell_warp = n
+	if shell_in_level:
+		LevelDone = ex_shellwarp
+	return ""
 
 
 func shell_in_game() -> bool:

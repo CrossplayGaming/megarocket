@@ -994,7 +994,7 @@ func UpdateObjHitbox(ob: Obj) -> void:
 ## The Options window's size: every page in one window of this size, so going from page to page
 ## leaves nothing of the last behind.
 const OPTIONS_W: int = 26
-const OPTIONS_H: int = 11    # the Cheats page's rows and Back
+const OPTIONS_H: int = 12    # the Cheats page's rows and Back
 
 
 ## The Options window (docs/MENUS.md): the shell's rows in an ExpWin with the game's caret cursor.
@@ -1060,6 +1060,8 @@ func OptionsMenu() -> void:
 			stack.append([page_name, pos])
 			page_name = act.substr(5)
 			pos = 0
+		elif act == "action:close":
+			break    # Level select chose a level: back to the game at once
 		elif act == "action:exit":
 			if stack.is_empty():
 				break
@@ -1113,6 +1115,8 @@ func _options_draw(rows: Array, wx: int, wy: int) -> void:
 ## A page's rows: the model's, or (Cheats) the engine's cheats from CheatsModel: a toggle reads On or
 ## Off, a one-shot is a plain row; with no game in progress every one is greyed (CHEAT-01).
 func _options_rows(page_name: String) -> Array:
+	if page_name.begins_with("levels:"):
+		return _options_level_rows(int(page_name.substr(7)))
 	if page_name != "cheats":
 		return options.page(page_name)
 	var rows: Array = []
@@ -1121,6 +1125,21 @@ func _options_rows(page_name: String) -> Array:
 			rows.append({"key": "cheat:" + r.key, "label": r.label, "kind": "value", "value": "On" if r.value else "Off", "enabled": r.enabled})
 		elif r.kind == "once":
 			rows.append({"key": "cheat:" + r.key, "label": r.label, "kind": "action", "enabled": r.enabled})
+		elif r.kind == "pick" and r.key == "level_select":
+			rows.append({"key": "cheat:levels:0", "label": r.label + "...", "kind": "page", "enabled": r.enabled})
+	rows.append({"key": "exit", "label": "Back", "kind": "action"})
+	return rows
+
+
+## Level select's pages (CHEAT-04): ten levels to a page, More levels... for the next, Back.
+func _options_level_rows(first: int) -> Array:
+	var levels: Array = call("shell_levels")
+	var in_game: bool = call("shell_in_game")
+	var rows: Array = []
+	for l: Array in levels.slice(first, first + 10):
+		rows.append({"key": "cheat:warp:%d" % l[0], "label": l[1], "kind": "action", "enabled": in_game})
+	if first + 10 < levels.size():
+		rows.append({"key": "cheat:levels:%d" % (first + 10), "label": "More levels...", "kind": "page"})
 	rows.append({"key": "exit", "label": "Back", "kind": "action"})
 	return rows
 
@@ -1131,6 +1150,11 @@ func _options_cheat(row: Dictionary) -> String:
 	if not row.get("enabled", true):
 		return "say:Only during a game"
 	var key: String = str(row.key).substr(6)
+	if key.begins_with("levels:"):
+		return "page:" + key
+	if key.begins_with("warp:"):
+		var why: String = call("shell_warp_to", int(key.substr(5)))
+		return "say:" + why if why != "" else "action:close"
 	if row.kind == "value":
 		CheatsModel.toggle(self, key)
 		return ""

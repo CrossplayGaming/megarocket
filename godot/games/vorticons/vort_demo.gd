@@ -179,6 +179,9 @@ func WorldMap() -> void:
 			worldCamX = originx
 			worldCamY = originy
 			DoFkeys()
+			if shell_warp != 0:
+				LevelNumber = shell_warp    # Level select (CHEAT-04): that level next, as if walked into
+				break
 			if keydown[KEY_SPACE] != 0:
 				ShowStatusScreen()
 			if resetgame or exited:
@@ -190,7 +193,8 @@ func WorldMap() -> void:
 				break
 		canSave = false
 		var idx: int = (LevelNumber & 0xFF) - 1    # the original's 16-bit index drops the blocking bit
-		if idx >= 0 and idx < NUMLEVELS and not gamestate.leveldone[idx]:
+		if idx >= 0 and idx < NUMLEVELS and (not gamestate.leveldone[idx] or shell_warp != 0):
+			shell_warp = 0
 			PlaySound(SND.WLDENTERSND)
 			exitcode = LevelLoop(LevelNumber & 0xFF)
 			shell_in_level = false

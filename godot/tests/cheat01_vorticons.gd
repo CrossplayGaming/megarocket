@@ -3,7 +3,7 @@ extends SceneTree
 ## CHEAT-01/02 (Keen 1-3): the shell's cheats in the Options window and their effects.
 ## With an OptionsModel attached (a player at the controls), from the keyboard: the title menu's Options,
 ## Cheats...: its rows are greyed with no game (God mode chosen: only a word why); back out, New Game;
-## on the world map F3, Cheats..., God mode chosen, Infinite ammo moved on; back out. Checks: God mode
+## on the world map F3, Cheats..., God mode chosen, Infinite ammo moved on, Level select..., Level 3. Checks: God mode
 ## off on the title, God mode and Infinite ammo on in the game (the rows usable there).
 ## Then level 1 played directly (the level test's way), the cheats set as the window sets them: God
 ## mode carried into the level's start; a shot costs one without Infinite ammo and nothing with it;
@@ -39,6 +39,7 @@ func _init() -> void:
 	var cfg: String = OS.get_temp_dir().path_join("mr_cheat01v_%d.cfg" % Time.get_ticks_usec())
 	var w: Dictionary = _walk(root, game, out, OptionsModel.new(Settings.new(cfg), game, "vorticons"))
 	t.ok("on the title God mode stayed off (%s)" % [w.get("title", {})], w.get("title", {}).get("seen", false) and not w.title.god)
+	t.ok("Level select's Level 3 was entered from the world map (level %s)" % w.get("warped", "none"), w.get("warped", 0) == 3)
 	t.ok("in the game God mode and Infinite ammo went on (%s)" % [w.get("game", {})],
 		w.get("game", {}).get("god", false) and w.game.get("ammo", false) and w.game.get("playing", false))
 	var fx: Dictionary = _effects(root, game, out + "_fx")
@@ -99,7 +100,12 @@ func _walk(root: String, game: String, out: String, model: OptionsModel) -> Dict
 		[14.0, KEY_DOWN], [15.0, KEY_ENTER], [17.0, KEY_DOWN], [18.0, KEY_DOWN], [19.0, KEY_DOWN], [20.0, KEY_DOWN],
 		[21.0, KEY_ENTER], [22.5, KEY_ENTER], [24.0, KEY_SPACE], [25.5, KEY_ESC], [27.5, KEY_ESC], [30.0, KEY_ENTER],
 		[35.0, KEY_F3], [37.0, KEY_DOWN], [38.0, KEY_DOWN], [39.0, KEY_DOWN], [40.0, KEY_DOWN], [41.0, KEY_ENTER],
-		[42.5, KEY_ENTER], [43.5, KEY_DOWN], [44.5, KEY_RIGHT], [46.0, KEY_ESC], [47.5, KEY_ESC]]
+		[42.5, KEY_ENTER], [43.5, KEY_DOWN], [44.5, KEY_RIGHT],
+		# then down to Level select... (the eleventh row), into it, down to Level 3, chosen: the window
+		# closes and the world map enters level 3
+		[46.0, KEY_DOWN], [47.0, KEY_DOWN], [48.0, KEY_DOWN], [49.0, KEY_DOWN], [50.0, KEY_DOWN], [51.0, KEY_DOWN],
+		[52.0, KEY_DOWN], [53.0, KEY_DOWN], [54.0, KEY_DOWN], [55.0, KEY_ENTER], [56.5, KEY_DOWN], [57.5, KEY_DOWN],
+		[58.5, KEY_ENTER]]
 	for k: Array in script:
 		vm.add_key_after("intro", k[0], k[1], 0.2)
 	var r: Dictionary = {}
@@ -111,8 +117,10 @@ func _walk(root: String, game: String, out: String, model: OptionsModel) -> Dict
 		if at > 26.0 and not r.has("title"):
 			r["title"] = {"seen": true, "god": g.cheat_god}
 		if at > 45.5 and not r.has("game"):
-			r["game"] = {"god": g.cheat_god, "ammo": g.cheat_infiniteAmmo, "playing": g.shell_in_game()})
-	vm.time_limit = DosMachine.seconds_to_units(56.0)
+			r["game"] = {"god": g.cheat_god, "ammo": g.cheat_infiniteAmmo, "playing": g.shell_in_game()}
+		if at > 58.5 and g.shell_in_level and not r.has("warped"):
+			r["warped"] = g.LevelNumber & 0xFF)
+	vm.time_limit = DosMachine.seconds_to_units(68.0)
 	vm.on_limit = func() -> void:
 		g.exited = true
 	g.main()
