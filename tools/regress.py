@@ -374,11 +374,11 @@ def _replay(game, levels):
 
 
 def rend04():
-    """The wide view (REND-04), Keen 1-3, three tiles more each side: the snapped list is still the
-    original at 320, at 416 every image shifts alike, and J-30's edges: creatures wake and stay by the
+    """The wide view (REND-04), Keen 1-3, a reach of six tiles past the picture: the snapped list is still
+    the original at 320, at 416 every image shifts alike and the map's tiles cover all of it, and J-30's edges: creatures wake and stay by the
     wide view's edges only with it on."""
     import gdtest
-    code, out = gdtest.run("rend01_vorticons", ["--games=keen1,keen2,keen3", "--wide=3"], timeout=2400.0, quiet=True)
+    code, out = gdtest.run("rend01_vorticons", ["--games=keen1,keen2,keen3", "--wide=6"], timeout=2400.0, quiet=True)
     for line in out.splitlines():
         if "FAIL" in line or "checks" in line or "ERROR" in line or "compared" in line:
             print("  " + line.strip())
@@ -409,6 +409,18 @@ def maker02():
     return max(code, code2)
 
 
+def maker03():
+    """The level maker's document (MAKER-03): Keen 1 and Keen 4 opened, a drag painted as one undo step,
+    undo and redo, Keen's start moved, saved into the maker's folder and read back, the game's own
+    folder refused, the play request."""
+    import gdtest
+    code, out = gdtest.run("maker03_model", [], timeout=300.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend01g():
     """The draw list (REND-01..03, REND-05's status window), Keen 4-6: every gameplay picture of every
     demo drawn again from its refresh's list equals the card's; the native layout within each image's
@@ -423,10 +435,11 @@ def rend01g():
 
 
 def rend04g():
-    """The wide view (REND-04), Keen 4-6, three tiles more each side: the 1x picture still the card's,
-    at 416 every image shifted alike with the score box kept on the screen, and J-30's edges."""
+    """The wide view (REND-04), Keen 4-6, a reach of six tiles past the picture: the 1x picture still the
+    card's, at 416 every image shifted alike with the score box kept on the screen and the map's tiles
+    over all of it, and J-30's edges."""
     import gdtest
-    code, out = gdtest.run("rend01_galaxy", ["--games=keen4,keen5,keen6", "--wide=3", "--demos=0,1"], timeout=3600.0, quiet=True)
+    code, out = gdtest.run("rend01_galaxy", ["--games=keen4,keen5,keen6", "--wide=6", "--demos=0,1"], timeout=3600.0, quiet=True)
     for line in out.splitlines():
         if "FAIL" in line or "checks" in line or "ERROR" in line or "compared" in line:
             print("  " + line.strip())
@@ -1138,6 +1151,7 @@ CHECKS = {
     "REND-01G": (rend01g, "slow"),
     "MAKER-01": (maker01, "fast"),
     "MAKER-02": (maker02, "fast"),
+    "MAKER-03": (maker03, "fast"),
     "REND-04G": (rend04g, "slow"),
     "FIX-01": (fix01, "slow"),
     "SHELL-05": (shell05, "fast"),

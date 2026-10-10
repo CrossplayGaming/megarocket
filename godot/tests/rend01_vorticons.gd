@@ -52,7 +52,7 @@ func _init() -> void:
 			t.ok("%s: the draw list's 1x picture equals the card's (%d of %d)" % [game, r.get("match", 0), r.get("compared", 0)],
 				r.get("compared", 0) > 300 and r.get("differ", 1) == 0)
 		else:
-			t.ok("%s: REND-04, at %d pixels every image shifted alike (%d of %d)" % [game, 320 + 32 * wide, r.get("shifted", 0), r.get("compared", 0)],
+			t.ok("%s: REND-04, at %d pixels every image shifted alike, the map's tiles over all of it (%d of %d)" % [game, 320 + 16 * wide, r.get("shifted", 0), r.get("compared", 0)],
 				r.get("compared", 0) > 300 and r.get("shifted", 0) == r.get("compared", 0))
 		print("    creatures awake past the original's edge: %d times" % r.get("beyond", 0))
 		var rules: Array = r.get("rules", [])
@@ -122,8 +122,9 @@ func _game(root: String, game: String, levels: Array, seconds: float, out: Strin
 			elif r.get("wide_saved", 0) < 3:
 				r.wide_saved = r.get("wide_saved", 0) + 1
 				_save(card, c320, out.path_join("%s_wide_differ_%d.png" % [game, r.wide_saved]))
-			# at 320 + 32 * wide every map tile and sprite the 320 view has, shifted by the same amount
-			var ow: Array = VortDrawLayout.ops(g, list, Vector2.ONE, true, 320 + 32 * wide)
+			# at 320 + 16 * wide (wide: the tiles the view reaches past the picture on one side, the host's
+			# rule) every map tile and sprite the 320 view has, shifted by the same amount
+			var ow: Array = VortDrawLayout.ops(g, list, Vector2.ONE, true, 320 + 16 * wide)
 			var by_k: Dictionary = {}
 			for op: Dictionary in ow:
 				if op.has("k"):
@@ -138,6 +139,20 @@ func _game(root: String, game: String, levels: Array, seconds: float, out: Strin
 					shift = other.x - op.x
 				elif absf(other.x - op.x - shift) > 0.001 or absf(other.y - op.y) > 0.001:
 					same = false
+			# the map's tiles (or the black past a narrow level) cover the whole view: at a map's edge it
+			# stands to one side of the picture by all its extra width, which the list's margin must hold
+			var cx0: float = INF
+			var cx1: float = -INF
+			for op: Dictionary in ow:
+				if op.kind == "tile":
+					cx0 = minf(cx0, op.x)
+					cx1 = maxf(cx1, op.x + 16.0)
+				elif op.kind == "mask" and op.w > 0.0:
+					cx0 = minf(cx0, op.x)
+					cx1 = maxf(cx1, op.x + op.w)
+			if cx0 > 0.0 or cx1 < float(320 + 16 * wide):
+				same = false
+				r.uncovered = r.get("uncovered", 0) + 1
 			if same:
 				r.shifted = r.get("shifted", 0) + 1
 			return

@@ -490,7 +490,9 @@ func _layout_stage(native: bool) -> void:
 	var px_w: float = (4.0 / 3.0 * 200.0 / 320.0) if options.get_value("pixel_shape") == "4:3" else 1.0
 	var wide_px: int = clampi(int(roundf(size.x / (size.y / 200.0) / px_w)), 320, WIDE_MAX)
 	if engine != null and "wide_tiles" in engine:
-		engine.set("wide_tiles", (wide_px - 320 + 31) / 32 if _wide and wide_px > 320 else 0)
+		# the tiles the view can reach past the original's picture on one side: all its extra width, as at
+		# a map's edge the view keeps inside the map and so stands wholly to one side of the camera
+		engine.set("wide_tiles", (wide_px - 320 + 15) / 16 if _wide and wide_px > 320 else 0)
 	_fitted = size
 	if native and _wide:
 		var u: Vector2 = Vector2(size.y / 200.0 * px_w, size.y / 200.0)

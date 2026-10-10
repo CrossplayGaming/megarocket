@@ -73,7 +73,7 @@ func _init() -> void:
 		t.ok("%s: J-30, creatures wake by the wide view's edges only with it (%d woke past the original's)" % [game, r.get("beyond", 0)],
 			(r.get("beyond", 0) > 0) == (wide > 0))
 		if wide > 0:
-			t.ok("%s: REND-04, at %d pixels every image shifted alike, the HUD kept on the screen (%d of %d)" % [game, 320 + 32 * wide, r.get("shifted", 0), r.compared],
+			t.ok("%s: REND-04, at %d pixels every image shifted alike, the HUD kept on the screen, the map's tiles over all of it (%d of %d)" % [game, 320 + 16 * wide, r.get("shifted", 0), r.compared],
 				r.compared > 300 and r.get("shifted", 0) == r.compared)
 		print("    smooth motion: %d pairs, %d right, %d sprites slid" % [r.get("smooth_pairs", 0), r.get("smooth", 0), r.get("slid", 0)])
 		t.ok("%s: REND-03 between two refreshes: at 1 the newest picture, at a half each followed sprite midway (%d of %d)" % [game, r.get("smooth", 0), r.get("smooth_pairs", 0)],
@@ -151,8 +151,9 @@ func _demo(root: String, game: String, n: int, out: String, r: Dictionary, wide:
 		if placed:
 			r.placed = r.get("placed", 0) + 1
 		if wide > 0:
-			# at 320 + 32 * wide: every image the 320 view has, shifted alike; the HUD where it was on the screen
-			var vw: int = 320 + 32 * wide
+			# at 320 + 16 * wide (wide: the tiles the view reaches past the picture on one side, the host's
+			# rule): every image the 320 view has, shifted alike; the HUD where it was on the screen
+			var vw: int = 320 + 16 * wide
 			var ow: Array = GalDrawLayout.ops(g, list, Vector2.ONE, true, vw)
 			var by_k: Dictionary = {}
 			for op: Dictionary in ow:
@@ -173,6 +174,20 @@ func _demo(root: String, game: String, n: int, out: String, r: Dictionary, wide:
 					shift = other.x - op.x
 				elif absf(other.x - op.x - shift) > 0.001 or absf(other.y - op.y) > 0.001:
 					same = false
+			# the map's tiles (or the black past a narrow level) cover the whole view: at a map's edge it
+			# stands to one side of the picture by all its extra width, which the list's margin must hold
+			var cx0: float = INF
+			var cx1: float = -INF
+			for op: Dictionary in ow:
+				if op.kind == "tile":
+					cx0 = minf(cx0, op.x)
+					cx1 = maxf(cx1, op.x + 16.0)
+				elif op.kind == "mask" and op.w > 0.0:
+					cx0 = minf(cx0, op.x)
+					cx1 = maxf(cx1, op.x + op.w)
+			if cx0 > 0.0 or cx1 < float(vw):
+				same = false
+				r.uncovered = r.get("uncovered", 0) + 1
 			if same:
 				r.shifted = r.get("shifted", 0) + 1
 		# REND-03: at 1 the newest list's layout; at a half each sprite in both (by its entry) midway
