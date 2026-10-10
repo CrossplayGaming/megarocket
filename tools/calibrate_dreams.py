@@ -39,6 +39,11 @@ START = {"grbyte": 5100, "mapbyte": 4750, "mapword": 1457, "sprchunk": 0, "sprby
          "lzhbyte": 28500, "mapscan": 0, "mmscan": 0, "grexp": 0}
 # (not fitted: "vga", a cost per access to the card's memory, drm_boot's; tried 2026-10-10 at 20-400 on all
 # 32 sessions, every value matched fewer pictures (v1.93 2487 -> 976 at 20): DOSBox's drawing costs nothing)
+# ("pitphase" in dreams_costs.json is no work but the machine's timer phase: drm_boot's --timer_offset, the
+# units added to the first tic after the program sets the timer. Fitted 2026-10-10 on all 32 sessions in 0.5M
+# steps (it decides how many tics fall between two refreshes, so TimeCount's parity and the bar's steps):
+# 4.0M-5.0M matched 6574-6934 and cut every stage's error, 4.5M best; the score is rough in it (4.25M: 5565).
+# Leave it out of a fit by factors: --names the costs)
 FACTORS = (0.5, 0.75, 0.9, 1.1, 1.25, 1.5, 2.0)
 
 

@@ -24,7 +24,7 @@ extends SceneTree
 ##          --feed_pre=<seconds> (with --feed_keys: the start-up screens get KEYFEED.COM's own Enter taps
 ##          instead of RELEASES' keys, the program starting that long after KEYFEED loads; default 0)
 ##          --costs=<name:units,...> (TIME-D: the original's time where the port does the work at once;
-##          vga: per access to the card's memory)
+##          vga: per access to the card's memory; pitphase: the timer's phase, as --timer_offset)
 ##          --kl_record=<file> --kl_warp=<level> (HARN-23: the verify harness's trace, straight into a level)
 ##          --clock=us (the DOS clock at the start, microseconds since 00:00:00: the random
 ##          table's seed is its hundredths at US_Startup; unset, the port's own seed)
@@ -90,6 +90,14 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	# TIME-D: "vga", the time of each access to the card's memory (all the drawing: tiles, sprites,
 	# erasing), charged by the machine at its waits
 	vm.vga_access_units = int(g.costs.get("vga", 0))
+	# TIME-D: "pitphase", where the timer's tics fall in the refresh (units added to the first tic
+	# after the program sets the timer, as --timer_offset). DOSBox's is not known: the program starts
+	# at no set point of the refresh, and only time the port does not charge lies before its last
+	# setting (SD_Default's, in US_Setup). It decides how many tics fall between two refreshes, so
+	# the parity of TimeCount (CalcSingleGravity accelerates on odd tics) and which frame a key
+	# lands in: fitted on the key-fed sessions with the costs
+	if g.costs.has("pitphase"):
+		vm.timer_offset = int(g.costs["pitphase"])
 	# the files the program opens itself (gelib's reads): v1.93's title archive
 	if d.version == "e193":
 		g.us_files["KDREAMS.CMP"] = d._read("KDREAMS.CMP")

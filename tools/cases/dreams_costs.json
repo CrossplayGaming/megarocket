@@ -10,10 +10,11 @@
   "lzhbyte": 28500,
   "mapscan": 0,
   "mmscan": 0,
-  "grexp": 758
+  "grexp": 758,
+  "pitphase": 4500000
  },
- "matched": 6199,
- "drift": 153,
+ "matched": 6934,
+ "drift": 198,
  "by_game": {
   "kdreams": {
    "mapscan": 2962,
