@@ -249,6 +249,62 @@ static func galaxy(d: GalData, imgs: GalImages, map_index: int, opts: Dictionary
 		for yy: int in range(y0, y1 + 1):
 			for xx: int in range(x0, x1 + 1):
 				movers[yy * w + xx] = 1
+	# Keen 5-6: Keen 5's purple axis platforms (84-87) move as 27-30 do; go-platforms (36-39, Keen 5's
+	# purple ones 80-83) follow the info plane's arrows (0x5B + direction, CK_GoPlatThink), so their
+	# path is traced from the spawn until it comes round again
+	if str(d.ext) != "CK4":
+		for i: int in range(w * h):
+			var v: int = info[i]
+			if str(d.ext) == "CK5" and v >= 84 and v <= 87:
+				v -= 57
+				var x: int = i % w
+				var y: int = i / w
+				var x0: int = x
+				var x1: int = mini(x + 2, w - 1)
+				var y0: int = y
+				var y1: int = y
+				if v == 28 or v == 30:
+					while x0 > 0 and not is_b.call(x0 - 1, y):
+						x0 -= 1
+					while x1 < w - 1 and not is_b.call(x1 + 1, y):
+						x1 += 1
+				else:
+					while y0 > 0 and not is_b.call(x, y0 - 1):
+						y0 -= 1
+					while y1 < h - 1 and not is_b.call(x, y1 + 1):
+						y1 += 1
+				for yy: int in range(y0, y1 + 1):
+					for xx: int in range(x0, x1 + 1):
+						movers[yy * w + xx] = 1
+				continue
+			var dir: int = -1
+			if v >= 36 and v <= 39:
+				dir = v - 36
+			elif str(d.ext) == "CK5" and v >= 80 and v <= 83:
+				dir = v - 80
+			if dir < 0:
+				continue
+			var ax: Array = [0, 1, 0, -1, 1, 1, -1, -1]
+			var ay: Array = [-1, 0, 1, 0, -1, 1, 1, -1]
+			var x: int = i % w
+			var y: int = i / w
+			var seen_path: Dictionary = {}
+			var steps: int = 0
+			while steps < 4000:
+				steps += 1
+				for xx: int in range(x, mini(x + 2, w - 1) + 1):
+					movers[y * w + xx] = 1
+				var a: int = info[y * w + x]
+				if a >= 0x5B and a <= 0x62 and (y * w + x) != i:
+					dir = a - 0x5B
+				var key: int = (y * w + x) * 8 + dir
+				if seen_path.has(key):
+					break
+				seen_path[key] = true
+				x += ax[dir]
+				y += ay[dir]
+				if x < 0 or x >= w or y < 0 or y >= h:
+					break
 	if not opts.has("jump"):
 		# the pogo stick: -48 held for 24 tics, then gravity's +4 every other tic: about 6.75 tiles
 		opts.jump = 6
@@ -261,6 +317,10 @@ static func galaxy(d: GalData, imgs: GalImages, map_index: int, opts: Dictionary
 		var what: String = ""
 		if v >= 57 and v <= 68:
 			what = GAL_ITEMS[v - 57]
+		elif v == 69 and str(d.ext) != "CK4":
+			what = "ammo"          # Keen 5-6: a stunner when Keen is low on shots
+		elif v == 70 and str(d.ext) == "CK5":
+			what = "keycard"
 		else:
 			var misc: int = tinfo.call(fg[i], 5) & 0x7F
 			if misc == 4:
@@ -574,6 +634,24 @@ static func _analyse(w: int, h: int, lv: Dictionary, opts: Dictionary) -> Dictio
 			plat_pics[pic[i]] = true
 	for k: String in _near_pics(plat_pics, empty_pics, int(opts.get("near_empty", NEAR_EMPTY_PIXELS))):
 		empty_pics[k] = true
+	# and a platform drawn as a plain-coloured empty space but for a few pixels (Keen 1's "dark, hidden
+	# bricks": black but for the upper left corner) looks like that empty space
+	var plain_empty: Array = []
+	for k: String in empty_pics:
+		if _plain(k):
+			plain_empty.append(int(k.substr(1)))
+	for k: String in plat_pics:
+		if _plain(k) or empty_pics.has(k):
+			continue
+		var px: PackedByteArray = k.hex_decode()
+		for c: int in plain_empty:
+			var dd: int = 0
+			for v: int in px:
+				if v != c:
+					dd += 1
+			if dd <= FAINT_PIXELS:
+				empty_pics[k] = true
+				break
 	var vsides: PackedByteArray = sides.duplicate()
 	var vclimb: PackedByteArray = climb.duplicate()
 	var lookalike: PackedByteArray = PackedByteArray()

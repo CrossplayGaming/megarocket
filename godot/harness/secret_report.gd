@@ -40,7 +40,7 @@ func _init() -> void:
 	var summary: Array = []
 	if game in ["keen4", "keen5", "keen6"]:
 		var d: GalData = GalData.new()
-		if not d.load_game(root.path_join(game), "res://data/omnispeak/" + game):
+		if not d.load_game(root.path_join(game), "res://data/omnispeak/" + ("keen6e14" if game == "keen6" else game)):
 			print("load failed: ", d.error)
 			quit(1)
 			return
