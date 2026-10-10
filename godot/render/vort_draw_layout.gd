@@ -50,6 +50,16 @@ static func ops(eng: Object, list: Dictionary, scale: Vector2 = Vector2.ONE, sna
 	var grid: PackedInt32Array = list.grid
 	var wide_cols: int = eng.PORTTILESWIDE + 2 + 2 * wide    # a tile's margin all round, and the wide view's
 	var x0: int = gx - (1 + wide) * 16
+	var reveal: Dictionary = {}
+	if list.get("reveal", false) and "data" in eng and eng.data != null:
+		reveal = SecretsList.cells(str(eng.data.ext), int(list.get("level", -1)))
+	for c: Vector2i in reveal:
+		# the Reveal secrets cheat: its cells in the grid, drawn over the rest by the view
+		var tx: int = c.x - x0 / 16
+		var ty: int = c.y - gy / 16 + 1
+		if tx >= 0 and tx < wide_cols and ty >= 0 and ty < eng.PORTTILESHIGH + 2:
+			out.append({"kind": "reveal", "x": (c.x * 16 - vx) * scale.x, "y": (c.y * 16 - vy) * scale.y,
+				"w": 16.0 * scale.x, "h": 16.0 * scale.y, "trap": reveal[c] == "trap"})
 	for ty: int in range(eng.PORTTILESHIGH + 2):
 		for tx: int in range(wide_cols):
 			var tile: int = grid[ty * wide_cols + tx]

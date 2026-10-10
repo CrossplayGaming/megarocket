@@ -956,6 +956,46 @@ def shell13():
     return code
 
 
+def secret01():
+    """The Reveal secrets lists (SECRET-01): each game's godot/data/secrets/<game>.json well formed (ids
+    unique, every entry with cells), and no item sprite Keen 4-6 hide under foreground (75% of its cell
+    painted) left out of the list (harness/secrets_check.gd --misses)."""
+    bad = []
+    for game in ("keen1", "keen2", "keen3", "keen4", "keen5", "keen6"):
+        doc = json.loads((common.ROOT / "godot" / "data" / "secrets" / f"{game}.json").read_text(encoding="utf-8"))
+        ids = [e["id"] for es in doc["levels"].values() for e in es]
+        if len(ids) != len(set(ids)):
+            bad.append(f"{game}: an id twice")
+        for es in doc["levels"].values():
+            for e in es:
+                if not e.get("cells") or any(len(c) != 4 or c[0] > c[2] or c[1] > c[3] for c in e["cells"]):
+                    bad.append(f"{game} {e['id']}: cells")
+        print(f"  {game}: {len(ids)} entries")
+    cfg = common.config()
+    for game in ("keen4", "keen5", "keen6"):
+        p = subprocess.run([str(cfg["godot"]), "--headless", "--path", "godot", "--script", "res://harness/secrets_check.gd",
+                            "--", f"--game_data={cfg['game_data']}", f"--game={game}", "--misses=1", "--cover=75"],
+                           cwd=common.ROOT, capture_output=True, text=True, errors="replace", timeout=900)
+        line = next((ln for ln in p.stdout.splitlines() if "hidden items in no entry" in ln and not ln.startswith("map")), "")
+        print(f"  {game}: {line or 'no answer'}")
+        if not line.startswith("0 "):
+            bad.append(f"{game}: {line or 'no answer'}")
+    for b in bad:
+        print("  FAIL " + b)
+    return common.PASS if not bad else common.FAIL
+
+
+def secret02():
+    """The Reveal secrets cheat (SECRET-02), Keen 1-6: on the cheat rows, off at launch; on, the list's
+    cells of the map on screen marked (Keen 4-6's foreground over them see-through); off, nothing."""
+    import gdtest
+    code, out = gdtest.run("secret02_reveal", [], timeout=300.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def harn23():
     """The Dreams port against ReflectionHLE frame by frame (HARN-23): one life on level 1 of each release,
     the game state's hash equal every play-loop frame (tools/dreams_trace.py; all levels: --level 1-16)."""
@@ -1249,6 +1289,8 @@ CHECKS = {
     "SHELL-12": (shell12, "fast"),
     "SHELL-13": (shell13, "fast"),
     "HARN-23": (harn23, "slow"),
+    "SECRET-01": (secret01, "fast"),
+    "SECRET-02": (secret02, "fast"),
     "AND-02a": (and02a, "fast"),
     "SHELL-10b": (shell10b, "fast"),
     "AND-03a": (and03a, "fast"),

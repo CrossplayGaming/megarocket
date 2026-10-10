@@ -396,6 +396,7 @@ var cheat_infiniteLives: bool = false    # read in WorldMap
 var cheat_noClip: bool = false           # read in ClipMoveObon
 var cheat_slowMotion: bool = false       # read in LevelLoop
 var cheat_freezeEnemies: bool = false    # read in LevelLoop
+var cheat_revealSecrets: bool = false    # read in _capture_draw_list (presentation only: the view's)
 ## The bug-fix toggles (FIX-01, FixesModel): key -> on, set by the host from the player's settings.
 ## Empty in headless runs and the oracle comparisons: every fix off, the original bug for bug.
 var fixes: Dictionary = {}

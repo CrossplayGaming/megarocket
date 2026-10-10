@@ -58,6 +58,7 @@ static func ops(eng: Object, list: Dictionary, scale: Vector2 = Vector2.ONE, sna
 	var filler: Array = []
 	if view_w > W and eng != null and "data" in eng and eng.data != null:
 		filler = FILLER.get(str(eng.data.ext), {}).get(int(list.get("map", -1)), [])
+	var reveal: Dictionary = reveal_cells(eng, list)
 	for ty: int in range(gh):
 		for tx: int in range(gw):
 			var b: int = bg[ty * gw + tx]
@@ -70,13 +71,14 @@ static func ops(eng: Object, list: Dictionary, scale: Vector2 = Vector2.ONE, sna
 			out.append({"kind": "tile", "id": b, "x": x, "y": y, "k": "b%d,%d" % [gx + tx, gy + ty]})
 			var f: int = fg[ty * gw + tx]
 			if f != 0:
-				out.append({"kind": "mtile", "id": f, "x": x, "y": y, "k": "f%d,%d" % [gx + tx, gy + ty]})
+				out.append({"kind": "mtile", "id": f, "x": x, "y": y, "k": "f%d,%d" % [gx + tx, gy + ty],
+					"ghost": reveal.has(Vector2i(gx + tx, gy + ty))})
 	var hud: int = int(list.get("hud", -1))
 	var fore_done: bool = false
 	for s: Array in list.sprites:
 		if int(s[4]) == 3 and not fore_done:
 			fore_done = true
-			_fore(eng, list, out, vx, vy, scale)
+			_fore(eng, list, out, vx, vy, scale, reveal)
 		var x: float
 		var y: float
 		if int(s[5]) == hud:
@@ -98,7 +100,11 @@ static func ops(eng: Object, list: Dictionary, scale: Vector2 = Vector2.ONE, sna
 		out.append({"kind": "smask" if s[3] else "sprite", "id": int(s[2]), "x": (x - vx) * scale.x, "y": (y - vy) * scale.y,
 			"k": "s%d" % int(s[5])})
 	if not fore_done:
-		_fore(eng, list, out, vx, vy, scale)
+		_fore(eng, list, out, vx, vy, scale, reveal)
+	for c: Vector2i in reveal:
+		if c.x >= gx and c.x < gx + gw and c.y >= gy and c.y < gy + gh and bg[(c.y - gy) * gw + c.x - gx] >= 0:
+			out.append({"kind": "reveal", "x": (c.x * 16 - vx) * scale.x, "y": (c.y * 16 - vy) * scale.y,
+				"w": 16.0 * scale.x, "h": 16.0 * scale.y, "trap": reveal[c] == "trap"})
 	if masked:
 		# black past what the camera can show: {kind: "mask", x, w} in the picture's pixels, the view's height
 		out.append({"kind": "mask", "x": 0.0, "w": (lo - vx) * scale.x})
@@ -108,7 +114,8 @@ static func ops(eng: Object, list: Dictionary, scale: Vector2 = Vector2.ONE, sna
 
 
 ## The fore-foreground tiles (TI_ForeMisc's top bit): drawn again over the sprites beneath layer 3.
-static func _fore(eng: Object, list: Dictionary, out: Array, vx: float, vy: float, scale: Vector2) -> void:
+static func _fore(eng: Object, list: Dictionary, out: Array, vx: float, vy: float, scale: Vector2,
+		reveal: Dictionary = {}) -> void:
 	var gx: int = int(list.gx)
 	var gy: int = int(list.gy)
 	var gw: int = int(list.gw)
@@ -118,7 +125,15 @@ static func _fore(eng: Object, list: Dictionary, out: Array, vx: float, vy: floa
 		var f: int = fg[i]
 		if f == 0 or bg[i] < 0 or (eng.TI_ForeMisc(f) & 0x80) == 0:
 			continue
-		out.append({"kind": "mtile", "id": f, "x": ((gx + i % gw) * 16 - vx) * scale.x, "y": ((gy + i / gw) * 16 - vy) * scale.y})
+		out.append({"kind": "mtile", "id": f, "x": ((gx + i % gw) * 16 - vx) * scale.x, "y": ((gy + i / gw) * 16 - vy) * scale.y,
+			"ghost": reveal.has(Vector2i(gx + i % gw, gy + i / gw))})
+
+
+## The Reveal secrets cheat: the cells of the list's map to show (SecretsList), none while it is off.
+static func reveal_cells(eng: Object, list: Dictionary) -> Dictionary:
+	if not list.get("reveal", false) or eng == null or not "data" in eng or eng.data == null:
+		return {}
+	return SecretsList.cells(str(eng.data.ext), int(list.get("map", -1)))
 
 
 ## REND-03, smooth motion: a picture between two refreshes, `alpha` of the way from `a` to `b`. The view

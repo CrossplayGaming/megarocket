@@ -1,3 +1,4 @@
+# Copyright (C) 2026 the Megarocket contributors. GPL v2 or later. See LICENSE.md.
 extends SceneTree
 ## Scratch research (secrets key): the finder's regions of one level, cell by cell, as row runs.
 ##   --game=keen5 --level=1 [--all=1] (dents without contents too)

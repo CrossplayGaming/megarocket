@@ -106,10 +106,10 @@ func _walk(root: String, game: String, out: String, model: OptionsModel) -> Dict
 		[20.5, KEY_DOWN], [21.0, KEY_ENTER], [22.5, KEY_ENTER], [24.0, KEY_SPACE], [25.5, KEY_ESC], [27.5, KEY_ESC], [30.0, KEY_ENTER],
 		[35.0, KEY_F3], [37.0, KEY_DOWN], [38.0, KEY_DOWN], [39.0, KEY_DOWN], [40.0, KEY_DOWN], [40.5, KEY_DOWN], [41.0, KEY_ENTER],
 		[42.5, KEY_ENTER], [43.5, KEY_DOWN], [44.5, KEY_RIGHT],
-		# then down to Level select... (the eleventh row), into it, down to Level 3, chosen: the window
+		# then down to Level select... (the twelfth row), into it, down to Level 3, chosen: the window
 		# closes and the world map enters level 3
 		[46.0, KEY_DOWN], [47.0, KEY_DOWN], [48.0, KEY_DOWN], [49.0, KEY_DOWN], [50.0, KEY_DOWN], [51.0, KEY_DOWN],
-		[52.0, KEY_DOWN], [53.0, KEY_DOWN], [54.0, KEY_DOWN], [55.0, KEY_ENTER], [56.5, KEY_DOWN], [57.5, KEY_DOWN],
+		[52.0, KEY_DOWN], [53.0, KEY_DOWN], [54.0, KEY_DOWN], [54.5, KEY_DOWN], [55.0, KEY_ENTER], [56.5, KEY_DOWN], [57.5, KEY_DOWN],
 		[58.5, KEY_ENTER]]
 	for k: Array in script:
 		vm.add_key_after("intro", k[0], k[1], 0.2)

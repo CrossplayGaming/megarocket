@@ -1103,7 +1103,8 @@ func _capture_draw_list() -> void:
 		"sprites": spritelist.slice(0, spritesshown), "world": sprite_world.duplicate(),    # all placed (the wide view keeps more than the page)
 		"tiles": tilelist.slice(0, tilesshown),
 		"pics": piclist.slice(0, picsshown), "user": uservect,
-		"start": screenstart & 0xFFFF, "pan": screenpan, "written_vbl": -1}
+		"start": screenstart & 0xFFFF, "pan": screenpan, "written_vbl": -1,
+		"level": level, "reveal": bool(get("cheat_revealSecrets"))}    # the Reveal secrets cheat (the view's alone)
 
 
 func _set_crtc_start() -> void:

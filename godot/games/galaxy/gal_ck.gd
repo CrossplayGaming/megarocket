@@ -547,6 +547,7 @@ var cheat_infiniteAmmo: bool = false     # read in CK_SpawnShot
 var cheat_infiniteLives: bool = false    # read in CK_TryAgainMenu
 var cheat_noClip: bool = false           # read in CK_SpawnKeen
 var cheat_freezeEnemies: bool = false    # read in CK_PlayLoop, at CK_RunAction
+var cheat_revealSecrets: bool = false    # read in _capture_draw_list (presentation only: the view's)
 var ck_invincibilityTimer: int = 0
 var ck_scoreBoxObj: CK_object = null
 var ck_pogoTimer: int = 0

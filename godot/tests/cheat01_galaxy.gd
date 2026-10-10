@@ -123,10 +123,10 @@ func _walk(root: String, game: String, out: String, model: OptionsModel) -> Dict
 		[13.5, KEY_ENTER], [15.0, KEY_ENTER],
 		[24.0, KEY_ESC], [26.0, KEY_UP], [27.0, KEY_ENTER], [28.5, KEY_ENTER], [30.0, KEY_SPACE],
 		[31.5, KEY_DOWN], [32.5, KEY_ENTER], [34.0, KEY_SPACE], [35.5, KEY_ESC], [37.0, KEY_DOWN], [38.0, KEY_ENTER],
-		# then Escape again, up to CHEATS, into it, down to MORE CHEATS (the last of eight), into it, down to
+		# then Escape again, up to CHEATS, into it, down to MORE CHEATS (the last of nine), into it, down to
 		# LEVEL SELECT (the fourth), into it, down to the third level, chosen
 		[41.0, KEY_ESC], [43.0, KEY_UP], [44.0, KEY_ENTER], [45.0, KEY_DOWN], [46.0, KEY_DOWN], [47.0, KEY_DOWN],
-		[48.0, KEY_DOWN], [49.0, KEY_DOWN], [50.0, KEY_DOWN], [51.0, KEY_ENTER], [52.0, KEY_DOWN], [53.0, KEY_DOWN],
+		[48.0, KEY_DOWN], [49.0, KEY_DOWN], [50.0, KEY_DOWN], [50.5, KEY_DOWN], [51.0, KEY_ENTER], [52.0, KEY_DOWN], [53.0, KEY_DOWN],
 		[54.0, KEY_DOWN], [55.0, KEY_ENTER], [56.5, KEY_DOWN], [57.5, KEY_DOWN], [58.5, KEY_ENTER],
 		# in the level, the original's B+A+T (its window answered)
 		[66.0, 0x30], [66.0, 0x1E], [66.0, 0x14], [68.0, KEY_SPACE]]

@@ -2322,8 +2322,8 @@ func CK_US_ShellRowProc(msg: int, _item: US_CardItem) -> bool:
 
 ## The cheats this engine has so far (CheatsModel's keys).
 func shell_cheat_supported() -> Array:
-	return ["god", "infinite_ammo", "infinite_lives", "no_clip", "jump", "slow_motion", "freeze_enemies",
-		"free_items", "extra_lives", "skip_level", "level_select"]
+	return ["god", "infinite_ammo", "infinite_lives", "no_clip", "jump", "slow_motion", "reveal_secrets",
+		"freeze_enemies", "free_items", "extra_lives", "skip_level", "level_select"]
 
 
 func shell_in_game() -> bool:
@@ -2339,6 +2339,7 @@ func shell_cheat_get(key: String) -> bool:
 		"jump": return ck_gameState.jumpCheat
 		"slow_motion": return ck_slowMotionEnabled
 		"freeze_enemies": return cheat_freezeEnemies
+		"reveal_secrets": return cheat_revealSecrets
 	return false
 
 
@@ -2355,6 +2356,7 @@ func shell_cheat_set(key: String, on: bool) -> void:
 		"jump": ck_gameState.jumpCheat = on
 		"slow_motion": ck_slowMotionEnabled = on
 		"freeze_enemies": cheat_freezeEnemies = on
+		"reveal_secrets": cheat_revealSecrets = on
 
 
 ## A one-shot applied; what it did, for the dialog.

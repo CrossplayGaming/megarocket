@@ -1,3 +1,4 @@
+# Copyright (C) 2026 the Megarocket contributors. GPL v2 or later. See LICENSE.md.
 extends SceneTree
 ## Scratch research (secrets key): print the cells of a rectangle.
 ##   --game=keen1 --level=15 --rect=x0,y0,x1,y1

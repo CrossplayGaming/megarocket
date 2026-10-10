@@ -16,7 +16,7 @@ void fragment() {
 	vec4 t = texture(TEXTURE, UV);
 	if (t.g < 0.5) discard;
 	float i = floor(t.r * 255.0 + 0.5);
-	COLOR = vec4(texture(palette, vec2((i + 0.5) / 16.0, 0.5)).rgb, 1.0);
+	COLOR = vec4(texture(palette, vec2((i + 0.5) / 16.0, 0.5)).rgb, COLOR.a);
 }
 """
 
@@ -43,6 +43,22 @@ var _sprites: Array = []
 var _pics: Array = []
 var _palette_image: Image = Image.create(16, 1, false, Image.FORMAT_RGB8)
 var _palette_tex: ImageTexture = ImageTexture.create_from_image(_palette_image)
+## The Reveal secrets cheat's tints, over the picture (its own canvas item: no palette shader)
+var _reveal: RevealLayer = null
+## A foreground tile over a revealed cell: drawn see-through, so what it hides shows
+const GHOST: Color = Color(1, 1, 1, 0.35)
+
+
+## The tints: a cell revealed is washed magenta and outlined, a trap orange.
+class RevealLayer:
+	extends Control
+	var cells: Array = []    # [Rect2, trap]
+
+	func _draw() -> void:
+		for c: Array in cells:
+			var col: Color = Color(1.0, 0.55, 0.0) if c[1] else Color(1.0, 0.2, 1.0)
+			draw_rect(c[0], Color(col, 0.28))
+			draw_rect(c[0], Color(col, 0.8), false, 1.0)
 
 
 func _init() -> void:
@@ -55,6 +71,10 @@ func _init() -> void:
 	mat.shader = sh
 	mat.set_shader_parameter("palette", _palette_tex)
 	material = mat
+	_reveal = RevealLayer.new()
+	_reveal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reveal.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_reveal)
 
 
 ## The game's images as textures (once per game).
@@ -105,11 +125,15 @@ func _draw() -> void:
 	var view: Vector2 = Vector2.ZERO
 	if _black == null:
 		_black = _texture(PackedByteArray([0]), PackedByteArray(), 1, 1)
+	var revealed: Array = []
 	for op: Dictionary in layout:
 		var tex: Texture2D = null
 		match op.kind:
 			"view":
 				view = Vector2(op.x, op.y)
+				continue
+			"reveal":
+				revealed.append(op)
 				continue
 			"mask":
 				draw_texture_rect(_black, Rect2(Vector2(roundf(op.x), 0), Vector2(roundf(op.w), size.y)), false)
@@ -128,6 +152,21 @@ func _draw() -> void:
 		var to: Vector2 = Vector2(roundf(op.x + tex.get_width() * scale.x), roundf(op.y + tex.get_height() * scale.y))
 		draw_texture_rect(tex, Rect2(at, to - at), false)
 	_draw_overlay(view, scale)
+	_show_revealed(revealed, overlay)
+
+
+## The Reveal secrets cheat's cells (the layout's "reveal" ops) to the tint layer; none while a window is
+## over the play.
+func _show_revealed(ops: Array, overlay: Rect2i) -> void:
+	var cells: Array = []
+	if overlay.size == Vector2i.ZERO:
+		for op: Dictionary in ops:
+			var at: Vector2 = Vector2(roundf(op.x), roundf(op.y))
+			var to: Vector2 = Vector2(roundf(op.x + op.w), roundf(op.y + op.h))
+			cells.append([Rect2(at, to - at), bool(op.trap)])
+	if cells != _reveal.cells:
+		_reveal.cells = cells
+		_reveal.queue_redraw()
 
 
 ## A masked tile's texture: the tile where the next tile (its mask) is clear.
