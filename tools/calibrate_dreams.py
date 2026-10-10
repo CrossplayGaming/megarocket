@@ -36,7 +36,7 @@ WORK = Path("F:/KeenReworkWork/port_runs")
 # recordings' plain "Loading" box, from the warp to the level's title, on the map's sizes: 0.93 refreshes +
 # 2.79e-4 a compressed byte + 2.57e-4 a word of the three planes)
 START = {"grbyte": 5100, "mapbyte": 4750, "mapword": 1457, "sprchunk": 0, "sprbyte": 0, "mmmove": 0, "audiobyte": 0,
-         "lzhbyte": 28500}
+         "lzhbyte": 28500, "mapscan": 0, "mmscan": 0, "grexp": 0}
 # (not fitted: "vga", a cost per access to the card's memory, drm_boot's; tried 2026-10-10 at 20-400 on all
 # 32 sessions, every value matched fewer pictures (v1.93 2487 -> 976 at 20): DOSBox's drawing costs nothing)
 FACTORS = (0.5, 0.75, 0.9, 1.1, 1.25, 1.5, 2.0)

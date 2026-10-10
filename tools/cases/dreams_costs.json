@@ -1,14 +1,26 @@
 {
  "costs": {
-  "grbyte": 6500,
+  "grbyte": 4847,
   "mapbyte": 5225,
   "mapword": 1457,
   "sprchunk": 0,
   "sprbyte": 0,
   "mmmove": 0,
   "audiobyte": 0,
-  "lzhbyte": 28500
+  "lzhbyte": 28500,
+  "mapscan": 0,
+  "mmscan": 0,
+  "grexp": 758
  },
- "matched": 6132,
- "drift": 206
+ "matched": 6199,
+ "drift": 153,
+ "by_game": {
+  "kdreams": {
+   "mapscan": 2962,
+   "mmscan": 1362
+  },
+  "kdreams193": {
+   "mmscan": 1833
+  }
+ }
 }

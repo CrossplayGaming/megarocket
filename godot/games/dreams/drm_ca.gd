@@ -186,9 +186,12 @@ func MM_FreePtr(key: String) -> void:
 ## The rover moved on to the block (the loops of MM_SetPurge, MM_SetLock, MM_*Attributes).
 func _mm_find(key: String, what: String) -> bool:
 	var start: MMBlock = mmrover
+	var steps: int = 0
 	while true:
 		if mmrover.key == key:
+			cost_n("mmscan", steps)    # TIME-D: the original's walk, a few instructions a block
 			return true
+		steps += 1
 		mmrover = mmrover.next
 		if mmrover == null:
 			mmrover = mmhead
@@ -506,6 +509,7 @@ func VW_GetSpriteShiftWidth(block: PackedByteArray, i: int) -> int:
 func CAL_ExpandGrChunk(chunk: int, _source: Variant) -> void:
 	var expanded: PackedByteArray = data.chunk(chunk)
 	cost_n("grbyte", _grcompressed(chunk))
+	cost_n("grexp", expanded.size())    # TIME-D: the Huffman expander's work per byte out
 	if chunk >= STARTSPRITES and chunk < STARTTILE8:
 		CAL_CacheSprite(chunk, expanded)
 	else:

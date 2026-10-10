@@ -1266,6 +1266,8 @@ func PatchWorldMap() -> void:
 		spot += 1
 		if spot >= size:
 			break
+	# TIME-D: the original's pass over the whole map, a few instructions a cell (the port's is free)
+	cost_n("mapscan", size)
 
 
 ## A word of a map plane, written if it lies in the plane (guarded).
