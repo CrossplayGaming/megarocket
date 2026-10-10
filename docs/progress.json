@@ -257,8 +257,8 @@
  },
  "needs_you": [
   {
-   "what": "Two Keen 4-6 widescreen looks to check",
-   "why": "The score box now sits in the wide view's top-left corner and never floats; and on Keen 5's world map the wider view can show a little of the flat yellow filler the original never showed. Say if either should change."
+   "what": "Three small choices",
+   "why": "What the cheat menu's Unlock the map should open in each game; how quicksave and quickload work on a controller; and the two widescreen looks (the score box corner, Keen 5's yellow map filler)."
   },
   {
    "what": "Look and sound decisions, later",
@@ -270,6 +270,18 @@
   }
  ],
  "milestones": [
+  {
+   "date": "2026-10-10",
+   "text": "Quicksave and quickload in Keen 1-6 (Keen 1-3: F7/F9, working even after dying; Keen 4-6: F5/F9), asking first unless turned off, on in Enhanced"
+  },
+  {
+   "date": "2026-10-10",
+   "text": "Keen 4-6 now keep your settings, high scores and saved games between sessions (they were being lost when the game closed)"
+  },
+  {
+   "date": "2026-10-10",
+   "text": "Windows and messages over widescreen sit in the middle of the screen, also at a map's edge"
+  },
   {
    "date": "2026-10-10",
    "text": "Keen Maker, a first working preview: pick a Keen 1-6 game and level, paint with the game's own tiles, move Keen's start, undo, and press Play to try the level straight away; saves go to Megarocket's own folder, never the game's"

@@ -1333,8 +1333,8 @@ func _cheat_keeps_going(_ob: Obj) -> bool:
 ## put back as the level loads. Kept in save_dir as QUICK.CKn, so it outlives the session. What is the
 ## player's or the machine's stays as it is: the settings, the cheats, the controls, keys held, the sound
 ## playing, the video pages (painted again in full) and the shell's views.
-const QUICK_KEEP: PackedStringArray = ["options", "fixes", "cheat_god", "cheat_jump", "cheat_infiniteAmmo", "cheat_infiniteLives",
-	"cheat_noClip", "cheat_slowMotion", "cheat_freezeEnemies", "shell_playing", "shell_in_level", "shell_warp", "shell_on_map",
+## (The shell's cheat flags, every name starting "cheat_", are kept too: _quick_keeps.)
+const QUICK_KEEP: PackedStringArray = ["options", "fixes", "shell_playing", "shell_in_level", "shell_warp", "shell_on_map",
 	"trace_sprites", "trace_frames", "dosbox_timing", "after_startup", "exited", "resetgame", "playermode", "JoyXlow", "JoyXhigh",
 	"JoyYlow", "JoyYhigh", "MouseSensitivity", "key", "keyB1", "keyB2", "keydown", "NBKscan", "NBKascii", "passtobios",
 	"SNDstarted", "KBDstarted", "soundmode", "SPKactive", "intcount", "SndPtr", "SndPriority", "pausesndptr", "pausepriority",
@@ -1403,13 +1403,18 @@ func _quick_say(text: String) -> void:
 func _quick_state() -> Dictionary:
 	var out: Dictionary = {}
 	for prop: Dictionary in get_property_list():
-		if (prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE) == 0 or NOT_STATE.has(prop.name) or QUICK_KEEP.has(prop.name):
+		if (prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE) == 0 or NOT_STATE.has(prop.name) or _quick_keeps(prop.name):
 			continue
 		var v: Variant = _plain(get(prop.name))
 		if typeof(v) in [TYPE_CALLABLE, TYPE_OBJECT, TYPE_SIGNAL]:
 			continue
 		out[prop.name] = v
 	return out
+
+
+## A variable a quickload leaves as it is (QUICK_KEEP, and the shell's cheat flags: the player's choice).
+func _quick_keeps(name: String) -> bool:
+	return QUICK_KEEP.has(name) or name.begins_with("cheat_")
 
 
 ## The quicksave put back: every variable it holds (state_restore's way, the machine left running).
