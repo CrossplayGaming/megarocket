@@ -578,6 +578,11 @@ func US_LoadConfig() -> void:
 		inputDevice = 0
 		ck_scoreBoxEnabled = true
 		ck_twoButtonFiring = false
+		# the user (2026-10-10): Fix jerky motion starts on, but not in the Classic mode (every fix off: the
+		# original's default, off). It changes nothing in the port's picture (the card is given each picture
+		# whole, at its place; the fix was for real cards' fine scroll taking effect a frame early).
+		var fx: Variant = get("fixes")    # (gal_ck.gd)
+		ck_fixJerkyMotion = fx is Dictionary and (fx as Dictionary).values().has(true)
 		configFileLoaded = false
 		in_gamepadButtons[0] = 0
 		in_gamepadButtons[1] = 1

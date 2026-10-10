@@ -1305,6 +1305,10 @@ var present_lock: Callable = Callable()
 ## marked "none": a renderer draws a list only if it is the one the card shows. The previous list is
 ## kept too: until this one's start is taken at a retrace, the card still shows that one.
 var draw_capture: bool = false
+## REND-03: the objects that moved in a step since the last refresh (an Unscaled action's move, made all at
+## once as its time runs out, with its next picture): smooth motion draws them where they are, not slid.
+## Presentation only; emptied every refresh.
+var draw_stepped: Dictionary = {}
 var draw_list: Dictionary = {}
 var draw_list_prev: Dictionary = {}
 ## A refresh's list waiting for its present (set by RF_Refresh just before VL_Present)

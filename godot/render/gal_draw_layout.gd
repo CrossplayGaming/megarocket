@@ -138,8 +138,10 @@ static func reveal_cells(eng: Object, list: Dictionary) -> Dictionary:
 
 ## REND-03, smooth motion: a picture between two refreshes, `alpha` of the way from `a` to `b`. The view
 ## and each sprite whose entry (its slot) is in both slide along the line between their places; a sprite
-## new in b, and anything that moved further than JUMP (a teleport, a respawn), is drawn where b has it;
-## the map is b's. Nothing here reaches the simulation.
+## new in b, anything that moved further than JUMP (a teleport, a respawn), and anything that moved in a
+## step (b's "step": an inchworm, a slug, most creatures, which move all at once as their picture changes,
+## so a slide would move the part of them that stands still) is drawn where b has it; the map is b's.
+## Nothing here reaches the simulation.
 const JUMP: float = 48.0
 
 
@@ -157,9 +159,10 @@ static func between(eng: Object, a: Dictionary, b: Dictionary, alpha: float, sca
 		was[int(s[5])] = s
 	var sprites: Array = []
 	var hud: int = int(b.get("hud", -1))
+	var step: Array = b.get("step", [])
 	for s: Array in b.sprites:
 		var slot: int = int(s[5])
-		if slot != hud and was.has(slot):
+		if slot != hud and was.has(slot) and not step.has(slot):
 			var p: Array = was[slot]
 			if absf(float(int(s[6]) - int(p[6])) / 16.0) <= JUMP and absf(float(int(s[7]) - int(p[7])) / 16.0) <= JUMP:
 				var m: Array = s.duplicate()

@@ -50,7 +50,8 @@ var grid: GridContainer
 var scroll: ScrollContainer
 var howto_button: Button
 var quit_button: Button
-var _quit_dialog: ConfirmationDialog = null
+## The quit box over the launcher while it asks (the Quit button, Escape).
+var quit_box: Control = null
 ## SHELL-09: where the log is, so a report can include it.
 var log_label: Label
 ## J-12's look: the backdrop, the mark, the pixel scale it is all drawn at, and the selected game's
@@ -235,16 +236,21 @@ func _apply_pixel_scale() -> void:
 		_style_tile(id)
 
 
-## A tile's frame and name in its game's accent: brighter when selected, grey when the game is missing.
+## A tile's frame and name. The selected tile is the one in yellow (the focus colour of every button
+## and box in Megarocket), lit; the others keep their game's colour, dimmed (the user, 2026-10-10: with
+## every frame its own colour and the selected one only a little brighter, which game was selected was
+## not clear). A missing game's tile is grey.
 func _style_tile(id: String) -> void:
 	var tile: PanelContainer = tiles[id]
 	var s: int = maxi(pixel, 1)
 	var c: Color = MegaTheme.accent(id)
 	var present: bool = states.get(id, "missing") != "missing"
-	var frame: Color = (MegaTheme.light_of(c) if tile.has_focus() else c) if present else 		(MegaTheme.ega(7) if tile.has_focus() else MegaTheme.ega(8))
+	var on: bool = tile.has_focus()
+	var frame: Color = MegaTheme.ega(14) if on else (MegaTheme.dark_of(c).lerp(c, 0.5) if present else MegaTheme.ega(8))
 	tile.add_theme_stylebox_override("panel", MegaTheme.bevel(frame, s, Color8(0, 0, 12) if present else MegaTheme.SPACE))
+	tile.get_child(0).modulate = Color.WHITE if on else Color(0.62, 0.62, 0.62)
 	var n: Label = tile.get_child(0).get_node("Name")
-	n.add_theme_color_override("font_color", (MegaTheme.ega(15) if tile.has_focus() else c) if present else MegaTheme.ega(7))
+	n.add_theme_color_override("font_color", (MegaTheme.ega(15) if on else c) if present else MegaTheme.ega(7))
 	(tile.get_child(0).get_node("Subtitle") as Label).add_theme_color_override("font_color", MegaTheme.ega(7))
 	var st: Label = tile.get_child(0).get_node("Status")
 	var brief: Label = tile.get_child(0).get_node("Brief")
@@ -278,37 +284,48 @@ func _select(id: String) -> void:
 	details.text = line
 
 
-## As many columns as fit; one tile per game whatever the width.
-## Wide: as many columns as fit, scrolling down. Narrow (portrait, under two
-## tiles across, or too short for the grid's rows, as a phone held sideways):
-## one row, scrolling sideways, following the focused tile (J-12's carousel).
+## Every game on screen at once where it fits. Wide: the grid whose tiles are largest with all seven
+## on screen (the user, 2026-10-10: the tiles a bit smaller; at 1600x900 the old layout gave two huge
+## tiles in a sideways row), the title art at its 1.6:1 and the three lines under it. Narrow (portrait,
+## or too short for even the smallest grid, as a phone held sideways): one row, scrolling sideways,
+## following the focused tile (J-12's carousel).
 func _layout() -> void:
 	if grid == null:
 		return
 	_apply_pixel_scale()
 	var usable: float = max(size.x - 32.0, TILE_MIN.x)
-	# the grid's rows must fit under the header too (a landscape phone is short): the tiles' real
-	# height against the room the rest of the page leaves the tiles
-	var columns: int = clampi(int(usable / (TILE_MIN.x + 12.0)), 1, GAMES.size())
-	var rows: int = ceili(GAMES.size() / float(columns))
-	var tile_h: float = TILE_MIN.y
-	for id: String in tiles:
-		tile_h = maxf(tile_h, (tiles[id] as Control).get_combined_minimum_size().y)
 	# the rest of the page: the header row and four lines (the count, the details, the controls, the log)
 	var line: float = MegaTheme.line_size() * maxi(pixel, 1)
 	var others: float = (brand.get_combined_minimum_size().y if brand != null else line) + 12.0 + 4.0 * (line + 12.0)
-	var too_short: bool = size.y - 32.0 - others < rows * (tile_h + 12.0)
-	carousel = size.y > size.x or usable < 2.0 * TILE_MIN.x + 12.0 or too_short
+	var room_h: float = size.y - 32.0 - others - 16.0
+	# a tile's height without its art: the three lines and the frame
+	var text_h: float = 3.0 * (line + pixel) + 14.0 * pixel + 12.0
+	var best_cols: int = 0
+	var best_art: float = 0.0
+	if size.y <= size.x:
+		for cols: int in range(2, GAMES.size() + 1):
+			var rows: int = ceili(GAMES.size() / float(cols))
+			var by_w: float = ((usable - 12.0 * (cols - 1)) / cols - 14.0 * pixel) / 1.6
+			var by_h: float = (room_h - 12.0 * (rows - 1)) / rows - text_h
+			var art: float = minf(by_w, by_h)
+			# (a tile no narrower than its smallest, for the name: the art is centred in it)
+			var w: float = maxf(TILE_MIN.x, art * 1.6 + 14.0 * pixel)
+			if art >= 55.0 * pixel and cols * w + 12.0 * (cols - 1) <= usable and art > best_art + 0.5:
+				best_cols = cols
+				best_art = art
+	carousel = best_cols == 0
 	if carousel:
 		grid.columns = GAMES.size()
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 		scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		grid.size_flags_horizontal = Control.SIZE_FILL
 		# the tiles fill the height left them, the title art taking what the three lines leave
-		var h: float = maxf(TILE_MIN.y, size.y - 32.0 - others - 16.0)
-		var text_h: float = 3.0 * (line + pixel) + 14.0 * pixel + 12.0
+		var h: float = maxf(TILE_MIN.y, room_h)
 		var art_h: float = maxf(55.0 * pixel, h - text_h)
-		var w: float = clampf(minf(usable * 0.85, art_h * 1.6 + 14.0 * pixel), TILE_MIN.x, usable)
+		# a phone held upright: one tile nearly the width; a wide window: a third of it, three tiles and
+		# the edge of a fourth in view (the user, 2026-10-10: two huge tiles were too big)
+		var share: float = 0.85 if size.y > size.x else 1.0 / 3.2
+		var w: float = clampf(minf(usable * share, art_h * 1.6 + 14.0 * pixel), TILE_MIN.x, usable)
 		# a tall window (portrait) needs no taller art than the width allows: the tile's height follows
 		art_h = minf(art_h, (w - 14.0 * pixel) / 1.6)
 		h = maxf(TILE_MIN.y, art_h + text_h)
@@ -316,13 +333,15 @@ func _layout() -> void:
 			(tiles[id] as Control).custom_minimum_size = Vector2(w, h)
 			(tiles[id].get_child(0).get_node("Art") as Control).custom_minimum_size = Vector2(0, art_h)
 	else:
-		grid.columns = columns
+		grid.columns = best_cols
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		# the grid as wide as its tiles, centred (the tiles don't stretch past their art)
+		grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		var art_h: float = floorf(best_art)
 		for id: String in tiles:
-			(tiles[id] as Control).custom_minimum_size = TILE_MIN
-			(tiles[id].get_child(0).get_node("Art") as Control).custom_minimum_size = Vector2(0, 55 * pixel)
+			(tiles[id] as Control).custom_minimum_size = Vector2(floorf(maxf(TILE_MIN.x, art_h * 1.6 + 14.0 * pixel)), art_h + text_h)
+			(tiles[id].get_child(0).get_node("Art") as Control).custom_minimum_size = Vector2(0, art_h)
 
 
 func _make_tile(id: String, name_text: String, subtitle: String) -> PanelContainer:
@@ -802,18 +821,71 @@ func toggle_fullscreen() -> void:
 		settings.save()
 
 
-## Quit, asked first (the Quit button, Escape on the launcher).
+## Quit, asked first (the Quit button, Escape on the launcher): a framed box in Megarocket's own look,
+## as the launcher's pages are (the user, 2026-10-10: the system's pop-up had no frame and its text ran
+## to its edges), over the launcher dimmed. Stay is chosen first; Escape stays too.
 func confirm_quit() -> void:
-	if _quit_dialog == null:
-		_quit_dialog = ConfirmationDialog.new()
-		_quit_dialog.title = "Megarocket"
-		_quit_dialog.dialog_text = "Quit Megarocket?"
-		_quit_dialog.ok_button_text = "Quit"
-		_quit_dialog.cancel_button_text = "Stay"
-		_quit_dialog.confirmed.connect(func() -> void: get_tree().quit())
-		add_child(_quit_dialog)
-	_quit_dialog.popup_centered()
-	_quit_dialog.get_cancel_button().grab_focus()
+	if quit_box != null:
+		return
+	var s: int = maxi(pixel, 1)
+	quit_box = ColorRect.new()
+	quit_box.name = "QuitBox"
+	(quit_box as ColorRect).color = Color(0, 0, 0, 0.6)
+	quit_box.mouse_filter = Control.MOUSE_FILTER_STOP
+	quit_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var center: CenterContainer = CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	quit_box.add_child(center)
+	var panel: PanelContainer = PanelContainer.new()
+	center.add_child(panel)
+	var m: MarginContainer = MarginContainer.new()
+	for side: String in ["left", "right", "top", "bottom"]:
+		m.add_theme_constant_override("margin_" + side, 10 * s)
+	panel.add_child(m)
+	var col: VBoxContainer = VBoxContainer.new()
+	col.add_theme_constant_override("separation", 10 * s)
+	m.add_child(col)
+	var q: Label = Label.new()
+	q.name = "Question"
+	q.text = "Quit Megarocket?"
+	q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(q)
+	var row: HBoxContainer = HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 8 * s)
+	col.add_child(row)
+	var quit: Button = Button.new()
+	quit.name = "Quit"
+	quit.text = "Quit"
+	quit.pressed.connect(func() -> void: get_tree().quit())
+	row.add_child(quit)
+	var stay: Button = Button.new()
+	stay.name = "Stay"
+	stay.text = "Stay"
+	stay.pressed.connect(close_quit)
+	row.add_child(stay)
+	# the two buttons the same width, and focus kept between them
+	var w: float = maxf(quit.get_combined_minimum_size().x, stay.get_combined_minimum_size().x) + 8.0 * s
+	for b: Button in [quit, stay]:
+		b.custom_minimum_size.x = w
+	add_child(quit_box)
+	for b: Button in [quit, stay]:
+		b.focus_neighbor_top = b.get_path()
+		b.focus_neighbor_bottom = b.get_path()
+		b.focus_next = (stay if b == quit else quit).get_path()
+		b.focus_previous = b.focus_next
+	quit.focus_neighbor_left = quit.get_path()
+	stay.focus_neighbor_right = stay.get_path()
+	stay.grab_focus()
+
+
+func close_quit() -> void:
+	if quit_box == null:
+		return
+	quit_box.queue_free()
+	quit_box = null
+	if quit_button != null and quit_button.visible:
+		quit_button.grab_focus()
 
 
 ## AND-04: Android's Back is Escape. In a game it goes to the game as the
@@ -843,8 +915,11 @@ func back() -> String:
 	return did
 
 
-## Closes whichever launcher page is open (how-to, import, export). False if none.
+## Closes whichever launcher page is open (the quit box, how-to, import, export). False if none.
 func close_page() -> bool:
+	if quit_box != null:
+		close_quit()
+		return true
 	if howto != null:
 		close_howto()
 		return true

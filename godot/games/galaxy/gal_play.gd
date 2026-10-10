@@ -427,6 +427,8 @@ func CK_ActionThink(obj: CK_object, time: int) -> int:
 			ck_nextX = s16(ck_nextX + action.velX * obj.xDirection)
 		if obj.yDirection != 0:
 			ck_nextY = s16(ck_nextY + action.velY * obj.yDirection)
+		if draw_capture and ((obj.xDirection != 0 and action.velX != 0) or (obj.yDirection != 0 and action.velY != 0)):
+			draw_stepped[obj] = true    # REND-03: a step, not a slide (presentation only)
 
 	if action.think != &"":
 		if obj.timeUntillThink != 0:

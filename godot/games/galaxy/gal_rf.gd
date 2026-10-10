@@ -943,6 +943,7 @@ func RF_Refresh() -> void:
 	VL_SetScrollCoords(RF_UnitToPixel(rf_scrollXUnit & 0xef), RF_UnitToPixel(rf_scrollYUnit & 0xff))
 	if draw_capture:
 		_capture_draw_list(func_name)
+	draw_stepped.clear()
 	VL_SwapOnNextPresent()
 	VL_Present()
 	RFL_CalcTics()
@@ -985,6 +986,12 @@ func _capture_draw_list(func_name: StringName) -> void:
 		while sde != null:
 			sprites.append([sde.px, sde.y, sde.chunk, sde.maskOnly, z, sde.index, sde.ux, sde.uy])
 			sde = sde.next
+	# REND-03: the entries of the objects that stepped (drawn where they are, not slid)
+	var step: Array = []
+	for o: Object in draw_stepped:
+		var o_sde: Variant = o.get("sde")
+		if o_sde != null:
+			step.append((o_sde as RF_SpriteDrawEntry).index)
 	var hud: int = -1
 	var dyn: Dictionary = {}
 	var box: Variant = get("ck_scoreBoxObj")
@@ -1019,6 +1026,6 @@ func _capture_draw_list(func_name: StringName) -> void:
 		# wide view stops at them too, so it shows nothing the original's camera keeps out of sight
 		"hblocks": rf_horzScrollBlocks.slice(0, rf_numHorzScrollBlocks),
 		"map": ca_mapOn, "gx": gx, "gy": gy, "gw": gw, "gh": gh, "bg": bg, "fg": fg,
-		"sprites": sprites, "hud": hud, "dyn": dyn,
+		"sprites": sprites, "step": step, "hud": hud, "dyn": dyn,
 		"reveal": bool(get("cheat_revealSecrets")),    # the Reveal secrets cheat (the view's alone)
 		"hud_mid": int(call("IN_DemoGetMode")) != 0}    # the demo sign sits mid-top, the score box at the left
