@@ -47,6 +47,10 @@ func _init() -> void:
 	t.ok("on the title the cheat rows were greyed and choosing GOD MODE did nothing (%s)" % [res.get("title", {})],
 		res.get("title", {}).get("disabled", false) and not res.get("title", {}).get("god", true))
 	t.ok("LEVEL SELECT's third level was entered from the world map (level %s)" % res.get("warped", "none"), res.get("warped", 0) == 3)
+	t.ok("ORIGINAL CODES lists the originals' codes (%s)" % [res.get("codes", [])],
+		res.get("codes", []) == CheatsModel.CODES.galaxy.map(func(c: Array) -> String: return c[0]))
+	t.ok("the original's B+A+T still works in the game (%s)" % [res.get("bat", {})],
+		res.get("bat", {}).get("shots", 0) == 99 and res.get("bat", {}).get("gems", []) == [1, 1, 1, 1])
 	t.ok("in the game GOD MODE and INFINITE AMMO went on (%s)" % [res.get("game", {})],
 		res.get("game", {}).get("god", false) and res.get("game", {}).get("ammo", false) and res.get("game", {}).get("in_game", false))
 	var fx: Dictionary = _effects(root, game, out + "_fx")
@@ -123,7 +127,9 @@ func _walk(root: String, game: String, out: String, model: OptionsModel) -> Dict
 		# LEVEL SELECT (the fourth), into it, down to the third level, chosen
 		[41.0, KEY_ESC], [43.0, KEY_UP], [44.0, KEY_ENTER], [45.0, KEY_DOWN], [46.0, KEY_DOWN], [47.0, KEY_DOWN],
 		[48.0, KEY_DOWN], [49.0, KEY_DOWN], [50.0, KEY_DOWN], [51.0, KEY_ENTER], [52.0, KEY_DOWN], [53.0, KEY_DOWN],
-		[54.0, KEY_DOWN], [55.0, KEY_ENTER], [56.5, KEY_DOWN], [57.5, KEY_DOWN], [58.5, KEY_ENTER]]
+		[54.0, KEY_DOWN], [55.0, KEY_ENTER], [56.5, KEY_DOWN], [57.5, KEY_DOWN], [58.5, KEY_ENTER],
+		# in the level, the original's B+A+T (its window answered)
+		[66.0, 0x30], [66.0, 0x1E], [66.0, 0x14], [68.0, KEY_SPACE]]
 	for k: Array in script:
 		vm.add_key_after("menu", k[0], k[1], 0.2)
 	var r: Dictionary = {}
@@ -136,11 +142,14 @@ func _walk(root: String, game: String, out: String, model: OptionsModel) -> Dict
 				and vm.marks.has("menu") and vm.now > vm.marks["menu"] + DosMachine.seconds_to_units(7.5):
 			seen[0] = true
 			r["title"] = {"disabled": ((card.items[0] as Object).get("state") & 0x04) != 0, "god": gal.shell_cheat_get("god")}
-		if gal.game_in_progress != 0 and gal.ck_gameState.currentLevel != 0 and gal.ck_keenObj != null 				and gal.ck_keenObj.type == gal.CT_Player and not r.has("warped"):
+		if vm.marks.has("menu") and vm.now > vm.marks["menu"] + DosMachine.seconds_to_units(69.0) and not r.has("bat"):
+			r["bat"] = {"shots": gal.ck_gameState.numShots, "gems": Array(gal.ck_gameState.keyGems)}    # after B+A+T (66 s)
+		if gal.game_in_progress != 0 and gal.ck_gameState.currentLevel != 0 and gal.ck_keenObj != null and gal.ck_keenObj.type == gal.CT_Player \
+				and not r.has("warped"):
 			r["warped"] = gal.ck_gameState.currentLevel
 		if card != null and gal.get("us_currentCard") == card and gal.game_in_progress != 0:
 			r["in_game"] = gal.shell_in_game() and ((card.items[0] as Object).get("state") & 0x04) == 0)
-	vm.time_limit = DosMachine.seconds_to_units(80.0)
+	vm.time_limit = DosMachine.seconds_to_units(86.0)
 	vm.on_limit = func() -> void:
 		g.quitting = true
 		g.quit_message = "time limit"
@@ -153,6 +162,16 @@ func _walk(root: String, game: String, out: String, model: OptionsModel) -> Dict
 			main.append(str(item.get("caption")))
 	r["main"] = main
 	r["game"] = {"god": g.shell_cheat_get("god"), "ammo": g.shell_cheat_get("infinite_ammo"), "in_game": r.get("in_game", false)}
+	# MORE CHEATS' last item: ORIGINAL CODES, its rows the codes
+	var codes: Array = []
+	for item: Object in g.get("ck_us_cheatsMenu").items:
+		if str(item.get("caption")) == "MORE CHEATS":
+			for m: Object in item.get("subMenu").items:
+				if str(m.get("caption")) == "ORIGINAL CODES":
+					for c: Object in m.get("subMenu").items:
+						if str(c.get("caption")) != "":
+							codes.append(str(c.get("caption")))
+	r["codes"] = codes
 	_finish(vm, g)
 	return r
 

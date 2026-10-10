@@ -2138,6 +2138,16 @@ func CK_US_ShellCards() -> void:
 		more_items.append(_shell_row_item(r.key, "once"))
 	if CheatsModel.rows(self, "pick").any(func(r: Dictionary) -> bool: return r.key == "level_select"):
 		more_items.append(_us_item(US_ITEM_Submenu, 0, IN_SC_L, "LEVEL SELECT", US_Comm_None, _shell_level_cards()))
+	# CHEAT-05: the originals' own codes, so they can be found (each says what it does when chosen)
+	var code_items: Array = []
+	for c: Array in CheatsModel.CODES.get("galaxy", []):
+		var item: US_CardItem = _shell_row_item("code:" + str(c[0]), "info")
+		item.caption = str(c[0])
+		code_items.append(item)
+	if not code_items.is_empty():
+		code_items.append(_us_item_end())
+		more_items.append(_us_item(US_ITEM_Submenu, 0, IN_SC_O, "ORIGINAL CODES", US_Comm_None,
+			_us_card(8, 0, "TEXT:ORIGINAL CODES", 0, code_items, &"", 0, 0, 0)))
 	var cheat_items: Array = []
 	for r: Dictionary in CheatsModel.rows(self, "toggle"):
 		cheat_items.append(_shell_row_item(r.key, "cheat"))
@@ -2216,6 +2226,8 @@ func CK_US_ShellCaptions() -> void:
 		var key: String = _shell_toggles[card][0]
 		var kind: String = _shell_toggles[card][2]
 		var item: US_CardItem = _shell_toggles[card][1]
+		if kind == "info":
+			continue
 		if kind == "warp":
 			if shell_in_game():
 				item.state &= ~US_IS_Disabled
@@ -2254,6 +2266,12 @@ func CK_US_ShellRowProc(msg: int, _item: US_CardItem) -> bool:
 			CheatsModel.toggle(self, key)
 		"once":
 			said = shell_cheat_fire(key)
+		"info":
+			# an original code: what holding it does, in the toggles' dialog
+			for c: Array in CheatsModel.CODES.get("galaxy", []):
+				if "code:" + str(c[0]) == key:
+					USL_CtlDialog(str(c[0]), str(c[1]), "")
+			return true
 		"warp":
 			# as F10+W: the level is entered at once, leaving the menu for the game
 			ck_gameState.currentLevel = s16(int(key.substr(6)))

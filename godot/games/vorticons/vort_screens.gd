@@ -994,7 +994,7 @@ func UpdateObjHitbox(ob: Obj) -> void:
 ## The Options window's size: every page in one window of this size, so going from page to page
 ## leaves nothing of the last behind.
 const OPTIONS_W: int = 30    # the longest row: a fix's title and its value
-const OPTIONS_H: int = 12    # the Cheats page's rows and Back
+const OPTIONS_H: int = 13    # the Cheats page's rows and Back
 
 
 ## The Options window (docs/MENUS.md): the shell's rows in an ExpWin with the game's caret cursor.
@@ -1144,6 +1144,8 @@ func _options_desc(rows: Array, pos: int, wx: int, wy: int) -> void:
 func _options_rows(page_name: String) -> Array:
 	if page_name.begins_with("levels:"):
 		return _options_level_rows(int(page_name.substr(7)))
+	if page_name == "codes":
+		return _options_code_rows()
 	if page_name != "cheats":
 		return options.page(page_name)
 	var rows: Array = []
@@ -1154,6 +1156,17 @@ func _options_rows(page_name: String) -> Array:
 			rows.append({"key": "cheat:" + r.key, "label": r.label, "kind": "action", "enabled": r.enabled})
 		elif r.kind == "pick" and r.key == "level_select":
 			rows.append({"key": "cheat:levels:0", "label": r.label + "...", "kind": "page", "enabled": r.enabled})
+	if not (CheatsModel.CODES.get("vorticons", []) as Array).is_empty():
+		rows.append({"key": "cheat:codes", "label": "Original codes...", "kind": "page"})
+	rows.append({"key": "exit", "label": "Back", "kind": "action"})
+	return rows
+
+
+## CHEAT-05: the originals' codes, each with what holding it does as the line under it.
+func _options_code_rows() -> Array:
+	var rows: Array = []
+	for c: Array in CheatsModel.CODES.get("vorticons", []):
+		rows.append({"key": "cheat:info", "label": str(c[0]), "kind": "action", "desc": str(c[1])})
 	rows.append({"key": "exit", "label": "Back", "kind": "action"})
 	return rows
 
@@ -1177,6 +1190,10 @@ func _options_cheat(row: Dictionary) -> String:
 	if not row.get("enabled", true):
 		return "say:Only during a game"
 	var key: String = str(row.key).substr(6)
+	if key == "codes":
+		return "page:codes"
+	if key == "info":
+		return ""    # a code: its line is under it already
 	if key.begins_with("levels:"):
 		return "page:" + key
 	if key.begins_with("warp:"):

@@ -55,6 +55,11 @@ func _init() -> void:
 		fx.get("frozen", 0) > 0 and fx.get("control_moved", 0) > 0 and fx.get("moved", -1) == 0)
 	t.ok("No clipping: Keen sank %d px through his floor" % fx.get("sank", 0), fx.get("sank", 0) > 16)
 	t.ok("Skip this level: the level ended as completed (%s)" % fx.get("ended", -1), fx.get("ended", -1) == 1)
+	t.ok("the original's C+T+Space still works (%s)" % [fx.get("ctspace", {})], fx.get("ctspace", {}).get("ammo", 0) == 100
+		and fx.get("ctspace", {}).get("pogo", false) and fx.get("ctspace", {}).get("keys", []).all(func(k: bool) -> bool: return k))
+	var g0: VortScreens = VortKeen1.new()
+	var codes: Array = g0._options_code_rows().filter(func(r: Dictionary) -> bool: return r.key != "exit").map(func(r: Dictionary) -> String: return r.label)
+	t.ok("the Cheats page's Original codes lists the originals' codes (%s)" % [codes], codes == ["G+O+D", "C+T+Space"])
 	DirAccess.remove_absolute(cfg)
 	t.finish(self)
 
@@ -160,6 +165,8 @@ func _effects(root: String, game: String, out: String) -> Dictionary:
 			r["cost_off"] = 5 - g.gamestate.ammo
 			g.shell_cheat_set("infinite_ammo", true)
 			st["ammo"] = g.gamestate.ammo
+		if at > 9.9 and not r.has("ctspace"):
+			r["ctspace"] = {"ammo": g.gamestate.ammo, "pogo": g.gamestate.gotPogo, "keys": g.gamestate.keys.duplicate()}
 		if at > 9.5 and not r.has("cost_on"):
 			r["cost_on"] = st.ammo - g.gamestate.ammo
 			g.shell_cheat_set("infinite_ammo", false)
@@ -214,6 +221,10 @@ func _effects(root: String, game: String, out: String) -> Dictionary:
 		for at: float in [7.0, 8.5]:
 			vm.add_key_after("play", at, KEY_CTRL, 0.3)
 			vm.add_key_after("play", at, KEY_ALT, 0.3)
+		# the original's C+T+Space; its window waits for a key: Enter
+		for k: int in [0x2E, 0x14, KEY_SPACE]:
+			vm.add_key_after("play", 9.6, k, 0.2)
+		vm.add_key_after("play", 9.95, KEY_ENTER, 0.1)
 		vm.time_limit = vm.now + DosMachine.seconds_to_units(30.0)
 		r["ended"] = g.LevelLoop(1)
 		g.exited = true

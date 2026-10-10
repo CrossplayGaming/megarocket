@@ -29,6 +29,27 @@ const CHEATS: Array = [
 	{"key": "unlock_map", "label": "Unlock the map", "kind": "once"},
 ]
 
+## The originals' own cheat key combinations, listed so they can be found (CHEAT-05): per engine, the
+## keys and what holding them does. They keep working as they always did. Keen 4-6's texts are one
+## short line (their card's dialog holds one under its title).
+const CODES: Dictionary = {
+	"vorticons": [
+		["G+O+D", "Hold G, O and D in play: God mode on or off."],
+		["C+T+Space", "Hold C, T and Space in play: all the keycards and lots of ammo (and the pogo stick in Keen 1)."],
+	],
+	"galaxy": [
+		["B+A+T", "Gems, 99 shots, a life"],
+		["A+2+Enter", "Turns on the F10 keys"],
+		["F10+G", "God mode on or off"],
+		["F10+I", "Free items"],
+		["F10+J", "Jump cheat on or off"],
+		["F10+N", "No clipping on or off"],
+		["F10+S", "Slow motion on or off"],
+		["F10+W", "Warp to a level"],
+		["F10+E", "End the level"],
+	],
+}
+
 ## Lives the Extra lives cheat adds per use, and the most it lets the count reach (two digits on
 ## every game's status display).
 const EXTRA_LIVES: int = 9
