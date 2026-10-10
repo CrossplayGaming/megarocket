@@ -408,10 +408,14 @@ def cheat03():
 
 
 def save02():
-    """Keen 4-6's quicksave and quickload (SAVE-02, Enhanced): F5 into the sixth slot named QuickSave, F9
-    back to where it was saved, with and without the question; Classic's F5 is the original's save card."""
+    """Quicksave and quickload (SAVE-02, Enhanced). Keen 4-6: F5 into the sixth slot named QuickSave, F9
+    back to where it was saved, with and without the question; Classic's F5 is the original's save card.
+    Keen 1-3: F7 and F9 in the level and from the world map after leaving it, kept on disk; Classic: none."""
     import gdtest
     code, out = gdtest.run("save02_quicksave", [], timeout=900.0, quiet=True)
+    code2, out2 = gdtest.run("save02v_quicksave", [], timeout=900.0, quiet=True)
+    code = max(code, code2)
+    out = out + out2
     for line in out.splitlines():
         if "FAIL" in line or "checks" in line or "ERROR" in line:
             print("  " + line.strip())

@@ -81,6 +81,9 @@ func page(name: String) -> Array:
 			if engine == "vorticons":
 				# J-06: one key fires (Left Shift; the pad's X, Y and triggers), or the original's two together
 				rows.append(_value("one_button_fire", "Fire button", "One key" if bool(get_value("one_button_fire")) else "Two keys"))
+				# SAVE-02: Keen 1-3's quicksave keys (F5 stays the original's save menu: 1.0's F7 and F9)
+				rows.append(_value("quicksave", "Quicksave F7/F9", _on_off(get_value("quicksave"))))
+				rows.append(_value("quicksave_confirm", "Quicksave asks", _on_off(get_value("quicksave_confirm"))))
 				rows.append(_row("keyboard_commands", "Keyboard commands", "action"))
 			rows.append(_row("exit", "Back", "action"))
 			return rows

@@ -229,6 +229,14 @@ class GameState:
 		leveldone.resize(NUMLEVELS)
 		leveldone.fill(false)
 
+	## As plain values for the state snapshot (A7: without them the snapshot, its hash and a quickload
+	## left the game state out): the original's own layout.
+	func to_dict() -> Dictionary:
+		return {"bytes": to_bytes()}
+
+	func from_dict(d: Dictionary) -> void:
+		from_bytes(d.bytes)
+
 	## The original's file layout: sizeof(gametype) is 92 bytes (two-byte
 	## booleans and words, four-byte longs, no padding), as a save the original
 	## wrote in DOSBox shows (oracle run keen1_savetest_a).
@@ -308,6 +316,13 @@ class HighScores:
 	var citiesSaved: PackedInt32Array = [0, 0, 0, 0, 0, 0, 0]
 	var _unused: PackedInt32Array = [0, 0, 0, 0, 0, 0, 0]
 	var names: PackedStringArray = ["", "", "", "", "", "", ""]
+
+	## As plain values for the state snapshot (A7): the original's own layout.
+	func to_dict() -> Dictionary:
+		return {"bytes": to_bytes()}
+
+	func from_dict(d: Dictionary) -> void:
+		from_bytes(d.bytes)
 
 	## 204 bytes: names[7][13] padded to an even length by the compiler.
 	func to_bytes() -> PackedByteArray:
@@ -760,6 +775,13 @@ func DoFkeys() -> bool:
 		KEY_ESC:
 			PauseSound()
 			AskQuit()
+			i += 1
+		KEY_F7, KEY_F9:
+			# SAVE-02 (Enhanced): quicksave and quickload (vort_acts.gd); nothing in the original or Classic
+			if not has_method(&"shell_quicksave_on") or not bool(call(&"shell_quicksave_on")):
+				return false    # the original's: nothing
+			PauseSound()
+			call(&"shell_quick_key", NBKscan & 0x7F)
 			i += 1
 		_:
 			return false

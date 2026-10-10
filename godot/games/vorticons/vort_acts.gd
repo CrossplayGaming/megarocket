@@ -1143,14 +1143,18 @@ func LevelLoop(currentlevel: int) -> int:
 	LoadLevel(currentlevel)
 	if trace_frames:
 		print("TRACE load_end t=%.6f" % (float(vm.now) / float(DosMachine.PIT_HZ * DosMachine.UNIT)))
+	var quickloaded: bool = _quick_restore and currentlevel == int(_quick.get("level", -1))
 	if trace_frames:    # the level's objects as spawned (tests only)
 		for q: int in range(numobj):
 			print("TRACE spawned %d class %d tile %d,%d xspeed %d think %s" % [q, objlist[q].obclass, objlist[q].x >> 12, objlist[q].y >> 12, objlist[q].xspeed, objlist[q].think])
 	cost("levelload")    # time after the level's read and spawns, before the first RF_Clear; 0 until fitted
 	timecount += level_tc_shift
 	lasttimecount += level_tc_shift
-	originx = keen.x - 10 * TILEGLOBAL
-	originy = keen.y - 5 * TILEGLOBAL
+	if quickloaded:
+		_quick_apply()    # SAVE-02: the quicksave's level as it was (the camera with it)
+	else:
+		originx = keen.x - 10 * TILEGLOBAL
+		originy = keen.y - 5 * TILEGLOBAL
 	if originx < originxmin:
 		originx = originxmin
 	if originy < originymin:
@@ -1275,6 +1279,9 @@ func LevelLoop(currentlevel: int) -> int:
 		HandleUserKeys()
 		if DoFkeys():
 			lasttimecount = timecount
+		if _quick_restore and level == int(_quick.get("level", -1)) and LevelDone == ex_nothing:
+			_quick_apply()    # SAVE-02: a quickload in the level it was saved in, at once
+			RF_ForceRefresh()
 		if cheat_slowMotion:
 			var until: int = timecount + 14
 			while timecount < until and not exited:
@@ -1315,6 +1322,141 @@ func _cheat_frozen(ob: Obj) -> bool:
 ## An episode's objects Keen rides (platforms, Keen 3's ball): they keep going under Freeze enemies.
 func _cheat_keeps_going(_ob: Obj) -> bool:
 	return false
+
+
+# ===================================================================== quicksave (SAVE-02)
+
+## Keen 1-3's quicksave (Enhanced; Megarocket 1.0's design): F7 keeps the whole level as it is (every
+## variable of the game, the map planes included: A7's snapshot), F9 puts it back, both asking first
+## unless the player turned that off. In the level it was saved in, at once; elsewhere (after a death, on
+## the map, in another level) the world map steers into that level (the level select's way in) and it is
+## put back as the level loads. Kept in save_dir as QUICK.CKn, so it outlives the session. What is the
+## player's or the machine's stays as it is: the settings, the cheats, the controls, keys held, the sound
+## playing, the video pages (painted again in full) and the shell's views.
+const QUICK_KEEP: PackedStringArray = ["options", "fixes", "cheat_god", "cheat_jump", "cheat_infiniteAmmo", "cheat_infiniteLives",
+	"cheat_noClip", "cheat_slowMotion", "cheat_freezeEnemies", "shell_playing", "shell_in_level", "shell_warp", "shell_on_map",
+	"trace_sprites", "trace_frames", "dosbox_timing", "after_startup", "exited", "resetgame", "playermode", "JoyXlow", "JoyXhigh",
+	"JoyYlow", "JoyYhigh", "MouseSensitivity", "key", "keyB1", "keyB2", "keydown", "NBKscan", "NBKascii", "passtobios",
+	"SNDstarted", "KBDstarted", "soundmode", "SPKactive", "intcount", "SndPtr", "SndPriority", "pausesndptr", "pausepriority",
+	"pauseintcount", "dontplay", "highscores", "showIntro", "demobuffer", "demoptr", "indemo", "videocard", "drawseg",
+	"screenseg", "screenofs", "screenpan", "screenstart", "EGApage", "oldtiles", "oldtiles2", "draw_capture", "draw_list",
+	"draw_list_prev", "sprite_world", "wide_tiles", "draw_owner", "draw_overlaid", "draw_overlay_rect", "draw_forced",
+	"canSave", "forcemenu", "helptextPtr", "storytxtPtr", "endtextPtr", "previewsPtr", "textdataPtr", "textLineOffsets",
+	"line_offsets", "_quick", "_quick_restore"]
+## The quicksave: {"level": n, "state": the variables}; empty: none yet (read from save_dir on first use)
+var _quick: Dictionary = {}
+## A quickload waiting for its level
+var _quick_restore: bool = false
+
+
+func shell_quicksave_on() -> bool:
+	return options != null and bool(options.get_value("quicksave"))
+
+
+## F7 or F9 (DoFkeys): false when quicksave is off (the original's: nothing), true when handled.
+func shell_quick_key(code: int) -> bool:
+	if not shell_quicksave_on():
+		return false
+	ClearKeys()
+	if code == KEY_F7:
+		if not shell_in_level:
+			_quick_say("Quicksave works in a level")
+			return true
+		if not _quick_confirm("Quicksave (Y/N)?"):
+			return true
+		_quick = {"level": level, "state": _quick_state()}
+		_quick_write()
+		_quick_say("Game quicksaved")
+		return true
+	if _quick.is_empty():
+		_quick_read()
+	if _quick.is_empty():
+		_quick_say("No quicksave yet")
+		return true
+	if not _quick_confirm("Quickload (Y/N)?"):
+		return true
+	_quick_restore = true
+	if not shell_in_level or level != int(_quick.level):
+		# into the saved level from the map (out of this one first, nothing lost), as Level select does
+		shell_warp = int(_quick.level)
+		if shell_in_level:
+			LevelDone = ex_shellwarp
+	return true
+
+
+## The game's own Y/N, answered with Enter and Escape as well (a pad has no letters: 1.0's rule).
+func _quick_confirm(question: String) -> bool:
+	if options != null and not bool(options.get_value("quicksave_confirm")):
+		return true
+	ExpWin(question.length() + 1, 1)
+	Print(question)
+	var c: int = _toupper(Get() & 0xFF)
+	return c == 89 or c == 13    # 'Y' or Enter
+
+
+func _quick_say(text: String) -> void:
+	ExpWin(text.length() + 1, 1)
+	Print(text)
+	Get()
+
+
+func _quick_state() -> Dictionary:
+	var out: Dictionary = {}
+	for prop: Dictionary in get_property_list():
+		if (prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE) == 0 or NOT_STATE.has(prop.name) or QUICK_KEEP.has(prop.name):
+			continue
+		var v: Variant = _plain(get(prop.name))
+		if typeof(v) in [TYPE_CALLABLE, TYPE_OBJECT, TYPE_SIGNAL]:
+			continue
+		out[prop.name] = v
+	return out
+
+
+## The quicksave put back: every variable it holds (state_restore's way, the machine left running).
+func _quick_apply() -> void:
+	_quick_restore = false
+	var snap: Dictionary = _quick.state
+	for prop: Dictionary in get_property_list():
+		if (prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE) == 0 or not snap.has(prop.name):
+			continue
+		var cur: Variant = get(prop.name)
+		var val: Variant = snap[prop.name]
+		if typeof(cur) == TYPE_OBJECT and cur != null and cur.has_method("from_dict"):
+			cur.from_dict(val)
+		elif typeof(cur) == TYPE_ARRAY and val is Array and cur.size() > 0 and typeof(cur[0]) == TYPE_OBJECT:
+			for i: int in range(mini(cur.size(), val.size())):
+				cur[i].from_dict(val[i])
+		elif typeof(cur) == TYPE_STRING_NAME:
+			set(prop.name, StringName(val))
+		else:
+			set(prop.name, val)
+
+
+func _quick_path() -> String:
+	return save_dir.path_join("QUICK." + data.ext) if save_dir != "" else ""
+
+
+func _quick_write() -> void:
+	var path: String = _quick_path()
+	if path == "":
+		return
+	DirAccess.make_dir_recursive_absolute(save_dir)
+	var f: FileAccess = FileAccess.open(path + ".TMP", FileAccess.WRITE)
+	if f == null:
+		return
+	f.store_buffer(var_to_bytes(_quick))
+	f.close()
+	DirAccess.remove_absolute(path)
+	DirAccess.rename_absolute(path + ".TMP", path)
+
+
+func _quick_read() -> void:
+	var path: String = _quick_path()
+	if path == "" or not FileAccess.file_exists(path):
+		return
+	var v: Variant = bytes_to_var(FileAccess.get_file_as_bytes(path))
+	if v is Dictionary and (v as Dictionary).has("level") and (v as Dictionary).has("state"):
+		_quick = v
 
 
 # ===================================================================== the shell's cheats (CHEAT-01)
