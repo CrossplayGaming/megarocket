@@ -39,6 +39,10 @@ var _start_usec: int = 0
 var _frame_indices: PackedByteArray = PackedByteArray()
 var _frame_palette: PackedByteArray = PackedByteArray()
 var _frame_new: bool = false
+## REND-02: the draw list of the picture just shown, when native resolution draws it ({} otherwise)
+var _frame_list: Dictionary = {}
+var _native: VortNativeView = null
+var _native_view: VortNativeView = null
 var _done: bool = false
 var _quit_message: String = ""
 ## SHELL-06: paused while the window is out of focus (or by set_paused).
@@ -148,6 +152,10 @@ func _ready() -> void:
 	mat.set_shader_parameter("palette", _palette_tex)
 	_view.material = mat
 	_view.texture = _index_tex
+	# REND-02: native resolution's view, beside the 320x200's (used for Keen 1-3 so far)
+	_native_view = VortNativeView.new()
+	_native_view.visible = false
+	aspect.add_child(_native_view)
 	focus_mode = Control.FOCUS_ALL
 
 
@@ -209,6 +217,10 @@ func start(found: Dictionary) -> bool:
 	if "fixes" in engine:
 		engine.set("fixes", options.fixes())    # FIX-01: the game's fixes (empty, all off, when headless)
 	apply_setting("pixel_shape")
+	if engine is VortScreens:
+		_native = _native_view
+		_native.setup((engine as VortScreens).data)
+	apply_setting("native_resolution")
 	_player = AudioStreamPlayer.new()
 	var gen: AudioStreamGenerator = AudioStreamGenerator.new()
 	gen.mix_rate = HostAudio.RATE
@@ -232,6 +244,10 @@ func apply_setting(name: String) -> void:
 	if name.begins_with("fix_"):
 		if engine != null and "fixes" in engine:
 			engine.set("fixes", options.fixes())    # read by the engine at each fix's point
+		return
+	if name == "native_resolution":
+		if engine is VortScreens and _native != null:
+			(engine as VortScreens).draw_capture = bool(options.get_value("native_resolution"))
 		return
 	match name:
 		"fullscreen":
@@ -402,9 +418,29 @@ func _on_display() -> void:
 	_mutex.lock()
 	_frame_indices = card.frame_pixels.duplicate()
 	_frame_palette = card.frame_palette.duplicate()
+	_frame_list = _shown_list() if _native != null else {}
 	_frame_new = true
 	frames_made += 1
 	_mutex.unlock()
+
+
+## On the engine's thread: the draw list of the picture just shown, if native resolution is on and the
+## picture is the list's alone (REND-01's rules: the newest refresh whose start the card took, its page
+## with no window printed over it, no user routine); {} otherwise.
+func _shown_list() -> Dictionary:
+	var g: VortScreens = engine as VortScreens
+	if g == null or not g.draw_capture:
+		return {}
+	var list: Dictionary = g.draw_list
+	if int(list.get("written_vbl", -1)) < 0 or int(list.written_vbl) >= vm.vbl_count:
+		list = g.draw_list_prev
+	if list.is_empty() or int(list.get("written_vbl", -1)) < 0 or int(list.written_vbl) >= vm.vbl_count:
+		return {}
+	if vm.card.display_start != int(list.start) or (vm.card.atc[EgaCard.ATR_PELPAN] & 7) != int(list.pan):
+		return {}
+	if str(list.user) != "" or g.draw_overlaid[int(list.page)] or vm.card.frame_mixed:
+		return {}
+	return list
 
 
 ## The overlay shows on a touch screen while no pad is in use; hiding it lets
@@ -425,6 +461,7 @@ func _process(_delta: float) -> void:
 	var fresh: bool = _frame_new
 	var idx: PackedByteArray = _frame_indices
 	var pal: PackedByteArray = _frame_palette
+	var list: Dictionary = _frame_list
 	_frame_new = false
 	var done: bool = _done
 	var pending: Array = _audio_pending
@@ -438,6 +475,13 @@ func _process(_delta: float) -> void:
 		_palette_image.set_data(16, 1, false, Image.FORMAT_RGB8, pal.slice(0, 48))
 		_palette_tex.update(_palette_image)
 		frames_shown += 1
+		if _native != null:
+			# native resolution while the picture is the list's alone; the 320x200 otherwise
+			var native: bool = not list.is_empty()
+			if native:
+				_native.show_frame(engine, list, pal)
+			_native.visible = native
+			_view.visible = not native
 	if done and thread != null:
 		thread.wait_to_finish()
 		thread = null

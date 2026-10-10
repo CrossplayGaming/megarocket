@@ -1045,6 +1045,8 @@ func VidRefresh() -> void:
 var draw_capture: bool = false
 var draw_list: Dictionary = {}
 var draw_list_prev: Dictionary = {}
+## The sprites placed this refresh, [x, y, shape] in world units (RF_PlaceSprite's own arguments).
+var sprite_world: Array = []
 ## Per page: something drawn on it outside the lists (DrawChar's windows and text) and not yet
 ## painted over; and a forced refresh pending for it, which paints every tile again and so clears it.
 var draw_overlaid: Array = [false, false]
@@ -1065,7 +1067,8 @@ func _capture_draw_list() -> void:
 		draw_overlaid[page] = false
 	draw_list_prev = draw_list
 	draw_list = {"page": page, "originx": originx, "originy": originy, "animtable": animtable, "grid": grid,
-		"sprites": spritelist.slice(0, spritesshown), "tiles": tilelist.slice(0, tilesshown),
+		"sprites": spritelist.slice(0, spritesshown), "world": sprite_world.slice(0, spritesshown),
+		"tiles": tilelist.slice(0, tilesshown),
 		"pics": piclist.slice(0, picsshown), "user": uservect,
 		"start": screenstart & 0xFFFF, "pan": screenpan, "written_vbl": -1}
 

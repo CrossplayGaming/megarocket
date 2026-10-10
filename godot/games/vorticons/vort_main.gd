@@ -461,6 +461,7 @@ func RF_Clear() -> void:
 	spritelist = []
 	piclist = []
 	tilelist = []
+	sprite_world = []
 	coverlistptr = 0
 	while true:
 		tics = u16(timecount - lasttimecount)
@@ -532,6 +533,8 @@ func RF_PlaceSprite(x: int, y: int, shapenum: int) -> bool:
 				tilesshown += 1
 				tilelist.append(t)
 	spritelist.append([px, py, num])
+	if draw_capture:
+		sprite_world.append([x, y, shapenum])    # REND-02: where it is, not where the 1x page puts it
 	spritesshown += 1
 	return true
 

@@ -7,7 +7,9 @@ extends SceneTree
 ## (through the palette: during a fade different indices can show the same colour).
 ## Pictures the list can't account for (a window printed over the play, a user routine) are counted
 ## apart; the claim is that every gameplay picture matches. The first few mismatches are saved as
-## PNGs (card left, render right) to --out.
+## PNGs (card left, render right) to --out. REND-02: the layout at 1x (snapped) composed from the data's
+## unshifted images is the same picture, and at 4x (native) places every image under two original pixels
+## from its 1x place.
 ##
 ## Options: --game_data=<folder> --games=keen1,keen2,keen3 --levels=1,2,3 --seconds=10 --out=<folder>
 
@@ -42,6 +44,10 @@ func _init() -> void:
 				print("    set aside: %s %d" % [k, r[k]])
 		t.ok("%s: the draw list's 1x picture equals the card's (%d of %d)" % [game, r.get("match", 0), r.get("compared", 0)],
 			r.get("compared", 0) > 300 and r.get("differ", 1) == 0)
+		t.ok("%s: REND-02's layout at 1x, with the unshifted images, equals the card's (%d of %d)" % [game, r.get("laid", 0), r.get("compared", 0)],
+			r.get("compared", 0) > 300 and r.get("laid", 0) == r.get("compared", 0))
+		t.ok("%s: REND-02's native layout at 4x places every image under two original pixels from 1x (%d of %d)" % [game, r.get("placed", 0), r.get("compared", 0)],
+			r.get("compared", 0) > 300 and r.get("placed", 0) == r.get("compared", 0))
 	t.finish(self)
 
 
@@ -79,6 +85,27 @@ func _game(root: String, game: String, levels: Array, seconds: float, out: Strin
 			r[why] = r.get(why, 0) + 1
 			return
 		r.compared += 1
+		# REND-02's layout at 1x (snapped) with the data's unshifted images: the same picture
+		var ops1: Array = VortDrawLayout.ops(g, list)
+		var laid: PackedByteArray = VortDrawLayout.compose(g, ops1)
+		# REND-02 at 4x, native (unsnapped): the same images in the same order, each less than two
+		# original pixels from where 1x puts it (1x drops a sprite to its even pixel, under 2, and the
+		# scroll's fraction, under 1, the other way)
+		var ops4: Array = VortDrawLayout.ops(g, list, Vector2(4, 4), false)
+		var placed: bool = ops4.size() == ops1.size()
+		for k: int in range(mini(ops1.size(), ops4.size())):
+			var a: Dictionary = ops1[k]
+			var b: Dictionary = ops4[k]
+			if a.kind != b.kind or a.id != b.id or absf(b.x - a.x * 4.0) >= 8.0 or absf(b.y - a.y * 4.0) >= 8.0:
+				placed = false
+				break
+		if placed:
+			r.placed = r.get("placed", 0) + 1
+		if laid == card.frame_pixels or _same_colours(laid, card.frame_pixels, card.frame_palette):
+			r.laid = r.get("laid", 0) + 1
+		elif r.get("laid_saved", 0) < 2:
+			r.laid_saved = r.get("laid_saved", 0) + 1
+			_save(card, laid, out.path_join("%s_layout_differ_%d.png" % [game, r.laid_saved]))
 		if pic == card.frame_pixels or _same_colours(pic, card.frame_pixels, card.frame_palette):
 			r.match += 1    # the same picture (a fade can show different indices in the same colour)
 			return
