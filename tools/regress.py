@@ -310,7 +310,7 @@ def simv01():
     return common.PASS if "PASS" in r.stdout else common.FAIL
 
 
-def _timing_case(game, case, seconds):
+def _timing_case(game, case, seconds, extra=()):
     """Run the port from power-on for a recording's case and score it refresh for refresh."""
     import gdtest
     import shutil
@@ -334,7 +334,7 @@ def _timing_case(game, case, seconds):
         spec = json.loads((Path(__file__).parent / "cases" / game / f"{case}.json").read_text())
         if spec.get("overrides"):
             args.append(f"--save_seed={(common.ROOT / spec['overrides']).as_posix()}")
-    code, text = gdtest.run("simv01_boot", args, timeout=900.0, quiet=True)
+    code, text = gdtest.run("simv01_boot", args + list(extra), timeout=900.0, quiet=True)
     if code != common.PASS:
         for line in text.splitlines():
             if "FAIL" in line or "ERROR" in line:
@@ -370,6 +370,16 @@ def _replay(game, levels):
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=8) as pool:
         results = list(pool.map(lambda case: _timing_case(game, case, 120), levels))
+    return common.COULD_NOT_RUN if common.COULD_NOT_RUN in results else max(results)
+
+
+def rend03():
+    """REND-03: native resolution and smooth motion leave the game alone: Keen 1's level sessions run with
+    the draw lists kept (sprites' owners, the grid's margin, the capture time) and still match the
+    recordings refresh for refresh."""
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(lambda case: _timing_case("keen1", case, 120, ("--draw_capture=1",)), REPLAY_V1_LEVELS))
     return common.COULD_NOT_RUN if common.COULD_NOT_RUN in results else max(results)
 
 
@@ -1029,6 +1039,7 @@ CHECKS = {
     "MENU-02": (menu02, "fast"),
     "CHEAT-01": (cheat01, "fast"),
     "REND-01": (rend01, "slow"),
+    "REND-03": (rend03, "slow"),
     "FIX-01": (fix01, "slow"),
     "SHELL-05": (shell05, "fast"),
     "SHELL-06": (shell06, "slow"),

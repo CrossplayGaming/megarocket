@@ -22,6 +22,12 @@ void fragment() {
 
 var _eng: Object = null
 var _list: Dictionary = {}
+## REND-03: smooth motion between the list before and this one, by the machine's clock
+var smooth: bool = false
+var _prev: Dictionary = {}
+var _machine_t: float = 0.0
+var _shown_at: float = 0.0    # the machine's time when the newest list was first shown
+const MAX_GAP: float = 0.25    # seconds between two refreshes past which nothing slides (a load, a pause)
 var _tiles: Array = []         # ImageTexture per tile
 var _mtiles: Dictionary = {}   # tile -> its masked texture
 var _sprites: Array = []
@@ -57,10 +63,15 @@ func setup(data: Object) -> void:
 	_mtiles = {}
 
 
-## A frame: the engine (its tables), its draw list and the frame's palette (16 RGB).
-func show_frame(eng: Object, list: Dictionary, palette: PackedByteArray) -> void:
+## A frame: the engine (its tables), its draw list, the frame's palette (16 RGB) and the machine's
+## time now (smooth motion's place between the last two refreshes).
+func show_frame(eng: Object, list: Dictionary, palette: PackedByteArray, machine_t: float = 0.0) -> void:
 	_eng = eng
+	if _list.is_empty() or float(list.get("t", 0.0)) != float(_list.get("t", 0.0)):
+		_prev = _list
+		_shown_at = machine_t
 	_list = list
+	_machine_t = machine_t
 	_palette_image.set_data(16, 1, false, Image.FORMAT_RGB8, palette.slice(0, 48))
 	_palette_tex.update(_palette_image)
 	queue_redraw()
@@ -70,7 +81,16 @@ func _draw() -> void:
 	if _eng == null or _list.is_empty() or _tiles.is_empty():
 		return
 	var scale: Vector2 = Vector2(size.x / VortDrawLayout.W, size.y / VortDrawLayout.H)
-	for op: Dictionary in VortDrawLayout.ops(_eng, _list, scale, false):
+	var layout: Array
+	var gap: float = float(_list.get("t", 0.0)) - float(_prev.get("t", 0.0))
+	if smooth and not _prev.is_empty() and gap > 0.0 and gap <= MAX_GAP:
+		# one refresh behind: from the one before to the newest, over the time between them, counted from
+		# when the newest was first shown (a list shows a retrace or more after it is made)
+		var alpha: float = clampf((_machine_t - _shown_at) / gap, 0.0, 1.0)
+		layout = VortDrawLayout.between(_eng, _prev, _list, alpha, scale)
+	else:
+		layout = VortDrawLayout.ops(_eng, _list, scale, false)
+	for op: Dictionary in layout:
 		var tex: Texture2D = null
 		match op.kind:
 			"tile":

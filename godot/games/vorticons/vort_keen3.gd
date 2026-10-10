@@ -1019,9 +1019,13 @@ func ShowMessage() -> void:
 func _halo() -> void:
 	if ankhtime != 0 or cheatmode:
 		if ankhtime > 250:
+			draw_owner = OWNER_HALO
 			RF_PlaceSprite(objlist[0].x - 8 * PIXGLOBAL, objlist[0].y - 8 * PIXGLOBAL, ((u16(timecount) >> 4) & 1) + S.GODHALOSPR)
+			draw_owner = -1
 		elif ((u16(timecount) >> 4) & 1) != 0:
+			draw_owner = OWNER_HALO
 			RF_PlaceSprite(objlist[0].x - 8 * PIXGLOBAL, objlist[0].y - 8 * PIXGLOBAL, ((u16(timecount) >> 5) & 1) + S.GODHALOSPR)
+			draw_owner = -1
 		ankhtime -= tics
 		if ankhtime < 0:
 			ankhtime = 0
@@ -1334,7 +1338,9 @@ func _update_messie(keen: Obj) -> void:
 
 func _place_messie(anim: int) -> void:
 	@warning_ignore("integer_division")
+	draw_owner = OWNER_MESSIE
 	RF_PlaceSprite(messiex, messiey, messieshape + (anim & 2) / 2)
+	draw_owner = -1
 
 
 func _messie_touch(ob: Obj) -> void:

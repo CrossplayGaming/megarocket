@@ -726,7 +726,9 @@ func ControlMapKeen(ctrl: Dictionary, ob: Obj) -> void:
 			originy = originymin
 	ox = GLOBAL_TO_TILE(originx)
 	oy = GLOBAL_TO_TILE(originy)
+	draw_owner = 0
 	RF_PlaceSprite(ob.x, ob.y, ob.shapenum + anim)
+	draw_owner = -1
 	if episode == 3:
 		_messie_touch(ob)
 	if LevelNumber != 0:

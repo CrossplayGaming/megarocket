@@ -84,6 +84,8 @@ func _init() -> void:
 		if opts.has(k):
 			timing[k] = int(opts[k])
 	g.apply_dosbox_timing(timing)
+	if opts.has("draw_capture"):
+		g.draw_capture = true    # REND-01..03: the draw lists kept, as native resolution keeps them
 	if opts.has("spawn_scan"):
 		g.spawn_scan_per_tile = int(opts["spawn_scan"])
 	if opts.has("repeat_phase"):

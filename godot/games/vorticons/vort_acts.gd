@@ -1249,7 +1249,9 @@ func LevelLoop(currentlevel: int) -> int:
 		for j: int in range(numobj - 1, -1, -1):
 			var ob: Obj = objlist[j]
 			if ob.obclass != nothing and ob.active:
+				draw_owner = j
 				RF_PlaceSprite(ob.x, ob.y, ob.shapenum)
+		draw_owner = -1
 		if episode == 3:
 			_halo()
 		PlayerCheckTiles()

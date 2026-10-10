@@ -30,10 +30,11 @@ func render(eng: Object, list: Dictionary) -> PackedByteArray:
 	var anim: PackedInt32Array = eng.tile_anim
 	var abase: int = int(list.animtable) * eng.MAXTILES
 	var grid: PackedInt32Array = list.grid
+	var gw: int = eng.PORTTILESWIDE + 2    # the grid has a tile's margin all round
 	# the map's visible tiles (as the refresh saw them), as _draw_page lays them
 	for ty: int in range(eng.PORTTILESHIGH):
 		for tx: int in range(eng.PORTTILESWIDE):
-			var tile: int = grid[ty * eng.PORTTILESWIDE + tx]
+			var tile: int = grid[(ty + 1) * gw + tx + 1]
 			var t: int = (anim[abase + tile] >> 5) if tile < eng.MAXTILES else 0
 			_tile(tiles, t, GRID + tx * 16, GRID + ty * 16)
 	# the sprites (xcoord in bytes), merged plane by plane under their masks as DrawSprite does

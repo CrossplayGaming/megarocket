@@ -23,6 +23,7 @@ const SPEC: Dictionary = {
 	"fullscreen": [false, "bool", null],
 	"creature_question": [true, "bool", null],    # Keen 6's copy protection asked before a new game
 	"native_resolution": [true, "bool", null],    # REND-02: drawn at the window's size (Enhanced)
+	"smooth_motion": [true, "bool", null],        # REND-03: pictures between the game's (Enhanced)
 	# the bug-fix toggles (FixesModel), on by default (J-03); the Classic mode turns them off
 	"fix_k2_esc_skips": [true, "bool", null],
 	"fix_k2_tantalus_fade": [true, "bool", null],

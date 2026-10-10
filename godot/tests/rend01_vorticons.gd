@@ -48,6 +48,9 @@ func _init() -> void:
 			r.get("compared", 0) > 300 and r.get("laid", 0) == r.get("compared", 0))
 		t.ok("%s: REND-02's native layout at 4x places every image under two original pixels from 1x (%d of %d)" % [game, r.get("placed", 0), r.get("compared", 0)],
 			r.get("compared", 0) > 300 and r.get("placed", 0) == r.get("compared", 0))
+		print("    smooth motion: %d pairs, %d right, %d sprites slid" % [r.get("smooth_pairs", 0), r.get("smooth", 0), r.get("slid", 0)])
+		t.ok("%s: REND-03 between two refreshes: at 1 the newest picture, at a half each followed sprite midway (%d of %d)" % [game, r.get("smooth", 0), r.get("smooth_pairs", 0)],
+			r.get("smooth_pairs", 0) > 100 and r.get("smooth", 0) == r.get("smooth_pairs", 0) and r.get("slid", 0) > 100)
 	t.finish(self)
 
 
@@ -101,6 +104,36 @@ func _game(root: String, game: String, levels: Array, seconds: float, out: Strin
 				break
 		if placed:
 			r.placed = r.get("placed", 0) + 1
+		# REND-03: between the list before and this one: at 1 the picture is this one's; at a half every
+		# sprite one owner placed in both (moving less than a jump) is midway, the others where this has them
+		var before: Dictionary = g.draw_list_prev if list == g.draw_list else {}
+		if not before.is_empty() and before.has("world"):
+			var s4: Vector2 = Vector2(4, 4)
+			var end_ok: bool = VortDrawLayout.between(g, before, list, 1.0, s4) == VortDrawLayout.ops(g, list, s4, false)
+			var half: Array = VortDrawLayout.between(g, before, list, 0.5, s4).filter(func(op: Dictionary) -> bool: return op.kind == "sprite")
+			var was: Dictionary = {}
+			for w: Array in before.world:
+				if int(w[3]) >= 0 and not was.has(int(w[3])):
+					was[int(w[3])] = w
+			var mid_ok: bool = half.size() == list.world.size()
+			var pg: float = g.PIXGLOBAL
+			for k: int in range(mini(half.size(), list.world.size())):
+				var w: Array = list.world[k]
+				var expect: Vector2 = Vector2(float(w[0]), float(w[1])) / pg
+				var o: int = int(w[3])
+				if o >= 0 and was.has(o):
+					var p: Vector2 = Vector2(float(was[o][0]), float(was[o][1])) / pg
+					if absf(expect.x - p.x) <= VortDrawLayout.JUMP and absf(expect.y - p.y) <= VortDrawLayout.JUMP:
+						expect = (expect + p) / 2.0
+						r.slid = r.get("slid", 0) + 1
+				# the op is relative to the half-way view; undo it with the half-way view of the layout's tiles
+				var view: Vector2 = _view_of(g, before, list, 0.5)
+				var got: Vector2 = Vector2(half[k].x, half[k].y) / 4.0 + view
+				if got.distance_to(expect) > 0.01:
+					mid_ok = false
+			if end_ok and mid_ok:
+				r.smooth = r.get("smooth", 0) + 1
+			r.smooth_pairs = r.get("smooth_pairs", 0) + 1
 		if laid == card.frame_pixels or _same_colours(laid, card.frame_pixels, card.frame_palette):
 			r.laid = r.get("laid", 0) + 1
 		elif r.get("laid_saved", 0) < 2:
@@ -148,6 +181,16 @@ func _game(root: String, game: String, levels: Array, seconds: float, out: Strin
 	g.after_startup = Callable()
 	g.vm = null
 	return r
+
+
+## Where REND-03's half-way picture has its view, in world pixels (the layout's own rule).
+func _view_of(g: Object, a: Dictionary, b: Dictionary, alpha: float) -> Vector2:
+	var pg: float = g.PIXGLOBAL
+	var bv: Vector2 = Vector2(float(int(b.originx)), float(int(b.originy))) / pg
+	var av: Vector2 = Vector2(float(int(a.originx)), float(int(a.originy))) / pg
+	if absf(bv.x - av.x) <= VortDrawLayout.JUMP and absf(bv.y - av.y) <= VortDrawLayout.JUMP:
+		return av.lerp(bv, alpha)
+	return bv
 
 
 ## The two pictures look the same through the palette (every index pair the same colour).

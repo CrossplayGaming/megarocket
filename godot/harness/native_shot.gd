@@ -5,7 +5,8 @@ extends SceneTree
 ## draw list at the window's size, or the 320x200 scaled.
 ##
 ##   godot --path godot --script res://harness/native_shot.gd -- --game_data=<folder> --out=<png>
-##         [--native=on|off] [--size=1280x800] [--game=keen1] [--wait=8]
+##         [--native=on|off] [--smooth=on|off] [--size=1280x800] [--game=keen1] [--wait=8]
+##         [--frames=N: hold an arrow (--walk=4d, a scan code in hex) and save N frames as <out>_<n>.png]
 
 var _opts: Dictionary = {}
 
@@ -46,6 +47,7 @@ func _run() -> void:
 	var cfg: String = OS.get_temp_dir().path_join("mr_native_shot.cfg")
 	var s: Settings = Settings.new(cfg)
 	s.set_value("native_resolution", str(_opts.get("native", "on")) == "on", game)
+	s.set_value("smooth_motion", str(_opts.get("smooth", "on")) == "on", game)
 	s.save()
 	var host: GameHost = GameHost.new()
 	host.settings_path = cfg
@@ -62,10 +64,23 @@ func _run() -> void:
 	await _hold(4.0)
 	await _press(host, 0x1C)    # past the lives window
 	await _hold(2.0)
-	var img: Image = root.get_texture().get_image()
 	var out: String = str(_opts.get("out", "user://native.png"))
-	img.save_png(ProjectSettings.globalize_path(out) if out.begins_with("user://") else out)
-	print("shot: ", out, " ", img.get_size(), " native view shown: ", host._native != null and host._native.visible)
+	var frames: int = int(_opts.get("frames", "0"))
+	if frames > 0:
+		# a walk: the arrow held, each frame the window shows saved as <out>_<n>.png
+		var walk: int = str(_opts.get("walk", "4d")).hex_to_int()    # the arrow held (scan code)
+		host.send_key(walk, true)
+		await _hold(0.3)
+		for n: int in range(frames):
+			await process_frame
+			if host.paused:
+				host.set_paused(false)
+			root.get_texture().get_image().save_png(out.get_basename() + "_%03d.png" % n)
+		host.send_key(walk, false)
+	else:
+		var img: Image = root.get_texture().get_image()
+		img.save_png(ProjectSettings.globalize_path(out) if out.begins_with("user://") else out)
+	print("shot: ", out, " native view shown: ", host._native != null and host._native.visible)
 	host.stop() if host.has_method("stop") else null
 	await create_timer(0.5).timeout
 	DirAccess.remove_absolute(cfg)

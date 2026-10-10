@@ -1045,8 +1045,14 @@ func VidRefresh() -> void:
 var draw_capture: bool = false
 var draw_list: Dictionary = {}
 var draw_list_prev: Dictionary = {}
-## The sprites placed this refresh, [x, y, shape] in world units (RF_PlaceSprite's own arguments).
+## The sprites placed this refresh, [x, y, shape, owner] in world units (RF_PlaceSprite's own
+## arguments, and who placed it: an object's slot, or a number of the caller's; -1 for none).
 var sprite_world: Array = []
+## REND-03: set around a placement by its caller, so smooth motion can follow one thing from refresh
+## to refresh. The level's objects are their slots; the others are named here.
+var draw_owner: int = -1
+const OWNER_MESSIE: int = 1000
+const OWNER_HALO: int = 1001
 ## Per page: something drawn on it outside the lists (DrawChar's windows and text) and not yet
 ## painted over; and a forced refresh pending for it, which paints every tile again and so clears it.
 var draw_overlaid: Array = [false, false]
@@ -1054,19 +1060,21 @@ var draw_forced: Array = [false, false]
 
 
 func _capture_draw_list() -> void:
-	var ox0: int = originx >> 12
-	var oy0: int = originy >> 12
+	# the visible grid with a tile all round (REND-03 scrolls a little between refreshes)
+	var ox0: int = (originx >> 12) - 1
+	var oy0: int = (originy >> 12) - 1
+	var gw: int = PORTTILESWIDE + 2
 	var grid: PackedInt32Array = PackedInt32Array()
-	grid.resize(PORTTILESWIDE * PORTTILESHIGH)
-	for ty: int in range(PORTTILESHIGH):
-		for tx: int in range(PORTTILESWIDE):
-			grid[ty * PORTTILESWIDE + tx] = GETTILE(ox0 + tx, oy0 + ty, 0)
+	grid.resize(gw * (PORTTILESHIGH + 2))
+	for ty: int in range(PORTTILESHIGH + 2):
+		for tx: int in range(gw):
+			grid[ty * gw + tx] = GETTILE(ox0 + tx, oy0 + ty, 0)
 	var page: int = 1 if EGApage != 0 else 0
 	if draw_forced[page]:
 		draw_forced[page] = false
 		draw_overlaid[page] = false
 	draw_list_prev = draw_list
-	draw_list = {"page": page, "originx": originx, "originy": originy, "animtable": animtable, "grid": grid,
+	draw_list = {"page": page, "t": vm.seconds(), "originx": originx, "originy": originy, "animtable": animtable, "grid": grid,
 		"sprites": spritelist.slice(0, spritesshown), "world": sprite_world.slice(0, spritesshown),
 		"tiles": tilelist.slice(0, tilesshown),
 		"pics": piclist.slice(0, picsshown), "user": uservect,

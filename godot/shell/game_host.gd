@@ -221,6 +221,7 @@ func start(found: Dictionary) -> bool:
 		_native = _native_view
 		_native.setup((engine as VortScreens).data)
 	apply_setting("native_resolution")
+	apply_setting("smooth_motion")
 	_player = AudioStreamPlayer.new()
 	var gen: AudioStreamGenerator = AudioStreamGenerator.new()
 	gen.mix_rate = HostAudio.RATE
@@ -245,9 +246,10 @@ func apply_setting(name: String) -> void:
 		if engine != null and "fixes" in engine:
 			engine.set("fixes", options.fixes())    # read by the engine at each fix's point
 		return
-	if name == "native_resolution":
+	if name == "native_resolution" or name == "smooth_motion":
 		if engine is VortScreens and _native != null:
 			(engine as VortScreens).draw_capture = bool(options.get_value("native_resolution"))
+			_native.smooth = bool(options.get_value("smooth_motion"))
 		return
 	match name:
 		"fullscreen":
@@ -479,7 +481,7 @@ func _process(_delta: float) -> void:
 			# native resolution while the picture is the list's alone; the 320x200 otherwise
 			var native: bool = not list.is_empty()
 			if native:
-				_native.show_frame(engine, list, pal)
+				_native.show_frame(engine, list, pal, machine_t)
 			_native.visible = native
 			_view.visible = not native
 	if done and thread != null:
