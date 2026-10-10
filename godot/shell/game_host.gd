@@ -717,6 +717,14 @@ func _input(event: InputEvent) -> void:
 		pad_device = event.device
 	if event is InputEventJoypadButton:
 		var jb: InputEventJoypadButton = event
+		# SAVE-02 (the user, 2026-10-10): the left shoulder quicksaves, the right quickloads, in every game
+		# while quicksave is on (Keen 1-3's F7 / F9, Keen 4-6's F5 / F9)
+		if (jb.button_index == JOY_BUTTON_LEFT_SHOULDER or jb.button_index == JOY_BUTTON_RIGHT_SHOULDER) \
+				and options != null and bool(options.get_value("quicksave")) and (engine is VortScreens or engine is GalGame):
+			var save_key: int = 0x41 if engine is VortScreens else 0x3F
+			send_key(save_key if jb.button_index == JOY_BUTTON_LEFT_SHOULDER else 0x43, jb.pressed)
+			get_viewport().set_input_as_handled()
+			return
 		if _one_fire:
 			if jb.button_index == JOY_BUTTON_X or jb.button_index == JOY_BUTTON_Y:
 				_fire("x" if jb.button_index == JOY_BUTTON_X else "y", jb.pressed)

@@ -1,7 +1,8 @@
 # Copyright (C) 2026 the Megarocket contributors. GPL v2 or later. See LICENSE.md.
 extends SceneTree
 ## SHELL-11: the host's added controls (Keen 1, real time). One-button fire (J-06, on by default): Left
-## Shift presses jump and pogo together (Ctrl and Alt) and lets go of both; the pad's X and its right
+## Shift presses jump and pogo together (Ctrl and Alt) and lets go of both; the shoulders are quicksave (F7)
+## and quickload (F9); the pad's X and its right
 ## trigger do the same; Back is the status screen (Space); with the Fire button row at Two keys, Left
 ## Shift fires nothing. F11 moves the game's Fullscreen row. The intro, a screen and not play, is shown
 ## as the 320x200 picture in the frame (REND-08).
@@ -81,6 +82,17 @@ func _go() -> void:
 	back.pressed = false
 	host._input(back)
 	await _wait(func() -> bool: return g.keydown[0x39] == 0, 3.0)
+	# SAVE-02 (the user's choice): the left shoulder quicksaves (F7), the right quickloads (F9)
+	for pair: Array in [[JOY_BUTTON_LEFT_SHOULDER, 0x41], [JOY_BUTTON_RIGHT_SHOULDER, 0x43]]:
+		var sh: InputEventJoypadButton = InputEventJoypadButton.new()
+		sh.button_index = pair[0]
+		sh.pressed = true
+		host._input(sh)
+		var held: bool = host._held.has(pair[1])
+		sh.pressed = false
+		host._input(sh)
+		t.ok("the %s shoulder is %s" % ["left" if pair[0] == JOY_BUTTON_LEFT_SHOULDER else "right", "F7 (quicksave)" if pair[1] == 0x41 else "F9 (quickload)"],
+			held and not host._held.has(pair[1]))
 	var f11: InputEventKey = InputEventKey.new()
 	f11.keycode = KEY_F11
 	f11.pressed = true

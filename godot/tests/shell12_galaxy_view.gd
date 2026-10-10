@@ -50,6 +50,13 @@ func _game(root_dir: String, game: String) -> void:
 		host.queue_free()
 		return
 	t.ok("%s: the player's files kept in %s (SAVE-06)" % [game, host.engine.user_dir], str(host.engine.user_dir).ends_with("saves/" + game))
+	var lb: InputEventJoypadButton = InputEventJoypadButton.new()
+	lb.button_index = JOY_BUTTON_LEFT_SHOULDER
+	lb.pressed = true
+	host._input(lb)
+	t.ok("%s: the left shoulder is F5 (quicksave)" % game, host._held.has(0x3F))
+	lb.pressed = false
+	host._input(lb)
 	var framed: bool = await _wait(func() -> bool:
 		return host.frames_shown > 10 and host._view.visible and host._backdrop.frame_rect.size.x > 0.0, 30.0)
 	t.ok("%s: the first screens are the 320x200 picture in the frame (%s)" % [game, host._backdrop.frame_rect], framed)

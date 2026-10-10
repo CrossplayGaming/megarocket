@@ -1,8 +1,8 @@
 # Copyright (C) 2026 the Megarocket contributors. GPL v2 or later. See LICENSE.md.
 extends SceneTree
 ## SAVE-02 (Keen 1-3, Enhanced): quicksave F7 and quickload F9 (1.0's keys; F5 stays the original's save
-## menu), each answered Y. A new game's state, level 1: F7, Y; Keen walks right; F9, Y: he is back where he
-## was saved, in the same level. Then the level is left (Skip, as completed) and on the world map F9, Y:
+## menu), each answered Y (Keen 2: with jump, a pad's A). A new game's state, level 1: F7, Y; Keen walks right; F9, Y: he is back where he
+## was saved, in the same level (each message closed with a key, as Keen 4-6's are). Then the level is left (Skip, as completed) and on the world map F9, Y:
 ## the map steers into level 1 and it opens as it was saved (Keen's place, the level not marked done).
 ## The quicksave is on disk (QUICK.CKn), and a fresh session reads it. In Classic, F7 and F9 do nothing.
 ##
@@ -44,6 +44,7 @@ func _game(root: String, game: String, mode: String) -> void:
 		m.step("mode", 1)
 	g.set("options", m)
 	var st: Dictionary = {"phase": 0}
+	var yes: int = 0x1D if game == "keen2" else Y    # Keen 2 answers with jump (a pad's A), the others with Y
 	vm.on_display = func() -> void:
 		var now: float = vm.seconds()
 		var keen_x: int = g.objlist[0].x >> 12
@@ -53,10 +54,11 @@ func _game(root: String, game: String, mode: String) -> void:
 					st.phase = 1
 					st.t0 = now
 					vm.add_key(now + 0.5, F7, 0.15)
-					vm.add_key(now + 1.3, Y, 0.15)
-					vm.add_key(now + 2.2, RIGHT, 1.5)
+					vm.add_key(now + 1.3, yes, 0.15)
+					vm.add_key(now + 1.9, 0x39, 0.15)    # the "Game quicksaved" message closed
+					vm.add_key(now + 2.4, RIGHT, 1.5)
 					vm.add_key(now + 4.5, F9, 0.15)
-					vm.add_key(now + 5.3, Y, 0.15)
+					vm.add_key(now + 5.3, yes, 0.15)
 			1:
 				if not st.has("saved_x") and not g._quick.is_empty():
 					st.saved_x = int(g._quick.state.objlist[0].x) >> 12
@@ -70,7 +72,7 @@ func _game(root: String, game: String, mode: String) -> void:
 				if g.shell_on_map and not st.has("map_t"):
 					st.map_t = now
 					vm.add_key(now + 3.0, F9, 0.15)    # once the map's fade-in is over and its loop reads keys
-					vm.add_key(now + 3.8, Y, 0.15)
+					vm.add_key(now + 3.8, yes, 0.15)
 				if st.has("map_t") and g.shell_in_level and g.level == 1 and not st.has("again_x"):
 					st.again_x = keen_x
 					st.done_flag = g.gamestate.leveldone[0]

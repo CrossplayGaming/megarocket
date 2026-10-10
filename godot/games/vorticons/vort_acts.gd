@@ -1384,20 +1384,39 @@ func shell_quick_key(code: int) -> bool:
 	return true
 
 
-## The game's own Y/N, answered with Enter and Escape as well (a pad has no letters: 1.0's rule).
+## The game's own Y/N: Y, Enter or jump (a pad's A) yes; N, Escape or pogo (B) no (a pad has no
+## letters: 1.0's rule, and Keen 4-6's IN_YesNo's).
 func _quick_confirm(question: String) -> bool:
 	if options != null and not bool(options.get_value("quicksave_confirm")):
 		return true
 	ExpWin(question.length() + 1, 1)
 	Print(question)
-	var c: int = _toupper(Get() & 0xFF)
-	return c == 89 or c == 13    # 'Y' or Enter
+	var k: int = _quick_wait_key([0x15, 0x1C, 0x1D, 0x31, 0x01, 0x38])
+	return k in [0x15, 0x1C, 0x1D]
 
 
+## A message that stays until any key or button.
 func _quick_say(text: String) -> void:
 	ExpWin(text.length() + 1, 1)
 	Print(text)
-	Get()
+	_quick_wait_key([])
+
+
+## Waits for one of these keys (any, with none given) to go down and every key to come up again; returns
+## the one pressed.
+func _quick_wait_key(codes: Array) -> int:
+	ClearKeys()
+	var got: int = 0
+	while got == 0 and not exited:
+		WaitVBL(1)
+		for c: int in range(1, 128):
+			if keydown[c] != 0 and (codes.is_empty() or c in codes):
+				got = c
+				break
+	while got != 0 and keydown[got] != 0 and not exited:
+		WaitVBL(1)    # until it is let go, so it is not read again as play
+	ClearKeys()
+	return got
 
 
 func _quick_state() -> Dictionary:
