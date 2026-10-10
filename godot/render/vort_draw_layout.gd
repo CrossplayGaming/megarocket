@@ -31,11 +31,18 @@ static func ops(eng: Object, list: Dictionary, scale: Vector2 = Vector2.ONE, sna
 	var cx: float = float(ox_px) if snap else float(list.get("view_x", float(int(list.originx)) / pg))
 	var vy: float = float(oy_px) if snap else float(list.get("view_y", float(int(list.originy)) / pg))
 	var vx: float = cx
+	# the wide view never shows past what the original's camera can (its border tiles stay hidden:
+	# Megarocket 1.0's edge lock); a level narrower than the view sits in its middle, black round it
+	var lo: float = float(list.get("xmin", 0))
+	var hi: float = float(list.get("xmax", int(list.get("map_w", 0)) * 16))
+	var masked: bool = false
 	if view_w > W:
-		var map_px: float = float(int(list.get("map_w", 0)) * 16)
 		vx = cx - float(view_w - W) / 2.0
-		if map_px > float(view_w):
-			vx = clampf(vx, 0.0, map_px - float(view_w))
+		if hi - lo >= float(view_w):
+			vx = clampf(vx, lo, hi - float(view_w))
+		else:
+			vx = (lo + hi - float(view_w)) / 2.0
+			masked = true
 		if snap:
 			vx = floorf(vx)
 	var gx: int = (int(list.originx) >> 12) * 16    # the grid's first visible tile, in world pixels
@@ -96,6 +103,11 @@ static func ops(eng: Object, list: Dictionary, scale: Vector2 = Vector2.ONE, sna
 		# pictures are placed on the page, not in the world: where the page's window puts them
 		out.append({"kind": "pic", "id": int(p[2]),
 			"x": (int(p[0]) * 8 - 32 - (ox_px & 15) + ox_px - vx) * scale.x, "y": (int(p[1]) - 32 - (oy_px & 15) + oy_px - vy) * scale.y})
+	if masked:
+		# black past the level's ends: {kind: "mask", x, w} in the picture's pixels, the view's height
+		out.append({"kind": "mask", "x": 0.0, "w": (lo - vx) * scale.x})
+		out.append({"kind": "mask", "x": (hi - vx) * scale.x, "w": (vx + view_w - hi) * scale.x})
+	out.append({"kind": "view", "x": vx, "y": vy})    # the view's top-left in world pixels (the shell's overlays)
 	return out
 
 

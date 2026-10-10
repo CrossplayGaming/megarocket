@@ -821,6 +821,17 @@ def fix01():
     return code
 
 
+def shell11():
+    """The host's added controls (SHELL-11): one-button fire on Left Shift, the pad's X and triggers,
+    Back for the status screen, F11 for fullscreen, the intro framed."""
+    import gdtest
+    code, out = gdtest.run("shell11_fire", [], timeout=300.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def shell05():
     """Settings persist, reset, survive damage value by value, per-game values win, and no
     simulation script reads them (A15)."""
@@ -1064,6 +1075,7 @@ CHECKS = {
     "SHELL-10": (shell10, "slow"),
     "AND-04": (and04, "slow"),
     "SHELL-09": (shell09, "fast"),
+    "SHELL-11": (shell11, "fast"),
     "AND-02a": (and02a, "fast"),
     "SHELL-10b": (shell10b, "fast"),
     "AND-03a": (and03a, "fast"),

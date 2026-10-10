@@ -63,6 +63,7 @@ func DemoLoop() -> void:
 		shell_playing = true
 		WorldMap()
 		shell_playing = false
+		shell_on_map = false
 
 
 func _save_scores() -> void:
@@ -111,6 +112,7 @@ func WorldMap() -> void:
 		LevelNumber = 0
 		ReadLevel(WORLDMAP)
 		ScanWorldMap()
+		shell_on_map = true    # the map's play from its first picture (its fade-in, Keens Left over it)
 		for i: int in range(NUMLEVELS):
 			var x: int = entrances[i][0]
 			var y: int = entrances[i][1]
@@ -181,15 +183,18 @@ func WorldMap() -> void:
 			DoFkeys()
 			if shell_warp != 0:
 				LevelNumber = shell_warp    # Level select (CHEAT-04): that level next, as if walked into
+				shell_on_map = false
 				break
 			if keydown[KEY_SPACE] != 0:
 				ShowStatusScreen()
 			if resetgame or exited:
+				shell_on_map = false
 				if not exited:
 					CheckHighScore()
 				return
 			anim += 1
 			if LevelNumber != 0:
+				shell_on_map = false
 				break
 		canSave = false
 		var idx: int = (LevelNumber & 0xFF) - 1    # the original's 16-bit index drops the blocking bit

@@ -19,11 +19,11 @@ var engine: String = ""
 ## Called (deferred to the main thread) with a setting's name after it changed.
 var applier: Callable = Callable()
 ## The Mode presets: the rows each sets (MENUS.md "The Mode row"). The wide view, native resolution, smooth motion and the fixes so far
-## (FixesModel): all off in Classic, on in Enhanced; one-button fire joins
+## (FixesModel): one-button fire, all off in Classic, on in Enhanced; more join
 ## as they are built.
 const PRESETS: Dictionary = {
-	"classic": {"wide_view": false, "native_resolution": false, "smooth_motion": false, "fix_k2_esc_skips": false, "fix_k2_tantalus_fade": false, "fix_k3_messie_double": false, "fix_god_lurch": false, "fix_keen_over_scenery": false, "fix_dreams_keys_kept": false, "fix_dreams_death_box": false},
-	"enhanced": {"wide_view": true, "native_resolution": true, "smooth_motion": true, "fix_k2_esc_skips": true, "fix_k2_tantalus_fade": true, "fix_k3_messie_double": true, "fix_god_lurch": true, "fix_keen_over_scenery": true, "fix_dreams_keys_kept": true, "fix_dreams_death_box": true},
+	"classic": {"one_button_fire": false, "wide_view": false, "native_resolution": false, "smooth_motion": false, "fix_k2_esc_skips": false, "fix_k2_tantalus_fade": false, "fix_k3_messie_double": false, "fix_god_lurch": false, "fix_keen_over_scenery": false, "fix_dreams_keys_kept": false, "fix_dreams_death_box": false},
+	"enhanced": {"one_button_fire": true, "wide_view": true, "native_resolution": true, "smooth_motion": true, "fix_k2_esc_skips": true, "fix_k2_tantalus_fade": true, "fix_k3_messie_double": true, "fix_god_lurch": true, "fix_keen_over_scenery": true, "fix_dreams_keys_kept": true, "fix_dreams_death_box": true},
 }
 const VOLUME_STEP: int = 10
 
@@ -76,6 +76,8 @@ func page(name: String) -> Array:
 		"controls":
 			var rows: Array = []
 			if engine == "vorticons":
+				# J-06: one key fires (Left Shift; the pad's X, Y and triggers), or the original's two together
+				rows.append(_value("one_button_fire", "Fire button", "One key" if bool(get_value("one_button_fire")) else "Two keys"))
 				rows.append(_row("keyboard_commands", "Keyboard commands", "action"))
 			rows.append(_row("exit", "Back", "action"))
 			return rows
@@ -95,7 +97,7 @@ func step(key: String, dir: int) -> void:
 			_put("fullscreen", not bool(get_value("fullscreen")))
 		"creature_question":
 			_put("creature_question", not bool(get_value("creature_question")))
-		"native_resolution", "smooth_motion", "wide_view":
+		"native_resolution", "smooth_motion", "wide_view", "one_button_fire":
 			_put(key, not bool(get_value(key)))
 		"pixel_shape":
 			_put("pixel_shape", "square" if get_value("pixel_shape") == "4:3" else "4:3")

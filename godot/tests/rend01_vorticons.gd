@@ -60,7 +60,10 @@ func _init() -> void:
 			rules == ([true, true] if wide > 0 else [false, false]))
 		t.ok("%s: REND-02's layout at 1x, with the unshifted images, equals the card's (%d of %d)" % [game, r.get("laid", 0), r.get("compared", 0)],
 			r.get("compared", 0) > 300 and r.get("laid", 0) == r.get("compared", 0))
+		print("    windows over the play: %d, the list plus the window's rectangle right in %d" % [r.get("windows", 0), r.get("windows_ok", 0)])
 		if wide == 0:
+			t.ok("%s: a window over the play: the list's picture with its rectangle from the card is the card's (%d of %d)" % [game, r.get("windows_ok", 0), r.get("windows", 0)],
+				r.get("windows", 0) > 10 and r.get("windows_ok", 0) == r.get("windows", 0))
 			t.ok("%s: REND-02's native layout at 4x places every image under two original pixels from 1x (%d of %d)" % [game, r.get("placed", 0), r.get("compared", 0)],
 				r.get("compared", 0) > 300 and r.get("placed", 0) == r.get("compared", 0))
 			print("    smooth motion: %d pairs, %d right, %d sprites slid" % [r.get("smooth_pairs", 0), r.get("smooth", 0), r.get("slid", 0)])
@@ -139,6 +142,20 @@ func _game(root: String, game: String, levels: Array, seconds: float, out: Strin
 				r.shifted = r.get("shifted", 0) + 1
 			return
 		var pic: PackedByteArray = renderer.render(g, list)
+		if pic.is_empty() and g.draw_overlaid[int(list.page)] and str(list.user) == "":
+			# a window over the play: the list's picture with the window's rectangle copied from the card's
+			# (what the shell shows) is the card's picture
+			var rect: Rect2i = g.draw_overlay_rect[int(list.page)].intersection(Rect2i(0, 0, 320, 200))
+			var with: PackedByteArray = VortDrawLayout.compose(g, VortDrawLayout.ops(g, list))
+			for y: int in range(rect.position.y, rect.end.y):
+				for x: int in range(rect.position.x, rect.end.x):
+					with[y * 320 + x] = card.frame_pixels[y * 320 + x]
+			r.windows = r.get("windows", 0) + 1
+			if with == card.frame_pixels or _same_colours(with, card.frame_pixels, card.frame_palette):
+				r.windows_ok = r.get("windows_ok", 0) + 1
+			elif r.get("win_saved", 0) < 2:
+				r.win_saved = r.get("win_saved", 0) + 1
+				_save(card, with, out.path_join("%s_window_differ_%d.png" % [game, r.win_saved]))
 		if pic.is_empty():
 			r.skipped += 1
 			var why: String = "user " + str(list.user) if str(list.user) != "" else "overlaid"
@@ -156,6 +173,8 @@ func _game(root: String, game: String, levels: Array, seconds: float, out: Strin
 		for k: int in range(mini(ops1.size(), ops4.size())):
 			var a: Dictionary = ops1[k]
 			var b: Dictionary = ops4[k]
+			if a.kind == "view" and b.kind == "view":
+				continue    # the view's corner, in world pixels at any size
 			if a.kind != b.kind or a.id != b.id or absf(b.x - a.x * 4.0) >= 8.0 or absf(b.y - a.y * 4.0) >= 8.0:
 				placed = false
 				break

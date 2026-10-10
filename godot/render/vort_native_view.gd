@@ -31,6 +31,10 @@ var snap: bool = false
 var _prev: Dictionary = {}
 var _machine_t: float = 0.0
 var _shown_at: float = 0.0    # the machine's time when the newest list was first shown
+## A window printed over the play: that rectangle of the card's picture (palette indices, 320x200)
+## drawn over the list's, where it sits in the world (no flip to 4:3; Megarocket 1.0's way)
+var _card: PackedByteArray = PackedByteArray()
+var _black: ImageTexture = null
 const MAX_GAP: float = 0.25    # seconds between two refreshes past which nothing slides (a load, a pause)
 var _tiles: Array = []         # ImageTexture per tile
 var _mtiles: Dictionary = {}   # tile -> its masked texture
@@ -69,8 +73,10 @@ func setup(data: Object) -> void:
 
 ## A frame: the engine (its tables), its draw list, the frame's palette (16 RGB) and the machine's
 ## time now (smooth motion's place between the last two refreshes).
-func show_frame(eng: Object, list: Dictionary, palette: PackedByteArray, machine_t: float = 0.0) -> void:
+func show_frame(eng: Object, list: Dictionary, palette: PackedByteArray, machine_t: float = 0.0,
+		card: PackedByteArray = PackedByteArray()) -> void:
 	_eng = eng
+	_card = card
 	if _list.is_empty() or float(list.get("t", 0.0)) != float(_list.get("t", 0.0)):
 		_prev = _list
 		_shown_at = machine_t
@@ -87,16 +93,26 @@ func _draw() -> void:
 	var scale: Vector2 = Vector2(size.x / view_w, size.y / VortDrawLayout.H)
 	var layout: Array
 	var gap: float = float(_list.get("t", 0.0)) - float(_prev.get("t", 0.0))
-	if smooth and not snap and not _prev.is_empty() and gap > 0.0 and gap <= MAX_GAP:
+	var overlay: Rect2i = list_overlay(_list)
+	if smooth and not snap and overlay.size == Vector2i.ZERO and not _prev.is_empty() and gap > 0.0 and gap <= MAX_GAP:
 		# one refresh behind: from the one before to the newest, over the time between them, counted from
 		# when the newest was first shown (a list shows a retrace or more after it is made)
 		var alpha: float = clampf((_machine_t - _shown_at) / gap, 0.0, 1.0)
 		layout = VortDrawLayout.between(_eng, _prev, _list, alpha, scale, view_w)
 	else:
 		layout = VortDrawLayout.ops(_eng, _list, scale, snap, view_w)
+	var view: Vector2 = Vector2.ZERO
+	if _black == null:
+		_black = _texture(PackedByteArray([0]), PackedByteArray(), 1, 1)
 	for op: Dictionary in layout:
 		var tex: Texture2D = null
 		match op.kind:
+			"view":
+				view = Vector2(op.x, op.y)
+				continue
+			"mask":
+				draw_texture_rect(_black, Rect2(Vector2(roundf(op.x), 0), Vector2(roundf(op.w), size.y)), false)
+				continue
 			"tile":
 				tex = _tiles[op.id] if op.id < _tiles.size() else null
 			"mtile":
@@ -110,6 +126,7 @@ func _draw() -> void:
 		var at: Vector2 = Vector2(roundf(op.x), roundf(op.y))
 		var to: Vector2 = Vector2(roundf(op.x + tex.get_width() * scale.x), roundf(op.y + tex.get_height() * scale.y))
 		draw_texture_rect(tex, Rect2(at, to - at), false)
+	_draw_overlay(view, scale)
 
 
 ## A masked tile's texture: the tile where the next tile (its mask) is clear.
@@ -134,3 +151,26 @@ static func _texture(pixels: PackedByteArray, cover: PackedByteArray, w: int, h:
 		rg[k * 2] = pixels[k]
 		rg[k * 2 + 1] = 255 if cover.is_empty() or cover[k] != 0 else 0
 	return ImageTexture.create_from_image(Image.create_from_data(w, h, false, Image.FORMAT_RG8, rg))
+
+
+## The rectangle of the picture a window was printed on (empty for none).
+static func list_overlay(list: Dictionary) -> Rect2i:
+	return list.get("overlay", Rect2i())
+
+
+func _draw_overlay(view: Vector2, scale: Vector2) -> void:
+	var r: Rect2i = list_overlay(_list).intersection(Rect2i(0, 0, VortDrawLayout.W, VortDrawLayout.H))
+	if r.size.x <= 0 or r.size.y <= 0 or _card.size() != VortDrawLayout.W * VortDrawLayout.H:
+		return
+	var px: PackedByteArray = PackedByteArray()
+	px.resize(r.size.x * r.size.y)
+	for y: int in range(r.size.y):
+		for x: int in range(r.size.x):
+			px[y * r.size.x + x] = _card[(r.position.y + y) * VortDrawLayout.W + r.position.x + x]
+	var tex: ImageTexture = _texture(px, PackedByteArray(), r.size.x, r.size.y)
+	# the picture shows from the game's camera (whole pixels): where that is in this view
+	var pg: float = _eng.PIXGLOBAL
+	var cam: Vector2 = Vector2(float(int(_list.originx) / int(pg)), float(int(_list.originy) / int(pg)))
+	var at: Vector2 = ((cam + Vector2(r.position)) - view) * scale
+	var to: Vector2 = ((cam + Vector2(r.end)) - view) * scale
+	draw_texture_rect(tex, Rect2(at.round(), (to - at).round()), false)

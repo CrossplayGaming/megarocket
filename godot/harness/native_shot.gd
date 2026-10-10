@@ -6,6 +6,7 @@ extends SceneTree
 ##
 ##   godot --path godot --script res://harness/native_shot.gd -- --game_data=<folder> --out=<png>
 ##         [--native=on|off] [--smooth=on|off] [--size=1280x800] [--game=keen1] [--wait=8]
+##         [--tour: also the intro, the lives window, the map and level 1 as <out>_<name>.png]
 ##         [--frames=N: hold an arrow (--walk=4d, a scan code in hex) and save N frames as <out>_<n>.png]
 
 var _opts: Dictionary = {}
@@ -58,12 +59,35 @@ func _run() -> void:
 		print("could not start: ", host.error)
 		quit(1)
 		return
-	await _hold(float(_opts.get("wait", "8")))
+	var tour: bool = _opts.has("tour")
+	if tour:
+		await _hold(3.0)
+		_shot(str(_opts.get("out", "")).get_basename() + "_intro.png")
+	await _hold(float(_opts.get("wait", "8")) - (3.0 if tour else 0.0))
 	await _press(host, 0x1C)    # to the title menu
 	await _press(host, 0x1C)    # New Game
-	await _hold(4.0)
+	if tour:
+		for n: int in range(10):
+			await _hold(0.2)
+			_shot(str(_opts.get("out", "")).get_basename() + "_lives%d.png" % n)
+		await _hold(2.0)
+	else:
+		await _hold(4.0)
 	await _press(host, 0x1C)    # past the lives window
 	await _hold(2.0)
+	if tour:
+		_shot(str(_opts.get("out", "")).get_basename() + "_map.png")
+		# F3, Cheats... (row 6), Level select... (row 11), Level 1
+		await _press(host, 0x3D)
+		for i: int in range(5):
+			await _press(host, 0x50)
+		await _press(host, 0x1C)
+		for i: int in range(10):
+			await _press(host, 0x50)
+		await _press(host, 0x1C)
+		await _press(host, 0x1C)
+		await _hold(4.0)
+		_shot(str(_opts.get("out", "")).get_basename() + "_level.png")
 	var out: String = str(_opts.get("out", "user://native.png"))
 	var frames: int = int(_opts.get("frames", "0"))
 	if frames > 0:
@@ -85,3 +109,8 @@ func _run() -> void:
 	await create_timer(0.5).timeout
 	DirAccess.remove_absolute(cfg)
 	quit()
+
+
+func _shot(path: String) -> void:
+	root.get_texture().get_image().save_png(path)
+	print("shot: ", path)

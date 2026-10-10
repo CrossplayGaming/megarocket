@@ -792,6 +792,11 @@ func DrawChar(xcoord: int, ycoord: int, charnum: int) -> void:
 	vm.instructions(50)    # IDASM's DrawChar: 8 rows of movsb/add, set-up and the call
 	if draw_capture:
 		draw_overlaid = [true, true]    # a window or text on a page: the draw list doesn't hold it
+		# where on the picture: DrawChar's page base is the start address floored to a paragraph, the
+		# picture starts at the start itself, panned (Megarocket 1.0's lesson)
+		var r: Rect2i = Rect2i((xcoord - (screenstart & 15)) * 8 - screenpan, ycoord, 8, 8)
+		for p: int in range(2):
+			draw_overlay_rect[p] = r if draw_overlay_rect[p].size == Vector2i.ZERO else draw_overlay_rect[p].merge(r)
 	var es: int = seg_addr(screenseg, 0)
 	var di: int = (xcoord + ylookup[ycoord]) & 0xFFFF
 	vm.out16(GC_INDEX, GC_MODE | (1 << 8))
@@ -988,6 +993,7 @@ func _draw_page(page1: bool) -> void:
 	vm.instructions(PORTTILESWIDE * PORTTILESHIGH * 5 + drawn * 56 + PORTTILESHIGH + 3)
 	if draw_capture and drawn == PORTTILESWIDE * PORTTILESHIGH:
 		draw_overlaid[1 if page1 else 0] = false    # every tile painted again: nothing else is left on it
+		draw_overlay_rect[1 if page1 else 0] = Rect2i()
 
 
 ## Tests only: print each refresh's start and start-address write time (the
@@ -1063,6 +1069,13 @@ const OWNER_HALO: int = 1001
 ## Per page: something drawn on it outside the lists (DrawChar's windows and text) and not yet
 ## painted over; and a forced refresh pending for it, which paints every tile again and so clears it.
 var draw_overlaid: Array = [false, false]
+## And where, on the picture (the union of what was printed; empty with nothing): the shell draws that
+## part of the card's picture over the list's (popups over the wide view, no 4:3 flip)
+var draw_overlay_rect: Array = [Rect2i(), Rect2i()]
+## The game's play is on the screen (a level, the world map): the only pictures native resolution,
+## smooth motion and the wide view draw (the intro, title, high scores and endings are maps too, but
+## screens: they keep the original picture, framed)
+var shell_on_map: bool = false
 var draw_forced: Array = [false, false]
 
 
@@ -1081,8 +1094,12 @@ func _capture_draw_list() -> void:
 	if draw_forced[page]:
 		draw_forced[page] = false
 		draw_overlaid[page] = false
+		draw_overlay_rect[page] = Rect2i()
 	draw_list_prev = draw_list
-	draw_list = {"page": page, "t": vm.seconds(), "wide": wide_tiles, "map_w": mapwwide, "originx": originx, "originy": originy, "animtable": animtable, "grid": grid,
+	draw_list = {"page": page, "t": vm.seconds(), "wide": wide_tiles, "map_w": mapwwide,
+		"play": bool(get("shell_in_level")) or shell_on_map,
+		"xmin": int(get("originxmin")) >> 8, "xmax": (int(get("originxmax")) >> 8) + 320,    # the camera's reach, pixels
+		"originx": originx, "originy": originy, "animtable": animtable, "grid": grid,
 		"sprites": spritelist.slice(0, spritesshown), "world": sprite_world.duplicate(),    # all placed (the wide view keeps more than the page)
 		"tiles": tilelist.slice(0, tilesshown),
 		"pics": piclist.slice(0, picsshown), "user": uservect,

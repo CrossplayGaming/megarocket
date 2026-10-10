@@ -25,6 +25,7 @@ const SPEC: Dictionary = {
 	"native_resolution": [true, "bool", null],    # REND-02: drawn at the window's size (Enhanced)
 	"smooth_motion": [true, "bool", null],        # REND-03: pictures between the game's (Enhanced)
 	"wide_view": [true, "bool", null],            # REND-04: the screen's own shape, more of the level (Enhanced)
+	"one_button_fire": [true, "bool", null],      # J-06: Keen 1-3's fire on one key (Left Shift) or pad button
 	# the bug-fix toggles (FixesModel), on by default (J-03); the Classic mode turns them off
 	"fix_k2_esc_skips": [true, "bool", null],
 	"fix_k2_tantalus_fade": [true, "bool", null],

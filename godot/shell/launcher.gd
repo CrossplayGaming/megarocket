@@ -49,6 +49,8 @@ var summary: Label
 var grid: GridContainer
 var scroll: ScrollContainer
 var howto_button: Button
+var quit_button: Button
+var _quit_dialog: ConfirmationDialog = null
 ## SHELL-09: where the log is, so a report can include it.
 var log_label: Label
 ## J-12's look: the backdrop, the mark, the pixel scale it is all drawn at, and the selected game's
@@ -143,6 +145,13 @@ func _ready() -> void:
 	export_button.pressed.connect(show_export)
 	top.add_child(export_button)
 	top.add_child(howto_button)
+	# a way out in fullscreen too (Escape on this screen asks the same); Android leaves by Back
+	quit_button = Button.new()
+	quit_button.name = "Quit"
+	quit_button.text = "Quit"
+	quit_button.visible = not OS.has_feature("android")
+	quit_button.pressed.connect(confirm_quit)
+	top.add_child(quit_button)
 	column.add_child(top)
 	summary = Label.new()
 	summary.name = "Summary"
@@ -771,11 +780,40 @@ func _input(event: InputEvent) -> void:
 	if waiting_for_other and event.is_action_pressed("ui_accept"):
 		start_anyway()
 		get_viewport().set_input_as_handled()
+	# F11: fullscreen on or off, everywhere (a game's host takes it in a game)
+	var k: InputEventKey = event as InputEventKey
+	if host == null and k != null and k.pressed and not k.echo and k.keycode == KEY_F11:
+		toggle_fullscreen()
+		get_viewport().set_input_as_handled()
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if host == null and event.is_action_pressed("ui_cancel") and close_page():
+	if host == null and event.is_action_pressed("ui_cancel"):
+		if not close_page() and not OS.has_feature("android"):
+			confirm_quit()    # Escape on the launcher itself: the way out, asked first
 		get_viewport().set_input_as_handled()
+
+
+## F11 on the launcher: the window fullscreen or not, kept as the shell's setting.
+func toggle_fullscreen() -> void:
+	var full: bool = get_window().mode != Window.MODE_FULLSCREEN
+	get_window().mode = Window.MODE_FULLSCREEN if full else Window.MODE_WINDOWED
+	if settings != null and settings.set_value("fullscreen", full):
+		settings.save()
+
+
+## Quit, asked first (the Quit button, Escape on the launcher).
+func confirm_quit() -> void:
+	if _quit_dialog == null:
+		_quit_dialog = ConfirmationDialog.new()
+		_quit_dialog.title = "Megarocket"
+		_quit_dialog.dialog_text = "Quit Megarocket?"
+		_quit_dialog.ok_button_text = "Quit"
+		_quit_dialog.cancel_button_text = "Stay"
+		_quit_dialog.confirmed.connect(func() -> void: get_tree().quit())
+		add_child(_quit_dialog)
+	_quit_dialog.popup_centered()
+	_quit_dialog.get_cancel_button().grab_focus()
 
 
 ## AND-04: Android's Back is Escape. In a game it goes to the game as the

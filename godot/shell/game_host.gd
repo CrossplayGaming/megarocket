@@ -80,7 +80,7 @@ var _playback: AudioStreamGeneratorPlayback = null
 var _audio_started: bool = false
 
 var _view: TextureRect
-var _aspect: AspectRatioContainer = null
+var _backdrop: StageBackdrop = null
 ## MENU-01: the Options rows the game's own menus show (the shell's settings, applied here).
 var options: OptionsModel = null
 var _index_image: Image
@@ -123,7 +123,15 @@ const PAD_BUTTONS: Dictionary = {
 	JOY_BUTTON_DPAD_UP: 0x48, JOY_BUTTON_DPAD_DOWN: 0x50, JOY_BUTTON_DPAD_LEFT: 0x4B, JOY_BUTTON_DPAD_RIGHT: 0x4D,
 	JOY_BUTTON_A: 0x1D, JOY_BUTTON_B: 0x38, JOY_BUTTON_X: 0x39, JOY_BUTTON_Y: 0x1C, JOY_BUTTON_START: 0x01,
 }
+## Keen 1-3 with one-button fire (J-06, Megarocket 1.0's map): X, Y and the triggers fire (jump and pogo
+## together), the shoulders jump, Back is the status screen (Space)
+const PAD_BUTTONS_VORT_FIRE: Dictionary = {
+	JOY_BUTTON_LEFT_SHOULDER: 0x1D, JOY_BUTTON_RIGHT_SHOULDER: 0x1D, JOY_BUTTON_BACK: 0x39,
+}
 const STICK_DEADZONE: float = 0.5
+## One-button fire on (Keen 1-3)
+var _one_fire: bool = false
+var _fire_held: Dictionary = {}    # what holds the fire down: "key", "x", "y", "lt", "rt"
 var _stick: Dictionary = {}    # arrow scan code -> held by the stick
 
 const GALAXY_META: Dictionary = {"keen4": "keen4", "keen5": "keen5", "keen6": "keen6e14"}
@@ -131,25 +139,17 @@ const GALAXY_META: Dictionary = {"keen4": "keen4", "keen5": "keen5", "keen6": "k
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var bg: ColorRect = ColorRect.new()
-	bg.color = Color.BLACK
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-	var aspect: AspectRatioContainer = AspectRatioContainer.new()
-	aspect.ratio = 4.0 / 3.0
-	aspect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(aspect)
-	_aspect = aspect
+	# REND-08: the backdrop and frame round any picture that doesn't fill the window; the pictures are
+	# placed by hand (_layout_stage)
+	_backdrop = StageBackdrop.new()
+	_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_backdrop)
 	_view = TextureRect.new()
 	_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_view.stretch_mode = TextureRect.STRETCH_SCALE
 	_view.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	# in a plain holder the container sizes, so the wide view can put the 320x200 in its middle
-	var holder: Control = Control.new()
-	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	aspect.add_child(holder)
-	_view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	holder.add_child(_view)
+	_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_view)
 	_index_image = Image.create(320, 200, false, Image.FORMAT_R8)
 	_index_tex = ImageTexture.create_from_image(_index_image)
 	_palette_image = Image.create(16, 1, false, Image.FORMAT_RGB8)
@@ -164,7 +164,7 @@ func _ready() -> void:
 	# REND-02: native resolution's view, beside the 320x200's (used for Keen 1-3 so far)
 	_native_view = VortNativeView.new()
 	_native_view.visible = false
-	aspect.add_child(_native_view)
+	add_child(_native_view)
 	focus_mode = Control.FOCUS_ALL
 
 
@@ -229,9 +229,11 @@ func start(found: Dictionary) -> bool:
 	if engine is VortScreens:
 		_native = _native_view
 		_native.setup((engine as VortScreens).data)
+		_backdrop.setup((engine as VortScreens).data.tiles, StageBackdrop.BACKDROP_TILE.get(game_id, -1))
 	apply_setting("native_resolution")
 	apply_setting("smooth_motion")
 	apply_setting("wide_view")
+	apply_setting("one_button_fire")
 	_player = AudioStreamPlayer.new()
 	var gen: AudioStreamGenerator = AudioStreamGenerator.new()
 	gen.mix_rate = HostAudio.RATE
@@ -255,6 +257,9 @@ func apply_setting(name: String) -> void:
 	if name.begins_with("fix_"):
 		if engine != null and "fixes" in engine:
 			engine.set("fixes", options.fixes())    # read by the engine at each fix's point
+		return
+	if name == "one_button_fire":
+		_one_fire = engine is VortScreens and bool(options.get_value("one_button_fire"))
 		return
 	if name == "native_resolution" or name == "smooth_motion" or name == "wide_view":
 		if engine is VortScreens and _native != null:
@@ -440,35 +445,51 @@ func _on_display() -> void:
 	_mutex.unlock()
 
 
-## The picture's shape: the original's (4:3, or 16:10 with square pixels), or with the wide view
-## (REND-04) the window's own, as many of the original's pixels wide as fit (up to WIDE_MAX); the
-## engine is told how many tiles the view shows past the original's each side (J-30: creatures wake by
-## them), and the 320x200 picture (a window over the play) sits in the middle.
+## The stage (REND-04, REND-08), every frame: in the wide view's play the list fills the window, as many
+## of the original's pixels wide as fit (up to WIDE_MAX); any other picture (4:3 play, the menus, the
+## intro, text screens) keeps the original's shape inside the bevelled frame, the backdrop round it
+## (Megarocket 1.0: never stretch, never black bars). The engine is told the wide view's extra tiles each
+## side (J-30: creatures wake by them) whenever the wide view is on, so play and the view agree.
 func _fit_view() -> void:
-	if _aspect == null or options == null:
+	_layout_stage(_native != null and _native.visible)
+
+
+func _layout_stage(native: bool) -> void:
+	if options == null or size.x <= 0.0 or size.y <= 0.0:
 		return
-	var tall: float = 240.0 if options.get_value("pixel_shape") == "4:3" else 200.0    # pixels wide per 1:1
-	var base: float = 320.0 / tall    # the original's shape
-	var w_px: int = 320
-	if _wide and engine is VortScreens and size.y > 0.0:
-		w_px = clampi(int(roundf(tall * size.x / size.y)), 320, WIDE_MAX)
-	_aspect.ratio = base * float(w_px) / 320.0
-	_fitted = size
+	# one original pixel's width against its height: 4:3 makes 320 pixels as wide as 266.7 tall ones
+	var px_w: float = (4.0 / 3.0 * 200.0 / 320.0) if options.get_value("pixel_shape") == "4:3" else 1.0
+	var wide_px: int = clampi(int(roundf(size.x / (size.y / 200.0) / px_w)), 320, WIDE_MAX)
 	if engine is VortScreens:
-		(engine as VortScreens).wide_tiles = (w_px - 320 + 31) / 32 if w_px > 320 else 0
+		(engine as VortScreens).wide_tiles = (wide_px - 320 + 31) / 32 if _wide and wide_px > 320 else 0
+	_fitted = size
+	if native and _wide:
+		var u: Vector2 = Vector2(size.y / 200.0 * px_w, size.y / 200.0)
+		var r: Rect2 = Rect2(Vector2((size.x - wide_px * u.x) / 2.0, 0.0), Vector2(wide_px * u.x, size.y))
+		_native.view_w = wide_px
+		_place(_native, r)
+		_backdrop.place(Rect2(), u)
+		return
+	# the picture at the original's shape with the frame round it, as big as fits
+	var f: float = StageBackdrop.FRAME
+	var uh: float = minf(size.y / (200.0 + 2.0 * f), size.x / ((320.0 + 2.0 * f) * px_w))
+	var unit: Vector2 = Vector2(uh * px_w, uh)
+	var pic: Rect2 = Rect2(((size - Vector2(320.0, 200.0) * unit) / 2.0).round(), (Vector2(320.0, 200.0) * unit).round())
+	_place(_view, pic)
 	if _native != null:
-		_native.view_w = w_px
-	if _view != null:
-		var half: float = 160.0 / float(w_px)
-		_view.anchor_left = 0.5 - half
-		_view.anchor_right = 0.5 + half
-		_view.offset_left = 0
-		_view.offset_right = 0
+		_native.view_w = 320
+		_place(_native, pic)
+	_backdrop.place(pic, unit)
 
 
-## On the engine's thread: the draw list of the picture just shown, if native resolution is on and the
-## picture is the list's alone (REND-01's rules: the newest refresh whose start the card took, its page
-## with no window printed over it, no user routine); {} otherwise.
+func _place(c: Control, r: Rect2) -> void:
+	c.position = r.position
+	c.size = r.size
+
+
+## On the engine's thread: the draw list of the picture just shown, if the shell's views draw it: the
+## newest refresh whose start the card took (REND-01's rule), the game's play (a level, the world map),
+## no user routine; a window printed over it comes along as its rectangle; {} otherwise.
 func _shown_list() -> Dictionary:
 	var g: VortScreens = engine as VortScreens
 	if g == null or not g.draw_capture:
@@ -480,9 +501,29 @@ func _shown_list() -> Dictionary:
 		return {}
 	if vm.card.display_start != int(list.start) or (vm.card.atc[EgaCard.ATR_PELPAN] & 7) != int(list.pan):
 		return {}
-	if str(list.user) != "" or g.draw_overlaid[int(list.page)] or vm.card.frame_mixed:
-		return {}
-	return list
+	if str(list.user) != "" or not list.get("play", false):
+		return {}    # the intro, title, high scores, endings: screens, shown as the original's picture
+	var shown: Dictionary = list.duplicate()
+	if g.draw_overlaid[int(list.page)]:
+		shown["overlay"] = g.draw_overlay_rect[int(list.page)]    # a window over the play: drawn from the card
+	return shown
+
+
+## J-06: one control fires Keen 1-3's gun, pressing jump and pogo (Ctrl, Alt) together; let go, it lets
+## go of each unless something else still holds it (the keys themselves, another fire control).
+func _fire(who: String, down: bool) -> void:
+	var was: bool = not _fire_held.is_empty()
+	if down:
+		_fire_held[who] = true
+	else:
+		_fire_held.erase(who)
+	var now: bool = not _fire_held.is_empty()
+	if now == was:
+		return
+	for code: int in [0x1D, 0x38]:
+		var own: int = KEY_CTRL if code == 0x1D else KEY_ALT
+		if now or not Input.is_key_pressed(own):
+			send_key(code, now)
 
 
 ## The overlay shows on a touch screen while no pad is in use; hiding it lets
@@ -499,8 +540,6 @@ func _update_overlay() -> void:
 
 func _process(_delta: float) -> void:
 	_update_overlay()
-	if _wide and size != _fitted:
-		_fit_view()    # the window changed shape: the wide view follows it
 	_mutex.lock()
 	var fresh: bool = _frame_new
 	var idx: PackedByteArray = _frame_indices
@@ -519,13 +558,15 @@ func _process(_delta: float) -> void:
 		_palette_image.set_data(16, 1, false, Image.FORMAT_RGB8, pal.slice(0, 48))
 		_palette_tex.update(_palette_image)
 		frames_shown += 1
+		_backdrop.set_palette(pal)
 		if _native != null:
-			# native resolution while the picture is the list's alone; the 320x200 otherwise
+			# the shell's views draw the game's play; the 320x200 (framed) everything else
 			var native: bool = not list.is_empty()
 			if native:
-				_native.show_frame(engine, list, pal, machine_t)
+				_native.show_frame(engine, list, pal, machine_t, idx)
 			_native.visible = native
 			_view.visible = not native
+	_layout_stage(_native != null and _native.visible)
 	if done and thread != null:
 		thread.wait_to_finish()
 		thread = null
@@ -617,6 +658,15 @@ func _input(event: InputEvent) -> void:
 		pad_device = event.device
 	if event is InputEventJoypadButton:
 		var jb: InputEventJoypadButton = event
+		if _one_fire:
+			if jb.button_index == JOY_BUTTON_X or jb.button_index == JOY_BUTTON_Y:
+				_fire("x" if jb.button_index == JOY_BUTTON_X else "y", jb.pressed)
+				get_viewport().set_input_as_handled()
+				return
+			if PAD_BUTTONS_VORT_FIRE.has(jb.button_index):
+				send_key(PAD_BUTTONS_VORT_FIRE[jb.button_index], jb.pressed)
+				get_viewport().set_input_as_handled()
+				return
 		var pcode: int = PAD_BUTTONS.get(jb.button_index, 0)
 		if pcode != 0:
 			send_key(pcode, jb.pressed)
@@ -628,9 +678,24 @@ func _input(event: InputEvent) -> void:
 			_stick_axis(jm.axis_value, 0x4B, 0x4D)
 		elif jm.axis == JOY_AXIS_LEFT_Y:
 			_stick_axis(jm.axis_value, 0x48, 0x50)
+		elif _one_fire and (jm.axis == JOY_AXIS_TRIGGER_LEFT or jm.axis == JOY_AXIS_TRIGGER_RIGHT):
+			_fire("lt" if jm.axis == JOY_AXIS_TRIGGER_LEFT else "rt", jm.axis_value > STICK_DEADZONE)
 		return
 	var k: InputEventKey = event as InputEventKey
 	if k == null or k.echo:
+		return
+	if _one_fire and k.keycode == KEY_SHIFT and k.location == KEY_LOCATION_LEFT:
+		_fire("key", k.pressed)
+		get_viewport().set_input_as_handled()
+		return
+	if k.keycode == KEY_F11:
+		# F11 is fullscreen everywhere: the game's own Fullscreen row moves (and applies) with it
+		if k.pressed:
+			if options != null:
+				options.step("fullscreen", 1)
+			elif get_window() != null:
+				get_window().mode = Window.MODE_WINDOWED if get_window().mode == Window.MODE_FULLSCREEN else Window.MODE_FULLSCREEN
+		get_viewport().set_input_as_handled()
 		return
 	var code: int = SCANCODES.get(k.keycode, 0)
 	if code == 0:
