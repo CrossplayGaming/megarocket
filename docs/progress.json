@@ -272,6 +272,10 @@
  "milestones": [
   {
    "date": "2026-10-10",
+   "text": "Keen Maker, a first working preview: pick a Keen 1-6 game and level, paint with the game's own tiles, move Keen's start, undo, and press Play to try the level straight away; saves go to Megarocket's own folder, never the game's"
+  },
+  {
+   "date": "2026-10-10",
    "text": "Keen 4-6 get native resolution, smooth motion and widescreen: every gameplay picture of every built-in demo (34,633) redrawn and checked against the original's; the score box stays put in its corner; the status window opens over the wide view; menus and other screens sit in the bevelled frame over the game's own tiled backdrop"
   },
   {
