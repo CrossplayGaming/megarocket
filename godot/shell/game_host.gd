@@ -44,6 +44,8 @@ var _frame_list: Dictionary = {}
 var _native: VortNativeView = null
 var _native_view: VortNativeView = null
 var _gal_view: GalNativeView = null
+## MAKER-02: the level the game goes straight into (-1: the game from its start)
+var _play_level: int = -1
 ## REND-04: the wide view on (Keen 1-3), and the window size it was last fitted to
 var _wide: bool = false
 var _fitted: Vector2 = Vector2.ZERO
@@ -174,9 +176,13 @@ func _ready() -> void:
 
 ## Starts a found game (a GameFinder result). False, with `error`, when its
 ## engine isn't ready to play or its files don't load.
+## MAKER-02, the maker's play button: with "play_level" (a level number) the game goes straight into
+## that level and is left when the level ends; "maker_files" (Keen 1-3: file name -> bytes, a level
+## written by the maker) or "maker_maps" (Keen 4-6: {maphead, gamemaps}) stand in for the folder's.
 func start(found: Dictionary) -> bool:
 	game_id = found.id
 	var folder: String = found.folder
+	_play_level = int(found.get("play_level", -1))
 	vm = DosMachine.new()
 	match game_id:
 		"keen1", "keen2", "keen3":
@@ -184,9 +190,15 @@ func start(found: Dictionary) -> bool:
 			if not d.load_game(folder, "CK" + game_id.substr(4, 1)):
 				error = ShellMessages.cant_load(_short_title(found), d.error)
 				return false
+			var files: Dictionary = found.get("maker_files", {})
+			for name: String in files:
+				d.overrides[name.to_upper()] = files[name]
 			var g: VortActs = VortKeen3.new() if game_id == "keen3" else (VortKeen2.new() if game_id == "keen2" else VortKeen1.new())
 			g.vm = vm
 			g.data = d
+			if _play_level >= 0:
+				var n: int = _play_level
+				g.after_startup = func() -> void: g.shell_play_level(n)
 			g.save_dir = ProjectSettings.globalize_path("user://saves").path_join(game_id)
 			DirAccess.make_dir_recursive_absolute(g.save_dir)
 			g.apply_dosbox_timing()
@@ -197,6 +209,10 @@ func start(found: Dictionary) -> bool:
 				meta = "keen6e15"
 			var d: GalData = GalData.new()
 			if not d.load_game(folder, "res://data/omnispeak".path_join(meta)):
+				error = ShellMessages.cant_load(_short_title(found), d.error)
+				return false
+			var maps: Dictionary = found.get("maker_maps", {})
+			if not maps.is_empty() and not d.use_maps(maps.maphead, maps.gamemaps):
 				error = ShellMessages.cant_load(_short_title(found), d.error)
 				return false
 			var g: GalGame = load("res://games/galaxy/gal_%s.gd" % game_id).new()
@@ -374,7 +390,8 @@ func stop() -> void:
 
 func _run() -> void:
 	if engine is GalGame:
-		(engine as GalGame).CK_Main(PackedStringArray())
+		# the maker's play button: the original's own launch from its map editor (TED)
+		(engine as GalGame).CK_Main(PackedStringArray(["/TEDLEVEL", str(_play_level)]) if _play_level >= 0 else PackedStringArray())
 		_quit_message = (engine as GalGame).quit_message
 	else:
 		(engine as VortActs).main()
@@ -654,6 +671,8 @@ func _release() -> void:
 		(engine as GalGame).RF_Shutdown()
 	elif engine != null:
 		engine.set("vm", null)
+		if "after_startup" in engine:
+			engine.set("after_startup", Callable())    # the play button's call holds the engine itself
 	engine = null
 	vm = null
 

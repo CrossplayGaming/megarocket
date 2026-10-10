@@ -396,6 +396,19 @@ def maker01():
     return code
 
 
+def maker02():
+    """The maker's play button (MAKER-02): Keen's start moved in a maker's copy of level 1; the game
+    started straight into it (Keen 1-3 shell_play_level, Keen 4-6 the original's /TEDLEVEL), headless
+    and in the host, Keen where the maker put him, the level played on."""
+    import gdtest
+    code, out = gdtest.run("maker02_play_in_place", [], timeout=600.0, quiet=True)
+    code2, out2 = gdtest.run("maker02_host", [], timeout=600.0, quiet=True)
+    for line in (out + out2).splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return max(code, code2)
+
+
 def rend01g():
     """The draw list (REND-01..03, REND-05's status window), Keen 4-6: every gameplay picture of every
     demo drawn again from its refresh's list equals the card's; the native layout within each image's
@@ -1124,6 +1137,7 @@ CHECKS = {
     "REND-04": (rend04, "slow"),
     "REND-01G": (rend01g, "slow"),
     "MAKER-01": (maker01, "fast"),
+    "MAKER-02": (maker02, "fast"),
     "REND-04G": (rend04g, "slow"),
     "FIX-01": (fix01, "slow"),
     "SHELL-05": (shell05, "fast"),

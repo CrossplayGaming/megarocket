@@ -754,6 +754,49 @@ func GetPlayerPosition() -> PackedInt32Array:
 	return PackedInt32Array([0, 0])
 
 
+# ------------------------------------------------------------ play in place
+
+## MAKER-02: the maker's play button for Keen 1-3 (Keen 4-6 have the original's own, TED's /TEDLEVEL):
+## a new game's state as MenuLoop sets it, then level `n` at once (the level files may be the maker's,
+## VortData.overrides), and the game left when the level ends, however it ends. Set as after_startup.
+func shell_play_level(n: int) -> void:
+	helptextPtr = PrepareText(data.help_text)
+	storytxtPtr = PrepareText(data.story_text)
+	endtextPtr = PrepareText(data.end_text)
+	previewsPtr = PrepareText(data.previews_text)
+	_new_game_state()
+	shell_playing = true
+	LevelLoop(n)
+	shell_playing = false
+	exited = true
+
+
+## The state a new game starts with (MenuLoop's, before its title and menu).
+func _new_game_state() -> void:
+	restoredGame = false
+	gamestate.lives = 4
+	gamestate.ammo = 0
+	match episode:
+		1:
+			gamestate.gotPogo = false
+		2:
+			gamestate.gotPogo = true
+			gamestate.ammo = 3
+		3:
+			gamestate.gotPogo = true
+			gamestate.ammo = 5
+	gamestate.gotJoystick = false
+	gamestate.gotBattery = false
+	gamestate.gotVacuum = false
+	gamestate.gotEverclear = false
+	for i: int in range(NUMCITIES):
+		gamestate.citySaved[i] = 0
+	for i: int in range(4):
+		gamestate.keys[i] = false
+	for i: int in range(NUMLEVELS):
+		gamestate.leveldone[i] = false
+
+
 # -------------------------------------------------------------- main menu
 
 func MenuLoop() -> void:
