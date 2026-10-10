@@ -1003,6 +1003,20 @@ def ctrl03():
     return code
 
 
+def ctrl04():
+    """Keen 4-6's CONTROLS card (CTRL-04): in place of KEYBOARD and the joysticks, KEYBOARD's actions and
+    keys, a key caught for Jump, ADD SECOND greyed with two, FIRE BUTTON (TWO-BUTTON FIRING's value)."""
+    import gdtest
+    worst = 0
+    for game in ("keen4", "keen5", "keen6"):
+        code, out = gdtest.run("ctrl04_galaxy", ["--game=" + game], timeout=600.0, quiet=True)
+        for line in out.splitlines():
+            if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+                print("  %s: %s" % (game, line.strip()))
+        worst = max(worst, code)
+    return worst
+
+
 def perf01():
     """Keen 4-6's faster drawing (PERF-01): the screen's conversion into the card's planes, the surface copies,
     tiles, sprites, the intro's one-bit picture and the masked fill give byte for byte what the per-pixel loops
@@ -1353,6 +1367,7 @@ CHECKS = {
     "CTRL-01": (ctrl01, "fast"),
     "CTRL-02": (ctrl02, "fast"),
     "CTRL-03": (ctrl03, "fast"),
+    "CTRL-04": (ctrl04, "fast"),
     "SECRET-01": (secret01, "fast"),
     "SECRET-02": (secret02, "fast"),
     "AND-02a": (and02a, "fast"),

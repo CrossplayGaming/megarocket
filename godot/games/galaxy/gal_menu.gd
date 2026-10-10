@@ -1483,7 +1483,8 @@ func USL_LoadSaveMessage(s1: String, s2: String) -> void:
 
 
 ## s3 "" is C's NULL (no caller passes an empty third line).
-func USL_CtlDialog(s1: String, s2: String, s3: String) -> int:
+## (min_w, not the C's: at least this wide, to cover a window drawn before it; 0 the original's width)
+func USL_CtlDialog(s1: String, s2: String, s3: String, min_w: int = 0) -> int:
 	var w1: int = 0    # uint16_t
 	var w2: int = 0
 	var w3: int = 0
@@ -1517,6 +1518,7 @@ func USL_CtlDialog(s1: String, s2: String, s3: String) -> int:
 	# (as C: when w2 >= w1 the window takes w2, however long the third line is)
 	window_w = ((w1 if w1 > w3 else w3) if w1 > w2 else w2)
 	window_w = u16(window_w + 7)
+	window_w = maxi(window_w, min_w)
 	sh = h
 	h = u16(h * (5 if s3 != "" else 4))
 	var xy: PackedInt32Array = USL_DialogSetup(window_w, h)
@@ -2148,6 +2150,9 @@ func CK_US_ShellCards() -> void:
 			ck_us_optionsMenuItems.insert(ck_us_optionsMenuItems.size() - 1, _shell_row_item(r.key, "option"))
 	# SVGA COMPATIBILITY steers the original's EGA register writes, which the shell's display does not use
 	ck_us_optionsMenuItems.erase(ck_us_optionsOriginal[3])
+	# CTRL-04: TWO-BUTTON FIRING is the CONTROLS card's FIRE BUTTON row now
+	ck_us_optionsMenuItems.erase(ck_us_optionsOriginal[1])
+	_shell_controls_card()
 	var display_items: Array = []
 	for r: Dictionary in options.page("display"):
 		if r.kind == "value":
@@ -2200,6 +2205,97 @@ func CK_US_ShellCards() -> void:
 
 ## The card the CHEATS item opens.
 var ck_us_cheatsMenu: US_Card = null
+## CTRL-04: the CONTROLS card, and each action's item (its caption the action and its keys) -> [device, action].
+var ck_us_controlsMenu: US_Card = null
+var _shell_bind_items: Dictionary = {}
+var _shell_capture_w: int = 0
+
+
+## CTRL-04 (the user, 2026-10-10: the same Controls pages in every game, in its own style; the old control
+## screens replaced): CONFIGURE's KEYBOARD and USE JOYSTICK #1 / #2 become one CONTROLS card: KEYBOARD and
+## CONTROLLER (each action and its keys or buttons; an action's card CHANGE, ADD SECOND, CLEAR), FIRE BUTTON
+## (OWN BUTTON / JUMP + POGO, the original's TWO-BUTTON FIRING) and RESET TO DEFAULTS.
+func _shell_controls_card() -> void:
+	var items: Array = []
+	for device: String in ["keys", "pad"]:
+		var list: Array = []
+		for r: Dictionary in options.page(device):
+			if not str(r.key).begins_with("bind:"):
+				continue
+			var action: String = str(r.key).split(":")[2]
+			var acts: Array = [
+				_shell_row_item("capture:%s:%s:0" % [device, action], "capture"),
+				_shell_row_item("capture:%s:%s:1" % [device, action], "capture"),
+				_shell_row_item("clear:%s:%s" % [device, action], "clear"),
+				_us_item_end()]
+			(acts[0] as US_CardItem).caption = "CHANGE"
+			(acts[1] as US_CardItem).caption = "ADD SECOND"
+			(acts[2] as US_CardItem).caption = "CLEAR"
+			var card: US_Card = _us_card(8, 0, "TEXT:" + str(r.label).to_upper(), 0, acts, &"", 0, 0, 0)
+			var item: US_CardItem = _us_item(US_ITEM_Submenu, 0, IN_SC_None, "", US_Comm_None, card)
+			_shell_bind_items[item] = [device, action]
+			list.append(item)
+		list.append(_us_item_end())
+		var title: String = "KEYBOARD" if device == "keys" else "CONTROLLER"
+		items.append(_us_item(US_ITEM_Submenu, 0, IN_SC_K if device == "keys" else IN_SC_C, title, US_Comm_None,
+			_us_card(8, 0, "TEXT:" + title, 0, list, &"", 0, 0, 0)))
+	items.append(_shell_row_item("two_button_fire", "option"))
+	var reset: US_CardItem = _shell_row_item("reset_controls", "reset")
+	reset.caption = "RESET TO DEFAULTS"
+	items.append(reset)
+	items.append(_us_item_end())
+	ck_us_controlsMenu = _us_card(8, 0, "TEXT:CONTROLS", 0, items, &"", 0, 0, 0)
+	var at: int = ck_us_configureMenuItems.size() - 1
+	for item: US_CardItem in ck_us_configureMenuItems.duplicate():
+		if item.subMenu == ck_us_keyboardMenu or ck_us_joystickItems.has(item):
+			at = mini(at, ck_us_configureMenuItems.find(item))
+			ck_us_configureMenuItems.erase(item)
+	ck_us_configureMenuItems.insert(at, _us_item(US_ITEM_Submenu, US_IS_Gap, IN_SC_C, "CONTROLS", US_Comm_None, ck_us_controlsMenu))
+
+
+## CTRL-04: catches a key or button for an action in the watch's dialog: what to press, a line, Esc (or Start)
+## cancels and a five-second countdown; the host hands the next press over (controls_captured) and the game
+## never sees it. Returns what happened, to be said.
+func _shell_capture(device: String, action: String, slot: int) -> String:
+	var s1: String = options.capture_prompt(device, action).to_upper()
+	var cancel: String = "ESC CANCELS" if device == "keys" else "START CANCELS"
+	var wh: PackedInt32Array = VH_MeasurePropString(s1, 1)
+	var w1: int = wh[0]
+	var sh: int = wh[1]
+	var w2: int = VH_MeasurePropString(cancel + "  5", 1)[0]
+	var window_w: int = maxi(w1, w2) + 7
+	var xy: PackedInt32Array = USL_DialogSetup(window_w, sh * 4)
+	var x: int = xy[0]
+	var y: int = xy[1]
+	US_SetPrintColour(us_menu_disabledColour)
+	VHB_DrawPropString(s1, x + (window_w - w1) / 2, y + sh + 1, 1, US_GetPrintColour())
+	var line_y: int = y + sh + 1 + sh * 2 - 1
+	VHB_HLine(x + 3, x + window_w - 3, line_y, us_menu_foregroundColour)
+	IN_ClearKeysDown()
+	controls_captured = -2
+	controls_capture = device
+	var until: float = vm.seconds() + 5.0
+	var shown: int = -1
+	while not quitting and controls_captured == -2:
+		var left: int = ceili(until - vm.seconds())
+		if left <= 0:
+			break
+		if left != shown:
+			shown = left
+			VHB_Bar(x + 1, line_y + 2, window_w - 1, sh, us_menu_backgroundColour)
+			var s2: String = "%s  %d" % [cancel, left]
+			US_SetPrintColour(us_menu_foregroundColour)
+			VHB_DrawPropString(s2, x + (window_w - VH_MeasurePropString(s2, 1)[0]) / 2, line_y + 2, 1, US_GetPrintColour())
+			VH_UpdateScreen()
+		VL_Yield()
+		IN_PumpEvents()
+		VL_Present()
+	controls_capture = ""
+	var code: int = controls_captured
+	controls_captured = -2
+	IN_ClearKeysDown()
+	_shell_capture_w = window_w    # the word after it covers this window (nothing redraws under a row's card)
+	return options.capture_done(device, action, slot, code if code != -2 else -1)
 
 
 ## CONFIGURE's OPTIONS item (the one whose card is OPTIONS').
@@ -2250,16 +2346,31 @@ func CK_US_ShellCaptions() -> void:
 	if options == null:
 		return
 	var rows: Dictionary = {}
-	for page_name: String in ["options", "display", "fixes"]:
+	for page_name: String in ["options", "display", "fixes", "controls", "keys", "pad"]:
 		for r: Dictionary in options.page(page_name):
 			rows[r.key] = r
+	for item: US_CardItem in _shell_bind_items:
+		var da: Array = _shell_bind_items[item]
+		var br: Dictionary = rows.get("bind:%s:%s" % da, {})
+		if not br.is_empty():
+			item.caption = "%s (%s)" % [str(br.label).to_upper(), str(br.value).to_upper()]
 	for r: Dictionary in CheatsModel.rows(self):
 		rows["cheat:" + r.key] = r
 	for card: US_Card in _shell_toggles:
 		var key: String = _shell_toggles[card][0]
 		var kind: String = _shell_toggles[card][2]
 		var item: US_CardItem = _shell_toggles[card][1]
-		if kind == "info":
+		if kind == "info" or kind == "reset" or kind == "clear":
+			continue
+		if kind == "capture":
+			# ADD SECOND only while the action has one key or button (CHANGE always)
+			var cp: PackedStringArray = key.split(":")
+			if cp[3] == "1":
+				var have: Array = options.controls.keys(cp[2]) if cp[1] == "keys" else options.controls.buttons(cp[2])
+				if have.size() == 1:
+					item.state &= ~US_IS_Disabled
+				else:
+					item.state |= US_IS_Disabled
 			continue
 		if kind == "warp":
 			if shell_in_game():
@@ -2293,6 +2404,24 @@ func CK_US_ShellRowProc(msg: int, _item: US_CardItem) -> bool:
 	var kind: String = _shell_toggles[us_currentCard][2]
 	var said: String = ""
 	match kind:
+		"capture":
+			var cp: PackedStringArray = key.split(":")
+			said = _shell_capture(cp[1], cp[2], int(cp[3]))
+			CK_US_ShellCaptions()
+			USL_CtlDialog(said.to_upper(), "Press any key", "", _shell_capture_w)
+			return true
+		"clear":
+			var cl: PackedStringArray = key.split(":")
+			options.clear_binding(cl[1], cl[2])
+			CK_US_ShellCaptions()
+			USL_CtlDialog("%s: NONE" % options.action_label(cl[2]).to_upper(), "Press any key", "")
+			return true
+		"reset":
+			if USL_CtlDialog("RESET EVERY CONTROL?", "PRESS Y TO RESET", "ESC TO BACK OUT") != 0:
+				options.reset_controls()
+				CK_US_ShellCaptions()
+				USL_CtlDialog("THE CONTROLS ARE RESET", "Press any key", "")
+			return true
 		"option":
 			options.step(key, 1)
 		"cheat":
