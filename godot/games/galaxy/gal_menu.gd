@@ -305,7 +305,9 @@ func US_LoadMain(i: int, fromMenu: bool) -> bool:
 
 
 func USL_ConfirmQuick(saving: bool, quickSaveSlot: int) -> bool:
-	if CFG_GetConfigBool("ck_quickSaveConfirm", true):
+	# (the shell's OPTIONS row QUICKSAVE ASKS stands for omnispeak's ck_quickSaveConfirm)
+	var confirm: bool = bool(options.get_value("quicksave_confirm")) if options != null else CFG_GetConfigBool("ck_quickSaveConfirm", true)
+	if confirm:
 		# Draw a hint that the confirmation can be disabled.
 
 		US_DrawWindow((320 / 8 - 20) / 2, 200 / 8 - 6, 20, 4)
@@ -459,7 +461,28 @@ func US_SaveMain(i: int) -> bool:
 		return true
 
 
-# (US_QuickSave is QUICKSAVE_ENABLED's: not in the vanilla build.)
+## QUICKSAVE_ENABLED's (omnispeak upstream; not in the vanilla build): the game saved in the quick
+## slot (the last), named QuickSave unless it has a name, after the confirmation the player may turn off.
+## The shell's Enhanced mode turns the keys on (SAVE-02, shell_quicksave_on): off, the original exactly.
+func US_QuickSave() -> bool:
+	var quickSaveSlot: int = CFG_GetConfigInt("quickSaveSlot", US_MAX_NUM_OF_SAVED_GAMES - 1)
+	quickSaveSlot = CK_Cross_clamp(quickSaveSlot, 0, US_MAX_NUM_OF_SAVED_GAMES - 1)
+	if not USL_ConfirmQuick(true, quickSaveSlot):
+		return false
+	var e: US_Savefile = us_savefiles[quickSaveSlot]
+	e.printXOffset = CK_INT("ck_exe_printXOffset", 0xF00D)
+	# Only update the name if it doesn't already exist. (omnispeak tests the name alone, and an unused
+	# slot's is "Empty" (US_GetSavefiles), so a first quicksave kept that name: an unused slot is named too)
+	if e.name == "" or not e.used:
+		e.name = "QuickSave"
+	e.used = true
+	return US_SaveMain(quickSaveSlot)
+
+
+## SAVE-02 (Enhanced): F5 quicksaves and F9 quickloads during play (Megarocket 1.0's keys for Keen 4-6),
+## through the original's own save and load; off in Classic and with no player (tests, oracle runs).
+func shell_quicksave_on() -> bool:
+	return options != null and bool(options.get_value("quicksave"))
 
 
 func save_savegame_item(item: US_CardItem) -> void:
@@ -1387,6 +1410,10 @@ func USL_DrawCard() -> void:
 
 
 func US_DrawCards() -> void:
+	# (no card yet: a level started straight from the shell or TED, where C's pointer is NULL; and the
+	# shell's quicksave, which asks its question over the play: nothing of the watch is drawn)
+	if us_currentCard == null:
+		return
 	# Draw the watch screen and the active card
 	if not us_currentCard.items.is_empty() or us_currentCard.gfxChunk != "":
 		VHB_DrawBitmap(0, 0, CK_CHUNKNUM("PIC_WRISTWATCH"))
@@ -2109,6 +2136,12 @@ func CK_US_ShellCards() -> void:
 	var mode_rows: Array = (options.page("options") as Array).filter(func(r: Dictionary) -> bool: return r.key == "mode")
 	for r: Dictionary in mode_rows:
 		ck_us_optionsMenuItems.insert(0, _shell_row_item(r.key, "option"))
+	# SAVE-02: QUICKSAVE F5/F9 and QUICKSAVE ASKS after MODE
+	var after_mode: int = 1
+	for r: Dictionary in options.page("options"):
+		if r.key in ["quicksave", "quicksave_confirm"]:
+			ck_us_optionsMenuItems.insert(after_mode, _shell_row_item(r.key, "option"))
+			after_mode += 1
 	# Keen 6: CREATURE QUESTION last (on: the original asks before a new game)
 	for r: Dictionary in options.page("options"):
 		if r.key == "creature_question":

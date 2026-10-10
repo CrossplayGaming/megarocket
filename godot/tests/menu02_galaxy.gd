@@ -37,7 +37,8 @@ func _init() -> void:
 	t.ok("the run kept going to its end (quit '%s')" % res.quit, res.quit == "time limit")
 	t.ok("CONFIGURE has DISPLAY after MUSIC (%s)" % [res.configure],res.configure.slice(0, 4) == ["SOUND", "MUSIC", "DISPLAY", "OPTIONS"])
 	t.ok("OPTIONS starts with MODE (%s)" % res.first_option, res.first_option.begins_with("MODE ("))
-	t.ok("OPTIONS has no SVGA COMPATIBILITY (%s)" % [res.options], res.options.size() == (5 if game == "keen6" else 4)
+	t.ok("OPTIONS has no SVGA COMPATIBILITY, and has the two quicksave rows (%s)" % [res.options], res.options.size() == (7 if game == "keen6" else 6)
+		and res.options[1].begins_with("QUICKSAVE F5/F9") and res.options[2].begins_with("QUICKSAVE ASKS")
 		and res.options.all(func(c: String) -> bool: return not c.begins_with("SVGA")))
 	if game == "keen6":
 		t.ok("Keen 6's OPTIONS ends with CREATURE QUESTION (ON) (%s)" % res.options.back(), res.options.back() == "CREATURE QUESTION (ON)")

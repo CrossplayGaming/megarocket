@@ -22,8 +22,8 @@ var applier: Callable = Callable()
 ## (FixesModel): one-button fire, all off in Classic, on in Enhanced; more join
 ## as they are built.
 const PRESETS: Dictionary = {
-	"classic": {"one_button_fire": false, "wide_view": false, "native_resolution": false, "smooth_motion": false, "fix_k2_esc_skips": false, "fix_k2_tantalus_fade": false, "fix_k3_messie_double": false, "fix_god_lurch": false, "fix_keen_over_scenery": false, "fix_dreams_keys_kept": false, "fix_dreams_death_box": false},
-	"enhanced": {"one_button_fire": true, "wide_view": true, "native_resolution": true, "smooth_motion": true, "fix_k2_esc_skips": true, "fix_k2_tantalus_fade": true, "fix_k3_messie_double": true, "fix_god_lurch": true, "fix_keen_over_scenery": true, "fix_dreams_keys_kept": true, "fix_dreams_death_box": true},
+	"classic": {"quicksave": false, "one_button_fire": false, "wide_view": false, "native_resolution": false, "smooth_motion": false, "fix_k2_esc_skips": false, "fix_k2_tantalus_fade": false, "fix_k3_messie_double": false, "fix_god_lurch": false, "fix_keen_over_scenery": false, "fix_dreams_keys_kept": false, "fix_dreams_death_box": false},
+	"enhanced": {"quicksave": true, "one_button_fire": true, "wide_view": true, "native_resolution": true, "smooth_motion": true, "fix_k2_esc_skips": true, "fix_k2_tantalus_fade": true, "fix_k3_messie_double": true, "fix_god_lurch": true, "fix_keen_over_scenery": true, "fix_dreams_keys_kept": true, "fix_dreams_death_box": true},
 }
 const VOLUME_STEP: int = 10
 
@@ -40,7 +40,10 @@ func page(name: String) -> Array:
 		"options":
 			return [
 				_value("mode", "Mode", mode_text()),
-			] + ([_value("creature_question", "Creature question", _on_off(get_value("creature_question")))] if game_id == "keen6" else []) + [
+			] + ([_value("creature_question", "Creature question", _on_off(get_value("creature_question")))] if game_id == "keen6" else []) + (
+				# SAVE-02: Keen 4-6's quicksave (F5) and quickload (F9), and whether they ask first
+				[_value("quicksave", "Quicksave F5/F9", _on_off(get_value("quicksave"))),
+				_value("quicksave_confirm", "Quicksave asks", _on_off(get_value("quicksave_confirm")))] if engine == "galaxy" else []) + [
 				_row("display", "Display...", "page"),
 				_row("sound", "Sound...", "page"),
 				_row("controls", "Controls...", "page"),
@@ -97,7 +100,7 @@ func step(key: String, dir: int) -> void:
 			_put("fullscreen", not bool(get_value("fullscreen")))
 		"creature_question":
 			_put("creature_question", not bool(get_value("creature_question")))
-		"native_resolution", "smooth_motion", "wide_view", "one_button_fire":
+		"native_resolution", "smooth_motion", "wide_view", "one_button_fire", "quicksave", "quicksave_confirm":
 			_put(key, not bool(get_value(key)))
 		"pixel_shape":
 			_put("pixel_shape", "square" if get_value("pixel_shape") == "4:3" else "4:3")

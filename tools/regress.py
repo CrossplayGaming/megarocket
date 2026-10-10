@@ -396,6 +396,17 @@ def rend09():
     return code
 
 
+def save02():
+    """Keen 4-6's quicksave and quickload (SAVE-02, Enhanced): F5 into the sixth slot named QuickSave, F9
+    back to where it was saved, with and without the question; Classic's F5 is the original's save card."""
+    import gdtest
+    code, out = gdtest.run("save02_quicksave", [], timeout=900.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def save06():
     """Keen 4-6 keep the player's files between sessions (SAVE-06): a game saved through the original's
     routine and the config written at quit are on disk; a new session reads them, the high score is in
@@ -1173,6 +1184,7 @@ CHECKS = {
     "REND-04": (rend04, "slow"),
     "REND-01G": (rend01g, "slow"),
     "REND-09": (rend09, "fast"),
+    "SAVE-02": (save02, "fast"),
     "SAVE-06": (save06, "fast"),
     "MAKER-01": (maker01, "fast"),
     "MAKER-02": (maker02, "fast"),

@@ -9,6 +9,7 @@ extends SceneTree
 ##         [--tour: also the intro, the lives window, the map and level 1 as <out>_<name>.png]
 ##         [--frames=N: hold an arrow (--walk=4d, a scan code in hex) and save N frames as <out>_<n>.png]
 ##         [--gtour: Keen 4-6's new game, the world map, walking right, as <out>_gmap / _gwalk<n>.png]
+##         [--quick=1 with --gtour: F5 and Y over the map, as <out>_qask / _qsaved.png]
 ##         [--attract=N: no keys, N shots of the title's demos (Keen 4-6) every --every=3 seconds]
 
 var _opts: Dictionary = {}
@@ -85,6 +86,13 @@ func _run() -> void:
 			await _hold(0.6)
 			_shot(str(_opts.get("out", "")).get_basename() + "_gwalk%d.png" % n)
 		host.send_key(0x4D, false)
+		if _opts.has("quick"):
+			# F5 (the question), Y (saved: the pause message)
+			await _press(host, 0x3F)
+			_shot(str(_opts.get("out", "")).get_basename() + "_qask.png")
+			await _press(host, 0x15)
+			_shot(str(_opts.get("out", "")).get_basename() + "_qsaved.png")
+			await _press(host, 0x39)
 		if _opts.has("bat"):
 			# B+A+T: the item cheat's window over the play
 			for code: int in [0x30, 0x1E, 0x14]:

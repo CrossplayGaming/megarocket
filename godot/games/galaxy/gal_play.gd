@@ -816,10 +816,44 @@ func CK_CheckKeys() -> void:
 		RF_ForceRefresh()
 
 	if not ck_storeDemo:
-		# (QUICKSAVE_ENABLED is not defined in the vanilla build)
+		# QUICKSAVE_ENABLED (omnispeak upstream), the shell's Enhanced mode only (SAVE-02): F5 and F9
+		# before the wristwatch's keys, as 1.0 had them
+		var quick: bool = bool(call("shell_quicksave_on"))
+		# the question asked over the play, the watch not drawn (its last card would flash up), the play
+		# painted again after it
+		var card: Variant = get("us_currentCard")
+		if quick and IN_GetLastScan() == IN_SC_F5:
+			# Quicksave
+			set("us_currentCard", null)
+			var saved: bool = call("US_QuickSave")
+			set("us_currentCard", card)
+			RF_ForceRefresh()
+			if saved:
+				in_Paused = true
+				in_PausedMessage = CK_STRING("ck_str_gameQuickSaved")
+		elif quick and IN_GetLastScan() == IN_SC_F9:
+			# Quickload
+			set("us_currentCard", null)
+			var loaded: bool = call("US_QuickLoad")
+			set("us_currentCard", card)
+			if not loaded:
+				RF_ForceRefresh()
+			if loaded:
+				StopMusic()
+				# Force scorebox redraw if it's enabled
+				if ck_scoreBoxEnabled:
+					ck_scoreBoxObj.user1 = -1
+					ck_scoreBoxObj.user2 = -1
+					ck_scoreBoxObj.user3 = -1
+					ck_scoreBoxObj.user4 = -1
+				ck_gameState.levelState = LS_LoadedGame
+				StartMusic(ck_gameState.currentLevel)
+			if load_game_error != 0:
+				load_game_error = 0
+				ck_gameState.levelState = LS_AbortGame
 
 		# Go back to wristwatch
-		if (IN_GetLastScan() >= IN_SC_F2 and IN_GetLastScan() <= IN_SC_F7) or IN_GetLastScan() == IN_SC_Escape:
+		elif (IN_GetLastScan() >= IN_SC_F2 and IN_GetLastScan() <= IN_SC_F7) or IN_GetLastScan() == IN_SC_Escape:
 			# don't re-enter menu immediately if we came here
 			# via joystick button
 			ck_inputFrame.button3 = false
