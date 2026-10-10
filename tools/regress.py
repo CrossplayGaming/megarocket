@@ -396,6 +396,18 @@ def rend09():
     return code
 
 
+def save06():
+    """Keen 4-6 keep the player's files between sessions (SAVE-06): a game saved through the original's
+    routine and the config written at quit are on disk; a new session reads them, the high score is in
+    the table, the save loads; a write cut short leaves the last good file."""
+    import gdtest
+    code, out = gdtest.run("save06_galaxy", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def maker01():
     """A level from the maker plays in the game (MAKER-01): Keen 1-3's LEVELnn and Keen 4-6's map set,
     one tile changed, loaded by the game's own ReadLevel / CA_CacheMap with nothing else changed."""
@@ -1161,6 +1173,7 @@ CHECKS = {
     "REND-04": (rend04, "slow"),
     "REND-01G": (rend01g, "slow"),
     "REND-09": (rend09, "fast"),
+    "SAVE-06": (save06, "fast"),
     "MAKER-01": (maker01, "fast"),
     "MAKER-02": (maker02, "fast"),
     "MAKER-03": (maker03, "fast"),

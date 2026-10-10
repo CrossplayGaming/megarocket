@@ -426,6 +426,56 @@ const US_MAX_NUM_OF_SAVED_GAMES: int = 6
 var us_saveFiles: Array = [PackedByteArray(), PackedByteArray(), PackedByteArray(),
 	PackedByteArray(), PackedByteArray(), PackedByteArray()]
 
+## SAVE-06: the folder the player's files live in between sessions (CONFIG.CKx: the settings and the
+## high scores; SAVEGAMn.CKx: the saved games), as the original keeps them beside the program. Set by
+## the shell (user://saves/<game>); "" (tests, the oracle runs): kept in memory only.
+var user_dir: String = ""
+
+
+## The player's files from user_dir into the buffers the game reads (before CK_Main).
+func load_user_files() -> void:
+	if user_dir == "":
+		return
+	us_configFile = _user_read("CONFIG." + data.ext)
+	for i: int in range(US_MAX_NUM_OF_SAVED_GAMES):
+		us_saveFiles[i] = _user_read(str(call("US_GetSavefileName", i)))    # (ck_main.c's, a later script)
+
+
+## A file the game has just written, to user_dir: the new bytes written beside the old file first, and
+## only then put in its place (the old one kept as .BAK until then), so a write cut short never leaves a
+## half file where the last good one was (SAVE-03). Empty bytes: the file removed.
+func _user_write(name: String, bytes: PackedByteArray) -> void:
+	if user_dir == "":
+		return
+	DirAccess.make_dir_recursive_absolute(user_dir)
+	var path: String = user_dir.path_join(name)
+	if bytes.is_empty():
+		DirAccess.remove_absolute(path)
+		return
+	var tmp: String = path + ".TMP"
+	var f: FileAccess = FileAccess.open(tmp, FileAccess.WRITE)
+	if f == null:
+		push_error("%s: cannot write (%s)" % [tmp, error_string(FileAccess.get_open_error())])
+		return
+	f.store_buffer(bytes)
+	f.close()
+	var bak: String = path + ".BAK"
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(bak)
+		DirAccess.rename_absolute(path, bak)
+	DirAccess.rename_absolute(tmp, path)
+	DirAccess.remove_absolute(bak)
+
+
+## A file from user_dir (its .BAK when the last write was cut short before the swap); empty: none.
+func _user_read(name: String) -> PackedByteArray:
+	var path: String = user_dir.path_join(name)
+	if FileAccess.file_exists(path):
+		return FileAccess.get_file_as_bytes(path)
+	if FileAccess.file_exists(path + ".BAK"):
+		return FileAccess.get_file_as_bytes(path + ".BAK")
+	return PackedByteArray()
+
 class US_Savefile:
 	var id: String = ""
 	var printXOffset: int = 0
@@ -574,6 +624,7 @@ func US_SaveConfig() -> void:
 	for k: int in range(4):
 		_put16(f, in_gamepadButtons[k] & 0xFFFF)
 	us_configFile = f
+	_user_write("CONFIG." + data.ext, f)
 
 
 func US_GetSavefiles() -> void:

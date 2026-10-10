@@ -218,6 +218,11 @@ func start(found: Dictionary) -> bool:
 			var g: GalGame = load("res://games/galaxy/gal_%s.gd" % game_id).new()
 			g.vm = vm
 			g.data = d
+			# SAVE-06: the settings, high scores and saved games, kept between sessions as Keen 1-3's are
+			# (a level played in place from the maker keeps none)
+			if _play_level < 0:
+				g.user_dir = ProjectSettings.globalize_path("user://saves").path_join(game_id)
+				g.load_user_files()
 			g.us_randomSeed = Time.get_ticks_usec() & 0xFF    # the original's time(0) (A11: set from outside)
 			vm.set_cycles(20000)
 			engine = g

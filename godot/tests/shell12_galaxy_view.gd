@@ -4,7 +4,7 @@ extends SceneTree
 ## the wide view). Each game starts; its first screens (the intro, the title) are the 320x200 picture in
 ## the frame over the game's own backdrop; then its title demo plays and is drawn by the shell's view
 ## (GalNativeView) as wide as the window allows, the frame put away; the engine is told the wide view's
-## extra tiles (J-30).
+## extra tiles (J-30). The player's files (settings, high scores, saves) are kept in user://saves/<game>.
 ##
 ## Options: --game_data=<folder> [--games=keen4,keen5,keen6]
 
@@ -49,6 +49,7 @@ func _game(root_dir: String, game: String) -> void:
 	if not ok:
 		host.queue_free()
 		return
+	t.ok("%s: the player's files kept in %s (SAVE-06)" % [game, host.engine.user_dir], str(host.engine.user_dir).ends_with("saves/" + game))
 	var framed: bool = await _wait(func() -> bool:
 		return host.frames_shown > 10 and host._view.visible and host._backdrop.frame_rect.size.x > 0.0, 30.0)
 	t.ok("%s: the first screens are the 320x200 picture in the frame (%s)" % [game, host._backdrop.frame_rect], framed)

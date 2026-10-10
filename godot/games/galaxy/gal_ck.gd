@@ -2202,6 +2202,7 @@ func FS_CloseFile(file: FS_File) -> void:
 		var e: Array = fs_userFiles[file]
 		if e[1]:
 			us_saveFiles[e[0]] = file.data
+			_user_write(US_GetSavefileName(e[0]), file.data)    # SAVE-06: kept between sessions
 		fs_userFiles.erase(file)
 
 
@@ -2212,4 +2213,5 @@ func remove(fname: String) -> int:
 		errno = ENOENT
 		return -1
 	us_saveFiles[slot] = PackedByteArray()
+	_user_write(US_GetSavefileName(slot), PackedByteArray())
 	return 0
