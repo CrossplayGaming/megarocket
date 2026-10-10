@@ -1034,8 +1034,9 @@ def menu08():
     menu (Escape in a game), its New Game and Load Game by the title; Keen 4-6's MAIN card."""
     import gdtest
     worst = 0
-    for test in ("menu08_vorticons",):
-        code, out = gdtest.run(test, [], timeout=400.0, quiet=True)
+    for test, extra in (("menu08_vorticons", []), ("menu08_galaxy", ["--game=keen4"]), ("menu08_galaxy", ["--game=keen5"]),
+                        ("menu08_galaxy", ["--game=keen6"])):
+        code, out = gdtest.run(test, extra, timeout=600.0, quiet=True)
         for line in out.splitlines():
             if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
                 print("  %s: %s" % (test, line.strip()))

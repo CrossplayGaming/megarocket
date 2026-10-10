@@ -1826,6 +1826,13 @@ func USL_UpdateCards() -> void:
 	# Hilite 'return to game' or 'new game' option
 	ck_us_mainMenu.selectedItem = ck_us_mainMenuItems.find(ck_us_mainOriginal[4]) if game_in_progress != 0 else 0
 
+	if options != null:
+		# MENU-08: RESUME in a game (the original's RETURN TO GAME); NEW GAME first on the title
+		if game_in_progress != 0:
+			(ck_us_mainOriginal[4] as US_CardItem).caption = "RESUME"
+		else:
+			ck_us_mainMenu.selectedItem = ck_us_mainMenuItems.find(ck_us_mainOriginal[0])
+
 	# Update the options menu
 	CK_US_UpdateOptionsMenus()
 	CK_US_ShellCaptions()
@@ -2200,11 +2207,34 @@ func CK_US_ShellCards() -> void:
 			_us_item(US_ITEM_Submenu, 0, IN_SC_None, "CHEATS", US_Comm_None, ck_us_cheatsMenu))
 		# nine items: the card's items start where CONFIGURE's do, so QUIT clears the footer's line
 		ck_us_mainMenu.y = 0
+	_shell_main_card()
 	CK_US_ShellCaptions()
 
 
 ## The card the CHEATS item opens.
 var ck_us_cheatsMenu: US_Card = null
+
+
+## MENU-08 (the user, 2026-10-10: every game's main menu in one order, each in its own style): MAIN reads
+## RESUME (RETURN TO DEMO on the title), NEW GAME, LOAD GAME, SAVE GAME, OPTIONS (CONFIGURE's card), CHEATS,
+## HIGH SCORES, EXTRAS (PADDLE WAR), QUIT (END GAME, QUIT: the original's two); nine, as before.
+func _shell_main_card() -> void:
+	var resume: US_CardItem = ck_us_mainOriginal[4]
+	var configure: US_CardItem = ck_us_mainOriginal[3]
+	configure.caption = "OPTIONS"
+	configure.shortcutKey = IN_SC_O
+	var cheats: Array = ck_us_mainMenuItems.filter(func(it: US_CardItem) -> bool: return ck_us_cheatsMenu != null and it.subMenu == ck_us_cheatsMenu)
+	var scores: US_CardItem = _shell_row_item("high_scores", "scores")
+	scores.caption = "HIGH SCORES"
+	scores.shortcutKey = IN_SC_H
+	var extras: US_CardItem = _us_item(US_ITEM_Submenu, 0, IN_SC_X, "EXTRAS", US_Comm_None,
+		_us_card(8, 0, "TEXT:EXTRAS", 0, [ck_us_mainOriginal[6], _us_item_end()], &"", 0, 0, 0))
+	var quit: US_CardItem = _us_item(US_ITEM_Submenu, 0, IN_SC_Q, "QUIT", US_Comm_None,
+		_us_card(8, 0, "TEXT:QUIT", 0, [ck_us_mainOriginal[5], ck_us_mainOriginal[7], _us_item_end()], &"", 0, 0, 0))
+	var order: Array = [resume, ck_us_mainOriginal[0], ck_us_mainOriginal[1], ck_us_mainOriginal[2], configure] + cheats + [scores, extras, quit, _us_item_end()]
+	ck_us_mainMenuItems.clear()
+	ck_us_mainMenuItems.append_array(order)
+	ck_us_mainMenu.y = 0
 ## CTRL-04: the CONTROLS card, and each action's item (its caption the action and its keys) -> [device, action].
 var ck_us_controlsMenu: US_Card = null
 var _shell_bind_items: Dictionary = {}
@@ -2360,7 +2390,7 @@ func CK_US_ShellCaptions() -> void:
 		var key: String = _shell_toggles[card][0]
 		var kind: String = _shell_toggles[card][2]
 		var item: US_CardItem = _shell_toggles[card][1]
-		if kind == "info" or kind == "reset" or kind == "clear":
+		if kind == "info" or kind == "reset" or kind == "clear" or kind == "scores":
 			continue
 		if kind == "capture":
 			# ADD SECOND only while the action has one key or button (CHANGE always)
@@ -2404,6 +2434,16 @@ func CK_US_ShellRowProc(msg: int, _item: US_CardItem) -> bool:
 	var kind: String = _shell_toggles[us_currentCard][2]
 	var said: String = ""
 	match kind:
+		"scores":
+			# MENU-08: the high scores are the attract loop's (a level of their own), so from the title only:
+			# the menu closes and they are next (CK_DemoLoop); in a game, a word why
+			if game_in_progress != 0:
+				USL_CtlDialog("FROM THE TITLE SCREEN", "Press any key", "")
+				return true
+			shell_next_demo = 4    # the attract loop's high scores (CK_DemoLoop's fifth) after this step
+			us_currentCommand = US_Comm_ReturnToGame
+			command_confirmed = true
+			return true
 		"capture":
 			var cp: PackedStringArray = key.split(":")
 			said = _shell_capture(cp[1], cp[2], int(cp[3]))

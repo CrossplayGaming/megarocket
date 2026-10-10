@@ -206,6 +206,9 @@ func CK_DemoLoop() -> void:
 	while true:
 		if quitting:
 			break
+		if shell_next_demo >= 0:
+			demoNumber = shell_next_demo    # MENU-08: HIGH SCORES chosen on the title's menu
+			shell_next_demo = -1
 		var dn: int = demoNumber
 		demoNumber += 1
 		match dn:
@@ -2040,6 +2043,10 @@ func help_endgame() -> void:
 # ===================================================================== ck_inter.c
 
 # (ck_startingSavedGame, ck_inHighScores and ck_startingDifficulty: gal_ck.gd)
+
+
+## MENU-08: the attract loop's next step when the menu asked for one (-1: as it comes).
+var shell_next_demo: int = -1
 
 
 func CK_HandleDemoKeys() -> void:

@@ -42,8 +42,8 @@ func _init() -> void:
 		settings.save()
 	var res: Dictionary = _walk(root, game, out, OptionsModel.new(settings, game, "galaxy"))
 	t.ok("the run kept going to its end (quit '%s')" % res.get("quit", ""), res.get("quit", "") == "time limit")
-	t.ok("MAIN has CHEATS after CONFIGURE (%s)" % [res.get("main", [])],
-		res.get("main", []).size() == 9 and res.main[3] == "CONFIGURE" and res.main[4] == "CHEATS")
+	t.ok("MAIN has CHEATS after OPTIONS (CONFIGURE's card; MENU-08's order) (%s)" % [res.get("main", [])],
+		res.get("main", []).size() == 9 and res.main[4] == "OPTIONS" and res.main[5] == "CHEATS")
 	t.ok("on the title the cheat rows were greyed and choosing GOD MODE did nothing (%s)" % [res.get("title", {})],
 		res.get("title", {}).get("disabled", false) and not res.get("title", {}).get("god", true))
 	t.ok("LEVEL SELECT's third level was entered from the world map (level %s)" % res.get("warped", "none"), res.get("warped", 0) == 3)
@@ -112,24 +112,28 @@ func _walk(root: String, game: String, out: String, model: OptionsModel) -> Dict
 	var vm: DosMachine = s[0]
 	var g: GalGame = s[1]
 	g.set("options", model)
-	# past the intro, the menu; then from its first picture: down to CHEATS (the fifth item), into it,
+	# past the intro, the menu (MENU-08: RETURN TO DEMO, NEW GAME, LOAD GAME, SAVE GAME, OPTIONS, CHEATS, HIGH
+	# SCORES, EXTRAS, QUIT; NEW GAME first on the title); then from its first picture: down to CHEATS, into it,
 	# GOD MODE chosen (greyed: the not-allowed sound), back, up to NEW GAME, into it, BEGIN NORMAL GAME;
-	# on the world map Escape (the menu, RETURN TO GAME highlighted), up to CHEATS, into it, GOD MODE
-	# chosen, its dialog, down, INFINITE AMMO chosen, its dialog, back, down to RETURN TO GAME, chosen
+	# on the world map Escape (the menu, RESUME first), down to CHEATS, into it, GOD MODE chosen, its
+	# dialog, down, INFINITE AMMO chosen, its dialog, back, up to RESUME, chosen
 	vm.add_key(6.0, KEY_ENTER, 0.2)
 	vm.add_key(8.0, KEY_ENTER, 0.2)
 	var script: Array = [[1.0, KEY_DOWN], [2.0, KEY_DOWN], [3.0, KEY_DOWN], [4.0, KEY_DOWN], [5.0, KEY_ENTER],
 		[6.5, KEY_ENTER], [8.0, KEY_ESC], [9.5, KEY_UP], [10.5, KEY_UP], [11.5, KEY_UP], [12.5, KEY_UP],
 		[13.5, KEY_ENTER], [15.0, KEY_ENTER],
-		[24.0, KEY_ESC], [26.0, KEY_UP], [27.0, KEY_ENTER], [28.5, KEY_ENTER], [30.0, KEY_SPACE],
-		[31.5, KEY_DOWN], [32.5, KEY_ENTER], [34.0, KEY_SPACE], [35.5, KEY_ESC], [37.0, KEY_DOWN], [38.0, KEY_ENTER],
-		# then Escape again, up to CHEATS, into it, down to MORE CHEATS (the last of nine), into it, down to
+		[24.0, KEY_ESC], [26.0, KEY_DOWN], [26.5, KEY_DOWN], [27.0, KEY_DOWN], [27.5, KEY_DOWN], [28.0, KEY_DOWN],
+		[29.0, KEY_ENTER], [30.5, KEY_ENTER], [32.0, KEY_SPACE],
+		[33.5, KEY_DOWN], [34.5, KEY_ENTER], [36.0, KEY_SPACE], [37.5, KEY_ESC],
+		[39.0, KEY_UP], [39.5, KEY_UP], [40.0, KEY_UP], [40.5, KEY_UP], [41.0, KEY_UP], [42.0, KEY_ENTER],
+		# then Escape again, down to CHEATS, into it, down to MORE CHEATS (the last of nine), into it, down to
 		# LEVEL SELECT (the fourth), into it, down to the third level, chosen
-		[41.0, KEY_ESC], [43.0, KEY_UP], [44.0, KEY_ENTER], [45.0, KEY_DOWN], [46.0, KEY_DOWN], [47.0, KEY_DOWN],
-		[48.0, KEY_DOWN], [49.0, KEY_DOWN], [50.0, KEY_DOWN], [50.5, KEY_DOWN], [51.0, KEY_ENTER], [52.0, KEY_DOWN], [53.0, KEY_DOWN],
-		[54.0, KEY_DOWN], [55.0, KEY_ENTER], [56.5, KEY_DOWN], [57.5, KEY_DOWN], [58.5, KEY_ENTER],
+		[45.0, KEY_ESC], [47.0, KEY_DOWN], [47.5, KEY_DOWN], [48.0, KEY_DOWN], [48.5, KEY_DOWN], [49.0, KEY_DOWN],
+		[50.0, KEY_ENTER], [51.0, KEY_DOWN], [51.5, KEY_DOWN], [52.0, KEY_DOWN], [52.5, KEY_DOWN], [53.0, KEY_DOWN],
+		[53.5, KEY_DOWN], [54.0, KEY_DOWN], [55.0, KEY_ENTER], [56.0, KEY_DOWN], [57.0, KEY_DOWN],
+		[58.0, KEY_DOWN], [59.0, KEY_ENTER], [60.5, KEY_DOWN], [61.5, KEY_DOWN], [62.5, KEY_ENTER],
 		# in the level, the original's B+A+T (its window answered)
-		[66.0, 0x30], [66.0, 0x1E], [66.0, 0x14], [68.0, KEY_SPACE]]
+		[70.0, 0x30], [70.0, 0x1E], [70.0, 0x14], [72.0, KEY_SPACE]]
 	for k: Array in script:
 		vm.add_key_after("menu", k[0], k[1], 0.2)
 	var r: Dictionary = {}
@@ -142,14 +146,14 @@ func _walk(root: String, game: String, out: String, model: OptionsModel) -> Dict
 				and vm.marks.has("menu") and vm.now > vm.marks["menu"] + DosMachine.seconds_to_units(7.5):
 			seen[0] = true
 			r["title"] = {"disabled": ((card.items[0] as Object).get("state") & 0x04) != 0, "god": gal.shell_cheat_get("god")}
-		if vm.marks.has("menu") and vm.now > vm.marks["menu"] + DosMachine.seconds_to_units(69.0) and not r.has("bat"):
-			r["bat"] = {"shots": gal.ck_gameState.numShots, "gems": Array(gal.ck_gameState.keyGems)}    # after B+A+T (66 s)
+		if vm.marks.has("menu") and vm.now > vm.marks["menu"] + DosMachine.seconds_to_units(73.0) and not r.has("bat"):
+			r["bat"] = {"shots": gal.ck_gameState.numShots, "gems": Array(gal.ck_gameState.keyGems)}    # after B+A+T (70 s)
 		if gal.game_in_progress != 0 and gal.ck_gameState.currentLevel != 0 and gal.ck_keenObj != null and gal.ck_keenObj.type == gal.CT_Player \
 				and not r.has("warped"):
 			r["warped"] = gal.ck_gameState.currentLevel
 		if card != null and gal.get("us_currentCard") == card and gal.game_in_progress != 0:
 			r["in_game"] = gal.shell_in_game() and ((card.items[0] as Object).get("state") & 0x04) == 0)
-	vm.time_limit = DosMachine.seconds_to_units(86.0)
+	vm.time_limit = DosMachine.seconds_to_units(90.0)
 	vm.on_limit = func() -> void:
 		g.quitting = true
 		g.quit_message = "time limit"
