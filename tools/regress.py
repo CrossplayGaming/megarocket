@@ -1035,6 +1035,18 @@ def harn05a():
     return code
 
 
+def prep01():
+    """PREP-01 (levels): every level of every game present read by the maker's reader for its
+    engine, written back and read again: planes identical, and the written files byte-identical
+    to the originals (each LEVELnn of Keen 1-3; the whole GAMEMAPS and MAPHEAD of Keen 4-6 and Dreams)."""
+    import gdtest
+    code, out = gdtest.run("prep01_levels", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "read," in line:
+            print("  " + line.strip())
+    return code
+
+
 CHECKS = {
     "HARN-01a": (harn01a, "slow"),
     "HARN-03a": (harn03a, "fast"),
@@ -1101,6 +1113,7 @@ CHECKS = {
     "REPLAY-V1": (replayv1, "slow"),
     "REPLAY-V2": (replayv2, "slow"),
     "REPLAY-V3": (replayv3, "slow"),
+    "PREP-01": (prep01, "fast"),
 }
 
 
