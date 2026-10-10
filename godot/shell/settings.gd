@@ -17,11 +17,19 @@ const SPEC: Dictionary = {
 	"game_folders": [[], "folders", null],
 	"music_volume": [80, "int", [0, 100]],
 	"effects_volume": [80, "int", [0, 100]],
-	"view": ["classic", "enum", ["classic", "enhanced", "custom"]],
+	"view": ["enhanced", "enum", ["classic", "enhanced", "custom"]],    # Enhanced play by default (J-03)
 	"pixel_shape": ["4:3", "enum", ["4:3", "square"]],
 	"reduce_flashes": [false, "bool", null],
 	"fullscreen": [false, "bool", null],
 	"creature_question": [true, "bool", null],    # Keen 6's copy protection asked before a new game
+	# the bug-fix toggles (FixesModel), on by default (J-03); the Classic mode turns them off
+	"fix_k2_esc_skips": [true, "bool", null],
+	"fix_k2_tantalus_fade": [true, "bool", null],
+	"fix_k3_messie_double": [true, "bool", null],
+	"fix_god_lurch": [true, "bool", null],
+	"fix_keen_over_scenery": [true, "bool", null],
+	"fix_dreams_keys_kept": [true, "bool", null],
+	"fix_dreams_death_box": [true, "bool", null],
 }
 
 var path: String = PATH

@@ -532,6 +532,15 @@ var ck_debugActive: bool = false
 var ck_gameState: CK_GameState = CK_GameState.new()
 var ck_scrollDisabled: bool = false
 var ck_godMode: bool = false
+## The bug-fix toggles (FIX-01, FixesModel): key -> on, set by the host from the player's settings.
+## Empty in headless runs and the oracle comparisons: every fix off, the original bug for bug.
+var fixes: Dictionary = {}
+
+
+func fix_on(key: String) -> bool:
+	return fixes.get(key, false)
+
+
 ## The shell's cheats (CHEAT-01, docs/MENUS.md): each read at one named point; off unless a player
 ## turns one on from the CHEATS card (headless runs and the oracle comparisons never do).
 var cheat_infiniteAmmo: bool = false     # read in CK_SpawnShot

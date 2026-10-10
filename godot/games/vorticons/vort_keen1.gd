@@ -589,10 +589,15 @@ func ChainContact(ob: Obj, hit: Obj) -> void:
 		pob.y = GLOBAL_TO_TILE(ob.y) + 1
 		pob.temp[1] = 0
 		# kill the Vorticon: the last one in the list (the original walks
-		# down from one past the end, and never ends without one)
+		# down from one past the end). With the Commander already shot dead
+		# there is none, and the original walks off the list's start, hanging or
+		# writing over memory; here the block just drops (J-28, docs/FIX_TRIAGE.md
+		# V04: in every mode, Classic's one documented difference)
 		var i: int = mini(numobj, MAXOBJECTS - 1)
 		while i > 0 and objlist[i].obclass != vorticonobj:
 			i -= 1
+		if objlist[i].obclass != vorticonobj:
+			return
 		var v: Obj = objlist[i]
 		PlaySound(SND.VORTSCREAMSND)
 		v.temp1 = 0

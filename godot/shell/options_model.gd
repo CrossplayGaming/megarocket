@@ -18,10 +18,13 @@ var game_id: String = ""
 var engine: String = ""
 ## Called (deferred to the main thread) with a setting's name after it changed.
 var applier: Callable = Callable()
-## The Mode presets: the rows each sets (MENUS.md "The Mode row"). Empty for now: the rows a mode
-## sets (the fixes, the wide view, smooth motion, native resolution, one-button fire) join here as
-## they are built; until then Mode is remembered and shown, and sets nothing else.
-const PRESETS: Dictionary = {"classic": {}, "enhanced": {}}
+## The Mode presets: the rows each sets (MENUS.md "The Mode row"). The fixes so far (FixesModel: all off
+## in Classic, on in Enhanced); the wide view, smooth motion, native resolution and one-button fire join
+## as they are built.
+const PRESETS: Dictionary = {
+	"classic": {"fix_k2_esc_skips": false, "fix_k2_tantalus_fade": false, "fix_k3_messie_double": false, "fix_god_lurch": false, "fix_keen_over_scenery": false, "fix_dreams_keys_kept": false, "fix_dreams_death_box": false},
+	"enhanced": {"fix_k2_esc_skips": true, "fix_k2_tantalus_fade": true, "fix_k3_messie_double": true, "fix_god_lurch": true, "fix_keen_over_scenery": true, "fix_dreams_keys_kept": true, "fix_dreams_death_box": true},
+}
 const VOLUME_STEP: int = 10
 
 
@@ -41,7 +44,8 @@ func page(name: String) -> Array:
 				_row("display", "Display...", "page"),
 				_row("sound", "Sound...", "page"),
 				_row("controls", "Controls...", "page"),
-			] + ([_row("cheats", "Cheats...", "page")] if engine == "vorticons" else []) + [
+			] + ([_row("fixes", "Fixes...", "page")] if engine == "vorticons" and not FixesModel.for_game(game_id).is_empty() else []) + (
+				[_row("cheats", "Cheats...", "page")] if engine == "vorticons" else []) + [
 				_row("quit_game", "Quit game", "action"),
 				_row("exit", "Exit", "action"),
 			]
@@ -55,6 +59,15 @@ func page(name: String) -> Array:
 			var rows: Array = [_value("effects_volume", "Effects volume", "%d%%" % int(get_value("effects_volume")))]
 			if engine == "galaxy":
 				rows.append(_value("music_volume", "Music volume", "%d%%" % int(get_value("music_volume"))))
+			rows.append(_row("exit", "Back", "action"))
+			return rows
+		"fixes":
+			# each with the line said under it when it is selected (MENUS.md)
+			var rows: Array = []
+			for f: Dictionary in FixesModel.for_game(game_id):
+				var r: Dictionary = _value(FixesModel.setting(f.key), f.label, _on_off(get_value(FixesModel.setting(f.key))))
+				r["desc"] = f.desc
+				rows.append(r)
 			rows.append(_row("exit", "Back", "action"))
 			return rows
 		"controls":
@@ -83,13 +96,16 @@ func step(key: String, dir: int) -> void:
 			_put("pixel_shape", "square" if get_value("pixel_shape") == "4:3" else "4:3")
 		"effects_volume", "music_volume":
 			_put(key, clampi(int(get_value(key)) + dir * VOLUME_STEP, 0, 100))
+		_:
+			if key.begins_with("fix_"):
+				_put(key, not bool(get_value(key)))
 	_recompute_mode()
 
 
 ## What choosing a row does.
 func activate(key: String) -> String:
 	# "cheats": the engine builds that page itself from CheatsModel (its rows are the engine's flags)
-	for name: String in ["display", "sound", "controls", "cheats"]:
+	for name: String in ["display", "sound", "controls", "cheats", "fixes"]:
 		if key == name:
 			return "page:" + name
 	match key:
@@ -109,6 +125,14 @@ func get_value(name: String) -> Variant:
 	return settings.get_value(name, game_id)
 
 
+## The running game's fixes, key -> on, for the engine (its `fixes`).
+func fixes() -> Dictionary:
+	var out: Dictionary = {}
+	for f: Dictionary in FixesModel.for_game(game_id):
+		out[f.key] = bool(get_value(FixesModel.setting(f.key)))
+	return out
+
+
 func _put(name: String, value: Variant) -> void:
 	if settings.set_value(name, value, game_id):
 		settings.save()
@@ -116,14 +140,25 @@ func _put(name: String, value: Variant) -> void:
 			applier.call_deferred(name)
 
 
+## Mode reads the preset every preset row matches (the one chosen first), or Custom.
 func _recompute_mode() -> void:
 	var m: String = str(get_value("view"))
-	if m == "custom":
-		return
-	for k: String in PRESETS.get(m, {}):
-		if get_value(k) != PRESETS[m][k]:
-			_put("view", "custom")
+	var order: Array = [m] if PRESETS.has(m) else []
+	for p: String in ["enhanced", "classic"]:
+		if not order.has(p):
+			order.append(p)
+	for p: String in order:
+		var all: bool = true
+		for k: String in PRESETS[p]:
+			if get_value(k) != PRESETS[p][k]:
+				all = false
+				break
+		if all:
+			if m != p:
+				_put("view", p)
 			return
+	if m != "custom":
+		_put("view", "custom")
 
 
 static func _row(key: String, label: String, kind: String) -> Dictionary:

@@ -993,7 +993,7 @@ func UpdateObjHitbox(ob: Obj) -> void:
 
 ## The Options window's size: every page in one window of this size, so going from page to page
 ## leaves nothing of the last behind.
-const OPTIONS_W: int = 26
+const OPTIONS_W: int = 30    # the longest row: a fix's title and its value
 const OPTIONS_H: int = 12    # the Cheats page's rows and Back
 
 
@@ -1016,6 +1016,7 @@ func OptionsMenu() -> void:
 		var anim: int = 0
 		var act: String = ""
 		_options_release()
+		_options_desc(rows, pos, wx, wy)
 		while not exited:
 			DrawChar(wx + 1, (wy + pos) * 8, anim + 9)
 			var ctrl: Dictionary = {"dir": nodir, "button1": false, "button2": false}
@@ -1033,6 +1034,7 @@ func OptionsMenu() -> void:
 			if ctrl.dir == north or ctrl.dir == south:
 				DrawChar(wx + 1, (wy + pos) * 8, 32)
 				pos = (pos + (rows.size() - 1 if ctrl.dir == north else 1)) % rows.size()
+				_options_desc(rows, pos, wx, wy)
 				_options_release()
 			elif (ctrl.dir == west or ctrl.dir == east) and row.kind == "value":
 				if str(row.key).begins_with("cheat:"):
@@ -1108,6 +1110,31 @@ func _options_draw(rows: Array, wx: int, wy: int) -> void:
 		else:
 			Print(line)
 		leftedge = keep
+	sx = wx
+	sy = wy
+
+
+## The selected row's line (a fix says what it changes, MENUS.md) in the window's last rows, word-
+## wrapped; blank for rows without one. Only pages with such rows use the space.
+func _options_desc(rows: Array, pos: int, wx: int, wy: int) -> void:
+	if not rows.any(func(r: Dictionary) -> bool: return r.has("desc")):
+		return
+	var words: PackedStringArray = str(rows[pos].get("desc", "")).split(" ", false) if pos < rows.size() else PackedStringArray()
+	var lines: Array = ["", "", "", ""]
+	var n: int = 0
+	for w: String in words:
+		if lines[n] != "" and (lines[n] as String).length() + 1 + w.length() > OPTIONS_W - 3:
+			n += 1
+			if n >= lines.size():
+				break
+		lines[n] = (w if lines[n] == "" else lines[n] + " " + w)
+	var keep: int = leftedge
+	leftedge = wx
+	for i: int in range(lines.size()):
+		sx = wx
+		sy = wy + OPTIONS_H - lines.size() + i
+		PrintGrey(("   " + lines[i]).rpad(OPTIONS_W).left(OPTIONS_W))
+	leftedge = keep
 	sx = wx
 	sy = wy
 

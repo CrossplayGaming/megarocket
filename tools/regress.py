@@ -788,6 +788,17 @@ def rend01():
     return code
 
 
+def fix01():
+    """The bug-fix toggles (FIX-01/02): the model (on by default, Classic off, Custom), and each fix's
+    case built so far, off (the original) and on."""
+    import gdtest
+    code, out = gdtest.run("fix01_fixes", [], timeout=1500.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "lurch:" in line or "Earth scenes:" in line:
+            print("  " + line.strip())
+    return code
+
+
 def shell05():
     """Settings persist, reset, survive damage value by value, per-game values win, and no
     simulation script reads them (A15)."""
@@ -1018,6 +1029,7 @@ CHECKS = {
     "MENU-02": (menu02, "fast"),
     "CHEAT-01": (cheat01, "fast"),
     "REND-01": (rend01, "slow"),
+    "FIX-01": (fix01, "slow"),
     "SHELL-05": (shell05, "fast"),
     "SHELL-06": (shell06, "slow"),
     "SHELL-07": (shell07, "fast"),

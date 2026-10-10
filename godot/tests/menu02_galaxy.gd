@@ -3,7 +3,7 @@ extends SceneTree
 ## MENU-02 (Keen 4-6's cards): with an OptionsModel attached (a player at the controls), CONFIGURE has a
 ## DISPLAY card after MUSIC and OPTIONS starts with MODE; from the keyboard: the menu from the title,
 ## CONFIGURE, DISPLAY, FULLSCREEN chosen (its dialog answered), back, OPTIONS, MODE chosen. Checks: the
-## settings the model wrote (Fullscreen on, Mode Enhanced, for this game only), the run kept going, and
+## settings the model wrote (Fullscreen on, Mode Classic with its fixes off, for this game only), the run kept going, and
 ## SVGA COMPATIBILITY gone (Keen 6: CREATURE QUESTION last); without a model the cards are the original's (no DISPLAY item, OPTIONS from
 ## SCORE BOX to SVGA COMPATIBILITY).
 ## Every picture is written to --out for review.
@@ -42,8 +42,10 @@ func _init() -> void:
 	if game == "keen6":
 		t.ok("Keen 6's OPTIONS ends with CREATURE QUESTION (ON) (%s)" % res.options.back(), res.options.back() == "CREATURE QUESTION (ON)")
 	t.ok("Fullscreen went on for %s (%s)" % [game, after.get_value("fullscreen", game)], after.get_value("fullscreen", game) == true)
-	t.ok("Mode went to Enhanced for %s (%s)" % [game, after.get_value("view", game)], after.get_value("view", game) == "enhanced")
-	t.ok("the global values are untouched", after.get_value("view") == "classic" and after.get_value("fullscreen") == false)
+	t.ok("Mode went from Enhanced (the default) to Classic for %s (%s)" % [game, after.get_value("view", game)], after.get_value("view", game) == "classic")
+	t.ok("Classic turned this game's fixes off (%s)" % [OptionsModel.new(after, game, "").fixes()],
+		OptionsModel.new(after, game, "").fixes().values().all(func(v: bool) -> bool: return not v))
+	t.ok("the global values are untouched", after.get_value("view") == "enhanced" and after.get_value("fullscreen") == false)
 	var plain: Dictionary = _run(root, game, out + "_plain", null)
 	t.ok("without a model the cards are the original's (%s; %s)" % [plain.configure, plain.options],
 		not plain.configure.has("DISPLAY") and plain.first_option.begins_with("SCORE BOX") and plain.options.size() == 4 and plain.options[3].begins_with("SVGA"))

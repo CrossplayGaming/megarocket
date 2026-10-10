@@ -669,7 +669,11 @@ func TheEarthExplodes() -> void:
 	var shotY: int = 5 * TILEGLOBAL
 	for i: int in range(21):
 		# the original checks the BIOS key buffer here, which its own
-		# keyboard handler keeps empty in v1.31: no early exit
+		# keyboard handler keeps empty in v1.31: no early exit. The fix (V05)
+		# reads the keys the handler keeps, as v1.3 should have
+		if fix_on("k2_esc_skips") and (NoBiosKey(1) & 0xFF) == CHAR_ESCAPE:
+			NoBiosKey(0)
+			return
 		RF_Clear()
 		shotX = (i * (41 * TILEGLOBAL)) / 20 + 6 * TILEGLOBAL
 		shotY = (i * (17 * TILEGLOBAL)) / 20 + 5 * TILEGLOBAL
@@ -744,6 +748,10 @@ func _finale_other() -> void:
 	RF_ForceRefresh()
 	RF_Refresh()
 	for i: int in range(121):
+		# the same check as the Earth's (V06): no early exit in the original
+		if fix_on("k2_esc_skips") and (NoBiosKey(1) & 0xFF) == CHAR_ESCAPE:
+			NoBiosKey(0)
+			return
 		RF_Clear()
 		shipX = (i * (648 * PIXGLOBAL)) / 120 + 7 * TILEGLOBAL
 		shipY = (i * (312 * PIXGLOBAL)) / 120 + 3 * TILEGLOBAL

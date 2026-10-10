@@ -1257,10 +1257,12 @@ func _update_messie(keen: Obj) -> void:
 		messiex += messiexmove
 		messiey += messieymove
 	# the sprite for the state and direction
-	for x: int in range(9):
-		if (xspeeds[x] << G_P_SHIFT) == messiexmove and (yspeeds[x] << G_P_SHIFT) == messieymove:
-			messieshape = messieshapes[x] if messiestate == 0 else kessieshapes[x]
-			break
+	var choose: Callable = func() -> void:
+		for x: int in range(9):
+			if (xspeeds[x] << G_P_SHIFT) == messiexmove and (yspeeds[x] << G_P_SHIFT) == messieymove:
+				messieshape = messieshapes[x] if messiestate == 0 else kessieshapes[x]
+				break
+	choose.call()
 	messiecount -= 1
 	if messiecount == 0:
 		messiecount = MESSIEMOVES    # on to the next tile
@@ -1308,6 +1310,10 @@ func _update_messie(keen: Obj) -> void:
 			keen.x = messiex + TILE_TO_GLOBAL(dirtilex[ctrl.dir])
 			keen.y = messiey + TILE_TO_GLOBAL(dirtiley[ctrl.dir])
 			messiecooldown = 30
+			# the original chose the sprite above, with Keen still on: for a picture both Keens show
+			# (V13). The fix chooses it again now he is off
+			if fix_on("k3_messie_double"):
+				choose.call()
 		if messiexmove > 0 and messiex - originx > 11 * TILEGLOBAL:
 			originx += messiexmove
 			if originx > originxmax:

@@ -212,7 +212,10 @@ func WorldMap() -> void:
 							WarpToSecretLevel()
 					ex_tantalus:
 						if episode == 2:
-							FadeOut()
+							# the level has faded out already; a second fade starts from the full
+							# palette, so "Oops." shows again for a moment (V12)
+							if not fix_on("k2_tantalus_fade"):
+								FadeOut()
 							TheEarthExplodes()
 							CheckHighScore()
 							return

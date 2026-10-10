@@ -2,8 +2,8 @@
 extends SceneTree
 ## MENU-01 (Keen 1-3's Options): with an OptionsModel attached (a player at the controls), the title
 ## menu has an Options row after High Scores, and the Options window works from the keyboard: down to
-## Options, open it, Mode to Enhanced, into Display, Fullscreen on, back out twice. Checks: the
-## settings the model wrote (Mode Enhanced, Fullscreen on, both for keen1 only), the game kept running
+## Options, open it, Mode to Classic (from Enhanced, the default), into Display, Fullscreen on, back out twice. Checks: the
+## settings the model wrote (Mode Classic with its fixes off, Fullscreen on, both for keen1 only), the game kept running
 ## to the end (no Quit), and the menu came back (the run reaches its limit on the title menu). Without
 ## a model (headless, the oracle runs) the menu is the original's: the same keys then start a game.
 ## Every picture is written to --out for review.
@@ -32,9 +32,11 @@ func _init() -> void:
 	var res: Dictionary = _run(root, game, out, OptionsModel.new(settings, game, "vorticons"))
 	var after: Settings = Settings.new(cfg)
 	t.ok("the run kept going to its end (quit '%s')" % res.quit, res.quit == "")
-	t.ok("Mode went to Enhanced for %s (%s)" % [game, after.get_value("view", game)], after.get_value("view", game) == "enhanced")
+	t.ok("Mode went from Enhanced (the default) to Classic for %s (%s)" % [game, after.get_value("view", game)], after.get_value("view", game) == "classic")
+	t.ok("Classic turned this game's fixes off (%s)" % [OptionsModel.new(after, game, "").fixes()],
+		OptionsModel.new(after, game, "").fixes().values().all(func(v: bool) -> bool: return not v))
 	t.ok("Fullscreen went on for %s (%s)" % [game, after.get_value("fullscreen", game)], after.get_value("fullscreen", game) == true)
-	t.ok("the global values are untouched", after.get_value("view") == "classic" and after.get_value("fullscreen") == false)
+	t.ok("the global values are untouched", after.get_value("view") == "enhanced" and after.get_value("fullscreen") == false)
 	t.ok("pictures were drawn (%d)" % res.pictures, res.pictures > 100)
 	t.ok("back on the title menu at the end, not in a level (level %d)" % res.level, res.level == res.titlemap)
 	# no model: the original menu (the downs land on Ordering Info's row instead, still the title)

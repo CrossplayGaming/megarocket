@@ -14,7 +14,7 @@ func _init() -> void:
 	DirAccess.make_dir_recursive_absolute(dir)
 	var p: String = dir.path_join("settings.cfg")
 	var s: Settings = Settings.new(p)
-	t.ok("no file: every value is its default", s.get_value("music_volume") == 80 and s.get_value("view") == "classic" and s.get_value("game_folders") == [] and s.error == "")
+	t.ok("no file: every value is its default", s.get_value("music_volume") == 80 and s.get_value("view") == "enhanced" and s.get_value("game_folders") == [] and s.error == "")
 	t.ok("a value of the wrong type or range is refused", not s.set_value("music_volume", 101) and not s.set_value("view", "wide") and not s.set_value("fullscreen", 1))
 	s.set_value("music_volume", 30)
 	s.set_value("view", "enhanced")
@@ -39,7 +39,7 @@ func _init() -> void:
 	var d: Settings = Settings.new(p)
 	t.ok("a damaged value reads as its default and the others keep theirs (music %s, effects %s, view %s, fullscreen %s)" %
 		[d.get_value("music_volume"), d.get_value("effects_volume"), d.get_value("view"), d.get_value("fullscreen")],
-		d.get_value("music_volume") == 80 and d.get_value("effects_volume") == 55 and d.get_value("view") == "classic" and d.get_value("fullscreen") == true)
+		d.get_value("music_volume") == 80 and d.get_value("effects_volume") == 55 and d.get_value("view") == "enhanced" and d.get_value("fullscreen") == true)
 	# an unreadable file
 	f = FileAccess.open(p, FileAccess.WRITE)
 	f.store_string("[global\nthis is not a settings file ===\n")

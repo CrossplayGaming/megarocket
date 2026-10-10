@@ -206,6 +206,8 @@ func start(found: Dictionary) -> bool:
 	options.applier = apply_setting
 	if "options" in engine:
 		engine.set("options", options)
+	if "fixes" in engine:
+		engine.set("fixes", options.fixes())    # FIX-01: the game's fixes (empty, all off, when headless)
 	apply_setting("pixel_shape")
 	_player = AudioStreamPlayer.new()
 	var gen: AudioStreamGenerator = AudioStreamGenerator.new()
@@ -226,6 +228,10 @@ func start(found: Dictionary) -> bool:
 ## the sound at once (main thread).
 func apply_setting(name: String) -> void:
 	if options == null:
+		return
+	if name.begins_with("fix_"):
+		if engine != null and "fixes" in engine:
+			engine.set("fixes", options.fixes())    # read by the engine at each fix's point
 		return
 	match name:
 		"fullscreen":

@@ -2897,7 +2897,7 @@ func CK_KeenSpecialColFunc(obj: CK_object, other: CK_object) -> void:
 		# get stuck with a zLayer of 3 if ledge-grabbing is interrupted.
 		# See:
 		#     https://pckf.com/viewtopic.php?t=12901
-		if CFG_GetConfigBool("ck_fixPlatformZLayer", (ck_currentEpisode_ep == EP_CK6)):
+		if CFG_GetConfigBool("ck_fixPlatformZLayer", (ck_currentEpisode_ep == EP_CK6)) or fix_on("keen_over_scenery"):
 			obj.zLayer = 1
 		obj.clipped = CLIP_normal
 		CK_SetAction2(obj, CK_GetActionByName("CK_ACT_keenFall1"))

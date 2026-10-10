@@ -381,6 +381,15 @@ var cheat_infiniteLives: bool = false    # read in WorldMap
 var cheat_noClip: bool = false           # read in ClipMoveObon
 var cheat_slowMotion: bool = false       # read in LevelLoop
 var cheat_freezeEnemies: bool = false    # read in LevelLoop
+## The bug-fix toggles (FIX-01, FixesModel): key -> on, set by the host from the player's settings.
+## Empty in headless runs and the oracle comparisons: every fix off, the original bug for bug.
+var fixes: Dictionary = {}
+
+
+func fix_on(key: String) -> bool:
+	return fixes.get(key, false)
+
+
 ## A game in progress (the world map and its levels): the Cheats rows are greyed otherwise.
 var shell_playing: bool = false
 ## A level in progress (not the world map): Skip this level works only there.
@@ -887,6 +896,8 @@ func HandleUserKeys() -> void:
 			Print("God mode disabled")
 		Get()
 		RF_ForceRefresh()
+		if fix_on("god_lurch"):
+			lasttimecount = timecount    # V22: the clock starts again after the wait, as the F-key windows do
 	elif keydown[KEY_SPACE] != 0:
 		PauseSound()
 		ShowStatusScreen()

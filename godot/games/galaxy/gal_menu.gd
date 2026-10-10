@@ -2122,6 +2122,16 @@ func CK_US_ShellCards() -> void:
 	display_items.append(_us_item_end())
 	ck_us_displayMenu = _us_card(8, 0, "TEXT:DISPLAY", 0, display_items, &"", 0, 0, 0)
 	ck_us_configureMenuItems.insert(2, _us_item(US_ITEM_Submenu, 0, IN_SC_D, "DISPLAY", US_Comm_None, ck_us_displayMenu))
+	# FIX-01: FIXES after OPTIONS, when the game has any
+	var fix_items: Array = []
+	for r: Dictionary in options.page("fixes"):
+		if r.kind == "value":
+			fix_items.append(_shell_row_item(r.key, "option"))
+	if not fix_items.is_empty():
+		fix_items.append(_us_item_end())
+		var fixes_card: US_Card = _us_card(8, 0, "TEXT:FIXES", 0, fix_items, &"", 0, 0, 0)
+		ck_us_configureMenuItems.insert(ck_us_configureMenuItems.find(ck_us_optionsItem()) + 1,
+			_us_item(US_ITEM_Submenu, 0, IN_SC_F, "FIXES", US_Comm_None, fixes_card))
 	# the cheats: toggles on the CHEATS card, the one-shots a card below it
 	var more_items: Array = []
 	for r: Dictionary in CheatsModel.rows(self, "once"):
@@ -2147,6 +2157,14 @@ func CK_US_ShellCards() -> void:
 
 ## The card the CHEATS item opens.
 var ck_us_cheatsMenu: US_Card = null
+
+
+## CONFIGURE's OPTIONS item (the one whose card is OPTIONS').
+func ck_us_optionsItem() -> US_CardItem:
+	for item: US_CardItem in ck_us_configureMenuItems:
+		if item.subMenu == ck_us_optionsMenu:
+			return item
+	return null
 
 
 ## LEVEL SELECT (CHEAT-04): the game's levels by their own names, eight to a card, each card's last
@@ -2189,7 +2207,7 @@ func CK_US_ShellCaptions() -> void:
 	if options == null:
 		return
 	var rows: Dictionary = {}
-	for page_name: String in ["options", "display"]:
+	for page_name: String in ["options", "display", "fixes"]:
 		for r: Dictionary in options.page(page_name):
 			rows[r.key] = r
 	for r: Dictionary in CheatsModel.rows(self):
