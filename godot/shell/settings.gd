@@ -21,6 +21,7 @@ const SPEC: Dictionary = {
 	"pixel_shape": ["4:3", "enum", ["4:3", "square"]],
 	"reduce_flashes": [false, "bool", null],
 	"fullscreen": [false, "bool", null],
+	"creature_question": [true, "bool", null],    # Keen 6's copy protection asked before a new game
 }
 
 var path: String = PATH

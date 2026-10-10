@@ -37,6 +37,7 @@ func page(name: String) -> Array:
 		"options":
 			return [
 				_value("mode", "Mode", mode_text()),
+			] + ([_value("creature_question", "Creature question", _on_off(get_value("creature_question")))] if game_id == "keen6" else []) + [
 				_row("display", "Display...", "page"),
 				_row("sound", "Sound...", "page"),
 				_row("controls", "Controls...", "page"),
@@ -76,6 +77,8 @@ func step(key: String, dir: int) -> void:
 				_put(k, PRESETS[next][k])
 		"fullscreen":
 			_put("fullscreen", not bool(get_value("fullscreen")))
+		"creature_question":
+			_put("creature_question", not bool(get_value("creature_question")))
 		"pixel_shape":
 			_put("pixel_shape", "square" if get_value("pixel_shape") == "4:3" else "4:3")
 		"effects_volume", "music_volume":

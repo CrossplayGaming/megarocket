@@ -4,7 +4,7 @@ extends SceneTree
 ## DISPLAY card after MUSIC and OPTIONS starts with MODE; from the keyboard: the menu from the title,
 ## CONFIGURE, DISPLAY, FULLSCREEN chosen (its dialog answered), back, OPTIONS, MODE chosen. Checks: the
 ## settings the model wrote (Fullscreen on, Mode Enhanced, for this game only), the run kept going, and
-## SVGA COMPATIBILITY gone; without a model the cards are the original's (no DISPLAY item, OPTIONS from
+## SVGA COMPATIBILITY gone (Keen 6: CREATURE QUESTION last); without a model the cards are the original's (no DISPLAY item, OPTIONS from
 ## SCORE BOX to SVGA COMPATIBILITY).
 ## Every picture is written to --out for review.
 ##
@@ -37,7 +37,10 @@ func _init() -> void:
 	t.ok("the run kept going to its end (quit '%s')" % res.quit, res.quit == "time limit")
 	t.ok("CONFIGURE has DISPLAY after MUSIC (%s)" % [res.configure],res.configure.slice(0, 4) == ["SOUND", "MUSIC", "DISPLAY", "OPTIONS"])
 	t.ok("OPTIONS starts with MODE (%s)" % res.first_option, res.first_option.begins_with("MODE ("))
-	t.ok("OPTIONS has no SVGA COMPATIBILITY (%s)" % [res.options], res.options.size() == 4 and res.options.all(func(c: String) -> bool: return not c.begins_with("SVGA")))
+	t.ok("OPTIONS has no SVGA COMPATIBILITY (%s)" % [res.options], res.options.size() == (5 if game == "keen6" else 4)
+		and res.options.all(func(c: String) -> bool: return not c.begins_with("SVGA")))
+	if game == "keen6":
+		t.ok("Keen 6's OPTIONS ends with CREATURE QUESTION (ON) (%s)" % res.options.back(), res.options.back() == "CREATURE QUESTION (ON)")
 	t.ok("Fullscreen went on for %s (%s)" % [game, after.get_value("fullscreen", game)], after.get_value("fullscreen", game) == true)
 	t.ok("Mode went to Enhanced for %s (%s)" % [game, after.get_value("view", game)], after.get_value("view", game) == "enhanced")
 	t.ok("the global values are untouched", after.get_value("view") == "classic" and after.get_value("fullscreen") == false)

@@ -1103,6 +1103,10 @@ func CK6_CreatureQuestion() -> bool:
 	if ck6_creatureQuestionDone:
 		return true
 
+	# the shell's CREATURE QUESTION row turned off (a player at the controls; OPTIONS, Keen 6)
+	if options != null and options.get_value("creature_question") == false:
+		return true
+
 	# /TEDLEVEL: the original goes straight into the level (keen6_level01_a .. 18_a show the level's
 	# box first; omnispeak asks). Seen in the recordings; the v1.0 source is not to hand.
 	if us_tedLevel:
@@ -2105,6 +2109,10 @@ func CK_US_ShellCards() -> void:
 	var mode_rows: Array = (options.page("options") as Array).filter(func(r: Dictionary) -> bool: return r.key == "mode")
 	for r: Dictionary in mode_rows:
 		ck_us_optionsMenuItems.insert(0, _shell_row_item(r.key, "option"))
+	# Keen 6: CREATURE QUESTION last (on: the original asks before a new game)
+	for r: Dictionary in options.page("options"):
+		if r.key == "creature_question":
+			ck_us_optionsMenuItems.insert(ck_us_optionsMenuItems.size() - 1, _shell_row_item(r.key, "option"))
 	# SVGA COMPATIBILITY steers the original's EGA register writes, which the shell's display does not use
 	ck_us_optionsMenuItems.erase(ck_us_optionsOriginal[3])
 	var display_items: Array = []
@@ -2118,6 +2126,8 @@ func CK_US_ShellCards() -> void:
 	var more_items: Array = []
 	for r: Dictionary in CheatsModel.rows(self, "once"):
 		more_items.append(_shell_row_item(r.key, "once"))
+	if CheatsModel.rows(self, "pick").any(func(r: Dictionary) -> bool: return r.key == "level_select"):
+		more_items.append(_us_item(US_ITEM_Submenu, 0, IN_SC_L, "LEVEL SELECT", US_Comm_None, _shell_level_cards()))
 	var cheat_items: Array = []
 	for r: Dictionary in CheatsModel.rows(self, "toggle"):
 		cheat_items.append(_shell_row_item(r.key, "cheat"))
@@ -2137,6 +2147,33 @@ func CK_US_ShellCards() -> void:
 
 ## The card the CHEATS item opens.
 var ck_us_cheatsMenu: US_Card = null
+
+
+## LEVEL SELECT (CHEAT-04): the game's levels by their own names, eight to a card, each card's last
+## item MORE LEVELS opening the next. Chosen in a game, a level is entered as F10+W enters it.
+func _shell_level_cards() -> US_Card:
+	var pages: Array = []
+	var items: Array = []
+	# the warp range, as far as the game names its levels (Keen 5's names stop short of its range)
+	var names: PackedStringArray = CK_VAR_GetStringArray("ck_str_levelNames")
+	for n: int in range(CK_INT("ck_minWarpLevel", 1), mini(CK_INT("ck_maxWarpLevel", 18), names.size() - 1) + 1):
+		var item: US_CardItem = _shell_row_item("level:%d" % n, "warp")
+		item.caption = names[n].replace("
+", " ").to_upper().left(24)
+		items.append(item)
+		if items.size() == 8:
+			pages.append(items)
+			items = []
+	if not items.is_empty():
+		pages.append(items)
+	var next: US_Card = null
+	for i: int in range(pages.size() - 1, -1, -1):
+		var page: Array = pages[i]
+		if next != null:
+			page.append(_us_item(US_ITEM_Submenu, 0, IN_SC_M, "MORE LEVELS", US_Comm_None, next))
+		page.append(_us_item_end())
+		next = _us_card(8, 0, "TEXT:LEVEL SELECT", 0, page, &"", 0, 0, 0)
+	return next
 
 
 func _shell_row_item(key: String, kind: String) -> US_CardItem:
@@ -2161,6 +2198,12 @@ func CK_US_ShellCaptions() -> void:
 		var key: String = _shell_toggles[card][0]
 		var kind: String = _shell_toggles[card][2]
 		var item: US_CardItem = _shell_toggles[card][1]
+		if kind == "warp":
+			if shell_in_game():
+				item.state &= ~US_IS_Disabled
+			else:
+				item.state |= US_IS_Disabled
+			continue
 		var r: Dictionary = rows.get(key if kind == "option" else "cheat:" + key, {})
 		if r.is_empty():
 			continue
@@ -2193,6 +2236,13 @@ func CK_US_ShellRowProc(msg: int, _item: US_CardItem) -> bool:
 			CheatsModel.toggle(self, key)
 		"once":
 			said = shell_cheat_fire(key)
+		"warp":
+			# as F10+W: the level is entered at once, leaving the menu for the game
+			ck_gameState.currentLevel = s16(int(key.substr(6)))
+			ck_gameState.levelState = LS_AboutToRecordDemo
+			us_currentCommand = US_Comm_ReturnToGame
+			command_confirmed = true
+			return true
 	CK_US_ShellCaptions()
 	var caption: String = (_shell_toggles[us_currentCard][1] as US_CardItem).caption
 	USL_CtlDialog(caption, said if said != "" else "Press any key", "")
@@ -2204,7 +2254,7 @@ func CK_US_ShellRowProc(msg: int, _item: US_CardItem) -> bool:
 ## The cheats this engine has so far (CheatsModel's keys).
 func shell_cheat_supported() -> Array:
 	return ["god", "infinite_ammo", "infinite_lives", "no_clip", "jump", "slow_motion", "freeze_enemies",
-		"free_items", "extra_lives", "skip_level"]
+		"free_items", "extra_lives", "skip_level", "level_select"]
 
 
 func shell_in_game() -> bool:
