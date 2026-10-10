@@ -472,7 +472,7 @@ func US_FinishTextScreen() -> void:
 	else:
 		USL_ScreenDraw(30, 18, "Ready - Press a Key", 0xCE)
 
-	if not tedlevel:
+	if not tedlevel and not kl_active():    # (kl_verify.c: the harness skips the wait)
 		IN_ClearKeysDown()
 		IN_Ack()
 	IN_ClearKeysDown()
@@ -3002,6 +3002,19 @@ var textmem: PackedByteArray = _new_textmem()
 var textcursor: Vector2i = Vector2i(0, 0)
 ## The files the program reads and writes, by upper-case name (the shell supplies and keeps them, A11).
 var us_files: Dictionary = {}
+
+## HARN-23: Megarocket 1.0's verify harness for ReflectionHLE (refkeen/src/kdreams/kl_verify.c), on the
+## port's side. kl_record: a file each play-loop frame is written to (its tics, the player's controls, the
+## last scan code and a hash of the whole game state), which ReflectionHLE replays with KL_REPLAY and
+## checks frame by frame; kl_warp: straight into that level (KL_WARP). As in the C, either skips the
+## start-up's key waits, and a record starts the random index at 0. Tests only, not game state.
+var kl_record: String = ""
+var kl_warp: int = -1
+
+
+## KL_HarnessActive
+func kl_active() -> bool:
+	return kl_record != "" or kl_warp >= 0
 ## SAVE-06 (Dreams): the folder the player's files (the config with its high scores, the saved games)
 ## live in between sessions, set by the shell (user://saves/kdreams); "" (tests, oracle runs): memory only.
 var user_dir: String = ""

@@ -25,6 +25,7 @@ extends SceneTree
 ##          instead of RELEASES' keys, the program starting that long after KEYFEED loads; default 0)
 ##          --costs=<name:units,...> (TIME-D: the original's time where the port does the work at once;
 ##          vga: per access to the card's memory)
+##          --kl_record=<file> --kl_warp=<level> (HARN-23: the verify harness's trace, straight into a level)
 ##          --clock=us (the DOS clock at the start, microseconds since 00:00:00: the random
 ##          table's seed is its hundredths at US_Startup; unset, the port's own seed)
 
@@ -80,6 +81,9 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	vm.vbl_period = int(opts.get("vbl_period", DOSBOX.vbl_period))
 	vm.timer_offset = int(opts.get("timer_offset", DOSBOX.timer_offset))
 	g.us_dosClockAtStart = int(opts.get("clock", "-1"))
+	# HARN-23: the verify harness's trace (ReflectionHLE replays it: tools/dreams_trace.py)
+	g.kl_record = str(opts.get("kl_record", ""))
+	g.kl_warp = int(opts.get("kl_warp", "-1"))
 	for spec: String in str(opts.get("costs", "")).split(",", false):
 		var parts: PackedStringArray = spec.split(":")
 		g.costs[parts[0]] = int(parts[1])

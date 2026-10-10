@@ -135,7 +135,7 @@ func _Quit_kd_main(error: String) -> void:
 func InitGame() -> void:
 	MM_Startup()
 
-	if current_gamever_int == 100:
+	if current_gamever_int == 100 and not kl_active():    # (kl_verify.c: the harness skips it)
 		# Handle piracy screen...
 		var screen: PackedByteArray = BE_ST_GetTextModeMemoryPtr()
 		for k: int in range(mini(4000, PIRACY.size())):
@@ -653,6 +653,8 @@ func ShowText(offset: int, wr: WindowRec, s: String) -> bool:
 
 ## The demo loop of v1.00: the title map scrolled between the credits, then the high scores.
 func DemoLoop_Old() -> void:
+	if _kl_warp_into_level():
+		return
 	var s: String
 	var mywin: WindowRec = WindowRec.new()
 
@@ -752,6 +754,8 @@ func DemoLoop_Old() -> void:
 
 ## The demo loop of v1.10 on: the title picture (KDREAMS.CMP), then the high scores.
 func DemoLoop_New() -> void:
+	if _kl_warp_into_level():
+		return
 	var FileName1: String
 	var FileShape1: Shape = Shape.new()
 	var bufsave: int = bufferofs
@@ -1876,6 +1880,8 @@ func PlayLoop() -> void:
 	while not quitting:
 		CalcSingleGravity()
 		IN_ReadControl(0, c)    # get player input
+		if _kl_file != null:
+			_kl_frame(c)    # HARN-23 (tests only)
 		if not c.button0:
 			button0held = false
 		if not c.button1:
@@ -1958,6 +1964,11 @@ func PlayLoop() -> void:
 		if loadedgame or playstate:
 			break
 
+	if _kl_file != null:
+		# HARN-23: a trace is one life (the replay follows the play loop only, not the boxes after it)
+		_kl_file.close()
+		_kl_file = null
+		kl_record = ""
 	ingame = false
 
 
@@ -2897,3 +2908,74 @@ func kd_main_entry(argv: PackedStringArray) -> void:
 	# the C's Quit, past its flag: the managers shut down and the message shown
 	if quitting and not be_exited:
 		_Quit_kd_main(quit_message)
+
+
+# ===================================================================== HARN-23: the verify harness's trace
+
+var _kl_file: FileAccess = null
+
+
+## kd_demo.c's KL_WARP block at the demo loop's entry (and kl_init: the record opened, the random index
+## at 0): a new game straight into kl_warp's level, then the program ends. False when there is no warp.
+func _kl_warp_into_level() -> bool:
+	if kl_record != "" and _kl_file == null:
+		_kl_file = FileAccess.open(kl_record, FileAccess.WRITE)
+		rndindex = 0
+	if kl_warp < 0 or kl_warp >= GAMELEVELS:
+		return false
+	US_SetLoadSaveHooks(&"LoadGame", &"SaveGame", &"ResetGame")
+	NewGame()
+	gamestate.mapon = kl_warp
+	GameLoop()
+	Quit("")
+	return true
+
+
+## KL_FrameInput's record: KL_Frame as MSVC lays it out (24 bytes: the tics, eight 16-bit fields,
+## lasttimecount's low 16 bits, the 32-bit hash). The odd-tic loops read lasttimecount's parity, so the
+## replay sets its clock from it.
+func _kl_frame(c: CursorInfo) -> void:
+	var b: PackedByteArray = PackedByteArray()
+	b.resize(24)
+	b.encode_u16(0, tics & 0xFFFF)
+	var fields: Array = [int(c.button0), int(c.button1), c.x, c.y, c.xaxis, c.yaxis, c.dir, LastScan]
+	for i: int in range(8):
+		b.encode_u16(2 + i * 2, int(fields[i]) & 0xFFFF)
+	b.encode_u16(18, lasttimecount & 0xFFFF)
+	b.encode_u32(20, _kl_state_hash())
+	_kl_file.store_buffer(b)
+	_kl_file.flush()
+
+
+## kl_state_hash: FNV-1a over every live object, the game state, the origin and the random index, in
+## kl_verify.c's order and sizes (16-bit fields, 32-bit score and next extra, leveldone as 17 one-byte bools).
+func _kl_state_hash() -> int:
+	var b: PackedByteArray = PackedByteArray()
+	var put16: Callable = func(v: int) -> void:
+		b.append(v & 0xFF)
+		b.append((v >> 8) & 0xFF)
+	var put32: Callable = func(v: int) -> void:
+		for k: int in range(4):
+			b.append((v >> (8 * k)) & 0xFF)
+	var ob: objtype = player
+	while ob != null:
+		for v: int in [ob.obclass, ob.active, int(ob.needtoclip), ob.nothink, ob.x, ob.y, ob.xdir, ob.ydir, ob.xmove,
+				ob.ymove, ob.xspeed, ob.yspeed, ob.ticcount, ob.ticadjust,
+				ob.state.compatdospointer if ob.state != null else 0, ob.shapenum, ob.left, ob.top, ob.right, ob.bottom,
+				ob.hitnorth, ob.hiteast, ob.hitsouth, ob.hitwest, ob.temp1, ob.temp2, ob.temp3, ob.temp4]:
+			put16.call(v)
+		ob = ob.next
+	put16.call(gamestate.worldx)
+	put16.call(gamestate.worldy)
+	for done: bool in gamestate.leveldone:
+		b.append(1 if done else 0)
+	put32.call(gamestate.score)
+	put32.call(gamestate.nextextra)
+	for v: int in [gamestate.flowerpowers, gamestate.boobusbombs, gamestate.bombsthislevel, gamestate.keys,
+			gamestate.mapon, gamestate.lives, gamestate.difficulty, originxglobal, originyglobal, rndindex]:
+		put16.call(v)
+	var h: int = 2166136261
+	for x: int in b:
+		h = ((h ^ x) * 16777619) & 0xFFFFFFFF
+	return h
+

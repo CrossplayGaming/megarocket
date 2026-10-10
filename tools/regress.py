@@ -956,6 +956,20 @@ def shell13():
     return code
 
 
+def harn23():
+    """The Dreams port against ReflectionHLE frame by frame (HARN-23): one life on level 1 of each release,
+    the game state's hash equal every play-loop frame (tools/dreams_trace.py; all levels: --level 1-16)."""
+    worst = 0
+    for game in ("kdreams", "kdreams193"):
+        p = subprocess.run([sys.executable, "tools/dreams_trace.py", "--game", game, "--level", "1", "--runs", "2"],
+                           cwd=common.ROOT, capture_output=True, text=True, errors="replace")
+        for line in p.stdout.splitlines():
+            if line.startswith(("level", "RESULT")):
+                print(f"  {game}: {line.strip()}")
+        worst = max(worst, p.returncode)
+    return worst
+
+
 def shell11():
     """The host's added controls (SHELL-11): one-button fire on Left Shift, the pad's X and triggers,
     Back for the status screen, F11 for fullscreen, the intro framed."""
@@ -1234,6 +1248,7 @@ CHECKS = {
     "SHELL-11": (shell11, "fast"),
     "SHELL-12": (shell12, "fast"),
     "SHELL-13": (shell13, "fast"),
+    "HARN-23": (harn23, "slow"),
     "AND-02a": (and02a, "fast"),
     "SHELL-10b": (shell10b, "fast"),
     "AND-03a": (and03a, "fast"),
