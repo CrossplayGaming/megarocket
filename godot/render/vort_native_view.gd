@@ -177,8 +177,13 @@ func _draw_overlay(view: Vector2, scale: Vector2) -> void:
 	# kept until the next draw: the canvas draws it after this returns, and a texture freed by then is blank
 	_overlay_tex = _texture(px, PackedByteArray(), r.size.x, r.size.y)
 	var tex: ImageTexture = _overlay_tex
-	# the picture shows from the game's camera (whole pixels): where that is in this view
-	var cam: Vector2 = _camera()
-	var at: Vector2 = ((cam + Vector2(r.position)) - view) * scale
-	var to: Vector2 = ((cam + Vector2(r.end)) - view) * scale
-	draw_texture_rect(tex, Rect2(at.round(), (to - at).round()), false)
+	draw_texture_rect(tex, overlay_place(r, _camera(), view, view_w, scale), false)
+
+
+## REND-09: where a window from the card's picture goes on the view: centred across the view's width
+## (the original's picture centred in the wide field, even where the view stands to one side of the
+## camera at a map's edge), at its height on the picture (the view and the picture share their top).
+static func overlay_place(r: Rect2i, cam: Vector2, view: Vector2, view_w: int, scale: Vector2) -> Rect2:
+	var at: Vector2 = Vector2(float(r.position.x) + float(view_w - VortDrawLayout.W) / 2.0, cam.y + float(r.position.y) - view.y) * scale
+	var to: Vector2 = at + Vector2(r.size) * scale
+	return Rect2(at.round(), (to - at).round())

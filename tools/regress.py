@@ -385,6 +385,17 @@ def rend04():
     return code
 
 
+def rend09():
+    """Windows over the wide view centred in the field (REND-09): the placement rule at 320, centred and
+    pushed to either side at 416, scaled."""
+    import gdtest
+    code, out = gdtest.run("rend09_place", [], timeout=120.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def maker01():
     """A level from the maker plays in the game (MAKER-01): Keen 1-3's LEVELnn and Keen 4-6's map set,
     one tile changed, loaded by the game's own ReadLevel / CA_CacheMap with nothing else changed."""
@@ -1149,6 +1160,7 @@ CHECKS = {
     "REND-03": (rend03, "slow"),
     "REND-04": (rend04, "slow"),
     "REND-01G": (rend01g, "slow"),
+    "REND-09": (rend09, "fast"),
     "MAKER-01": (maker01, "fast"),
     "MAKER-02": (maker02, "fast"),
     "MAKER-03": (maker03, "fast"),
