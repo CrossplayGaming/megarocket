@@ -104,6 +104,42 @@ func _game(root: String, game: String) -> void:
 	# the tile-use tables
 	_uses(m, game)
 	_rules(m, game)
+	_brush(m, game)
+
+
+## V15-04's ground brush: a block brushed in the air gets the game's own top edge, corners and fill (by
+## the shapes its levels use), as one undo step; a cell taken out re-shapes the ones round it.
+func _brush(m: MakerModel, game: String) -> void:
+	m.new_level("Brush")
+	var p: MakerParts = m.parts
+	var tp: int = p.tile_plane()
+	var known: int = 0
+	for b: int in p.brush:
+		known += 1 if b >= 0 else 0
+	t.ok("%s: the brush learned %d of 16 shapes from the levels (top %d, fill %d)" % [game, known, p.brush_tile(14), p.brush_tile(15)],
+		known >= 8 and p.brush_tile(14) != p.brush_tile(15))
+	var before: KeenLevel = m.level.copy()
+	m.begin_stroke()
+	for y: int in range(8, 11):
+		for x: int in range(20, 25):
+			m.brush_at(x, y, true)
+	m.end_stroke()
+	var l: KeenLevel = m.level
+	var all_ground: bool = true
+	for y: int in range(8, 11):
+		for x: int in range(20, 25):
+			all_ground = all_ground and p.is_ground(l.get_word(tp, x, y))
+	t.ok("%s: a 5x3 block brushed: all ground, the top edge %d (want %d), the top-left corner %d (want %d), the middle %d (want %d)" % [game,
+		p.brush_key(l, 22, 8), p.brush_tile(14), p.brush_key(l, 20, 8), p.brush_tile(6), p.brush_key(l, 22, 9), p.brush_tile(15)],
+		all_ground and p.brush_key(l, 22, 8) == p.brush_tile(14) and p.brush_key(l, 20, 8) == p.brush_tile(6) and p.brush_key(l, 22, 9) == p.brush_tile(15))
+	m.begin_stroke()
+	m.brush_at(22, 8, false)
+	m.end_stroke()
+	t.ok("%s: a cell taken out: the one below it becomes a top edge (%d, want %d)" % [game, p.brush_key(l, 22, 9), p.brush_tile(14)],
+		not p.is_ground(l.get_word(tp, 22, 8)) and p.brush_key(l, 22, 9) == p.brush_tile(14))
+	m.undo()
+	m.undo()
+	t.ok("%s: two undos take the brushing away" % game, before.plane_difference(l) == "")
 
 
 ## V15-04's rules: refused at once with a reason, the object meter, a door with no key or gem said.

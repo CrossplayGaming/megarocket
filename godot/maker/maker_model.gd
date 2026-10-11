@@ -75,6 +75,7 @@ func open(id: String, dir: String, ver: String = "", parts_too: bool = true) -> 
 	levels = {}
 	maps = null
 	parts = null
+	_all_levels = []
 	level = null
 	number = -1
 	_reset()
@@ -105,11 +106,19 @@ func open(id: String, dir: String, ver: String = "", parts_too: bool = true) -> 
 		if original(NEW_SLOT) != null:
 			tile_defaults = parts.defaults(original(NEW_SLOT))
 			parts.put_first([tile_defaults.top, tile_defaults.fill])
+		for entry: Array in level_list():
+			_all_levels.append(original(int(entry[0])))
 	error = ""
 	return true
 
 
+## The game's levels, for the ground brush's shapes the slot's own level lacks
+var _all_levels: Array = []
+
+
 func _reset() -> void:
+	if parts != null and original(number) != null:
+		parts.learn_brush([original(number)], _all_levels)
 	_undo = []
 	_redo = []
 	_stroke = []
@@ -336,6 +345,39 @@ func end_stroke() -> void:
 		_undo.append(_stroke)
 		_redo = []
 		_stroke = []
+
+
+## V15-04's ground brush: ground put in (on) or taken out of (off: the erased cell left empty) the cell
+## at (x, y), and it and the cells round it given the edge, corner or fill piece their shape takes in the
+## game's own levels (MakerParts.brush). Part of the current stroke.
+func brush_at(x: int, y: int, on: bool) -> bool:
+	if level == null or parts == null or not level.in_bounds(x, y):
+		return false
+	var tp: int = parts.tile_plane()
+	if on and not parts.is_ground(level.get_word(tp, x, y)):
+		_put_piece(x, y, parts.brush_tile(parts.shape_at(level, x, y)))
+	elif not on and parts.is_ground(level.get_word(tp, x, y)):
+		paint(0, x, y, int(tile_defaults.get("background", 0)))
+		if engine != KeenLevel.VORTICONS:
+			paint(1, x, y, 0)
+	for dy: int in range(-1, 2):
+		for dx: int in range(-1, 2):
+			var cx: int = x + dx
+			var cy: int = y + dy
+			if level.in_bounds(cx, cy) and parts.is_ground(level.get_word(tp, cx, cy)):
+				_put_piece(cx, cy, parts.brush_tile(parts.shape_at(level, cx, cy)))
+	return true
+
+
+## A brush piece into a cell (MakerParts.brush_key's form).
+func _put_piece(x: int, y: int, key: int) -> void:
+	if key < 0:
+		return
+	if engine == KeenLevel.VORTICONS:
+		paint(0, x, y, key)
+	else:
+		paint(0, x, y, key >> 16)
+		paint(1, x, y, key & 0xFFFF)
 
 
 ## Keen's start at (x, y) in `l` (the level being made if null): every start marker cleared, one placed

@@ -24,7 +24,7 @@ signal closed
 
 const GAMES: Array = [["keen1", "Keen 1"], ["keen2", "Keen 2"], ["keen3", "Keen 3"], ["keen4", "Keen 4"],
 	["keen5", "Keen 5"], ["keen6", "Keen 6"], ["kdreams", "Keen Dreams"]]
-const TOOL_NAMES: Dictionary = {"paint": "Paint", "pick": "Pick", "erase": "Erase", "rect": "Fill box", "start": "Keen start"}
+const TOOL_NAMES: Dictionary = {"paint": "Paint", "brush": "Ground brush", "pick": "Pick", "erase": "Erase", "rect": "Fill box", "start": "Keen start"}
 ## The cursor's repeat while a direction is held: first step, then every
 const REPEAT_FIRST: float = 0.28
 const REPEAT_EVERY: float = 0.06
@@ -439,7 +439,7 @@ func _category(d: int) -> void:
 func _on_part(plane: int, value: int) -> void:
 	view.plane = plane
 	view.value = value
-	if view.tool in ["pick", "erase", "start"]:
+	if view.tool in ["pick", "erase", "start", "brush"]:
 		set_tool("paint")
 	view.queue_redraw()
 	_refresh()
@@ -747,7 +747,7 @@ func _on_played(_message: String) -> void:
 
 func _erase_at_cursor(drag: bool) -> void:
 	var t: String = view.tool
-	view.tool = "erase"
+	view.tool = "unbrush" if t == "brush" else "erase"
 	view.act_at(view.cursor, drag)
 	view.tool = t
 

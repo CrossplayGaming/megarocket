@@ -5,7 +5,7 @@ extends Control
 ## pixels) or zoomed out to see the whole level, the markers' plane (Keen 1-3's sprites, the others' info:
 ## Keen's start, creatures and items named in small boxes), the cursor (moved by the d-pad, the arrows
 ## or the pointer) with the part about to be placed, and Keen's last test run as a fading trail.
-## Tools: paint, pick (the cell's part becomes the one painted), erase, fill a rectangle (two corners),
+## Tools: paint, the ground brush (its edges and corners chosen as the game's levels have them), pick (the cell's part becomes the one painted), erase, fill a rectangle (two corners),
 ## Keen's start. The mouse: the left button uses the tool (a drag is one undo step), the right picks, the
 ## middle drags the view, the wheel zooms. The screen sends the pad's and keys' presses to act_at().
 
@@ -15,7 +15,7 @@ signal changed
 ## V15-04: a part refused, and why
 signal refused(reason: String)
 
-const TOOLS: Array = ["paint", "pick", "erase", "rect", "start"]
+const TOOLS: Array = ["paint", "brush", "pick", "erase", "rect", "start"]
 const ZOOMS: Array = [0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 6.0]
 
 var model: MakerModel = null
@@ -147,6 +147,10 @@ func act_at(c: Vector2i, drag: bool = false) -> void:
 				refused.emit(why)
 				return
 			model.paint(plane, c.x, c.y, value if tool == "paint" else erase_value())
+		"brush", "unbrush":
+			if not drag:
+				model.begin_stroke()
+			model.brush_at(c.x, c.y, tool == "brush")
 		"pick":
 			if not drag:
 				pick_at(c)
@@ -257,7 +261,7 @@ func _gui_input(event: InputEvent) -> void:
 			MOUSE_BUTTON_LEFT:
 				if b.pressed:
 					cursor = c
-					_painting = tool in ["paint", "erase"]
+					_painting = tool in ["paint", "erase", "brush"]
 					if tool == "rect":
 						anchor = c
 					else:

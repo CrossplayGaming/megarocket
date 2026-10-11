@@ -293,6 +293,117 @@ func _build() -> void:
 				categories.append(by[key])
 
 
+## V15-04's ground brush: for each way a ground cell can have ground beside it (a bit each for above,
+## right, below and left: 0-15), the tile the game's own levels use most for it (the top edge, the
+## corners, the sides, the fill). Learned from the player's levels when the game is opened; -1 where no
+## level has that shape. Keen 4-6 and Dreams draw much of their ground in the background behind solid
+## foreground tiles (Dreams' are often blank), so there a brush piece is the pair: background << 16 |
+## foreground (brush_key).
+var brush: PackedInt32Array = PackedInt32Array()
+
+
+## Whether a tile is ground for the brush.
+func is_ground(tile: int) -> bool:
+	return use_of(tile_plane(), tile) == GROUND
+
+
+## The brush's shape of the cell (x, y) in `l`: bit 1 ground above, 2 right, 4 below, 8 left (outside
+## the level counts as ground, as the levels' frames are).
+func shape_at(l: KeenLevel, x: int, y: int) -> int:
+	var tp: int = tile_plane()
+	var bits: int = 0
+	var k: int = 0
+	for d: Vector2i in [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]:
+		var nx: int = x + d.x
+		var ny: int = y + d.y
+		if not l.in_bounds(nx, ny) or is_ground(l.get_word(tp, nx, ny)):
+			bits |= 1 << k
+		k += 1
+	return bits
+
+
+## Learns the brush from `levels` (the level being made's own slot first, so its pieces are of one
+## tileset), each shape no level of them has taken from `fallback` (the game's other levels).
+func learn_brush(levels: Array, fallback: Array = []) -> void:
+	_learn(levels)
+	if fallback.is_empty() or not brush.has(-1):
+		return
+	var own: PackedInt32Array = brush
+	_learn(fallback)
+	for i: int in range(16):
+		if own[i] >= 0:
+			brush[i] = own[i]
+
+
+func _learn(levels: Array) -> void:
+	var tp: int = tile_plane()
+	var counts: Array = []
+	for i: int in range(16):
+		counts.append({})
+	# the pieces of the levels' outer ring are left out (Keen 4-6's EDGE OF MAP and the like fill the
+	# borders; they are not ground anyone builds with)
+	var ring: Dictionary = {}
+	for l: KeenLevel in levels:
+		if l == null:
+			continue
+		for y: int in range(l.height):
+			for x: int in [0, l.width - 1]:
+				ring[brush_key(l, x, y)] = true
+		for x: int in range(l.width):
+			for y: int in [0, l.height - 1]:
+				ring[brush_key(l, x, y)] = true
+	for l: KeenLevel in levels:
+		if l == null:
+			continue
+		for y: int in range(l.height):
+			for x: int in range(l.width):
+				if is_ground(l.get_word(tp, x, y)):
+					var c: Dictionary = counts[shape_at(l, x, y)]
+					var k: int = brush_key(l, x, y)
+					if not ring.has(k):
+						c[k] = int(c.get(k, 0)) + 1
+	# an edge is not the fill: where a shape's most used piece is the fill's (Dreams fills its solid parts
+	# with one dark pair, edges too), its most used other piece
+	brush = PackedInt32Array()
+	var fill: int = _most(counts[15], -1)
+	for i: int in range(16):
+		var c: Dictionary = (counts[i] as Dictionary).duplicate()
+		if i != 15 and c.size() > 1:
+			c.erase(fill)
+		brush.append(_most(c, -1))
+
+
+## A cell's brush piece: Keen 1-3 its tile; the others background << 16 | foreground.
+func brush_key(l: KeenLevel, x: int, y: int) -> int:
+	if engine == KeenLevel.VORTICONS:
+		return l.get_word(0, x, y)
+	return (l.get_word(0, x, y) << 16) | l.get_word(1, x, y)
+
+
+## The piece the brush puts in a cell of shape `bits` (the nearest shape the levels have, by the most bits
+## in common, where they lack this one).
+func brush_tile(bits: int) -> int:
+	if brush.size() == 16 and brush[bits] >= 0:
+		return brush[bits]
+	var best: int = -1
+	var score: int = -1
+	for i: int in range(brush.size()):
+		if brush[i] >= 0:
+			var same: int = 4 - _bits(i ^ bits)
+			if same > score:
+				best = brush[i]
+				score = same
+	return best
+
+
+static func _bits(v: int) -> int:
+	var n: int = 0
+	while v != 0:
+		n += v & 1
+		v >>= 1
+	return n
+
+
 ## Moves tiles (the ground a new level is made of) to the front of their category, so the palette
 ## opens on the game's everyday parts.
 func put_first(values: Array) -> void:
