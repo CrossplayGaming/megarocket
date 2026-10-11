@@ -81,6 +81,11 @@ class spritelisttype:
 	var updatecount: int = 0
 	var prevptr: int = 0    # >= 0: spritearray[prevptr].nextsprite; < 0: prioritystart[-1 - prevptr]
 	var nextsprite: spritelisttype = null
+	# REND-01D: where it is, for the shell's renderers (not the original's): its top-left in units, and
+	# its left edge in world pixels as the original draws it (the shifted copy's offset added)
+	var ux: int = 0
+	var uy: int = 0
+	var px: int = 0
 
 
 class eraseblocktype:
@@ -740,6 +745,8 @@ func RF_NewPosition_EGA(x: int, y: int) -> void:
 	# calculate new origin related globals
 	RFL_CalcOriginStuff(x, y)
 
+	_draw_extra = Rect2i()    # REND-09: every block painted again on both pages, nothing drawn over the play is left
+
 	# clear out all animating tiles
 	RFL_InitAnimList()
 
@@ -971,6 +978,18 @@ func RF_PlaceSprite_EGA(user: Object, globalx: int, globaly: int, spritenumber: 
 
 	sprite.shift = shift    # REFKEEN - New member
 
+	# REND-01D: its units, and the column its shifted copy puts it at: two pixels a shift with four
+	# copies, four for the upper two with two copies, none with one (CAL_CacheSprite's tables)
+	sprite.ux = globalx
+	sprite.uy = globaly
+	match spr.shifts:
+		4:
+			sprite.px = (sprite.screenx << 3) + shift * 2
+		2:
+			sprite.px = (sprite.screenx << 3) + (4 if shift >= 2 else 0)
+		_:
+			sprite.px = sprite.screenx << 3
+
 	# save the sprite pointer off in the user's pointer so it can be moved again later
 	user.set(&"sprite", sprite)
 
@@ -1156,6 +1175,11 @@ func RF_Refresh_EGA() -> void:
 	if refreshvector != &"":
 		call(refreshvector)
 
+	# REND-01D: the list of what this refresh drew, for the page flip to present
+	if draw_capture:
+		_capture_draw_list()
+	draw_stepped.clear()
+
 	# display the changed screen
 	VW_SetScreen_EGA(u16(bufferofs + panadjust), panx & xpanmask)
 
@@ -1191,6 +1215,82 @@ func RF_Refresh_EGA() -> void:
 	if tics > MAXTICS:
 		SD_AddToTimeCount(-(tics - MAXTICS))
 		tics = MAXTICS
+
+
+## A foreground tile drawn over the sprites beneath priority 3 (RFL_MaskForegroundTiles' rule: INTILE's
+## high bit), for the shell's renderers.
+func RF_ForeMasked(tile: int) -> bool:
+	return (_rf_tinf(tile + INTILE) & 0x80) != 0
+
+
+## REND-01D: the draw list of the refresh being presented (draw_list, drm_vw.gd), as Keen 4-6's
+## (gal_rf.gd). The picture's top-left in world pixels (the port's first tile and the panning: the
+## panning shows even columns only, xpanmask), the map's two planes over the picture with a tile all
+## round and the wide view's tiles each side, and the sprites in the order the refresh draws them
+## (priority by priority, each list in order): [x, y (pixels, as the original draws it: the column its
+## shifted copy puts it at), chunk, false (nothing is drawn as a white shape), priority, the record's
+## slot (the same thing from refresh to refresh), x, y (its top-left in units, for native resolution)].
+## The score box is named ("hud") and its image, which the game draws its numbers into, copied as it is
+## now ("dyn"). A window drawn over the play since the last full repaint is the list's "overlay" (the
+## shell copies that from the card). The refresh hook (FadeAndUnhook) draws nothing: no "user" routine.
+func _capture_draw_list() -> void:
+	var gx: int = originxtile - 1 - wide_tiles
+	var gy: int = originytile - 1
+	var gw: int = PORTTILESWIDE + 2 + 2 * wide_tiles
+	var gh: int = PORTTILESHIGH + 2
+	var bg: PackedInt32Array = PackedInt32Array()
+	var fg: PackedInt32Array = PackedInt32Array()
+	bg.resize(gw * gh)
+	fg.resize(gw * gh)
+	var m0: PackedInt32Array = mapsegs[0]
+	var m1: PackedInt32Array = mapsegs[1]
+	for ty: int in range(gh):
+		var y: int = gy + ty
+		for tx: int in range(gw):
+			var x: int = gx + tx
+			var i: int = ty * gw + tx
+			var ofs: int = y * mapwidth + x
+			if x >= 0 and x < mapwidth and y >= 0 and y < mapheight and ofs < m0.size():
+				bg[i] = m0[ofs] & 0xFFFF
+				fg[i] = (m1[ofs] & 0xFFFF) if ofs < m1.size() else 0
+			else:
+				bg[i] = -1    # past the map
+	var sprites: Array = []
+	for priority: int in range(PRIORITIES):
+		var s: spritelisttype = prioritystart[priority]
+		while s != null:
+			if s.draw == spritedraw:    # (maskdraw draws nothing)
+				sprites.append([s.px, s.screeny, s.grseg, false, priority, s.index, s.ux, s.uy])
+			s = s.nextsprite
+	# REND-03: the records of the objects that stepped (drawn where they are, not slid)
+	var step: Array = []
+	for o: Object in draw_stepped:
+		var o_s: Variant = o.get(&"sprite")
+		if o_s is spritelisttype:
+			step.append((o_s as spritelisttype).index)
+	var hud: int = -1
+	var dyn: Dictionary = {}
+	if scoreobj != null and scoreobj.sprite is spritelisttype:
+		var bs: spritelisttype = scoreobj.sprite
+		hud = bs.index
+		# the score box's numbers are drawn into its cached image: a copy of the unshifted one as it is now
+		var block: PackedByteArray = _rf_grseg(bs.grseg)
+		if bs.grseg >= STARTSPRITES and bs.grseg - STARTSPRITES < spritetable.size() and block.size() > MAXSHIFTS_EGA * 6:
+			var spr: spritetabletype = spritetable[bs.grseg - STARTSPRITES]
+			var so: int = VW_GetSpriteShiftSourceOffset(block, 0)
+			dyn[bs.grseg] = block.slice(so, so + spr.width * spr.height * 5)
+	var sx: int = originxtile * 16 + (panx & 14)
+	var sy: int = originytile * 16 + pany
+	# the play (a level): v1.00's title map (map 20) is a screen, as Keen 1-3's title is, shown framed
+	_draw_pending = {"t": vm.seconds(), "wide": wide_tiles, "play": mapon != 20,
+		"user": "" if refreshvector in [&"", &"FadeAndUnhook"] else String(refreshvector),
+		"overlay": _draw_overlay_on(sx, sy),
+		"sx": sx, "sy": sy, "ux": originxglobal, "uy": originyglobal, "pan": panx & xpanmask,
+		# the columns the camera never crosses (the map's border): the wide view stops at them too
+		"xmin": originxmin >> 4, "xmax": (originxmax >> 4) + 320,
+		"map": mapon, "gx": gx, "gy": gy, "gw": gw, "gh": gh, "bg": bg, "fg": fg,
+		"sprites": sprites, "step": step, "hud": hud, "dyn": dyn,
+		"reveal": false, "hud_mid": false}
 
 
 ## Patching version-specific stuff (the EGA releases).

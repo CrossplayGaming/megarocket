@@ -4,12 +4,13 @@ extends Control
 ## REND-08/10: what surrounds a picture that doesn't fill the window (Megarocket 1.0's design, approved in
 ## its playtests: never stretch, never black bars). A backdrop tiled from the game's own tileset (Keen
 ## 1-3: the starfield tile, in 5 cells of a 4x4 patch, the rest black, so it reads as stars and not
-## wallpaper; Keen 4-6: 1.0's tile 87 in every cell), drawn through the frame's palette so it fades with
-## the game; and round the picture, in the EGA's fixed colours, a
-## five-layer bevel, 10 game pixels a side: a black outline, a raised bevel (yellow top-left, dark grey
-## bottom-right), a brown face, a sunken bevel (dark grey top-left, yellow bottom-right), a black seam.
+## wallpaper; Keen 4-6: 1.0's tile 87 in every cell; Keen Dreams: its dark rubble, tile 1080, the same
+## way), drawn through the frame's palette so it fades with the game; and round the picture, in the
+## EGA's fixed colours, a five-layer bevel, 10 game pixels a side: a black outline, a raised bevel
+## (yellow top-left, dark grey bottom-right), a brown face, a sunken bevel (dark grey top-left, yellow
+## bottom-right), a black seam.
 
-const BACKDROP_TILE: Dictionary = {"keen1": 75, "keen2": 75, "keen3": 38, "keen4": 87, "keen5": 87, "keen6": 87}
+const BACKDROP_TILE: Dictionary = {"keen1": 75, "keen2": 75, "keen3": 38, "keen4": 87, "keen5": 87, "keen6": 87, "kdreams": 1080}
 const PATCH_CELLS: Array = [Vector2i(0, 0), Vector2i(2, 1), Vector2i(1, 2), Vector2i(3, 2), Vector2i(2, 3)]
 const FRAME: int = 10    # game pixels each side
 

@@ -488,6 +488,32 @@ def rend01g():
     return code
 
 
+def rend01d():
+    """The draw list (REND-01D), Keen Dreams v1.00 and v1.93: every gameplay picture of the title demo and a
+    level played by script, drawn again from its refresh's list, equals the card's; the native layout within
+    each image's step; windows over the play (the credits, the status window) as the list's overlay from the
+    card; the level ends the same without the lists."""
+    import gdtest
+    code, out = gdtest.run("rend01_dreams", [], timeout=1800.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "compared" in line:
+            print("  " + line.strip())
+    return code
+
+
+def rend04d():
+    """The wide view (REND-04D), Keen Dreams, a reach of six tiles past the picture: the 1x picture still the
+    card's, at 416 every image shifted alike with the score box kept on the screen and the map's tiles over
+    all of it, J-30's edges (creatures wake past the original's only with it); the trace against
+    ReflectionHLE (HARN-23) is the check that with it off the game is the original's."""
+    import gdtest
+    code, out = gdtest.run("rend01_dreams", ["--wide=6"], timeout=1800.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "compared" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend04g():
     """The wide view (REND-04), Keen 4-6, a reach of six tiles past the picture: the 1x picture still the
     card's, at 416 every image shifted alike with the score box kept on the screen and the map's tiles
@@ -942,6 +968,19 @@ def shell12():
     backdrop, the title demo drawn by the shell's view, wide, the engine told its extra tiles."""
     import gdtest
     code, out = gdtest.run("shell12_galaxy_view", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
+def shell14():
+    """Keen Dreams in the host with the default settings (SHELL-14), v1.00 and v1.93: the text screens and
+    the title framed over the backdrop (v1.00's title map a screen), a level drawn by the shell's view
+    (DrmNativeView), wide, the engine told its extra tiles; the panel over it framed again; the Display
+    page's View, Native resolution and Smooth motion rows shown."""
+    import gdtest
+    code, out = gdtest.run("shell14_dreams_view", [], timeout=900.0, quiet=True)
     for line in out.splitlines():
         if "FAIL" in line or "checks" in line or "ERROR" in line:
             print("  " + line.strip())
@@ -1424,6 +1463,7 @@ CHECKS = {
     "REND-03": (rend03, "slow"),
     "REND-04": (rend04, "slow"),
     "REND-01G": (rend01g, "slow"),
+    "REND-01D": (rend01d, "fast"),
     "REND-09": (rend09, "fast"),
     "CHEAT-03": (cheat03, "fast"),
     "SAVE-02": (save02, "fast"),
@@ -1432,6 +1472,7 @@ CHECKS = {
     "MAKER-02": (maker02, "fast"),
     "MAKER-03": (maker03, "fast"),
     "REND-04G": (rend04g, "slow"),
+    "REND-04D": (rend04d, "fast"),
     "FIX-01": (fix01, "slow"),
     "SHELL-05": (shell05, "fast"),
     "SHELL-06": (shell06, "slow"),
@@ -1446,6 +1487,7 @@ CHECKS = {
     "SHELL-11": (shell11, "fast"),
     "SHELL-12": (shell12, "fast"),
     "SHELL-13": (shell13, "fast"),
+    "SHELL-14": (shell14, "fast"),
     "HARN-23": (harn23, "slow"),
     "MENU-07": (menu07, "fast"),
     "PERF-01": (perf01, "fast"),

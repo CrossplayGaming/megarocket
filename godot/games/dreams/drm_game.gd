@@ -1900,6 +1900,8 @@ func DoActor(ob: objtype, ntics: int) -> int:
 				ob.xmove = s16(ob.xmove + (state.xmove if ob.xdir == 1 else -state.xmove))
 			if ob.ydir:
 				ob.ymove = s16(ob.ymove + (state.ymove if ob.ydir == 1 else -state.ymove))
+			if draw_capture and ((ob.xdir != 0 and state.xmove != 0) or (ob.ydir != 0 and state.ymove != 0)):
+				draw_stepped[ob] = true    # REND-03D: a step (the whole move with the next picture), not a slide; presentation only
 
 		if state.thinkptr != &"":
 			if ob.nothink:
@@ -2019,9 +2021,11 @@ func PlayLoop() -> void:
 		# go through state changes and propose movements
 		obj = player
 		while obj != null and not quitting:
+			# (REND-04D, J-30: with the wide view, creatures wake by its edges: wide_tiles more each side; 0,
+			# the original's columns, otherwise)
 			if (not obj.active
-					and obj.tileright >= originxtile
-					and obj.tileleft <= originxtilemax
+					and obj.tileright >= originxtile - wide_tiles
+					and obj.tileleft <= originxtilemax + wide_tiles
 					and obj.tiletop <= originytilemax
 					and obj.tilebottom >= originytile):
 				obj.needtoreact = true
