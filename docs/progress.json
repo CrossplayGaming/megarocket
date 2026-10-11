@@ -272,6 +272,10 @@
  "milestones": [
   {
    "date": "2026-10-10",
+   "text": "Menus: every game's main menu in one modern order in its own style (Resume, New Game, Load, Save, Options, Cheats, High Scores, Extras, Quit), a pause menu in Keen 1-3, Options tidied to Display, Sound, Controls, Gameplay; Keen Dreams' panel reordered with text keycaps. Keen 1-3 can use Keen 4-6's sound effects (from your own Keen 4 or 5)"
+  },
+  {
+   "date": "2026-10-10",
    "text": "Controls: one set of keys and controller buttons for all seven games, changed from each game's own menus (Keen 1-3's Options windows, Keen 4-6's watch cards, Keen Dreams' control panel); two keys per action, a countdown while it waits for your key, reset to defaults; the old Keyboard Commands screens replaced"
   },
   {
