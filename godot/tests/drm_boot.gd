@@ -37,6 +37,8 @@ extends SceneTree
 ##          the first pictures that differ as PNGs to --compare_out=<folder>, by default <out>/<folder>/lists)
 ##          --tsr_paras=<n> (SCR-01: DOS memory held by KEYFEED.COM, paragraphs, less for the program:
 ##          tools/keyfeed.py dos_paragraphs; unset, none)
+##          --dos_cursor_row=<n> (SCR-01: the row DOS's cursor is on as the program starts, under the
+##          prompt that ran it: v1.00's start screens leave it there; unset, row 0)
 ## Every text-mode refresh's 80x25 cells go to <out>/<folder>/text_frames.json (HARN-06: the text
 ## screens, held against the recording's by tools/screen_case.py).
 
@@ -93,6 +95,7 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	vm.timer_offset = int(opts.get("timer_offset", DOSBOX.timer_offset))
 	g.us_dosClockAtStart = int(opts.get("clock", "-1"))
 	g.dos_tsr_paras = int(opts.get("tsr_paras", "0"))
+	g.textcursor = Vector2i(0, int(opts.get("dos_cursor_row", "0")))
 	# HARN-23: the verify harness's trace (ReflectionHLE replays it: tools/dreams_trace.py)
 	g.kl_record = str(opts.get("kl_record", ""))
 	g.kl_warp = int(opts.get("kl_warp", "-1"))

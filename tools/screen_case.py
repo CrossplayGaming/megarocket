@@ -107,6 +107,7 @@ PRE_SECONDS = 12        # the recording's seconds before the game's start-up is 
 TEXT_SETTLED = 10       # refreshes a text picture stays up to count (the original's start screens are drawn
                         # in steps up 6-8 refreshes each as its hardware checks finish; the cursor blinks
                         # every 16)
+DREAMS_DOS_CURSOR_ROW = 10  # SCR-01D: the row of DOS's cursor as the program starts in a key-fed recording
 GALAXY_CLOCK_US = 42000  # SCR-01G: the DOS clock as Keen 4-6 start in a key-fed recording (the runner sets
                         # 00:00:00 just before; DOS then loads the program): US_InitRndT(true) takes its
                         # hundredths, and Paddle War's serves follow them. keen4/5/6 scr_paddle agree point for
@@ -232,6 +233,9 @@ def run_port(game, case, out, say=print, keep=None, more=None, spec=None, second
         extra.setdefault("clock", dreams_case.feed_clock(game, case_name(case)))
         # KEYFEED.COM's DOS memory, which the program does not get (v1.00's start screen shows it)
         extra.setdefault("tsr_paras", keyfeed.dos_paragraphs(spec["held"]))
+        # and the cursor DOS leaves under the runner's autoexec (DOSBox's banner, the commands echoed): row 10,
+        # where v1.00's piracy and start screens (written straight to text memory) keep it
+        extra.setdefault("dos_cursor_row", DREAMS_DOS_CURSOR_ROW)
         costs = dreams_case.calibrated_costs(game)
         if costs:
             extra.setdefault("costs", costs)
