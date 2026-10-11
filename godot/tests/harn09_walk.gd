@@ -1,9 +1,9 @@
 # Copyright (C) 2026 the Megarocket contributors. GPL v2 or later. See LICENSE.md.
 extends SceneTree
-## HARN-09 (HARN-09a, the path walker's first part): the real program (shell/main.tscn, the launcher) driven
-## only by one device's own events through Input.parse_input_event, as the device sends them (the pad's
-## buttons; the keys; touches on the game's on-screen controls and the launcher's tiles), never by calling
-## a game or its menus. Per game the walk moves to its tile and starts it, reaches the title and the main
+## HARN-09 (the path walker; SCR-03's check, SCR-06's bindings, SCR-08's mash walk): the real program
+## (shell/main.tscn, the launcher), any of the seven games, driven only by one device's own events through
+## Input.parse_input_event, as the device sends them (the pad's buttons; the keys; touches on the game's
+## on-screen controls and the launcher's tiles), never by calling a game or its menus. Per game the walk moves to its tile and starts it, reaches the title and the main
 ## menu, then walks (a) every row the OptionsModel lists for that engine, each row's effect asserted (the
 ## page changed, the value stepped and stepped back, the action done), the Cheats with a game in progress;
 ## (b) the originals' functions from a small table per engine; (c) back out to the launcher, whose tile has
@@ -15,9 +15,10 @@ extends SceneTree
 ## touched: the settings and every game's saves go to a folder of the walk's own.
 ## Evidence: <out>/harn09_walk.json, [{game, function, device, reached, completed, note}], and a summary
 ## (lines starting WALK). Every function not completed is a failed check: RESULT: FAIL until each is.
+## SCR-08's mash walk (--mash=1, its evidence harn09_mash.json): see _mash_walk.
 ##
 ## Options: --game_data=<folder> [--games=keen1,keen4,kdreams193] [--device=pad|keys|touch] [--out=<folder>]
-## [--trace=1]
+## [--trace=1] [--mash=1 [--seed=<n>]]
 
 var t: T = T.new()
 var l: Launcher = null
@@ -40,13 +41,11 @@ var _via: String = ""
 ## --trace=1: every move printed with where it left the walk.
 var trace: bool = false
 
-## The games the walk knows: the launcher's tile, the folder under game_data, the engine; Keen 1-3's walk
-## on the world map from a new game's start into the first level (the d-pad held, in refreshes; [] none
-## yet: Level select takes the walk into a level instead).
+## The games the walk knows: the launcher's tile, the folder under game_data, the engine.
 const GAMES: Dictionary = {
-	"keen1": {"tile": "keen1", "folder": "keen1", "engine": "vorticons", "map_route": [["right", 105], ["down", 25], ["right", 210]]},
-	"keen2": {"tile": "keen2", "folder": "keen2", "engine": "vorticons", "map_route": []},
-	"keen3": {"tile": "keen3", "folder": "keen3", "engine": "vorticons", "map_route": []},
+	"keen1": {"tile": "keen1", "folder": "keen1", "engine": "vorticons"},
+	"keen2": {"tile": "keen2", "folder": "keen2", "engine": "vorticons"},
+	"keen3": {"tile": "keen3", "folder": "keen3", "engine": "vorticons"},
 	"keen4": {"tile": "keen4", "folder": "keen4", "engine": "galaxy"},
 	"keen5": {"tile": "keen5", "folder": "keen5", "engine": "galaxy"},
 	"keen6": {"tile": "keen6", "folder": "keen6", "engine": "galaxy"},
@@ -56,29 +55,34 @@ const GAMES: Dictionary = {
 
 ## Each device's event for the walk's moves: the pad's button, the key, the on-screen control touched
 ## ("dpad:<direction>" or a button's name). "yes" answers Keen 4-6's dialogs (their Y, or the Jump button);
-## "spare" is what a binding catches. A move a device's table lacks is one it cannot make, and the walk
-## records where it needed it; "char:<c>" (a letter or digit) and "fkey:<n>" are the keyboard's alone.
+## "spare" and "spare2" are what the bindings catch (bound to nothing by default). A move a device's table
+## lacks is one it cannot make, and the walk records where it needed it; "char:<c>" (a letter or digit) and
+## "fkey:<n>" are the keyboard's alone.
 const PAD: Dictionary = {
 	"up": JOY_BUTTON_DPAD_UP, "down": JOY_BUTTON_DPAD_DOWN, "left": JOY_BUTTON_DPAD_LEFT, "right": JOY_BUTTON_DPAD_RIGHT,
 	"accept": JOY_BUTTON_A, "back": JOY_BUTTON_B, "menu": JOY_BUTTON_START, "jump": JOY_BUTTON_A, "pogo": JOY_BUTTON_B,
 	"fire": JOY_BUTTON_X, "status": JOY_BUTTON_Y, "yes": JOY_BUTTON_A, "spare": JOY_BUTTON_RIGHT_STICK,
+	"spare2": JOY_BUTTON_LEFT_STICK,
 }
 const KEYS: Dictionary = {
 	"up": KEY_UP, "down": KEY_DOWN, "left": KEY_LEFT, "right": KEY_RIGHT,
 	"accept": KEY_ENTER, "back": KEY_ESCAPE, "menu": KEY_ESCAPE, "jump": KEY_CTRL, "pogo": KEY_ALT,
-	"fire": KEY_SPACE, "status": KEY_ENTER, "yes": KEY_Y, "spare": KEY_TAB,
+	"fire": KEY_SPACE, "status": KEY_ENTER, "yes": KEY_Y, "spare": KEY_TAB, "spare2": KEY_BACKSLASH,
 }
+## (Touch: OK is Enter, Status's own key unless the keyboard's Status is bound elsewhere.)
 const TOUCH: Dictionary = {
 	"up": "dpad:up", "down": "dpad:down", "left": "dpad:left", "right": "dpad:right",
 	"accept": "OK", "back": "Menu", "menu": "Menu", "jump": "Jump", "pogo": "Pogo", "fire": "Fire", "yes": "Jump",
+	"status": "OK",
 }
 ## What each move is called on each device, for the notes.
 const SAY: Dictionary = {
 	"pad": {"accept": "A", "back": "B", "menu": "Start", "jump": "A", "pogo": "B", "status": "Y", "yes": "A", "up": "d-pad up",
-		"down": "d-pad down", "left": "d-pad left", "right": "d-pad right", "spare": "the right stick's button"},
+		"down": "d-pad down", "left": "d-pad left", "right": "d-pad right", "spare": "the right stick's button",
+		"spare2": "the left stick's button"},
 	"keys": {"accept": "Enter", "back": "Escape", "menu": "Escape", "jump": "Ctrl", "pogo": "Alt", "status": "Enter", "yes": "Y",
-		"spare": "Tab"},
-	"touch": {"accept": "OK", "back": "Menu", "menu": "Menu", "yes": "Jump"},
+		"spare": "Tab", "spare2": "Backslash"},
+	"touch": {"accept": "OK", "back": "Menu", "menu": "Menu", "yes": "Jump", "status": "OK"},
 }
 
 ## Keen 1-3's and Dreams' Options pages walked row by row where a row opens them (the others are opened
@@ -102,6 +106,8 @@ func _go() -> void:
 	out_dir = opts.get("out", "user://")
 	games = String(opts.get("games", "keen1,keen4,kdreams193")).split(",", false)
 	trace = opts.get("trace", "") == "1"
+	mash = opts.get("mash", "") == "1"
+	rng.seed = int(opts.get("seed", "8"))
 	if root_dir == "":
 		t.blocked("no --game_data folder given")
 		t.finish(self)
@@ -128,7 +134,10 @@ func _go() -> void:
 	root.add_child(l)
 	await _frames(3)
 	for g: String in games:
-		await _walk(g)
+		if mash:
+			await _mash_walk(g)
+		else:
+			await _walk(g)
 	_write()
 	_summary()
 	l.queue_free()
@@ -309,35 +318,38 @@ func _vorticons() -> void:
 	var r: Dictionary = await _fn("Main menu > Options...", _list_open.bind("title:main", "options", "options"))
 	if r.completed:
 		await _list_walk("options", "Options")
-		if device != "touch":    # (a touch screen binds no key or button)
-			await _fn("Options > Controls... > %s... > Status > Change: one caught" % ("Controller" if device == "pad" else "Keyboard"),
-				_bind_capture.bind("options"), 40.0)
+		await _bind_walk("options")
 		await _fn("Options: left with %s" % _say("back"), _list_back.bind("options", "title:main"))
 	await _v_title()
 	await _fn("Main menu > Cheats... (no game: greyed, says why)", _cheats_greyed.bind("title:main"), 30.0, _v_title)
 	await _fn("Main menu > High Scores", _list_screen.bind("title:main", "high_scores"), 40.0, _v_title)
 	r = await _fn("Main menu > Extras...", _list_open.bind("title:main", "extras", "title:extras"), 30.0, _v_title)
 	if r.completed:
-		for row: Dictionary in _opts().page("extras"):
+		for row: Dictionary in _list_rows("title:extras"):
 			if row.key == "exit":
 				continue
 			if row.key == "demo":
 				await _fn("Extras... > Restart Demo", _v_demo, 60.0)
+			elif row.key == "help":
+				await _fn("Extras... > Help (F1's pages)", _v_help_row.bind("title:extras"), 60.0)
 			else:
 				await _fn("Extras... > %s" % row.label, _list_screen.bind("title:extras", row.key), 60.0)
 		await _v_title()
-	# (b) the originals' functions (the hot keys on the title), and the pause menu's rows and the cheats with a
-	# game in progress
-	await _fn("Help (F1)", _v_help, 30.0, _v_title)
-	await _fn("Sound off and on (F2)", _v_sound, 30.0, _v_title)
+	# (b) the originals' functions (the hot keys on the title: the keyboard's alone; a pad's and a touch
+	# screen's way to each is a row: Extras' Help, Sound's Effects volume), and the pause menu's rows and the
+	# cheats with a game in progress
+	if device == "keys":
+		await _fn("Help (F1)", _v_help, 30.0, _v_title)
+	await _fn("Sound off and on (F2; %s)" % ("Y and N" if device == "keys" else "Options > Sound... > Effects volume"),
+		_v_sound, 60.0, _v_title)
 	await _fn("New game: the world map", _v_new_game, 60.0)
 	await _fn("Status on the map (%s)" % _say("status"), _v_status, 20.0)
 	await _fn("Save to a slot (the pause menu's Save Game)", _v_save, 40.0)
 	await _fn("Into a level from the map", _v_level, 60.0)
 	await _v_pause_rows()
-	await _fn("Quit to the title (the pause menu's Quit: (T)itle)", _v_quit_to_title, 40.0)
+	await _fn("Quit to the title (the pause menu's Quit: Title)", _v_quit_to_title, 40.0)
 	await _fn("Load the saved slot", _v_load, 40.0)
-	await _fn("Quit out (Quit: Y, or (D)os)", _v_quit_out, 30.0)
+	await _fn("Quit out (the title's Quit: Yes; in a game, Dos)", _v_quit_out, 30.0)
 
 
 ## Back to the title's main menu after a function left the walk elsewhere (Back pressed; the game
@@ -365,7 +377,8 @@ func _v_reach_title() -> bool:
 
 
 ## The title menu takes a single press of accept as a player makes it (held some 7 refreshes): Extras...
-## chosen four times, each by one press, Back between.
+## chosen four times, each by one press, Back between (it once read the pad at one refresh in thirteen and
+## missed about half: SCR-03 made it read at every one).
 func _v_short_press() -> Dictionary:
 	var took: int = 0
 	for i: int in range(4):
@@ -376,11 +389,7 @@ func _v_short_press() -> Dictionary:
 			took += 1
 		await _to_page("title:extras", 2.0)
 	await _v_reach_title()
-	if took == 4:
-		return _res(true, true, "4 of 4")
-	return _res(true, false, ("%d of 4 single presses chose the row: the title menu sees a held %s only at the last of its six" +
-		" reads before it waits 7 refreshes (vort_demo.gd _modern_menu_loop), so a press of 7 refreshes is missed about half the" +
-		" time (the keyboard's Enter goes through the key buffer and is never missed)") % [took, _say("accept")])
+	return _res(true, took == 4, "%d of 4 single presses of %s chose the row (vort_demo.gd _modern_menu_loop)" % [took, _say("accept")])
 
 
 ## Restart Demo: the menu left for the attract loop, the menu again with accept.
@@ -435,7 +444,7 @@ func _v_save() -> Dictionary:
 		return _res(true, false, "no save window")
 	await _refreshes(10)
 	var file: String = str(_eng().get("save_dir")).path_join("SAVED9." + str(_eng().get("data").ext))
-	if not await _answer("char:9", "SaveMenu's 'Which game position do you want to save? 1-9 or ESC:' (vort_screens.gd)"):
+	if not await _answer("char:9", "SaveMenu's 'Which game position do you want to save? 1-9 or ESC:' (vort_screens.gd)", 8):
 		await _press("back")
 		await _leave_pause()
 		return _res(true, false, _stuck)
@@ -447,25 +456,99 @@ func _v_save() -> Dictionary:
 	return _res(true, saved, "SAVED9 written" if saved else "no SAVED9 written")
 
 
-## From a new game's place on the map into the first level: the route held, then Jump.
+## From a new game's place on the map into the first level, as a player steers: the way from Keen's tile to
+## the first level's entrance found on the map the game shows (its tiles' walls and blocking places, as
+## ClipMapKeen has them), the d-pad held along it a tile at a time (Keen's place read back), then Jump.
 func _v_level() -> Dictionary:
 	if not bool(_eng().get("shell_on_map")) or not await _to_play():
 		return _res(false, false, "not on the world map (%s)" % _where())
-	var route: Array = GAMES[game].map_route
-	if route.is_empty():
-		return _res(false, false, "no route on %s's map yet (the walk's GAMES table); Level select takes it into a level" % game)
-	for step: Array in route:
-		if not await _hold(step[0], step[1]):
-			return _res(false, false, _stuck)
+	var path: Array = _v_map_path(1)
+	if path.is_empty():
+		return _res(false, false, "no way on the map from Keen to the first level's entrance")
+	await _v_steer(path)
+	await _v_onto(path)
 	for i: int in range(3):
 		await _press("jump")
-		if await _wait(func() -> bool: return bool(_eng().get("shell_in_level")), 4.0):
+		if await _wait(func() -> bool: return bool(_eng().get("shell_in_level")), 3.0):
 			break
 	if not bool(_eng().get("shell_in_level")):
-		return _res(true, false, "the route and %s did not enter a level" % _say("jump"))
+		var ob: Object = (_eng().get("objlist") as Array)[0]
+		return _res(true, false, "steered to the first level's entrance, but %s did not enter it (Keen at %d,%d)" % [_say("jump"),
+			int(ob.get("x")) / VortMain.TILEGLOBAL, int(ob.get("y")) / VortMain.TILEGLOBAL])
 	await _wait(_live, 20.0)
 	await _refreshes(90)
-	return _res(true, _live(), "")
+	return _res(true, _live(), "%d tiles walked" % (path.size() - 1))
+
+
+## Keen walked along a path of the map's tiles up to the last (an entrance: he stops at it), the d-pad held a
+## tile at a time until he stands on the next (within a step of it on that axis; Keen's place read back).
+func _v_steer(path: Array) -> void:
+	var ob: Object = (_eng().get("objlist") as Array)[0]
+	var tg: int = VortMain.TILEGLOBAL
+	for i: int in range(1, path.size() - 1):
+		var to: Vector2i = path[i]
+		var dir: Vector2i = to - path[i - 1]
+		for k: int in range(30):
+			var at: int = int(ob.get("x")) if dir.x != 0 else int(ob.get("y"))
+			var want: int = (to.x if dir.x != 0 else to.y) * tg
+			if absi(at - want) < tg / 8 or (at - want) * (dir.x + dir.y) > 0:
+				break
+			await _press(_v_way(path[i - 1], to), 2 if absi(at - want) > tg / 2 else 1, 1)
+
+
+## Keen stepped on from the path's last tile but one until he stands over the entrance (a tile under his
+## box with something on the map's info plane, as ControlMapKeen looks for it). Whether he does.
+func _v_onto(path: Array) -> bool:
+	var e: Object = _eng()
+	var ob: Object = (e.get("objlist") as Array)[0]
+	var tg: int = VortMain.TILEGLOBAL
+	for k: int in range(12):
+		for x: int in range(int(ob.get("left")) / tg, int(ob.get("right")) / tg + 1):
+			for y: int in range(int(ob.get("top")) / tg, int(ob.get("bottom")) / tg + 1):
+				var info: int = int(e.call("GETTILE", x, y, 1))
+				if info != 0 and info != 255:
+					return true
+		await _press(_v_way(path[path.size() - 2], path.back()), 1, 1)
+	return false
+
+
+## The d-pad's way from one tile to the next.
+static func _v_way(from: Vector2i, to: Vector2i) -> String:
+	var d: Vector2i = to - from
+	return "right" if d.x > 0 else ("left" if d.x < 0 else ("down" if d.y > 0 else "up"))
+
+
+## The tiles from Keen's to level `n`'s entrance on the world map (a breadth-first search over the tiles
+## Keen can walk to: no wall on the side he comes in by, nothing blocking), [] if none.
+func _v_map_path(n: int) -> Array:
+	var e: Object = _eng()
+	var ob: Object = (e.get("objlist") as Array)[0]
+	var tg: int = VortMain.TILEGLOBAL
+	var start: Vector2i = Vector2i((int(ob.get("x")) + tg / 2) / tg, (int(ob.get("y")) + tg / 2) / tg)
+	var w: int = int(e.get("mapwwide"))
+	var h: int = int(e.get("mapheight"))
+	var walls: Dictionary = {Vector2i(0, 1): e.get("northwall"), Vector2i(0, -1): e.get("southwall"),
+		Vector2i(1, 0): e.get("westwall"), Vector2i(-1, 0): e.get("eastwall")}
+	var prev: Dictionary = {start: start}
+	var queue: Array = [start]
+	while not queue.is_empty():
+		var c: Vector2i = queue.pop_front()
+		for d: Vector2i in walls:
+			var nt: Vector2i = c + d
+			if nt.x < 0 or nt.y < 0 or nt.x >= w or nt.y >= h or prev.has(nt):
+				continue
+			var info: int = int(e.call("GETTILE", nt.x, nt.y, 1))
+			if (info & 0x7FFF) == n:
+				prev[nt] = c
+				var path: Array = [nt]
+				while path.front() != start:
+					path.push_front(prev[path.front()])
+				return path
+			if int((walls[d] as PackedInt32Array)[int(e.call("GETTILE", nt.x, nt.y, 0))]) != 0 or (info & 0x8000) != 0:
+				continue
+			prev[nt] = c
+			queue.append(nt)
+	return []
 
 
 ## The pause menu's rows in a level: Resume; High Scores and Extras greyed (from the title); Options;
@@ -480,7 +563,11 @@ func _v_pause_rows() -> void:
 		return
 	await _fn("Pause menu > Resume", _pause_resume.bind("resume"))
 	await _fn("Pause menu > High Scores (greyed: from the title)", _list_greyed.bind("pause", "high_scores"), 20.0, _open_pause)
-	await _fn("Pause menu > Extras... (greyed: from the title)", _list_greyed.bind("pause", "extras"), 20.0, _open_pause)
+	r = await _fn("Pause menu > Extras...", _list_open.bind("pause", "extras", "extras"), 20.0, _open_pause)
+	if r.completed:
+		await _fn("Pause menu > Extras... > Help (in a game)", _v_help_row.bind("extras"), 60.0)
+		await _fn("Pause menu > Extras... > Story (greyed: from the title)", _list_greyed.bind("extras", "story"), 20.0)
+		await _fn("Pause menu > Extras... > Back", _list_leave.bind("extras", "pause"), 20.0)
 	await _fn("Pause menu > Options...", _list_visit.bind("pause", "options", "options"), 20.0, _open_pause)
 	r = await _fn("Pause menu > Cheats...", _list_open.bind("pause", "cheats", "cheats"), 20.0, _open_pause)
 	if r.completed:
@@ -488,7 +575,7 @@ func _v_pause_rows() -> void:
 		await _fn("Cheats... > Level select... > Level 2", _level_select.bind("cheats", "cheat:warp:2"), 60.0)
 		await _fn("Cheats... > Skip this level", _skip_level.bind("cheats"), 60.0)
 	await _leave_pause()
-	await _fn("Pause menu > New Game (Leave this game? Y)", _v_pause_new_game, 60.0)
+	await _fn("Pause menu > New Game (Leave this game? Yes)", _v_pause_new_game, 60.0)
 
 
 ## The pause menu's New Game: asked 'Leave this game (Y/N)?', then by the title a new game at once.
@@ -501,7 +588,7 @@ func _v_pause_new_game() -> Dictionary:
 	if not await _wait(func() -> bool: return _page() == "", 3.0):
 		return _res(true, false, "no question")
 	await _refreshes(10)
-	if not await _answer("char:Y", "the pause menu's 'Leave this game (Y/N)?' (vort_screens.gd OptionsMenu)"):
+	if not await _answer("char:Y", "the pause menu's 'Leave this game (Y/N)?' (vort_screens.gd OptionsMenu)", 0):
 		await _press("back")
 		await _to_page("pause")
 		await _leave_pause()
@@ -523,7 +610,7 @@ func _v_quit_to_title() -> Dictionary:
 	if not await _wait(func() -> bool: return _page() == "", 3.0):
 		return _res(true, false, "no question")
 	await _refreshes(10)
-	if not await _answer("char:T", "AskQuit's 'Quit to (D)os or (T)itle:' (vort_main.gd)"):
+	if not await _answer("char:T", "AskQuit's 'Quit to (D)os or (T)itle:' (vort_main.gd)", 1):
 		await _press("back")    # neither: back to the pause menu
 		await _leave_pause()
 		return _res(true, false, _stuck)
@@ -550,7 +637,7 @@ func _v_load() -> Dictionary:
 		if not await _wait(func() -> bool: return _page() == "", 3.0):
 			return _res(true, false, "no question")
 		await _refreshes(10)
-		if not await _answer("char:Y", "the pause menu's 'Leave this game (Y/N)?' (vort_screens.gd OptionsMenu)"):
+		if not await _answer("char:Y", "the pause menu's 'Leave this game (Y/N)?' (vort_screens.gd OptionsMenu)", 0):
 			await _press("back")
 			await _to_page("pause")
 			await _leave_pause()
@@ -564,13 +651,30 @@ func _v_load() -> Dictionary:
 	if not await _wait(func() -> bool: return _page() == "", 6.0):
 		return _res(true, false, "no Continue Game window")
 	await _refreshes(20)
-	if not await _answer("char:9", "RestoreMenu's 'Continue Which Game? 1-9 or ESC:' (vort_screens.gd)"):
+	if not await _answer("char:9", "RestoreMenu's 'Continue Which Game? 1-9 or ESC:' (vort_screens.gd)", 8):
 		await _press("back")
 		await _v_title()
 		return _res(true, false, _stuck)
 	var on_map: bool = await _wait(func() -> bool: return bool(_eng().get("shell_on_map")) and _live(), 20.0)
 	await _refreshes(60)
 	return _res(true, on_map, "the saved game on the world map" if on_map else "no saved game resumed (%s)" % _where())
+
+
+## Extras' Help row (SCR-03: F1's pages, for the devices with no F1), on the title or in a game: the help's
+## text in the pager, left with Back, the list again.
+func _v_help_row(page: String) -> Dictionary:
+	if not await _list_goto(page, "help"):
+		return _res(false, false, _stuck)
+	var e: Object = _eng()
+	await _choose(page)
+	if not await _wait(func() -> bool: return _page() != page and e.get("textdataPtr") == e.get("helptextPtr"), 3.0):
+		return _res(true, false, "no help shown (%s)" % _where())
+	await _refreshes(30)
+	for i: int in range(4):
+		await _press("back")
+		if await _to_page(page, 2.5):
+			return _res(true, true, "shown, left with %s" % _say("back"))
+	return _res(true, false, "the help stayed (%s)" % _where())
 
 
 ## F1's help, from the title's menu: its text in the pager (the pager's text the help's), left with Back, and
@@ -596,14 +700,16 @@ func _v_help() -> Dictionary:
 	return _res(true, moved, "shown, left with %s" % _say("back") if moved else "the help stayed (%s)" % _where())
 
 
-## F2: Sound (Y/N)? answered N then Y; the game's sound mode follows.
+## F2: Sound (Y/N)? answered N then Y (its list: No, then Yes); the game's sound mode follows. A pad or a
+## touch screen has no F2: the sound goes off and on by Options > Sound...'s Effects volume (the speaker's
+## loudness, AUDIO-05), down to 0% and back.
 func _v_sound() -> Dictionary:
 	if not _can("fkey:2"):
-		return _res(false, false, "F2's 'Sound (Y/N)?' is a key only: no %s button sends F2 and no menu row offers it" % device)
+		return await _v_volume_off_on()
 	for answer: String in ["char:N", "char:Y"]:
 		await _press("fkey:2")
 		await _refreshes(20)
-		if not await _answer(answer, "F2's 'Sound (Y/N)?' (vort_main.gd DoFkeys)"):
+		if not await _answer(answer, "F2's 'Sound (Y/N)?' (vort_main.gd DoFkeys)", 1 if answer == "char:N" else 0):
 			await _press("back")
 			return _res(true, false, _stuck)
 		var want: int = 0 if answer == "char:N" else 1
@@ -611,6 +717,34 @@ func _v_sound() -> Dictionary:
 			return _res(true, false, "%s left the sound mode %d" % [answer.substr(5), int(_eng().get("soundmode"))])
 		await _refreshes(20)
 	return _res(true, true, "off, then on")
+
+
+## The sound off and on again by Options > Sound...'s Effects volume (left to 0%, right back), from the
+## title's menu and back to it.
+func _v_volume_off_on() -> Dictionary:
+	if not (await _list_open("title:main", "options", "options")).completed or not (await _list_open("options", "sound", "sound")).completed:
+		return _res(false, false, _stuck if _stuck != "" else "Sound... did not open (%s)" % _where())
+	if not await _list_goto("sound", "effects_volume"):
+		return _res(false, false, _stuck)
+	var before: int = int(_value("effects_volume"))
+	for i: int in range(12):
+		if int(_value("effects_volume")) == 0:
+			break
+		await _press("left")
+		await _list_dismiss("sound")
+	var off: bool = int(_value("effects_volume")) == 0
+	for i: int in range(12):
+		if int(_value("effects_volume")) >= before:
+			break
+		await _press("right")
+		await _list_dismiss("sound")
+	var on: bool = int(_value("effects_volume")) == before
+	for i: int in range(3):
+		if _page() == "title:main":
+			break
+		await _press("back")
+		await _wait(func() -> bool: return _page() == "title:main", 2.0)
+	return _res(true, off and on, "Effects volume %d%% -> 0%% -> %d%%" % [before, int(_value("effects_volume"))])
 
 
 ## Quit: from the title's menu its Quit (Y/N)?; in a game the pause menu's Quit, (D)os.
@@ -623,7 +757,7 @@ func _v_quit_out() -> Dictionary:
 		await _press("accept")
 		await _wait(func() -> bool: return _page() == "", 3.0)
 		await _refreshes(10)
-		if not await _answer("char:D", "AskQuit's 'Quit to (D)os or (T)itle:' (vort_main.gd)"):
+		if not await _answer("char:D", "AskQuit's 'Quit to (D)os or (T)itle:' (vort_main.gd)", 0):
 			await _press("back")
 			await _leave_pause()
 			return _res(true, false, _stuck)
@@ -635,7 +769,7 @@ func _v_quit_out() -> Dictionary:
 		await _choose("title:main")
 		await _wait(func() -> bool: return _page() == "", 3.0)
 		await _refreshes(10)
-		if not await _answer("char:Y", "the title's 'Quit (Y/N)?' (vort_main.gd AskQuit)"):
+		if not await _answer("char:Y", "the title's 'Quit (Y/N)?' (vort_main.gd AskQuit)", 0):
 			await _press("back")
 			return _res(true, false, _stuck)
 	var gone: bool = await _wait(func() -> bool: return _host() == null, 15.0)
@@ -664,7 +798,7 @@ func _list_rows(page: String) -> Array:
 	if page == "title:main":
 		return _opts().main_rows(false)
 	if page == "title:extras":
-		return _opts().page("extras")
+		return e.call("_extras_rows", false)    # (the model's, Help first: SCR-03)
 	if GAMES[game].engine == "dreams":
 		return e.call("_shell_list_rows", page)
 	return e.call("_options_rows", page)
@@ -752,18 +886,10 @@ func _list_walk(page: String, label: String) -> void:
 			await _fn(name, _list_once.bind(page, key))
 
 
-## Accept on the row the cursor is on. Keen 1-3's title menu sees a held pad button at one refresh in
-## thirteen (its own defect: _v_short_press records it), so there a press it missed is pressed again, as a
-## player would; the number of presses it took.
-func _choose(page: String) -> int:
-	if not page.begins_with("title:"):
-		await _press("accept")
-		return 1
-	for i: int in range(4):
-		await _press("accept")
-		if await _wait(func() -> bool: return _page() != page, 1.0):
-			return i + 1
-	return 4
+## Accept on the row the cursor is on, once: a press a menu misses is its defect (_v_short_press counts
+## them on Keen 1-3's title, where SCR-03 found one), and the function then fails where it stopped.
+func _choose(_page_name: String) -> void:
+	await _press("accept")
 
 
 ## A page row: the page opens.
@@ -890,7 +1016,7 @@ func _list_reset(page: String) -> Dictionary:
 	await _refreshes(12)
 	var asked: String = "'Reset every control (Y/N)?' (vort_screens.gd OptionsMenu)" if GAMES[game].engine == "vorticons" \
 		else "'Reset Every Control? Press Y' (drm_us.gd _shell_page_list)"
-	if not await _answer("char:Y", asked):
+	if not await _answer("char:Y", asked, 0, "jump"):
 		await _press("back")
 		await _to_page(page)
 		return _res(true, false, _stuck)
@@ -918,41 +1044,101 @@ func _list_screen(page: String, key: String) -> Dictionary:
 	return _res(true, false, "the screen stayed (%s)" % _where())
 
 
-## The Controls pages to one action's page, its Change, and the device's spare button or key caught for
-## Status (the game never sees it), then back to where it started.
-func _bind_capture(start: String) -> Dictionary:
+## SCR-06 (CTRL-03..05): the bindings changed by the device in use, from `start` (Keen 1-3's Options page,
+## Dreams' Controls list; "" for Keen 4-6's cards, from MAIN): Status's Change catches the spare; Fire's
+## Change left alone shows its countdown (5 to 1) and changes nothing; Fire cleared; Fire's Change catches a
+## second spare, and its Add second the first spare (taken from Status, which keeps its own button or key).
+## A touch screen has no key or button to bind.
+func _bind_walk(start: String) -> void:
 	if device == "touch":
-		return _res(false, false, "the touch screen has no key or button to catch")
+		return
 	var dev: String = "pad" if device == "pad" else "keys"
-	var steps: Array = [["controls", "controls"], [dev, dev], ["bind:%s:status" % dev, "bindact:%s:status" % dev]]
+	var where: String = "Options > Controls... > %s..." % ("Controller" if dev == "pad" else "Keyboard")
+	var fire: String = _opts().action_label("fire")    # (Dreams: Throw)
+	await _fn("%s > Status > Change: one caught" % where, _bind_op.bind(start, "status", "capture:%s:status:0" % dev, "spare"), 40.0)
+	await _fn("%s > %s > Change: left alone, its countdown runs out" % [where, fire],
+		_bind_op.bind(start, "fire", "capture:%s:fire:0" % dev, ""), 40.0)
+	await _fn("%s > %s > Clear" % [where, fire], _bind_op.bind(start, "fire", "clear:%s:fire" % dev, ""), 40.0)
+	await _fn("%s > %s > Change: one caught" % [where, fire], _bind_op.bind(start, "fire", "capture:%s:fire:0" % dev, "spare2"), 40.0)
+	await _fn("%s > %s > Add second: one caught" % [where, fire], _bind_op.bind(start, "fire", "capture:%s:fire:1" % dev, "spare"), 40.0)
+
+
+## The device's keys or buttons for an action.
+func _bound(dev: String, action: String) -> Array:
+	var m: ControlsModel = _host().controls
+	return m.buttons(action) if dev == "pad" else m.keys(action)
+
+
+## One binding row of an action's page chosen (Change, Add second, Clear): a capture answered by the
+## device's `move` (none: left alone, the countdown watched), the binding read back, the word said put
+## away and the walk back where it started.
+func _bind_op(start: String, action: String, row: String, move: String) -> Dictionary:
+	var dev: String = "pad" if device == "pad" else "keys"
+	var galaxy: bool = start == ""
+	var before: Array = _bound(dev, action)
+	if galaxy:
+		var item: Object = _g_row_item(row, ["capture", "clear"])
+		if item == null or not await _g_follow(_g_path(_g_main(), item)):
+			return _res(false, false, _stuck if item != null else "no %s on the cards" % row)
+	elif not await _bind_page(start, dev, action) or not await _list_goto("bindact:%s:%s" % [dev, action], row):
+		return _res(false, false, _stuck)
+	await _press("accept")
+	var ok: bool = false
+	var said: String = ""
+	if row.begins_with("clear:"):
+		ok = await _wait(func() -> bool: return _bound(dev, action).is_empty(), 3.0)
+	elif not await _wait(func() -> bool: return str(_eng().get("controls_capture")) == dev, 3.0):
+		said = "it did not wait for a %s (%s)" % ["button" if dev == "pad" else "key", _where()]
+	elif move == "":
+		var seen: Array = []
+		await _wait(func() -> bool:
+			var left: int = int(_eng().get("controls_capture_left"))
+			if left > 0 and (seen.is_empty() or seen.back() != left):
+				seen.append(left)
+			return str(_eng().get("controls_capture")) == "", 8.0)
+		var same: bool = _bound(dev, action) == before
+		ok = seen == [5, 4, 3, 2, 1] and same
+		said = "the countdown showed %s, then %s; " % [", ".join(PackedStringArray(seen.map(func(s: int) -> String: return str(s)))),
+			"nothing changed" if same else "it changed"]
+	else:
+		var code: int = PAD[move] if dev == "pad" else KEYS[move]
+		await _press(move)
+		ok = await _wait(func() -> bool: return _bound(dev, action).has(code), 3.0)
+		if row.ends_with(":1"):
+			ok = ok and _bound(dev, action).size() == 2
+	var note: String = said + "%s: %s" % [_opts().action_label(action), _host().controls.shown(dev, action)]
+	if action == "fire" and move == "spare":
+		note += "; Status: %s" % _host().controls.shown(dev, "status")
+	# the word said put away, then back where the walk started
+	if galaxy:
+		await _wait(_g_dialog, 3.0)
+		await _press("accept")
+		await _wait(func() -> bool: return not _g_dialog(), 3.0)
+		await _g_to_main()
+	else:
+		await _refreshes(12)
+		if _page() == "" and _host() != null:
+			await _press("accept")
+		for i: int in range(5):
+			if await _to_page(start, 2.0):
+				break
+			await _press("back")
+	return _res(true, ok, note)
+
+
+## From `start` (Keen 1-3's Options page or Dreams' Controls list) to an action's page: Controls..., the
+## device's page, the action.
+func _bind_page(start: String, dev: String, action: String) -> bool:
 	var at: String = start
-	var opened: Array = []
-	for s: Array in steps:
+	for s: Array in [["controls", "controls"], [dev, dev], ["bind:%s:%s" % [dev, action], "bindact:%s:%s" % [dev, action]]]:
 		if at == "controls" and s[1] == "controls":
 			continue
 		var r: Dictionary = await _list_open(at, s[0], s[1])
 		if not r.completed:
-			return _res(false, false, r.note)
-		opened.append(at)
+			_stuck = r.note
+			return false
 		at = s[1]
-	if not await _list_goto(at, "capture:%s:status:0" % dev):
-		return _res(false, false, _stuck)
-	var spare: int = PAD["spare"] if dev == "pad" else KEYS["spare"]
-	await _press("accept")
-	if not await _wait(func() -> bool: return str(_eng().get("controls_capture")) == dev, 3.0):
-		return _res(true, false, "Change did not wait for a %s" % ("button" if dev == "pad" else "key"))
-	await _press("spare")
-	var m: ControlsModel = _host().controls
-	var caught: bool = await _wait(func() -> bool: return (m.buttons("status") if dev == "pad" else m.keys("status")).has(spare), 3.0)
-	await _refreshes(12)
-	await _list_dismiss(dev)    # (the word said; the action's list again)
-	for i: int in range(4):
-		if _page() == start:
-			break
-		await _press("back")
-		await _to_page(start, 2.0)
-	var shown: String = m.shown(dev, "status")
-	return _res(true, caught, "Status: %s" % shown if caught else "nothing caught (Status: %s)" % shown)
+	return true
 
 
 ## Cheats with no game: every row greyed; one chosen says why and changes nothing.
@@ -1096,29 +1282,61 @@ func _pause_resume(key: String) -> Dictionary:
 	return _res(true, ok, "" if ok else "not back in play (%s)" % _where())
 
 
-## A prompt's answer (a letter or digit the originals wait for); false, with where, when the device has
-## no way to give it.
-func _answer(move: String, asked: String) -> bool:
-	if not _can(move):
-		_stuck = "at %s the %s has no %s" % [asked, device, _say(move)]
+## A prompt's answer: the letter or digit the originals wait for, which the keyboard gives; a pad or a touch
+## screen answers Keen 1-3's questions from their lists (SCR-04; `row`, the answer's row) and a question
+## that reads the controls by its own move (`alt`: Dreams' Reset, Jump's button). False, with where, when
+## the device has no way to give it.
+func _answer(move: String, asked: String, row: int = -1, alt: String = "") -> bool:
+	if _can(move):
+		await _press(move)
+		return true
+	if row >= 0 and GAMES[game].engine == "vorticons":
+		return await _pick(row, asked)
+	if alt != "" and _can(alt):
+		await _press(alt)
+		return true
+	_stuck = "at %s the %s has no %s" % [asked, device, _say(move)]
+	return false
+
+
+## The question Keen 1-3's list asks ("" none: SCR-04's probe).
+func _asking() -> String:
+	var e: Object = _eng()
+	return str(e.get("shell_asking")) if e != null and "shell_asking" in e else ""
+
+
+## Keen 1-3's question answered from its list (SCR-04): the caret moved to `row`, then chosen.
+func _pick(row: int, asked: String) -> bool:
+	if not await _wait(func() -> bool: return _asking() != "", 3.0):
+		_stuck = "at %s no list to answer from (%s)" % [asked, _where()]
 		return false
-	await _press(move)
+	var e: Object = _eng()
+	for k: int in range(12):
+		var at: int = int(e.get("shell_asking_row"))
+		if at == row:
+			break
+		await _press("down" if row > at else "up")
+		await _wait(func() -> bool: return int(e.get("shell_asking_row")) != at or _asking() == "", 1.5)
+	if _asking() == "" or int(e.get("shell_asking_row")) != row:
+		_stuck = "at %s the list's caret never reached row %d (%s)" % [asked, row, _where()]
+		return false
+	await _press("accept")
 	return true
 
 
-## A name typed into a text field: the keys type it; the pad and touch use the d-pad entry SCR-05 asks for
-## (up and down choose the letter from A, right goes on to the next). True once it is in.
-func _type_text(text: String, typed: Callable) -> bool:
+## A name (capitals) typed into a text field: the keys type it; the pad and touch use SCR-05's d-pad entry
+## (Keen 1-3's Input, PadTextEntry in Keen 4-6 and Dreams: the first up shows A, each up the next letter,
+## right keeps it and goes on; the last is kept by accept, which the caller presses).
+func _type_text(text: String) -> void:
 	for i: int in range(text.length()):
 		var c: String = text[i]
 		if device == "keys":
 			await _press("char:" + c)
 		else:
-			for k: int in range(c.unicode_at(0) - "A".unicode_at(0)):
+			for k: int in range(c.unicode_at(0) - "A".unicode_at(0) + 1):
 				await _press("up", 3, 3)
 			if i < text.length() - 1:
 				await _press("right", 3, 3)
-	return typed.call() == text
 
 
 func _lives() -> int:
@@ -1165,13 +1383,15 @@ func _galaxy() -> void:
 				await _fn("%s > %s" % [label, r.label], _g_option.bind(key))
 			elif key == "reset_controls":
 				await _fn("%s > %s" % [label, r.label], _g_reset)
-	if device != "touch":    # (a touch screen binds no key or button)
-		await _fn("Options > Controls... > %s... > Status > Change: one caught" % ("Controller" if device == "pad" else "Keyboard"), _g_capture, 40.0)
+	await _bind_walk("")
 	await _fn("Main menu > Cheats... (no game: greyed)", _g_cheats_greyed)
 	await _fn("Main menu > High Scores", _g_scores, 60.0)
 	await _fn("Main menu > Extras... > Paddle War", _g_paddle, 40.0)
 	await _fn("Main menu > Extras... > Restart Demo (RETURN TO DEMO)", _g_demo, 60.0)
-	await _fn("Help (F1)", _g_help, 30.0)
+	if game != "keen6":    # (Keen 6 has no help screens)
+		await _fn("Main menu > Extras... > Help", _g_help_item, 60.0)
+		if device == "keys":
+			await _fn("Help (F1)", _g_help, 30.0)
 	# (b) the originals' functions, and the cheats with a game in progress
 	await _fn("New game: the world map", _g_new_game, 90.0)
 	await _fn("Status on the map (%s)" % _say("status"), _g_status, 20.0)
@@ -1198,9 +1418,17 @@ func _g_main() -> Object:
 	return _eng().get("ck_us_mainMenu") if _eng() != null else null
 
 
-## A dialog over the cards (the toggles' word, the questions): the dialog reads the controls, the cards not.
+## A dialog over the cards (the toggles' word, the questions): the dialog reads the controls, the cards not
+## (read as such though the host gives the pad the menus' keys there: SCR-03's shell_menu_keys).
 func _g_dialog() -> bool:
-	return _g_open() and _live()
+	return _g_open() and _reads()
+
+
+## The game reads its controls (the last few refreshes), whatever the host makes of the pad there.
+func _reads() -> bool:
+	var h: GameHost = _host()
+	return h != null and h.engine != null and h.vm != null and "controls_read_vbl" in h.engine \
+		and h.vm.vbl_count - int(h.engine.get("controls_read_vbl")) <= 6
 
 
 ## A card's items, up to its end.
@@ -1368,7 +1596,9 @@ func _g_option(key: String) -> Dictionary:
 		return _res(false, false, _stuck)
 	var before: Variant = _value(key)
 	var seen: Array = []
-	for i: int in range(2):
+	# a toggle comes back in two; a volume goes round its eleven steps (SCR-03: from the top to 0)
+	var times: int = 11 if key.ends_with("_volume") else 2
+	for i: int in range(times):
 		await _press("accept")
 		if not await _wait(_g_dialog, 3.0):
 			return _res(true, false, "no word after choosing it (%s)" % _where())
@@ -1430,28 +1660,6 @@ func _g_reset() -> Dictionary:
 	return _res(true, ok, "every control back to its default" if ok else "not reset")
 
 
-## CONTROLS > KEYBOARD or CONTROLLER > STATUS > CHANGE: the device's spare caught, said.
-func _g_capture() -> Dictionary:
-	if device == "touch":
-		return _res(false, false, "the touch screen has no key or button to catch")
-	var dev: String = "pad" if device == "pad" else "keys"
-	var item: Object = _g_row_item("capture:%s:status:0" % dev, ["capture"])
-	if item == null or not await _g_follow(_g_path(_g_main(), item)):
-		return _res(false, false, _stuck if item != null else "no CHANGE for Status")
-	await _press("accept")
-	if not await _wait(func() -> bool: return str(_eng().get("controls_capture")) == dev, 3.0):
-		return _res(true, false, "CHANGE did not wait for a %s" % ("button" if dev == "pad" else "key"))
-	await _press("spare")
-	var spare: int = PAD["spare"] if dev == "pad" else KEYS["spare"]
-	var m: ControlsModel = _host().controls
-	var caught: bool = await _wait(func() -> bool: return (m.buttons("status") if dev == "pad" else m.keys("status")).has(spare), 3.0)
-	await _wait(_g_dialog, 3.0)
-	await _press("accept")
-	await _wait(func() -> bool: return not _g_dialog(), 3.0)
-	await _g_to_main()
-	return _res(true, caught, "Status: %s" % m.shown(dev, "status"))
-
-
 ## CHEATS with no game: every toggle greyed; one chosen changes nothing.
 func _g_cheats_greyed() -> Dictionary:
 	var card: Object = _g_page_card("cheats")
@@ -1486,17 +1694,13 @@ func _g_paddle() -> Dictionary:
 		return _res(false, false, _stuck)
 	var card: Object = _g_card()
 	await _press("accept")
-	if not await _wait(func() -> bool: return _g_card() == _eng().get("ck_us_paddleWarMenu") and _live(), 3.0):
+	if not await _wait(func() -> bool: return _g_card() == _eng().get("ck_us_paddleWarMenu") and _reads(), 3.0):
 		return _res(true, false, "Paddle War did not start (%s)" % _where())
 	await _hold("left", 40)
-	await _press("back")
-	if await _wait(func() -> bool: return _g_card() == card, 3.0):
-		await _g_to_main()
-		return _res(true, true, "played, left with %s" % _say("back"))
-	await _press("menu")
+	await _press("back")    # (SCR-03: the menus' keys there, so the pad's B is Escape as on every card)
 	var left: bool = await _wait(func() -> bool: return _g_card() == card, 3.0)
 	await _g_to_main()
-	return _res(true, left, ("%s did not leave it (the game reads the pad there); %s did" if left else "neither %s nor %s left it") % [_say("back"), _say("menu")])
+	return _res(true, left, "played, left with %s" % _say("back") if left else "%s did not leave it (%s)" % [_say("back"), _where()])
 
 
 ## RETURN TO DEMO on the title (Extras' Restart Demo): the demo plays; the menu again with accept.
@@ -1512,12 +1716,32 @@ func _g_demo() -> Dictionary:
 	return _res(true, r.completed, "the demo, then the menu again" if r.completed else r.note)
 
 
-## F1: the help screens (Keen 4 and 5; Keen 6 has none).
+## EXTRAS > HELP (SCR-03, Keen 4 and 5: F1's help screens for the devices with no F1): the topics up (the
+## menus' keys asked for), the first topic opened and left, the help left with Back, EXTRAS again.
+func _g_help_item() -> Dictionary:
+	var item: Object = _g_row_item("help", ["help"])
+	if item == null:
+		return _res(false, false, "no HELP on EXTRAS")
+	if not await _g_follow(_g_path(_g_main(), item)):
+		return _res(false, false, _stuck)
+	var card: Object = _g_card()
+	var g: Object = _eng()
+	await _press("accept")
+	if not await _wait(func() -> bool: return bool(g.get("shell_menu_keys")), 4.0):
+		return _res(true, false, "no help screens (%s)" % _where())
+	await _refreshes(40)
+	await _press("accept")    # the first topic's pages
+	await _refreshes(40)
+	for i: int in range(6):
+		await _press("back")
+		if await _wait(func() -> bool: return _g_card() == card and not bool(g.get("shell_menu_keys")) and not _g_dialog(), 2.0):
+			await _g_to_main()
+			return _res(true, true, "a topic read, left with %s" % _say("back"))
+	return _res(true, false, "the help stayed (%s)" % _where())
+
+
+## F1: the help screens (Keen 4 and 5; Keen 6 has none), the keyboard's way.
 func _g_help() -> Dictionary:
-	if game == "keen6":
-		return _res(true, true, "Keen 6 has no help screens")
-	if not _can("fkey:1"):
-		return _res(false, false, "F1 is the only way to the help screens: no %s button sends it and no card offers it" % device)
 	await _g_to_main()
 	await _press("fkey:1")
 	await _refreshes(70)
@@ -1528,26 +1752,52 @@ func _g_help() -> Dictionary:
 	return _res(true, false, "the help stayed (%s)" % _where())
 
 
-## NEW GAME > BEGIN NORMAL GAME (Keen 6: the creature question answered by typing) to the world map.
+## NEW GAME > BEGIN NORMAL GAME to the world map. Keen 6: OPTIONS' CREATURE QUESTION turned on first (off by
+## default, J-04; Classic's), and the question answered by typing the creature's name.
 func _g_new_game() -> Dictionary:
 	if not _menu_ready() and not (await _boot()).completed:
 		return _res(false, false, "not at the title's menu (%s)" % _where())
-	var item: Object = _eng().get("ck_us_newGameMenuItems")[1]
+	var g: Object = _eng()
+	if game == "keen6" and not bool(_opts().get_value("creature_question")):
+		if not await _g_choose_row("creature_question") or not bool(_opts().get_value("creature_question")):
+			return _res(false, false, "CREATURE QUESTION not turned on (%s)" % (_stuck if _stuck != "" else _where()))
+	var item: Object = g.get("ck_us_newGameMenuItems")[1]
 	if not await _g_follow(_g_path(_g_main(), item)):
 		return _res(false, false, _stuck)
 	await _press("accept")
 	var note: String = ""
-	if game == "keen6" and await _wait(func() -> bool: return int(_eng().get("currentCreature")) >= 0, 6.0):
-		var g: Object = _eng()
+	if game == "keen6":
+		if not await _wait(func() -> bool: return bool(g.get("shell_text_entry")), 10.0):
+			return _res(true, false, "no creature question (%s)" % _where())
 		var answer: String = str(g.call("CK_STRINGELEMENT", "ck6_copyCreatureNames", int(g.get("currentCreature")))).to_upper()
-		await _refreshes(30)
-		if not await _type_text(answer, func() -> String: return answer if bool(g.get("ck6_creatureQuestionDone")) else ""):
-			note = "the creature question (%s) typed with no d-pad entry: " % answer
+		await _refreshes(10)
+		await _type_text(answer)
 		await _press("accept")
+		if not await _wait(func() -> bool: return bool(g.get("ck6_creatureQuestionDone")), 5.0):
+			return _res(true, false, "the creature question (%s) not answered (%s)" % [answer, _where()])
+		note = "the creature question answered: %s" % answer
 	if not await _wait(func() -> bool: return int(_eng().get("game_in_progress")) != 0 and not _in_level() and _in_play(), 60.0):
 		return _res(true, false, note + "no world map (%s)" % _where())
 	await _refreshes(90)
 	return _res(true, true, note)
+
+
+## An option row on its card chosen once (its value moves on, its word said and put away), then MAIN.
+func _g_choose_row(key: String) -> bool:
+	var item: Object = _g_row_item(key)
+	if item == null:
+		_stuck = "no card shows %s" % key
+		return false
+	if not await _g_follow(_g_path(_g_main(), item)):
+		return false
+	await _press("accept")
+	if not await _wait(_g_dialog, 3.0):
+		_stuck = "no word after choosing %s (%s)" % [key, _where()]
+		return false
+	await _press("accept")
+	await _wait(func() -> bool: return not _g_dialog(), 3.0)
+	await _refreshes(4)
+	return await _g_to_main()
 
 
 ## Status: the window drops down, waits, and goes up again with accept.
@@ -1583,7 +1833,7 @@ func _g_save() -> Dictionary:
 		return _res(true, false, "no name field")
 	await _refreshes(10)
 	var entry: Object = g.get("us_savefiles")[0]
-	var typed: bool = await _type_text("KEEN", func() -> String: return "")
+	await _type_text("KEEN")
 	await _press("accept")
 	var saved: bool = await _wait(func() -> bool: return bool(entry.get("used")) and str(g.get("footer_str")[2]) != "Type name", 6.0)
 	var name: String = str(entry.get("name"))
@@ -1592,7 +1842,7 @@ func _g_save() -> Dictionary:
 	if not saved:
 		return _res(true, false, "nothing saved (%s)" % _where())
 	var ok: bool = name.to_upper() == "KEEN"    # (the keys type it as the game reads them: lower case)
-	return _res(true, ok, "saved as '%s'%s" % [name, "" if ok else (": no d-pad text entry, so the %s cannot type a name (US_LineInput, gal_us.gd)" % device if device != "keys" else "")])
+	return _res(true, ok, "saved as '%s'%s" % [name, "" if ok else ", not KEEN (US_LineInput, gal_us.gd)"])
 
 
 ## LOAD GAME's first slot (asked YOU'RE IN A GAME, the device's yes): the game goes on from it.
@@ -1766,6 +2016,8 @@ func _g_end_game() -> Dictionary:
 
 ## QUIT > QUIT (REALLY QUIT? yes): the program ends, the launcher back.
 func _g_quit_out() -> Dictionary:
+	if not _g_open() and int(_eng().get("game_in_progress")) != 0:
+		await _open_pause()    # (in a game: the cards over the play)
 	if not _g_open() and not (await _boot()).completed:
 		return _res(false, false, "no menu (%s)" % _where())
 	if not await _g_follow(_g_path(_g_main(), _eng().get("ck_us_mainOriginal")[7])):
@@ -1799,9 +2051,8 @@ func _dreams() -> void:
 		var r: Dictionary = await _fn("Panel > Options > %s" % caps[k], _d_list.bind(k))
 		if r.completed:
 			await _list_walk(page, label)
-			if page == "controls" and device != "touch":    # (a touch screen binds no key or button)
-				await _fn("Options > Controls... > %s... > Status > Change: one caught" % ("Controller" if device == "pad" else "Keyboard"),
-					_bind_capture.bind("controls"), 40.0)
+			if page == "controls":
+				await _bind_walk("controls")
 			await _fn(label + ": left with %s" % _say("back"), _list_back.bind(page, "panel"))
 	await _fn("Panel > Options > Cheats... (no game: greyed, says why)", _d_cheats_greyed)
 	for n: int in range(3):
@@ -1837,7 +2088,7 @@ func _d_rect(list: int, n: int) -> Array:
 ## item that way (USL_FindRect); the walk tries the way towards the item first, then the others, never the
 ## same way twice from the same place, so an item it does not reach is one the arrows cannot reach from
 ## anywhere the walk has been.
-func _d_hit(list: int, n: int) -> bool:
+func _d_hit(list: int, n: int, hit: bool = true) -> bool:
 	var tried: Dictionary = {}
 	var seen: Array = []
 	for k: int in range(40):
@@ -1845,7 +2096,8 @@ func _d_hit(list: int, n: int) -> bool:
 			_stuck = "not on the panel (%s)" % _where()
 			return false
 		if _d_under() == list * 100 + n:
-			await _press("accept")
+			if hit:
+				await _press("accept")
 			return true
 		var r: Array = _d_rect(list, n)
 		if r.is_empty():
@@ -2000,7 +2252,7 @@ func _d_save() -> Dictionary:
 		return _res(true, false, "no name field")
 	await _refreshes(20)
 	var slot: Object = (_eng().get("Games") as Array)[0]
-	await _type_text("KEEN", func() -> String: return "")
+	await _type_text("KEEN")
 	await _press("accept")
 	var saved: bool = await _wait(func() -> bool: return bool(slot.get("present")) and _page() == "panel", 8.0)
 	var name: String = (slot.get("name") as PackedByteArray).get_string_from_ascii()
@@ -2008,7 +2260,7 @@ func _d_save() -> Dictionary:
 	if not saved:
 		return _res(true, false, "nothing saved (%s)" % _where())
 	var ok: bool = name.to_upper() == "KEEN"    # (the keys type it as the game reads them: lower case)
-	return _res(true, ok, "saved as '%s'%s" % [name, "" if ok else (": no d-pad text entry, so the %s cannot type a name (US_LineInput, drm_us.gd)" % device if device != "keys" else "")])
+	return _res(true, ok, "saved as '%s'%s" % [name, "" if ok else ", not KEEN (US_LineInput, drm_us.gd)"])
 
 
 ## Disk > Load / Save > the first slot's Load: the game goes on from it.
@@ -2078,6 +2330,345 @@ func _d_quit_out() -> Dictionary:
 		return _res(false, false, _stuck)
 	var gone: bool = await _wait(func() -> bool: return _host() == null, 15.0)
 	return _res(true, gone, "" if gone else "the game did not end (%s)" % _where())
+
+
+# ------------------------------------------------------------------ SCR-08: the mash walk
+
+## SCR-08 (--mash=1): per game, from the launcher, buttons pressed and let go at random gaps of 15 to 50 ms
+## (seeded: --seed, the same presses each run) where a player mashes them: B (back) through the intro, the
+## title, its attract loop and its menus; A (accept) into a new game, into a level, through a death and the
+## game's way back; A and B through a level's end; Start (menu) over the play, Keen 4-6's cards and Dreams'
+## panel opened and shut. Each stretch passes the fades its screens have. Asserted: a new game, an entry, a
+## restart and an end each load the map or the level once (the engines' shell_level_loads, counted where
+## each loads one), the windows the originals show there still come (Keen 1-3's Keens Left, Keen 4-6's level
+## box, Dreams' Loading box: shell_level_boxes), and the game quits back to the launcher.
+var mash: bool = false
+var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+
+## Where Keen dies soon with a direction held from a level's start (found by holding it; the level entered
+## by Level select): [level, the direction].
+const DEATHS: Dictionary = {
+	"keen1": [3, "right"], "keen2": [9, "right"], "keen3": [1, "right"], "keen4": [2, "left"], "keen5": [2, "left"],
+	"keen6": [4, "left"], "kdreams": [5, "right"], "kdreams193": [5, "right"],
+}
+## How many times each stretch shows its window, as one press makes it (-1: as the cache has it, Keen 4-6's
+## box comes only while a level's pictures are still to load): [new game, entry, death, end].
+const MASH_BOXES: Dictionary = {"vorticons": [1, 0, 1, 0], "galaxy": [1, 1, -1, -1], "dreams": [1, 1, 1, 1]}
+
+
+func _mash_walk(id: String) -> void:
+	game = id
+	_show_tiles()
+	print("WALK %s by %s, mashed (seed %d)" % [game, device, rng.seed])
+	var r: Dictionary = await _fn("Launcher: to the tile, the game started", _launch, 40.0)
+	if not r.completed:
+		return
+	var engine: String = GAMES[game].engine
+	var boxes: Array = MASH_BOXES[engine]
+	await _fn("Mashed B from the start through the title and its menus: no game started, the menu again", _mash_back, 60.0)
+	# A into a new game: Keen 1-3 from the title's menu (its first row); Keen 4-6 and Dreams from their new
+	# game's last choice (BEGIN NORMAL GAME; Normal), which A chooses
+	if engine != "vorticons":
+		r = await _fn("To the new game's last choice", _mash_new_game_choice, 60.0)
+		if not r.completed:
+			await _fn("Back on the launcher, its tile focused and moving", _launcher_back, 40.0)
+			return
+	await _fn("Mashed A into a new game: the map loaded once, its window shown", _mash_through.bind(["accept"],
+		_on_map, 40.0, 2.0, 1, boxes[0]), 70.0)
+	await _fn("Mashed %s over the map: %s opened and shut, the play again" % [_say("menu"), _menus_name()], _mash_menus, 40.0)
+	# A into a level: Keen 1-3 steered to the first level's entrance; Keen 4-6 and Dreams by Level select
+	r = await _fn("To a level's way in", _mash_entry_ready, 60.0)
+	if r.completed:
+		await _fn("Mashed A into the level: loaded once, its window shown", _mash_through.bind(["accept"],
+			func() -> bool: return _in_level() and _in_play(), 30.0, 2.0, 1, boxes[1]), 50.0)
+	await _fn("Mashed %s in a level: %s opened and shut, the play again" % [_say("menu"), _menus_name()], _mash_menus, 40.0)
+	# a death and the game's way back (Keen 1-3's map, Keen 4-6's and Dreams' Try Again)
+	r = await _fn("A death: Level select to level %d, %s held" % [DEATHS[game][0], _say(DEATHS[game][1])], _mash_to_death, 90.0)
+	if r.completed:
+		var l0: int = _loads()
+		await _fn("Mashed A through the death and back: loaded once, its window shown", _mash_through.bind(["accept"],
+			func() -> bool: return _loads() > l0 and (_on_map() if engine == "vorticons" else _in_play()), 40.0, 0.0, 1, boxes[2]), 60.0)
+	# a level's end: Skip this level chosen and the menus left, then A mashed until the map is back
+	await _fn("Skip this level, then A mashed through the level's end: the map loaded once", _mash_end.bind(boxes[3]), 120.0)
+	match engine:
+		"vorticons":
+			await _fn("Quit out (Quit: Dos)", _v_quit_out, 30.0)
+		"galaxy":
+			await _fn("Quit out (QUIT > QUIT, REALLY QUIT? yes)", _g_quit_out, 40.0)
+		"dreams":
+			await _fn("Quit out (Disk > Exit to DOS > Really Exit)", _d_quit_out, 40.0)
+	await _fn("Back on the launcher, its tile focused and moving", _launcher_back, 40.0)
+
+
+func _loads() -> int:
+	return int(_eng().get("shell_level_loads")) if _eng() != null else -1
+
+
+func _boxes() -> int:
+	return int(_eng().get("shell_level_boxes")) if _eng() != null else -1
+
+
+## On the world map, in play (Keen 1-3: its own loop running, Keens Left put away: canSave).
+func _on_map() -> bool:
+	if not _in_play():
+		return false
+	if GAMES[game].engine == "vorticons":
+		return bool(_eng().get("shell_on_map")) and bool(_eng().get("canSave"))
+	return not _in_level()
+
+
+func _menus_name() -> String:
+	return {"vorticons": "the menu", "galaxy": "the cards", "dreams": "the panel"}[GAMES[game].engine]
+
+
+## `moves` (one at random each time) pressed and let go at random gaps of 15 to 50 ms until `done` holds,
+## for at most `seconds`. Whether it held.
+func _mash(moves: Array, seconds: float, done: Callable) -> bool:
+	var until: int = Time.get_ticks_msec() + int(seconds * 1000.0)
+	while Time.get_ticks_msec() < until and _host() != null:
+		if done.call():
+			return true
+		var move: String = moves[rng.randi() % moves.size()]
+		var down: InputEvent = _event(move, true)
+		if down == null:
+			_stuck = "the %s has no %s" % [device, _say(move)]
+			return false
+		Input.parse_input_event(down)
+		await _pause(rng.randi_range(15, 50) / 1000.0)
+		var up: InputEvent = _event(move, false)
+		if up == null:
+			up = down.duplicate()
+			up.set("pressed", false)
+		Input.parse_input_event(up)
+		await _pause(rng.randi_range(15, 50) / 1000.0)
+	return _host() != null and done.call()
+
+
+## A mashed stretch, from where the walk stands until `done`: the map or the level loaded `loads` times and
+## the window shown `boxes` times there (-1: not counted), as one press makes them; `settle` seconds more
+## mashed past it (a second start's chance).
+func _mash_through(moves: Array, done: Callable, seconds: float, settle: float, loads: int, boxes: int) -> Dictionary:
+	var l0: int = _loads()
+	var b0: int = _boxes()
+	var reached: bool = await _mash(moves, seconds, done)
+	if reached and settle > 0.0:
+		await _mash(moves, settle, func() -> bool: return false)
+	if _host() == null:
+		return _res(true, false, "the game ended")
+	await _refreshes(30)
+	var dl: int = _loads() - l0
+	var db: int = _boxes() - b0
+	var ok: bool = reached and done.call() and dl == loads and (boxes < 0 or db == boxes)
+	return _res(true, ok, "%s; loaded %d (%d wanted), its window %d%s" % ["there" if reached else "not there (%s)" % _where(),
+		dl, loads, db, "" if boxes < 0 else " (%d wanted)" % boxes])
+
+
+## The menus mashed open and shut over the play (Start, as a player mashes it): no level loaded, the play
+## again once the mashing stops (Back while a menu is up).
+func _mash_menus() -> Dictionary:
+	if not await _to_play():
+		return _res(false, false, _stuck)
+	var l0: int = _loads()
+	var level: bool = _in_level()
+	await _mash(["menu"], 4.0, func() -> bool: return false)
+	await _refreshes(30)
+	if GAMES[game].engine == "galaxy" and _g_open():
+		# (Escape on MAIN asks REALLY QUIT?, as the original's USL_UpLevel does: answered no, then RESUME)
+		for i: int in range(4):
+			if not _g_dialog():
+				break
+			await _press("back")
+			await _wait(func() -> bool: return not _g_dialog(), 2.0)
+		await _g_to_main()
+		await _g_resume_play()
+	for i: int in range(8):
+		if _in_play():
+			break
+		await _press("back")
+		await _wait(_in_play, 2.0)
+	var ok: bool = _in_play() and _loads() == l0 and _in_level() == level
+	return _res(true, ok, "%s, loaded %d" % ["the play again" if _in_play() else "not back in play (%s)" % _where(), _loads() - l0])
+
+
+## B mashed from wherever the game stands (its intro, title, attract loop, menus) for a few seconds: no
+## game started, then the title's menu reached by A as ever.
+func _mash_back() -> Dictionary:
+	await _mash(["back"], 6.0, func() -> bool: return false)
+	if _host() == null:
+		return _res(true, false, "B quit the game")
+	await _refreshes(30)
+	# (Keen 4-6: B on MAIN asks REALLY QUIT?, as the original's Escape does: answered no before A goes on)
+	for i: int in range(4):
+		if GAMES[game].engine != "galaxy" or not _g_dialog():
+			break
+		await _press("back")
+		await _wait(func() -> bool: return not _g_dialog(), 2.0)
+	var playing: bool = false
+	match GAMES[game].engine:
+		"vorticons":
+			playing = bool(_eng().get("shell_playing"))
+		"galaxy":
+			playing = int(_eng().get("game_in_progress")) != 0
+		"dreams":
+			playing = bool(_eng().get("ingame"))
+	var r: Dictionary = await _boot()
+	await _refreshes(70)
+	if not _menu_ready():    # (a last B still on its way left the menu again: A brings it back, as ever)
+		r = await _boot()
+	return _res(true, not playing and r.completed, ("no game started" if not playing else "a game started") + (", the menu again" if r.completed else ", " + r.note))
+
+
+## Keen 4-6: NEW GAME > BEGIN NORMAL GAME under the cursor; Dreams: Start > New Game > Normal under it.
+func _mash_new_game_choice() -> Dictionary:
+	if not _menu_ready() and not (await _boot()).completed:
+		return _res(false, false, "not at the title's menu (%s)" % _where())
+	if GAMES[game].engine == "galaxy":
+		var ok: bool = await _g_follow(_g_path(_g_main(), _eng().get("ck_us_newGameMenuItems")[1]))
+		return _res(ok, ok, "" if ok else _stuck)
+	if not await _d_hit(0, 0):
+		return _res(false, false, _stuck)
+	await _refreshes(10)
+	if not await _d_hit(1, 0):
+		return _res(false, false, _stuck)
+	await _refreshes(10)
+	var on: bool = await _d_hit(2, 0, false)
+	return _res(on, on, "" if on else _stuck)
+
+
+## Keen 1-3: on the map, steered to the first level's entrance; Keen 4-6 and Dreams: Level select's first
+## level under the cursor (the cards; the panel's list).
+func _mash_entry_ready() -> Dictionary:
+	match GAMES[game].engine:
+		"vorticons":
+			if not bool(_eng().get("shell_on_map")) or not await _to_play():
+				return _res(false, false, "not on the world map (%s)" % _where())
+			var path: Array = _v_map_path(1)
+			if path.is_empty():
+				return _res(false, false, "no way on the map from Keen to the first level's entrance")
+			await _v_steer(path)
+			var over: bool = await _v_onto(path)
+			return _res(over, over, "%d tiles walked" % (path.size() - 1) if over else "Keen never stood over the entrance")
+		"galaxy":
+			if not await _open_pause():
+				return _res(false, false, _stuck)
+			var item: Object = _g_warp_item(1)
+			var ok: bool = item != null and await _g_follow(_g_path(_g_main(), item))
+			return _res(ok, ok, "" if ok else (_stuck if item != null else "no level 1 in Level select"))
+	if not await _open_pause() or not await _d_open_list(4) or not (await _list_open("cheats", "cheat:levels:0", "levels:0")).completed \
+			or not await _list_goto("levels:0", "cheat:warp:1"):
+		return _res(false, false, _stuck)
+	return _res(true, true, "")
+
+
+## Keen 4-6's Level select item for level `n`.
+func _g_warp_item(n: int) -> Object:
+	var toggles: Dictionary = _eng().get("_shell_toggles")
+	for card: Object in toggles:
+		if str(toggles[card][2]) == "warp" and int(str(toggles[card][0]).substr(6)) == n:
+			return toggles[card][1]
+	return null
+
+
+## Keen's death begun (his dying state), for each engine.
+func _dying() -> bool:
+	var e: Object = _eng()
+	if e == null:
+		return false
+	match GAMES[game].engine:
+		"vorticons":
+			return str(((e.get("objlist") as Array)[0] as Object).get("think")) == "KeenDead"
+		"galaxy":
+			var k: Object = e.get("ck_keenObj")
+			var act: Object = k.get("currentAction") if k != null else null
+			for name: String in ["CK_ACT_keenDie0", "CK_ACT_keenDie1", "CK4_ACT_KeenSwimDie0", "CK4_ACT_KeenSwimDie1"]:
+				if act != null and act == e.call("CK_GetActionByName", name):
+					return true
+			return int((e.get("ck_gameState") as Object).get("levelState")) == 1    # (LS_Died)
+		"dreams":
+			var p: Object = e.get("player")
+			var st: Object = p.get("state") if p != null else null
+			return st != null and [e.call("S", &"s_keendie1"), e.call("S", &"s_keendie2"), e.call("S", &"s_keendie3")].has(st)
+	return false
+
+
+## Into DEATHS' level by Level select, then its direction held (nothing else pressed) until Keen dies.
+func _mash_to_death() -> Dictionary:
+	var d: Array = DEATHS[game]
+	if not await _mash_level_select(int(d[0])):
+		return _res(false, false, "Level select did not take Keen into level %d (%s)" % [d[0], _stuck if _stuck != "" else _where()])
+	var held: InputEvent = _event(d[1], true)
+	Input.parse_input_event(held)
+	var died: bool = await _wait(_dying, 40.0)
+	var up: InputEvent = held.duplicate()
+	up.set("pressed", false)
+	Input.parse_input_event(up)
+	return _res(true, died, "Keen dies" if died else "Keen lives on (%s)" % _where())
+
+
+## Level select into level `n` (the menus walked as ever), in play there.
+func _mash_level_select(n: int) -> bool:
+	if not await _open_pause():
+		return false
+	match GAMES[game].engine:
+		"vorticons":
+			if not (await _list_open("pause", "cheats", "cheats")).completed:
+				return false
+			return (await _level_select("cheats", "cheat:warp:%d" % n)).completed
+		"dreams":
+			if not await _d_open_list(4):
+				return false
+			return (await _level_select("cheats", "cheat:warp:%d" % n)).completed
+	var item: Object = _g_warp_item(n)
+	if item == null or not await _g_follow(_g_path(_g_main(), item)):
+		return false
+	await _press("accept")
+	var ok: bool = await _wait(func() -> bool: return _in_level() and _in_play(), 40.0)
+	await _refreshes(30)
+	return ok
+
+
+## A level's end: in a level (Level select's first when on the map), the cheats' Skip this level chosen and
+## the menus left as ever (the level ends then), A mashed from there until the map is back: the map loaded
+## once, its window `boxes` times (-1: not counted).
+func _mash_end(boxes: int) -> Dictionary:
+	if not _in_level() and not await _mash_level_select(1):
+		return _res(false, false, "no level entered (%s)" % (_stuck if _stuck != "" else _where()))
+	await _refreshes(60)
+	var l0: int = _loads()
+	if not await _open_pause():
+		return _res(false, false, _stuck)
+	var ok: bool = false
+	match GAMES[game].engine:
+		"vorticons":
+			ok = (await _list_open("pause", "cheats", "cheats")).completed and await _list_goto("cheats", "cheat:skip_level")
+		"dreams":
+			ok = await _d_open_list(4) and await _list_goto("cheats", "cheat:skip_level")
+		"galaxy":
+			var item: Object = _g_row_item("skip_level", ["once"])
+			ok = item != null and await _g_follow(_g_path(_g_main(), item))
+	if not ok:
+		return _res(false, false, _stuck)
+	await _press("accept")
+	await _refreshes(12)
+	match GAMES[game].engine:
+		"vorticons":
+			await _list_dismiss("cheats")    # "Level skipped"; the level ends once the menu is left
+			await _leave_pause()
+		"dreams":
+			await _leave_pause()
+		"galaxy":
+			await _wait(_g_dialog, 3.0)
+			await _press("accept")
+			await _wait(func() -> bool: return not _g_dialog(), 3.0)
+			await _g_to_main()
+			await _g_resume_play()
+	var b0: int = _boxes()    # (from here: the menus' own boxes, Keen 4-6's Control Panel and Dreams' Options Screen, not counted)
+	var there: bool = await _mash(["accept"], 40.0, _on_map)
+	await _refreshes(30)
+	var dl: int = _loads() - l0
+	var db: int = _boxes() - b0
+	return _res(true, there and dl == 1 and (boxes < 0 or db == boxes), "%s; loaded %d (1 wanted), its window %d%s" % [
+		"there" if there else "not there (%s)" % _where(), dl, db, "" if boxes < 0 else " (%d wanted)" % boxes])
 
 
 # ------------------------------------------------------------------ the device
@@ -2293,7 +2884,7 @@ func _fn(name: String, fn: Callable, seconds: float = 30.0, ready: Callable = Ca
 func _write() -> void:
 	var dir: String = ProjectSettings.globalize_path(out_dir)
 	DirAccess.make_dir_recursive_absolute(dir)
-	var path: String = dir.path_join("harn09_walk.json")
+	var path: String = dir.path_join("harn09_mash.json" if mash else "harn09_walk.json")
 	var f: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
 		print("WALK could not write %s" % path)

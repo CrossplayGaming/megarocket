@@ -1231,11 +1231,13 @@ func _options_capture(device: String, action: String, slot: int) -> String:
 			break
 		if left != shown:
 			shown = left
+			controls_capture_left = left
 			sx = wx
 			sy = wy + 1
 			Print(("Esc cancels" if device == "keys" else "Start cancels").rpad(w - 2) + str(left).lpad(2))
 		WaitVBL(1)
 	controls_capture = ""
+	controls_capture_left = 0
 	var code: int = controls_captured
 	controls_captured = -2
 	ClearKeys()

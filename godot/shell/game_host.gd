@@ -130,6 +130,10 @@ var galaxy_sounds: GalaxySounds = null
 var _sound_names: PackedStringArray = PackedStringArray()
 var _music_level: int = -1    # the track playing (its level; 0 the world map, -1 none)
 var _pad_sent: Dictionary = {}
+## SCR-05: the on-screen d-pad's arrows -> the pad's d-pad codes, sent instead while a line is typed; and what
+## each of the overlay's keys held down sent (its release lets go of the same code).
+const TOUCH_TYPING: Dictionary = {0x48: 0x6D, 0x50: 0x6E, 0x4B: 0x6F, 0x4D: 0x70}
+var _touch_sent: Dictionary = {}
 ## SHELL-04: how long Back and Start are held together for the reset; each pad's of the two held
 ## (device -> {button: true}); the pad holding both and since when (-1: none), and whether this hold has
 ## reset already.
@@ -282,7 +286,7 @@ func start(found: Dictionary) -> bool:
 			error = ShellMessages.not_ready(_short_title(found))
 			return false
 	overlay = TouchOverlay.new(game_id)
-	overlay.send = send_key
+	overlay.send = _touch_key
 	add_child(overlay)
 	_update_overlay()
 	vm.on_display = _on_display
@@ -767,6 +771,19 @@ func _pad(b: Variant, down: bool) -> void:
 	if code != 0:
 		_pad_sent[b] = code
 		send_key(code, true)
+
+
+## A key of the on-screen controls pressed or let go (AND-03): sent as it is, but while a line is typed
+## (SCR-05) the d-pad's arrows go as the pad's d-pad codes, so a touch screen spells a name as the pad does
+## (PadTextEntry); its release lets go of the code its press sent.
+func _touch_key(code: int, down: bool) -> void:
+	if not down:
+		send_key(int(_touch_sent.get(code, code)), false)
+		_touch_sent.erase(code)
+		return
+	var sent: int = int(TOUCH_TYPING.get(code, code)) if text_entry() else code
+	_touch_sent[code] = sent
+	send_key(sent, true)
 
 
 ## The overlay shows on a touch screen while no pad is in use; hiding it lets

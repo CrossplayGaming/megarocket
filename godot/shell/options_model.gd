@@ -250,6 +250,16 @@ func step(key: String, dir: int) -> void:
 	_recompute_mode()
 
 
+## SCR-03: a value row moved on by choosing it, where a menu has no left and right (Keen 4-6's cards): as
+## step(key, 1), and a volume at its top goes round to 0, so every value can be reached.
+func cycle(key: String) -> void:
+	if key in ["effects_volume", "music_volume"] and int(get_value(key)) >= 100:
+		_put(key, 0)
+		_recompute_mode()
+		return
+	step(key, 1)
+
+
 ## What choosing a row does.
 func activate(key: String) -> String:
 	# "cheats": the engine builds that page itself from CheatsModel (its rows are the engine's flags)

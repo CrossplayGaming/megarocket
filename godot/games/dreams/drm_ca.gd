@@ -643,6 +643,8 @@ func CA_CacheMarks(title: String, cachedownlevel: bool) -> void:
 	var homex: int = 0
 	var homey: int = 0
 	if dialog:
+		if not cachedownlevel:
+			shell_level_boxes += 1    # (SCR-08's count: a level's box, not v1.00's when going back down)
 		US_CenterWindow(20, 8)
 		homex = PrintX
 		homey = PrintY

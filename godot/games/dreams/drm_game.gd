@@ -1420,6 +1420,7 @@ func SetupGameLevel(loadnow: bool) -> void:
 	var orgx: int
 	var orgy: int
 
+	shell_level_loads += 1    # (SCR-08's count)
 	bombspresent = false
 
 	# load the level header and three map planes

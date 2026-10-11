@@ -110,6 +110,7 @@ func WorldMap() -> void:
 		ob.yspeed = 0
 		ob.shapenum = S.MAPKEEND1SPR
 		LevelNumber = 0
+		shell_level_loads += 1    # (SCR-08's count)
 		ReadLevel(WORLDMAP)
 		ScanWorldMap()
 		shell_on_map = true    # the map's play from its first picture (its fade-in, Keens Left over it)
@@ -731,6 +732,7 @@ func CheckHighScore() -> void:
 
 
 func ShowLives() -> void:
+	shell_level_boxes += 1    # (SCR-08's count)
 	ExpWin(16, 4)
 	var x: int = sx
 	Print("   Keens Left")

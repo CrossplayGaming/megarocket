@@ -1111,17 +1111,66 @@ def menu08():
     return worst
 
 
+WALK_GAMES = "keen1,keen2,keen3,keen4,keen5,keen6,kdreams,kdreams193"
+
+
+def _walk_out(name):
+    """The walks' evidence folder (outside the repository: the notes name the games' own levels)."""
+    out = common.config()["oracle_runs"].parent / name
+    out.mkdir(parents=True, exist_ok=True)
+    return out
+
+
 def harn09():
-    """The path walker (HARN-09a): the real program from the launcher, driven by the pad alone (Keen 1, Keen 4,
-    Keen Dreams v1.93): every Options row and the originals' functions, then back to the launcher. Each
-    function a pad cannot complete is a failure, named with where the walk got stuck; the evidence is
-    harn09_walk.json (godot/tests/harn09_walk.gd)."""
+    """The path walker (HARN-09, SCR-03's check): the real program from the launcher, every game driven by
+    one device alone, the pad's, the keyboard's and the touch screen's (three walks at once): every Options
+    row and the originals' functions, the bindings (SCR-06), then back to the launcher. Each function a
+    device cannot complete is a failure, named with where the walk got stuck; the evidence is
+    harn09_<device>/harn09_walk.json under the work folder (godot/tests/harn09_walk.gd)."""
+    from concurrent.futures import ThreadPoolExecutor
     import gdtest
-    code, out = gdtest.run("harn09_walk", [], timeout=1800.0, quiet=True)
-    for line in out.splitlines():
-        if line.startswith("WALK") or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
-            print("  " + line.strip())
-    return code
+
+    def walk(device):
+        out = _walk_out("harn09_" + device)
+        code, text = gdtest.run("harn09_walk", ["--games=" + WALK_GAMES, "--device=" + device, "--out=" + str(out)],
+                                timeout=5400.0, quiet=True)
+        lines = [line.strip() for line in text.splitlines()
+                 if line.startswith("WALK") or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line]
+        return code, lines
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        results = list(pool.map(walk, ("pad", "keys", "touch")))
+    for code, lines in results:
+        for line in lines:
+            print("  " + line)
+    return max(code for code, _ in results)
+
+
+def scr08():
+    """Mashing (SCR-08, HARN-09's mash walk): every game from the launcher, the pad's B, A and Start pressed
+    at seeded random gaps of 15 to 50 ms through the title, a new game, a level's way in, a death and its way
+    back, a level's end and the menus over the play: each loads the map or the level once, Keen 1-3's Keens
+    Left, Keen 4-6's level box and Dreams' Loading box still come, and every game quits back to the
+    launcher (one walk per engine at once; evidence harn09_mash_<engine>/harn09_mash.json)."""
+    from concurrent.futures import ThreadPoolExecutor
+    import gdtest
+
+    def walk(part):
+        name, games = part
+        out = _walk_out("harn09_mash_" + name)
+        code, text = gdtest.run("harn09_walk", ["--games=" + games, "--mash=1", "--out=" + str(out)],
+                                timeout=3600.0, quiet=True)
+        lines = [line.strip() for line in text.splitlines()
+                 if line.startswith("WALK") or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line]
+        return code, lines
+
+    parts = (("vorticons", "keen1,keen2,keen3"), ("galaxy", "keen4,keen5,keen6"), ("dreams", "kdreams,kdreams193"))
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        results = list(pool.map(walk, parts))
+    for code, lines in results:
+        for line in lines:
+            print("  " + line)
+    return max(code for code, _ in results)
 
 
 def scr04():
@@ -1649,6 +1698,7 @@ CHECKS = {
     "REPLAY-V3": (replayv3, "slow"),
     "PREP-01": (prep01, "fast"),
     "HARN-09": (harn09, "slow"),
+    "SCR-08": (scr08, "slow"),
 }
 
 

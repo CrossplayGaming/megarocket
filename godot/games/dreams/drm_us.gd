@@ -2582,12 +2582,14 @@ func _shell_capture(device: String, action: String, slot: int) -> String:
 			break
 		if left != shown:
 			shown = left
+			controls_capture_left = left
 			fontcolor = F_SECONDCOLOR
 			USL_ShowHelp("%s (%s Cancels) %d" % [prompt, cancel, left])
 			fontcolor = F_BLACK
 			VW_UpdateScreen()
 		BE_ST_ShortSleep()
 	controls_capture = ""
+	controls_capture_left = 0
 	var code: int = controls_captured
 	controls_captured = -2
 	IN_ClearKeysDown()
@@ -2629,6 +2631,12 @@ func _shell_panel_setup() -> void:
 			[24, "Cheat", "cheats", "Cheats (Only During a Game)", sc_C]]:
 		var item: UserItem = _ui(CtlPanelKC2R(e[0], 0), uii_KeyCap, CTL_KEYCAPPIC, CTL_KEYCAPCURPIC, e[3], e[4], ui_Normal,
 			&"USL_CtlShellKeyCustom", e[1])
+		if e[0] < 24:
+			# SCR-03: the caps stand 48 pixels apart and the picture is 56 wide, so each cap but the last is the
+			# 48 up to the next where the cursor finds it and the arrows go from: USL_FindRect moves only to an
+			# item starting past the end of the one the cursor is on, and the d-pad skipped Video and Game.
+			# The cap is drawn as before (USL_CtlShellKeyCustom: its label centred on the whole picture)
+			item.r.lr.x = item.r.ul.x + 48
 		keys.append(item)
 	keys.append(_ui_end())
 	CtlPanels2[3] = keys
@@ -2644,8 +2652,17 @@ func _shell_panel_setup() -> void:
 var _shell_pages: Array = []
 
 
-## An Options keycap chosen: its page as a list in the box.
+## An Options keycap chosen: its page as a list in the box. Drawn as USL_DrawItem draws a keycap, the label
+## centred on the picture's 56 pixels whatever the cap's rectangle (SCR-03: the first four are 48 wide).
 func USL_CtlShellKeyCustom(call_: int, i: int, n: int) -> bool:
+	if call_ == uic_Draw:
+		var ip: UserItem = TheItems[i][n]
+		VWB_DrawPic(ip.r.ul.x, ip.r.ul.y, ip.picdown if (ip.sel & ui_Selected) else ip.picup)
+		if not (ip.sel & ui_Selected) and ip.text != null:
+			USL_PrintInCenter(ip.text, _us_rect(ip.r.ul.x, ip.r.ul.y, ip.r.ul.x + 56, ip.r.lr.y))
+		if ip.sel & ui_Disabled:
+			VWB_DrawMPic(ip.r.ul.x, ip.r.ul.y, CTL_LITTLEMASKPICM)
+		return true
 	if call_ != uic_Hit:
 		return false
 	TheItems[i + 1] = null

@@ -2193,6 +2193,13 @@ func CK_US_ShellCards() -> void:
 	display_items.append(_us_item_end())
 	ck_us_displayMenu = _us_card(8, 0, "TEXT:DISPLAY", 0, display_items, &"", 0, 0, 0)
 	ck_us_configureMenuItems.insert(2, _us_item(US_ITEM_Submenu, 0, IN_SC_D, "DISPLAY", US_Comm_None, ck_us_displayMenu))
+	# SCR-03: the model's Sound page, EFFECTS VOLUME under the SOUND card's choices and MUSIC VOLUME under the
+	# MUSIC card's (chosen, each moves on a step, round from the top to 0: the cards have no left and right)
+	for r: Dictionary in options.page("sound"):
+		if r.key == "effects_volume":
+			ck_us_soundMenuItems.insert(ck_us_soundMenuItems.size() - 1, _shell_row_item(r.key, "option"))
+		elif r.key == "music_volume":
+			ck_us_musicMenuItems.insert(ck_us_musicMenuItems.size() - 1, _shell_row_item(r.key, "option"))
 	# FIX-01: FIXES after OPTIONS, when the game has any
 	var fix_items: Array = []
 	for r: Dictionary in options.page("fixes"):
@@ -2346,6 +2353,7 @@ func _shell_capture(device: String, action: String, slot: int) -> String:
 			break
 		if left != shown:
 			shown = left
+			controls_capture_left = left
 			VHB_Bar(x + 1, line_y + 2, window_w - 1, sh, us_menu_backgroundColour)
 			var s2: String = "%s  %d" % [cancel, left]
 			US_SetPrintColour(us_menu_foregroundColour)
@@ -2355,6 +2363,7 @@ func _shell_capture(device: String, action: String, slot: int) -> String:
 		IN_PumpEvents()
 		VL_Present()
 	controls_capture = ""
+	controls_capture_left = 0
 	var code: int = controls_captured
 	controls_captured = -2
 	IN_ClearKeysDown()
@@ -2412,7 +2421,7 @@ func CK_US_ShellCaptions() -> void:
 	if options == null:
 		return
 	var rows: Dictionary = {}
-	for page_name: String in ["options", "gameplay", "display", "fixes", "controls", "keys", "pad"]:
+	for page_name: String in ["options", "gameplay", "display", "sound", "fixes", "controls", "keys", "pad"]:
 		for r: Dictionary in options.page(page_name):
 			rows[r.key] = r
 	for item: US_CardItem in _shell_bind_items:
@@ -2503,7 +2512,7 @@ func CK_US_ShellRowProc(msg: int, _item: US_CardItem) -> bool:
 				USL_CtlDialog("THE CONTROLS ARE RESET", "Press any key", "")
 			return true
 		"option":
-			options.step(key, 1)
+			options.cycle(key)
 		"cheat":
 			CheatsModel.toggle(self, key)
 		"once":

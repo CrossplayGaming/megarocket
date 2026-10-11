@@ -740,6 +740,7 @@ func _shell_pick(question: String, width: int, rows: Array, keys: String, start:
 	var chosen: int = -1
 	shell_asking = question
 	while not exited:
+		shell_asking_row = pos
 		DrawChar(wx + 1, (wy + pos) * 8, anim + 9)
 		var k: int = 0
 		for i: int in range(6):

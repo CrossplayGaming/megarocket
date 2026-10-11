@@ -288,8 +288,16 @@ var controls_read_vbl: int = -1000000
 ## -2 none yet) and the game never sees it.
 var controls_capture: String = ""
 var controls_captured: int = -2
-## SCR-04/05: the question a player's list or name entry is waiting on ("" none; for the tests).
+## SCR-06: the seconds the capture's countdown shows (0 none; for the tests: nothing reads it).
+var controls_capture_left: int = 0
+## SCR-04/05: the question a player's list or name entry is waiting on ("" none; for the tests), and the
+## row the list's caret is on (HARN-09's walker reads it; nothing in the game does).
 var shell_asking: String = ""
+var shell_asking_row: int = 0
+## SCR-08: how many times the map or a level was loaded, and the "Keens Left" window shown (for HARN-09's
+## mash walk: a confirm mashed must load a new game's map once, and skip no window; nothing reads them).
+var shell_level_loads: int = 0
+var shell_level_boxes: int = 0
 
 
 func shell_held(action: String) -> bool:

@@ -976,6 +976,7 @@ func CK_BeginFadeDrawing() -> void:
 
 
 func CK_LoadLevel(doCache: bool, silent: bool) -> void:
+	shell_level_loads += 1    # (SCR-08's count)
 	if IN_DemoGetMode() != IN_Demo_Off:
 		# If we're recording or playing back a demo, the game needs to be
 		# deterministic. Seed the RNG at 0 and set difficulty to normal.
@@ -1025,6 +1026,7 @@ var ck_cacheBoxChunkCounter: int = 0    # static
 
 
 func CK_BeginCacheBox(title: String, numChunks: int) -> void:
+	shell_level_boxes += 1    # (SCR-08's count)
 	# Vanilla keen checks if > 2kb free here; not necessary for omnispeak
 	ck_cacheCountdownNum = 0
 

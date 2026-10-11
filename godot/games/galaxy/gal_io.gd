@@ -710,6 +710,13 @@ var controls_read_vbl: int = -1000000
 ## -2 none yet) and the game never sees it.
 var controls_capture: String = ""
 var controls_captured: int = -2
+## SCR-06: the seconds the capture's countdown shows (0 none; for the tests: nothing reads it).
+var controls_capture_left: int = 0
+## SCR-08: how many times a level (the map too) was loaded, and a loading box drawn (a level's; the cards'
+## own "Control Panel" box counts too) (for HARN-09's mash walk: a confirm mashed must load a new game
+## once, and skip no box; nothing reads them).
+var shell_level_loads: int = 0
+var shell_level_boxes: int = 0
 ## SCR-03 (a player at the controls only): a question or screen of the menus that reads the controls while
 ## it waits (a yes/no dialog, the help, Paddle War) asks the host for the menus' keys anyway (the pad's A
 ## Enter, B Escape, whatever its buttons are bound to); SCR-05: a line being typed (US_LineInput) asks for
