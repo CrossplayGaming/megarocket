@@ -69,6 +69,9 @@ var _b_down: bool = false
 var _trig: Dictionary = {}
 var _played_from: String = ""
 var _rename_edit: LineEdit = null
+## A refusal's reason, shown first on the status line for a few seconds
+var _notice: String = ""
+var _notice_until: int = 0
 
 
 func _ready() -> void:
@@ -368,6 +371,10 @@ func show_editor() -> void:
 	view.picked.connect(_on_picked)
 	view.hovered.connect(func(_c: Vector2i) -> void: _refresh())
 	view.changed.connect(_refresh)
+	view.refused.connect(func(why: String) -> void:
+		_notice = "Can't: " + why
+		_notice_until = Time.get_ticks_msec() + 4000
+		_refresh())
 	split.add_child(view)
 	var side: VBoxContainer = VBoxContainer.new()
 	side.custom_minimum_size = Vector2(MakerPalette.COLUMNS * 36 + 16, 0)
@@ -475,8 +482,9 @@ func _refresh() -> void:
 		var mv: int = model.level.get_word(model.parts.marker_plane(), view.cursor.x, view.cursor.y)
 		var tv: int = model.level.get_word(model.parts.tile_plane(), view.cursor.x, view.cursor.y)
 		under = model.parts.marker_name(mv) if mv != 0 and model.parts.marker_name(mv) != "" else model.parts.use_of(model.parts.tile_plane(), tv)
-	status.text = "%s (%s)   %dx%d   %s   cursor %d,%d %s   Keen starts %s%s" % [model.doc_name, _title(game), model.level.width,
-		model.level.height, TOOL_NAMES[view.tool] + (" - pick the other corner" if view.anchor.x >= 0 else ""),
+	var notice: String = _notice + "   " if Time.get_ticks_msec() < _notice_until else ""
+	status.text = notice + "%s (%s)   %dx%d   objects %d/%d   %s   cursor %d,%d %s   Keen starts %s%s" % [model.doc_name, _title(game), model.level.width,
+		model.level.height, model.objects(), MakerModel.OBJECT_LIMIT[model.engine], TOOL_NAMES[view.tool] + (" - pick the other corner" if view.anchor.x >= 0 else ""),
 		view.cursor.x, view.cursor.y, under, "at %d,%d" % [s.x, s.y] if s.x >= 0 else "nowhere yet", "   not saved" if model.dirty else ""]
 
 
@@ -640,7 +648,13 @@ func play_saved(path: String) -> void:
 
 ## Plays the level (MAKER-02's start-anywhere: Keen set down at `at` when it is in the level); back here
 ## when the level ends, everything where it was, and Keen's run left as the trail.
-func _play(at: Vector2i) -> void:
+func _play(at: Vector2i, checked: bool = false) -> void:
+	# V15-04: what would spoil the play said first (a door with no key); play anyway, or keep building
+	var trouble: Array = model.problems()
+	if not checked and not trouble.is_empty() and model.start_at().x >= 0:
+		ask("
+".join(trouble), [["Keep building", func() -> void: pass], ["Play anyway", func() -> void: _play(at, true)]], "")
+		return
 	var req: Dictionary = model.play_request(_title(game), at)
 	if req.is_empty():
 		status.text = "Can't play: " + model.error

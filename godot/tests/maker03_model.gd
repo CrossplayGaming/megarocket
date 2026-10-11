@@ -103,6 +103,49 @@ func _game(root: String, game: String) -> void:
 	t.ok("%s: a file outside the maker's folder is not deleted" % game, not lib.delete(root.path_join(game).path_join("x.mkl")))
 	# the tile-use tables
 	_uses(m, game)
+	_rules(m, game)
+
+
+## V15-04's rules: refused at once with a reason, the object meter, a door with no key or gem said.
+func _rules(m: MakerModel, game: String) -> void:
+	m.new_level("Rules")
+	var mp: int = m.parts.marker_plane()
+	t.ok("%s: outside the level refused (%s)" % [game, m.refusal(0, -1, 3, 1)], m.refusal(0, -1, 3, 1) != "")
+	var sv: int = MakerModel.START_MARKERS[m.engine][0]
+	t.ok("%s: Keen's start painted as a part refused (%s)" % [game, m.refusal(mp, 9, 9, sv)], m.refusal(mp, 9, 9, sv) != "")
+	var creature: int = {"keen1": 1, "keen4": 22, "kdreams": 41}[game]
+	var limit: int = MakerModel.OBJECT_LIMIT[m.engine]
+	var placed: int = 0
+	for y: int in range(3, m.level.height - 6):
+		for x: int in range(3, m.level.width - 3):
+			if placed < limit and m.refusal(mp, x, y, creature) == "":
+				m.paint(mp, x, y, creature)
+				placed += 1
+	var why: String = m.refusal(mp, 3, m.level.height - 6, creature)
+	t.ok("%s: %d objects placed, the meter at %d/%d, one more refused (%s)" % [game, placed, m.objects(), limit, why],
+		placed == limit and m.objects() == limit and why.begins_with("No room"))
+	t.ok("%s: but a creature swapped for another in a full level is not" % game, m.refusal(mp, 3, 3, creature + 1) == "")
+	if m.engine == KeenLevel.DREAMS:
+		return
+	m.new_level("Doors")
+	var door: int = -1
+	var key: int = -1
+	for c: Dictionary in m.parts.categories:
+		if c.name == MakerParts.DOORS and int(c.plane) == m.parts.tile_plane():
+			for v: int in c.values:
+				var u: int = m.parts.props(v).use
+				if door < 0 and u == (2 if m.engine == KeenLevel.VORTICONS else 7):
+					door = v
+				if key < 0 and m.engine == KeenLevel.VORTICONS and u == 18:
+					key = v
+	m.paint(m.parts.tile_plane(), 10, 10, door)
+	var said: Array = m.problems()
+	t.ok("%s: a door with no key or gem is said before playing (%s)" % [game, said], door >= 0 and said.size() == 1)
+	if m.engine == KeenLevel.VORTICONS:
+		m.paint(0, 12, 10, key)
+	else:
+		m.paint(2, 12, 10, 57)
+	t.ok("%s: with its key or gem, nothing is (%s)" % [game, m.problems()], m.problems().is_empty())
 
 
 func _starts(m: MakerModel, l: KeenLevel) -> int:

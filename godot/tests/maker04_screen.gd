@@ -183,6 +183,15 @@ func _go() -> void:
 		and level_before.plane_difference(m.model.level) == "" and v.cursor == target and v.zoom == zoom and v.scroll == scroll)
 	t.ok("Keen's run kept as the trail, starting where he was set down (%d positions, first %s, the cursor %s)" % [m.model.trail.size(), m.model.trail[0] if not m.model.trail.is_empty() else "none", target],
 		not m.model.trail.is_empty() and absf(m.model.trail[0].x - (target.x + 0.5)) < 1.0 and absf(m.model.trail[0].y - (target.y + 1.5)) < 1.0)
+	# a rule refused at once with its reason: Keen's start picked up and painted elsewhere
+	v.set_cursor(m.model.start_at())
+	await _button(JOY_BUTTON_X)
+	await _button(JOY_BUTTON_A)
+	await _button(JOY_BUTTON_DPAD_RIGHT)
+	await _button(JOY_BUTTON_A)
+	t.ok("Keen's start picked and painted again is refused with a reason (%s)" % m.status.text, m.status.text.begins_with("Can't: Keen starts in one place")
+		and m.model.level.get_word(1, v.cursor.x, v.cursor.y) == 0)
+	t.ok("the status shows the objects meter (%s)" % m.status.text, m.status.text.contains("objects 0/69"))
 	# the menu: Save (Start, then the d-pad)
 	await _button(JOY_BUTTON_START)
 	t.ok("Start opens the menu (%s)" % _owner(), m.dialog != null and _owner() == "Ask_Back_to_editing")

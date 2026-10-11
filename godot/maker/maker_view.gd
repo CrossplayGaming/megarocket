@@ -12,6 +12,8 @@ extends Control
 signal picked(plane: int, value: int)
 signal hovered(cell: Vector2i)
 signal changed
+## V15-04: a part refused, and why
+signal refused(reason: String)
 
 const TOOLS: Array = ["paint", "pick", "erase", "rect", "start"]
 const ZOOMS: Array = [0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 6.0]
@@ -118,12 +120,20 @@ func _marker(r: Rect2, text: String, colour: Color, font: Font, label: bool) -> 
 ## The tool used at the cursor (the pad's A, Enter): paint, pick, erase, a rectangle's corner, the start.
 ## `drag` is a held button moving on (painting goes on, nothing else repeats).
 func act_at(c: Vector2i, drag: bool = false) -> void:
-	if model == null or model.level == null or not model.level.in_bounds(c.x, c.y):
+	if model == null or model.level == null:
+		return
+	if not model.level.in_bounds(c.x, c.y):
+		if not drag:
+			refused.emit(model.refusal(plane, c.x, c.y, value))
 		return
 	match tool:
 		"paint", "erase":
 			if not drag:
 				model.begin_stroke()
+			var why: String = model.refusal(plane, c.x, c.y, value) if tool == "paint" else ""
+			if why != "":
+				refused.emit(why)
+				return
 			model.paint(plane, c.x, c.y, value if tool == "paint" else erase_value())
 		"pick":
 			if not drag:
@@ -134,13 +144,32 @@ func act_at(c: Vector2i, drag: bool = false) -> void:
 			if anchor.x < 0:
 				anchor = c
 			else:
-				model.fill_rect(plane, anchor, c, value)
+				var why: String = _box_refusal(anchor, c)
+				if why != "":
+					refused.emit(why)
+				else:
+					model.fill_rect(plane, anchor, c, value)
 				anchor = Vector2i(-1, -1)
 		"start":
 			if not drag:
 				model.place_start(c.x, c.y)
 	changed.emit()
 	queue_redraw()
+
+
+## A box of the part refused: Keen's start, or more objects than the engine holds.
+func _box_refusal(a: Vector2i, b: Vector2i) -> String:
+	var why: String = model.refusal(plane, a.x, a.y, value)
+	if why != "" or plane != MakerModel.START_PLANE[model.engine] or parts.marker_name(value) == "":
+		return why
+	var more: int = 0
+	for y: int in range(mini(a.y, b.y), maxi(a.y, b.y) + 1):
+		for x: int in range(mini(a.x, b.x), maxi(a.x, b.x) + 1):
+			if parts.marker_name(model.level.get_word(plane, x, y)) == "":
+				more += 1
+	if model.objects() + more > MakerModel.OBJECT_LIMIT[model.engine]:
+		return "No room: the game holds %d creatures, items and platforms in a level." % MakerModel.OBJECT_LIMIT[model.engine]
+	return ""
 
 
 ## The end of a held press: a drag's cells are one undo step.

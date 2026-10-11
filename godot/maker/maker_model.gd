@@ -18,6 +18,11 @@ const START_MARKERS: Dictionary = {KeenLevel.VORTICONS: [255], KeenLevel.GALAXY:
 ## A new level's size by engine (cells), and the level slot it plays as (the first level after the map)
 const NEW_SIZE: Dictionary = {KeenLevel.VORTICONS: Vector2i(96, 26), KeenLevel.GALAXY: Vector2i(96, 32), KeenLevel.DREAMS: Vector2i(96, 32)}
 const NEW_SLOT: int = 1
+## V15-04's rules: the most creatures, items and platforms a level may hold, the engine's object table
+## less Keen and ten for what the level makes as it plays (shots, sparks, spawned helpers): Keen 1-3's
+## MAXOBJECTS 80, Keen 4-6's CK_MAX_OBJECTS 100, Dreams' MAXACTORS 100 (each engine quits or runs out
+## when its table is full)
+const OBJECT_LIMIT: Dictionary = {KeenLevel.VORTICONS: 80 - 11, KeenLevel.GALAXY: 100 - 11, KeenLevel.DREAMS: 100 - 11}
 ## Rows of ground under a new level, and the solid frame round it
 const NEW_GROUND: int = 4
 const NEW_FRAME: int = 2
@@ -260,6 +265,66 @@ func fill_rect(plane: int, a: Vector2i, b: Vector2i, value: int) -> int:
 				n += 1
 	end_stroke()
 	return n
+
+
+## The objects the level places (the marker plane's creatures, items and platforms).
+func objects(l: KeenLevel = null) -> int:
+	var target: KeenLevel = l if l != null else level
+	if target == null or parts == null:
+		return 0
+	var plane: int = START_PLANE[engine]
+	var n: int = 0
+	for v: int in target.planes[plane]:
+		if v != 0 and parts.marker_name(v) != "":
+			n += 1
+	return n
+
+
+## V15-04: why a part may not go at (x, y), at once and in words ("" when it may): outside the level;
+## Keen's start painted as a part (the start tool keeps him to one); one object more than the engine holds.
+func refusal(plane: int, x: int, y: int, value: int) -> String:
+	if level == null or not level.in_bounds(x, y):
+		return "That's outside the level."
+	if plane == START_PLANE[engine] and value in START_MARKERS[engine]:
+		return "Keen starts in one place: use the Keen start tool."
+	if plane == START_PLANE[engine] and parts != null and parts.marker_name(value) != "" 			and parts.marker_name(level.get_word(plane, x, y)) == "" and objects() >= OBJECT_LIMIT[engine]:
+		return "No room: the game holds %d creatures, items and platforms in a level." % OBJECT_LIMIT[engine]
+	return ""
+
+
+## V15-04: what would spoil a play, in words: no start; a door whose key or gem is nowhere in the level
+## (Keen 1-3: a door's keycard, intile 2-5 and 18-21; Keen 4-6: a gem holder's gem, misc 7-10 and info
+## 57-60). Empty when there is nothing.
+func problems() -> Array:
+	var out: Array = []
+	if level == null:
+		return out
+	if start_at().x < 0:
+		out.append("Keen has nowhere to start.")
+	if parts == null or engine == KeenLevel.DREAMS:
+		return out
+	var colours: Array = ["yellow", "red", "green", "blue"] if engine == KeenLevel.VORTICONS else ["red", "yellow", "blue", "green"]
+	var tp: int = parts.tile_plane()
+	var doors: Dictionary = {}
+	var keys: Dictionary = {}
+	for i: int in range(level.width * level.height):
+		var u: int = parts.props(level.planes[tp][i]).use
+		if engine == KeenLevel.VORTICONS:
+			if u >= 2 and u <= 5:
+				doors[u - 2] = true
+			elif u >= 18 and u <= 21:
+				keys[u - 18] = true
+		else:
+			if u >= 7 and u <= 10:
+				doors[u - 7] = true
+			var info: int = level.planes[2][i]
+			if info >= 57 and info <= 60:
+				keys[info - 57] = true
+	for c: int in doors:
+		if not keys.has(c):
+			out.append("The %s %s has no %s %s in the level." % [colours[c], "door" if engine == KeenLevel.VORTICONS else "gem holder",
+				colours[c], "keycard" if engine == KeenLevel.VORTICONS else "gem"])
+	return out
 
 
 func begin_stroke() -> void:
