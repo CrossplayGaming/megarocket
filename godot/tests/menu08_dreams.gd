@@ -88,13 +88,13 @@ func _go() -> void:
 	await _tap(KEY_O)
 	await _pause(1.0)
 	await _shot("m08d_options")
-	var was: bool = bool(host.options.get_value("fullscreen"))
+	var was: bool = bool(host.options.get_value("wide_view"))
 	await _tap(KEY_V)        # Video: the Display page
 	await _pause(1.0)
 	await _shot("m08d_display")
-	await _tap(KEY_ENTER)    # Fullscreen
-	t.ok("Video's Display page: Enter changes Fullscreen (%s -> %s)" % [was, host.options.get_value("fullscreen")],
-		await _wait(func() -> bool: return bool(host.options.get_value("fullscreen")) != was, 3.0))
+	await _tap(KEY_ENTER)    # View (SHELL-14: the first row, as in every game)
+	t.ok("Video's Display page: Enter changes View (%s -> %s)" % [was, host.options.get_value("wide_view")],
+		await _wait(func() -> bool: return bool(host.options.get_value("wide_view")) != was, 3.0))
 	await _tap(KEY_ESCAPE)
 	await _pause(0.6)
 	await _tap(KEY_G)        # Game: the Gameplay page

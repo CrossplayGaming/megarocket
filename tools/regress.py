@@ -958,6 +958,19 @@ def shell12():
     return code
 
 
+def shell14():
+    """Keen Dreams in the host with the default settings (SHELL-14), v1.00 and v1.93: the text screens and
+    the title framed over the backdrop (v1.00's title map a screen), a level drawn by the shell's view
+    (DrmNativeView), wide, the engine told its extra tiles; the panel over it framed again; the Display
+    page's View, Native resolution and Smooth motion rows shown."""
+    import gdtest
+    code, out = gdtest.run("shell14_dreams_view", [], timeout=900.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def shell13():
     """Keen Dreams in the host (SHELL-13), v1.00 and v1.93: starts, its text start screen drawn by the
     shell in the frame, Enter on to the graphics screens, its files kept in user://saves/kdreams, stops."""
@@ -1413,6 +1426,7 @@ CHECKS = {
     "SHELL-11": (shell11, "fast"),
     "SHELL-12": (shell12, "fast"),
     "SHELL-13": (shell13, "fast"),
+    "SHELL-14": (shell14, "fast"),
     "HARN-23": (harn23, "slow"),
     "MENU-07": (menu07, "fast"),
     "PERF-01": (perf01, "fast"),

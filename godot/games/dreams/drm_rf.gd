@@ -1281,7 +1281,8 @@ func _capture_draw_list() -> void:
 			dyn[bs.grseg] = block.slice(so, so + spr.width * spr.height * 5)
 	var sx: int = originxtile * 16 + (panx & 14)
 	var sy: int = originytile * 16 + pany
-	_draw_pending = {"t": vm.seconds(), "wide": wide_tiles, "play": true,
+	# the play (a level): v1.00's title map (map 20) is a screen, as Keen 1-3's title is, shown framed
+	_draw_pending = {"t": vm.seconds(), "wide": wide_tiles, "play": mapon != 20,
 		"user": "" if refreshvector in [&"", &"FadeAndUnhook"] else String(refreshvector),
 		"overlay": _draw_overlay_on(sx, sy),
 		"sx": sx, "sy": sy, "ux": originxglobal, "uy": originyglobal, "pan": panx & xpanmask,

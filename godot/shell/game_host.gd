@@ -47,6 +47,7 @@ var _frame_list: Dictionary = {}
 var _native: VortNativeView = null
 var _native_view: VortNativeView = null
 var _gal_view: GalNativeView = null
+var _drm_view: DrmNativeView = null
 ## MAKER-02: the level the game goes straight into (-1: the game from its start)
 var _play_level: int = -1
 ## REND-04: the wide view on (Keen 1-3), and the window size it was last fitted to
@@ -159,6 +160,9 @@ func _ready() -> void:
 	_gal_view = GalNativeView.new()    # Keen 4-6's
 	_gal_view.visible = false
 	add_child(_gal_view)
+	_drm_view = DrmNativeView.new()    # Keen Dreams' (SHELL-14)
+	_drm_view.visible = false
+	add_child(_drm_view)
 	_text_view = TextScreenView.new()    # text-mode screens (Keen Dreams' start)
 	_text_view.visible = false
 	add_child(_text_view)
@@ -233,6 +237,8 @@ func start(found: Dictionary) -> bool:
 				dg.us_files["KDREAMS.CMP"] = dd._read("KDREAMS.CMP")    # v1.93's title archive, from the game
 			dg.user_dir = ProjectSettings.globalize_path("user://saves").path_join(game_id)
 			dg.load_user_files()
+			if _play_level >= 0:
+				dg.kl_warp = _play_level    # straight into the level (HARN-23's way), left when it ends
 			engine = dg
 		_:
 			error = ShellMessages.not_ready(_short_title(found))
@@ -284,6 +290,15 @@ func start(found: Dictionary) -> bool:
 			for x: int in range(4):
 				cells.append(Vector2i(x, y))
 		_backdrop.setup_tile(_gal_view.images.tile(int(StageBackdrop.BACKDROP_TILE[game_id])).get("pixels", PackedByteArray()), cells)
+	elif engine is DreamsGame:
+		# SHELL-14: Dreams' view, and its backdrop tile in every cell as Keen 4-6's
+		_native = _drm_view
+		_native.setup((engine as DreamsGame).data)
+		var cells: Array = []
+		for y: int in range(4):
+			for x: int in range(4):
+				cells.append(Vector2i(x, y))
+		_backdrop.setup_tile(_drm_view.images.tile(int(StageBackdrop.BACKDROP_TILE[game_id])).get("pixels", PackedByteArray()), cells)
 	apply_setting("native_resolution")
 	apply_setting("smooth_motion")
 	apply_setting("wide_view")
@@ -572,6 +587,8 @@ func _place(c: Control, r: Rect2) -> void:
 func _shown_list() -> Dictionary:
 	if engine is GalGame:
 		return _shown_list_galaxy()
+	if engine is DreamsGame:
+		return _shown_list_dreams()
 	var g: VortScreens = engine as VortScreens
 	if g == null or not g.draw_capture:
 		return {}
@@ -603,6 +620,26 @@ func _shown_list_galaxy() -> Dictionary:
 	if list.is_empty() or int(list.get("written_vbl", -1)) < 0 or int(list.written_vbl) >= vm.vbl_count:
 		return {}
 	if vm.card.display_start != int(list.start) or list.get("none", false) or list.get("touched", false):
+		return {}
+	if str(list.get("user", "")) != "" or not list.get("play", false):
+		return {}
+	return list
+
+
+## Keen Dreams' (SHELL-14): as Keen 4-6's, the card's panning the list's too (the pel panning is set in the
+## retrace after the start is taken); a level, not the title map (v1.00's, a screen: framed).
+func _shown_list_dreams() -> Dictionary:
+	var g: DreamsGame = engine as DreamsGame
+	if not g.draw_capture:
+		return {}
+	var list: Dictionary = g.draw_list
+	if int(list.get("written_vbl", -1)) < 0 or int(list.written_vbl) >= vm.vbl_count:
+		list = g.draw_list_prev
+	if list.is_empty() or int(list.get("written_vbl", -1)) < 0 or int(list.written_vbl) >= vm.vbl_count:
+		return {}
+	if vm.card.display_start != int(list.start) or list.get("none", false) or list.get("touched", false):
+		return {}
+	if (vm.card.atc[EgaCard.ATR_PELPAN] & 7) != int(list.get("pan", 0)):
 		return {}
 	if str(list.get("user", "")) != "" or not list.get("play", false):
 		return {}

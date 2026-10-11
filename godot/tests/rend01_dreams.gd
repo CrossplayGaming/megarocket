@@ -9,8 +9,9 @@ extends SceneTree
 ## (render/drm_draw_layout.gd with the data's unshifted images, render/drm_images.gd) and compared pixel for
 ## pixel through the palette (a fade can show different indices in the same colour). Pictures the lists
 ## don't account for (the title picture, the panel, the high scores) are counted apart; the claim is that
-## every gameplay picture matches. The first few mismatches are saved as PNGs (card left, render right) to
-## --out.
+## every picture from a refresh matches (the level's, and v1.00's title map, which the shell shows framed
+## as a screen but which is a refresh's picture all the same). The first few mismatches are saved as PNGs
+## (card left, render right) to --out.
 ## REND-02: at 4x (native) the same images in the same order, each under its step from its 1x place (two
 ## original pixels; a sprite with two shifted copies four, with one eight: the original moves those on the
 ## copies' grid).
@@ -142,8 +143,6 @@ func _run(root: String, folder: String, level: int, seconds: float, out: String,
 			why = "written onto the page"
 		elif str(list.user) != "":
 			why = "draw routine " + str(list.user)
-		elif not list.play:
-			why = "not the play"
 		if why != "":
 			r.skipped += 1
 			r["why " + why] = r.get("why " + why, 0) + 1
