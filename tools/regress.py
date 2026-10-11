@@ -1101,6 +1101,19 @@ def menu08():
     return worst
 
 
+def harn09():
+    """The path walker (HARN-09a): the real program from the launcher, driven by the pad alone (Keen 1, Keen 4,
+    Keen Dreams v1.93): every Options row and the originals' functions, then back to the launcher. Each
+    function a pad cannot complete is a failure, named with where the walk got stuck; the evidence is
+    harn09_walk.json (godot/tests/harn09_walk.gd)."""
+    import gdtest
+    code, out = gdtest.run("harn09_walk", [], timeout=1800.0, quiet=True)
+    for line in out.splitlines():
+        if line.startswith("WALK") or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+            print("  " + line.strip())
+    return code
+
+
 def audio06():
     """Keen 4-6's AdLib effects in Keen 1-3 (AUDIO-06): every table sound from Keen 4 and 5, and from Keen 5
     alone; an effect's writes and its sound through the chip; in Keen 1 a jump's effect, the speaker silent."""
@@ -1544,6 +1557,7 @@ CHECKS = {
     "REPLAY-V2": (replayv2, "slow"),
     "REPLAY-V3": (replayv3, "slow"),
     "PREP-01": (prep01, "fast"),
+    "HARN-09": (harn09, "slow"),
 }
 
 

@@ -995,6 +995,11 @@ func UpdateObjHitbox(ob: Obj) -> void:
 
 ## The Options window is open (for the tests: the game reads its controls there too).
 var shell_menu_open: bool = false
+## HARN-09: the page the Options window or the title menu ("title:main", "title:extras") shows and the row its
+## cursor is on, while it waits for a press; "" otherwise (a prompt over it, or neither open). Read by the
+## path walker only; nothing in the game reads them.
+var shell_menu_page: String = ""
+var shell_menu_row: int = 0
 ## The Options window's size: every page in one window of this size, so going from page to page
 ## leaves nothing of the last behind.
 const OPTIONS_W: int = 30    # the longest row: a fix's title and its value
@@ -1028,6 +1033,8 @@ func OptionsMenu(start: String = "options") -> void:
 		_options_release()
 		_options_desc(rows, pos, wx, wy)
 		while not exited:
+			shell_menu_page = page_name    # (HARN-09's probe)
+			shell_menu_row = pos
 			DrawChar(wx + 1, (wy + pos) * 8, anim + 9)
 			var ctrl: Dictionary = {"dir": nodir, "button1": false, "button2": false}
 			var c: int = 0
@@ -1070,6 +1077,7 @@ func OptionsMenu(start: String = "options") -> void:
 			elif c == CHAR_ESCAPE or ctrl.button2:
 				act = "action:exit"
 				break
+		shell_menu_page = ""
 		DrawChar(wx + 1, (wy + pos) * 8, _options_blank(rows, pos))
 		if act.begins_with("page:"):
 			stack.append([page_name, pos])
