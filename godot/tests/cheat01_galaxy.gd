@@ -36,10 +36,7 @@ func _init() -> void:
 		t.finish(self)
 		return
 	var cfg: String = OS.get_temp_dir().path_join("mr_cheat01_%d.cfg" % Time.get_ticks_usec())
-	var settings: Settings = Settings.new(cfg)
-	if game == "keen6":
-		settings.set_value("creature_question", false, game)    # OPTIONS' CREATURE QUESTION off: the walk starts a game
-		settings.save()
+	var settings: Settings = Settings.new(cfg)    # (Keen 6: the creature question answered for the player by default)
 	var res: Dictionary = _walk(root, game, out, OptionsModel.new(settings, game, "galaxy"))
 	t.ok("the run kept going to its end (quit '%s')" % res.get("quit", ""), res.get("quit", "") == "time limit")
 	t.ok("MAIN has CHEATS after OPTIONS (CONFIGURE's card; MENU-08's order) (%s)" % [res.get("main", [])],

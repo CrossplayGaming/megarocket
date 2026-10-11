@@ -21,7 +21,7 @@ const SPEC: Dictionary = {
 	"pixel_shape": ["4:3", "enum", ["4:3", "square"]],
 	"reduce_flashes": [false, "bool", null],
 	"fullscreen": [false, "bool", null],
-	"creature_question": [true, "bool", null],    # Keen 6's copy protection asked before a new game
+	"creature_question": [false, "bool", null],   # Keen 6's copy protection: answered for the player (J-04); Classic asks it
 	"native_resolution": [true, "bool", null],    # REND-02: drawn at the window's size (Enhanced)
 	"smooth_motion": [true, "bool", null],        # REND-03: pictures between the game's (Enhanced)
 	"wide_view": [true, "bool", null],            # REND-04: the screen's own shape, more of the level (Enhanced)

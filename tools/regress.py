@@ -1124,6 +1124,49 @@ def shell15():
     return code
 
 
+def scr05g():
+    """Keen 4-6 by the controller alone (SCR-05, SCR-03, MENU-02), real controller events to the host: the d-pad's
+    letters (PadTextEntry) on their own; Keen 4's EXTRAS HELP walked by the pad, a game saved as KEEN typed with
+    the d-pad (read back from the file), a high score's name KEEN by the d-pad (read back from CONFIG.CK4),
+    REALLY QUIT? answered with A after Jump's buttons were cleared (the A held to open it no answer); Keen 6's
+    creature question (J-04): not asked by default, and when shown a wrong answer passes."""
+    import gdtest
+    worst = 0
+    for test, extra in (("scr05_pad_text", []), ("scr05_galaxy_pad", ["--game=keen4"]), ("scr05_keen6_creature", [])):
+        code, out = gdtest.run(test, extra, timeout=900.0, quiet=True)
+        for line in out.splitlines():
+            if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+                print("  %s: %s" % (test, line.strip()))
+        worst = max(worst, code)
+    return worst
+
+
+def scr05d():
+    """Keen Dreams by the controller alone (SCR-05, SCR-03), real controller events to the host: the panel's
+    cursor moved with the d-pad; the help text read and left, Reset to defaults answered with A, a game begun,
+    saved as KEEN typed with the d-pad (read back from the file), a high score's name KEEN by the d-pad (read
+    back from KDREAMS.CFG)."""
+    import gdtest
+    code, out = gdtest.run("scr05_dreams_pad", [], timeout=900.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+            print("  " + line.strip())
+    return code
+
+
+def shell04():
+    """The two-button reset (SHELL-04), real controller events to Keen 4 in the host: Back and Start held three
+    seconds give the controller's buttons back their defaults (the game's controls and the settings file), in
+    the menu and in play, said on screen; held one second, nothing; the second button down never reaches the
+    game."""
+    import gdtest
+    code, out = gdtest.run("shell04_reset_chord", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+            print("  " + line.strip())
+    return code
+
+
 def perf01():
     """Keen 4-6's faster drawing (PERF-01): the screen's conversion into the card's planes, the surface copies,
     tiles, sprites, the intro's one-bit picture and the masked fill give byte for byte what the per-pixel loops
@@ -1514,6 +1557,9 @@ CHECKS = {
     "MENU-08": (menu08, "fast"),
     "AUDIO-06": (audio06, "fast"),
     "SHELL-15": (shell15, "fast"),
+    "SCR-05G": (scr05g, "fast"),
+    "SCR-05D": (scr05d, "fast"),
+    "SHELL-04": (shell04, "fast"),
     "SECRET-01": (secret01, "fast"),
     "SECRET-01D": (secret01d, "fast"),
     "SECRET-02": (secret02, "fast"),

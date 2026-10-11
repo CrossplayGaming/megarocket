@@ -1905,6 +1905,12 @@ func HelpScreens() -> void:
 	if ck_currentEpisode_ep == EP_CK5:
 		StartMusic(19)
 
+	# SCR-03 (a player at the controls): the pad is the menus' keys in the help, though its menu reads the
+	# controls as it waits: the d-pad moves, A chooses, B leaves
+	var menu_keys: bool = shell_menu_keys
+	if get("options") != null:    # (gal_menu.gd)
+		shell_menu_keys = true
+
 	while true:
 		if quitting:
 			return
@@ -1921,6 +1927,7 @@ func HelpScreens() -> void:
 			# RF_Reset();
 			if ck_currentEpisode_ep == EP_CK5:
 				StopMusic()
+			shell_menu_keys = menu_keys
 			return
 
 		# Cache the chunk with the topic

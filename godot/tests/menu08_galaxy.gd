@@ -1,7 +1,8 @@
 # Copyright (C) 2026 the Megarocket contributors. GPL v2 or later. See LICENSE.md.
 extends SceneTree
 ## MENU-08: Keen 4-6's MAIN card in the modern order (with a player at the controls): RETURN TO DEMO (RESUME
-## in a game), NEW GAME, LOAD GAME, SAVE GAME, OPTIONS, CHEATS, HIGH SCORES, EXTRAS (PADDLE WAR), QUIT (END
+## in a game), NEW GAME, LOAD GAME, SAVE GAME, OPTIONS, CHEATS, HIGH SCORES, EXTRAS (HELP in Keen 4 and 5,
+## PADDLE WAR), QUIT (END
 ## GAME, QUIT); the title's menu opens on NEW GAME; HIGH SCORES there closes the menu and the high scores
 ## are shown next. Pictures to --shots.
 ##
@@ -78,7 +79,7 @@ func _init() -> void:
 		return []
 	t.ok("the run kept going (quit '%s')" % g.quit_message, g.quit_message == "time limit")
 	t.eq("MAIN in the modern order", main, ["RETURN TO DEMO", "NEW GAME", "LOAD GAME", "SAVE GAME", "OPTIONS", "CHEATS", "HIGH SCORES", "EXTRAS", "QUIT"])
-	t.eq("EXTRAS", sub.call("EXTRAS"), ["PADDLE WAR"])
+	t.eq("EXTRAS (SCR-03: HELP where the game has help screens)", sub.call("EXTRAS"), ["PADDLE WAR"] if game == "keen6" else ["HELP", "PADDLE WAR"])
 	t.eq("QUIT", sub.call("QUIT"), ["END GAME", "QUIT"])
 	t.eq("the title's menu opens on NEW GAME", selected_first[0], 1)
 	t.ok("HIGH SCORES on the title: the menu closed and the high scores shown", seen.has("scores"))

@@ -465,6 +465,12 @@ var controls_read_vbl: int = -1000000
 ## -2 none yet) and the game never sees it.
 var controls_capture: String = ""
 var controls_captured: int = -2
+## SCR-03 (a player at the controls only): a question that reads the controls while it waits (the
+## quicksave's) asks the host for the menus' keys anyway (the pad's A Enter, B Escape, whatever its buttons
+## are bound to); SCR-05: a line being typed (US_LineInput) asks for the d-pad's own codes, its letters
+## (PadTextEntry).
+var shell_menu_keys: bool = false
+var shell_text_entry: bool = false
 
 
 func shell_held(action: String) -> bool:
