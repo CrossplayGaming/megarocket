@@ -165,10 +165,10 @@ def record(game, case, run="a", show=False):
     return oracle_decode.decode(name)
 
 
-def run_port(game, case, out, say=print, keep=None):
+def run_port(game, case, out, say=print, keep=None, more=None):
     """The port's runner with the case's timetable, frames to `out`; `keep`: a folder the player's files the
-    program writes are kept in (a saved game for another case's overrides). Returns (code, frames folder,
-    text screens file)."""
+    program writes are kept in (a saved game for another case's overrides); `more`: further options for the
+    runner ({name: value}: REND-01R's compare_lists). Returns (code, frames folder, text screens file)."""
     import gdtest
     spec = load(game, case)
     engine = common.game(game)["engine"]
@@ -184,6 +184,7 @@ def run_port(game, case, out, say=print, keep=None):
         Path(keep).mkdir(parents=True, exist_ok=True)
         args.append(f"--save={Path(keep).resolve().as_posix()}")
     extra = dict(spec["port"])
+    extra.update(more or {})
     if engine == "vorticons":
         test, folder = "simv01_boot", Path(out)
         args.append(f"--game={game}")
@@ -702,7 +703,7 @@ def oracle_view(game, case, spec, run="a"):
     return View(frames.Sequence(folder / "frames"), spec["masks"], spec["seconds"], "original"), folder
 
 
-def check(game, case, run="a", tag="", no_run=False, every=False, say=print):
+def check(game, case, run="a", tag="", no_run=False, every=False, say=print, more=None):
     spec = load(game, case)
     if spec is None:
         say(f"COULD-NOT-RUN: no case tools/cases/{game}/{case_name(case)}.json")
@@ -719,7 +720,7 @@ def check(game, case, run="a", tag="", no_run=False, every=False, say=print):
         ptext = pframes / "text_frames.json"
         ptext = ptext if ptext.exists() else None
     else:
-        code, pframes, ptext = run_port(game, case, pfolder, say)
+        code, pframes, ptext = run_port(game, case, pfolder, say, more=more)
         if pframes is None:
             return common.COULD_NOT_RUN
     port = View(frames.Sequence(pframes), spec["masks"], spec["seconds"], "port")

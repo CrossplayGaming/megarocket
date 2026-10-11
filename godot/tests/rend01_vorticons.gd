@@ -5,11 +5,12 @@ extends SceneTree
 ## shown from the last refresh's page (the card's start address and panning are the list's) is drawn
 ## again from that refresh's draw list (render/vort_draw_renderer.gd) and compared pixel for pixel
 ## (through the palette: during a fade different indices can show the same colour).
-## Pictures the list can't account for (a window printed over the play, a user routine) are counted
+## Pictures the list can't account for (a user routine, a page the lists don't make) are counted
 ## apart; the claim is that every gameplay picture matches. The first few mismatches are saved as
 ## PNGs (card left, render right) to --out. REND-02: the layout at 1x (snapped) composed from the data's
-## unshifted images is the same picture, and at 4x (native) places every image under two original pixels
-## from its 1x place.
+## unshifted images is the same picture (tests/list_compare.gd, the comparison the session runners'
+## --compare_lists make on the recorded sessions, REND-01R), and at 4x (native) places every image under
+## two original pixels from its 1x place.
 ##
 ## REND-04 (--wide=N, the wide view's tiles each side): the snapped layout at 320 is still the card's
 ## picture, at 320 + 32N the same images each shifted by the same amount (inside the map), and creatures
@@ -43,14 +44,14 @@ func _init() -> void:
 	var wide: int = int(opts.get("wide", "0"))
 	for game: String in games:
 		var r: Dictionary = _game(root, game, levels, seconds, out, wide)
-		print("  %s: %d pictures compared, %d match, %d differ; %d not from the list (windows, user routines)" % [
-			game, r.get("compared", 0), r.get("match", 0), r.get("differ", 0), r.get("skipped", 0)])
+		print("  %s: %d pictures compared, %d match, %d differ; %d not from the list (user routines, pages the lists don't make)" % [
+			game, r.get("compared", 0), r.get("rendered", 0), r.get("render_differ", 0), r.get("skipped", 0)])
 		for k: String in r:
-			if k.begins_with("user ") or k == "overlaid":
-				print("    set aside: %s %d" % [k, r[k]])
+			if k.begins_with("why "):
+				print("    set aside: %s %d" % [k.substr(4), r[k]])
 		if wide == 0:
-			t.ok("%s: the draw list's 1x picture equals the card's (%d of %d)" % [game, r.get("match", 0), r.get("compared", 0)],
-				r.get("compared", 0) > 300 and r.get("differ", 1) == 0)
+			t.ok("%s: the draw list's 1x picture equals the card's (%d of %d)" % [game, r.get("rendered", 0), r.get("compared", 0)],
+				r.get("compared", 0) > 300 and r.get("render_differ", 1) == 0 and r.get("rendered", 0) == r.get("compared", 0))
 		else:
 			t.ok("%s: REND-04, at %d pixels every image shifted alike, the map's tiles over all of it (%d of %d)" % [game, 320 + 16 * wide, r.get("shifted", 0), r.get("compared", 0)],
 				r.get("compared", 0) > 300 and r.get("shifted", 0) == r.get("compared", 0))
@@ -58,8 +59,9 @@ func _init() -> void:
 		var rules: Array = r.get("rules", [])
 		t.ok("%s: J-30's edges: a creature 24 tiles out wakes, 30 out is kept, only with the wide view (%s)" % [game, rules],
 			rules == ([true, true] if wide > 0 else [false, false]))
-		t.ok("%s: REND-02's layout at 1x, with the unshifted images, equals the card's (%d of %d)" % [game, r.get("laid", 0), r.get("compared", 0)],
-			r.get("compared", 0) > 300 and r.get("laid", 0) == r.get("compared", 0))
+		var laid: int = r.get("laid", 0) if wide > 0 else r.get("match", 0)
+		t.ok("%s: REND-02's layout at 1x, with the unshifted images, equals the card's (%d of %d)" % [game, laid, r.get("compared", 0)],
+			r.get("compared", 0) > 300 and laid == r.get("compared", 0))
 		print("    windows over the play: %d, the list plus the window's rectangle right in %d" % [r.get("windows", 0), r.get("windows_ok", 0)])
 		if wide == 0:
 			t.ok("%s: a window over the play: the list's picture with its rectangle from the card is the card's (%d of %d)" % [game, r.get("windows_ok", 0), r.get("windows", 0)],
@@ -86,19 +88,15 @@ func _game(root: String, game: String, levels: Array, seconds: float, out: Strin
 	g.wide_tiles = wide
 	var renderer: VortDrawRenderer = VortDrawRenderer.new()
 	var r: Dictionary = {"compared": 0, "match": 0, "differ": 0, "skipped": 0, "saved": 0}
+	# the layout at 1x against the card's picture, windows over the play, pages set aside: one copy for
+	# the tests and the session runners
+	var lc: ListCompare = ListCompare.new(r, out, game + "_layout")
+	lc.keep = 2
+	lc.keep_windows = 2
 	var card: EgaCard = vm.card
 	vm.on_display = func() -> void:
-		if card.video_mode != EgaCard.MODE_EGA or card.frame_mixed or g.draw_list.is_empty():
-			return
-		# the picture shown was taken at the last retrace: the newest refresh whose start was written
-		# before it
-		var list: Dictionary = g.draw_list
-		if int(list.written_vbl) < 0 or int(list.written_vbl) >= vm.vbl_count:
-			list = g.draw_list_prev
-		if list.is_empty() or int(list.written_vbl) < 0 or int(list.written_vbl) >= vm.vbl_count:
-			return
-		if card.display_start != int(list.start) or (card.atc[EgaCard.ATR_PELPAN] & 7) != int(list.pan):
-			r.skipped += 1    # a page the lists don't account for
+		var list: Dictionary = lc.vorticons_list(g, vm)
+		if list.is_empty():
 			return
 		# J-30: a creature waking past the original's waking edge (the 23rd tile): the same creature
 		# (slot and class) asleep at the last picture, awake at this one, a tile or more past it (the
@@ -117,11 +115,11 @@ func _game(root: String, game: String, levels: Array, seconds: float, out: Strin
 			r.compared += 1
 			var o320: Array = VortDrawLayout.ops(g, list)
 			var c320: PackedByteArray = VortDrawLayout.compose(g, o320)
-			if c320 == card.frame_pixels or _same_colours(c320, card.frame_pixels, card.frame_palette):
+			if c320 == card.frame_pixels or ListCompare.same_colours(c320, card.frame_pixels, card.frame_palette):
 				r.laid = r.get("laid", 0) + 1
 			elif r.get("wide_saved", 0) < 3:
 				r.wide_saved = r.get("wide_saved", 0) + 1
-				_save(card, c320, out.path_join("%s_wide_differ_%d.png" % [game, r.wide_saved]))
+				ListCompare.save(card, c320, out.path_join("%s_wide_differ_%d.png" % [game, r.wide_saved]))
 			# at 320 + 16 * wide (wide: the tiles the view reaches past the picture on one side, the host's
 			# rule) every map tile and sprite the 320 view has, shifted by the same amount
 			var ow: Array = VortDrawLayout.ops(g, list, Vector2.ONE, true, 320 + 16 * wide)
@@ -156,30 +154,13 @@ func _game(root: String, game: String, levels: Array, seconds: float, out: Strin
 			if same:
 				r.shifted = r.get("shifted", 0) + 1
 			return
-		var pic: PackedByteArray = renderer.render(g, list)
-		if pic.is_empty() and g.draw_overlaid[int(list.page)] and str(list.user) == "":
-			# a window over the play: the list's picture with the window's rectangle copied from the card's
-			# (what the shell shows) is the card's picture
-			var rect: Rect2i = g.draw_overlay_rect[int(list.page)].intersection(Rect2i(0, 0, 320, 200))
-			var with: PackedByteArray = VortDrawLayout.compose(g, VortDrawLayout.ops(g, list))
-			for y: int in range(rect.position.y, rect.end.y):
-				for x: int in range(rect.position.x, rect.end.x):
-					with[y * 320 + x] = card.frame_pixels[y * 320 + x]
-			r.windows = r.get("windows", 0) + 1
-			if with == card.frame_pixels or _same_colours(with, card.frame_pixels, card.frame_palette):
-				r.windows_ok = r.get("windows_ok", 0) + 1
-			elif r.get("win_saved", 0) < 2:
-				r.win_saved = r.get("win_saved", 0) + 1
-				_save(card, with, out.path_join("%s_window_differ_%d.png" % [game, r.win_saved]))
-		if pic.is_empty():
-			r.skipped += 1
-			var why: String = "user " + str(list.user) if str(list.user) != "" else "overlaid"
-			r[why] = r.get(why, 0) + 1
+		# REND-02's layout at 1x (snapped) with the data's unshifted images against the card's picture; a
+		# window over the play: the list's picture with the window's rectangle copied from the card's
+		# (what the shell shows) is the card's picture; a user routine set aside
+		if lc.vorticons_check(g, list, card).is_empty():
 			return
-		r.compared += 1
-		# REND-02's layout at 1x (snapped) with the data's unshifted images: the same picture
+		var pic: PackedByteArray = renderer.render(g, list)
 		var ops1: Array = VortDrawLayout.ops(g, list)
-		var laid: PackedByteArray = VortDrawLayout.compose(g, ops1)
 		# REND-02 at 4x, native (unsnapped): the same images in the same order, each less than two
 		# original pixels from where 1x puts it (1x drops a sprite to its even pixel, under 2, and the
 		# scroll's fraction, under 1, the other way)
@@ -227,18 +208,14 @@ func _game(root: String, game: String, levels: Array, seconds: float, out: Strin
 			if end_ok and mid_ok:
 				r.smooth = r.get("smooth", 0) + 1
 			r.smooth_pairs = r.get("smooth_pairs", 0) + 1
-		if laid == card.frame_pixels or _same_colours(laid, card.frame_pixels, card.frame_palette):
-			r.laid = r.get("laid", 0) + 1
-		elif r.get("laid_saved", 0) < 2:
-			r.laid_saved = r.get("laid_saved", 0) + 1
-			_save(card, laid, out.path_join("%s_layout_differ_%d.png" % [game, r.laid_saved]))
-		if pic == card.frame_pixels or _same_colours(pic, card.frame_pixels, card.frame_palette):
-			r.match += 1    # the same picture (a fade can show different indices in the same colour)
+		# the renderer (the original's page, its pre-shifted sprites) against the card's picture
+		if pic == card.frame_pixels or ListCompare.same_colours(pic, card.frame_pixels, card.frame_palette):
+			r.rendered = r.get("rendered", 0) + 1    # the same picture (a fade can show different indices in the same colour)
 			return
-		r.differ += 1
-		if r.saved < 4:
-			r.saved += 1
-			_save(card, pic, out.path_join("%s_differ_%d.png" % [game, r.saved]))
+		r.render_differ = r.get("render_differ", 0) + 1
+		if r.get("render_saved", 0) < 4:
+			r.render_saved = r.get("render_saved", 0) + 1
+			ListCompare.save(card, pic, out.path_join("%s_differ_%d.png" % [game, r.render_saved]))
 	vm.on_limit = func() -> void:
 		g.exited = true
 	g.after_startup = func() -> void:
@@ -293,37 +270,6 @@ func _view_of(g: Object, a: Dictionary, b: Dictionary, alpha: float) -> Vector2:
 	if absf(bv.x - av.x) <= VortDrawLayout.JUMP and absf(bv.y - av.y) <= VortDrawLayout.JUMP:
 		return av.lerp(bv, alpha)
 	return bv
-
-
-## The two pictures look the same through the palette (every index pair the same colour).
-func _same_colours(a: PackedByteArray, b: PackedByteArray, pal: PackedByteArray) -> bool:
-	var same: Dictionary = {}
-	for i: int in range(a.size()):
-		var x: int = a[i]
-		var y: int = b[i]
-		if x == y:
-			continue
-		var key: int = x * 16 + y
-		if not same.has(key):
-			same[key] = pal[x * 3] == pal[y * 3] and pal[x * 3 + 1] == pal[y * 3 + 1] and pal[x * 3 + 2] == pal[y * 3 + 2]
-		if not same[key]:
-			return false
-	return true
-
-
-func _save(card: EgaCard, pic: PackedByteArray, path: String) -> void:
-	var pal: PackedByteArray = card.frame_palette
-	var rgb: PackedByteArray = PackedByteArray()
-	rgb.resize(640 * 200 * 3)
-	for y: int in range(200):
-		for x: int in range(320):
-			for side: int in range(2):
-				var c: int = (card.frame_pixels if side == 0 else pic)[y * 320 + x] * 3
-				var o: int = (y * 640 + side * 320 + x) * 3
-				rgb[o] = pal[c]
-				rgb[o + 1] = pal[c + 1]
-				rgb[o + 2] = pal[c + 2]
-	Image.create_from_data(640, 200, false, Image.FORMAT_RGB8, rgb).save_png(path)
 
 
 ## The level test's input: run right, then left, jumping, pogoing and firing; Enter now and then.

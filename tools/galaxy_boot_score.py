@@ -57,15 +57,24 @@ def align(port, orc, k):
 
 
 def run(game, case, seconds, frm, costs="", tag="", timer_offset=None):
+    out = run_port(game, case, seconds, costs, tag, timer_offset)
+    return None if out is None else score(out, case, frm)
+
+
+def run_port(game, case, seconds, costs="", tag="", timer_offset=None, extra=()):
+    """The port's run for the case (simg_boot, `extra` its further options); its folder, or None if it failed."""
     out = WORK / f"bootscore_{game}_{case}{('_' + tag) if tag else ''}"
-    extra = [f"--game={game}", f"--seconds={seconds}", f"--out={out.as_posix()}"]
+    args = [f"--game={game}", f"--seconds={seconds}", f"--out={out.as_posix()}", *extra]
     if costs:
-        extra.append(f"--costs={costs}")
+        args.append(f"--costs={costs}")
     if timer_offset is not None:
-        extra.append(f"--timer_offset={timer_offset}")
-    code, text = gdtest.run("simg_boot", extra, timeout=1800.0, quiet=True)
-    if code != 0:
-        return None
+        args.append(f"--timer_offset={timer_offset}")
+    code, text = gdtest.run("simg_boot", args, timeout=1800.0, quiet=True)
+    return out if code == 0 else None
+
+
+def score(out, case, frm):
+    """The run in `out` against the recording `case`: exact to which picture, and from `frm` how many match."""
     k, note, port, orc, start = timing_score.score(out, Path(common.config()["oracle_runs"]) / case, transient=True)
     port = [tuple(x) for x in port]
     orc = [tuple(x) for x in orc]

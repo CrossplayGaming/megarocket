@@ -6,7 +6,10 @@ The keys are the case's own (seconds after the recording's first picture, which 
 within 0.05 s), or, when tools/cases/<game>/<case>.port.json exists, the keys fitted to the recording
 (the moments the original's keyboard actually saw them).
 
-    python tools/galaxy_case.py keen4 level05 [--keys-from case|port] [--tag NAME]
+    python tools/galaxy_case.py keen4 level05 [--keys-from case|port] [--tag NAME] [--compare-lists]
+
+--compare-lists (REND-01R): the port also holds every picture it shows against its refresh's draw list
+(simg_boot's --compare_lists); the counts are left in the run's folder as lists.json.
 """
 import argparse
 import json
@@ -82,10 +85,11 @@ def case_keys(game, case, source="port"):
     return [list(k) for k in spec["held"]]
 
 
-def lock_file(game, case):
+def lock_file(game, case, path=None):
     """HARN-20's frame lock for a session: for each of the recording's blacks (the level's, then each
     restart's), the refresh at which each following picture first shows, counted from the first picture
-    after the black, up to the next restart's pictures (whose timing is the load's, TIME-G)."""
+    after the black, up to the next restart's pictures (whose timing is the load's, TIME-G). Written to
+    `path` (by default WORK/lock_<game>_<case>.json)."""
     oracle = Path(common.config()["oracle_runs"]) / f"{game}_{case}_a"
     orc = timing_score.pictures(frames.Sequence(oracle / "frames"), True)
     blacks = black_pictures(oracle)
@@ -97,7 +101,7 @@ def lock_file(game, case):
             offs.append(at)
             at += orc[k][1]
         segments.append(offs)
-    path = WORK / f"lock_{game}_{case}.json"
+    path = Path(path) if path else WORK / f"lock_{game}_{case}.json"
     path.write_text(json.dumps({"segments": segments}), encoding="utf-8")
     return path
 
@@ -109,7 +113,8 @@ def run_port(game, case, keys, out, seconds=None, extra=(), timer_offset=None, c
     if seed_ticks:
         extra = (f"--seed_ticks={','.join(f'{n}:{d}' for n, d in sorted(seed_ticks.items()) if d)}", *extra)
     if case_lock(game, case) if lock is None else lock:
-        extra = (f"--lock={lock_file(game, case).as_posix()}", *extra)
+        # (beside the run's own folder: runs of the same case side by side do not share it)
+        extra = (f"--lock={lock_file(game, case, Path(out).with_name(Path(out).name + '_lock.json')).as_posix()}", *extra)
     secs = seconds or spec["seconds"] + 2
     keyarg = ",".join(f"{t:.4f}:{SCANCODES[k]}:{h}" for t, k, h in keys)
     if spec.get("args"):
@@ -208,6 +213,11 @@ def score(game, case, out):
     return k, note, n + 1
 
 
+def case_out(game, case, tag="", lock=False):
+    """The folder a session's run goes to (main's)."""
+    return WORK / f"gcase_{game}_{case}{('_' + tag) if tag else ''}{'_lock' if lock else ''}"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("game")
@@ -215,9 +225,11 @@ def main():
     ap.add_argument("--keys-from", default="port", choices=["case", "port"])
     ap.add_argument("--tag", default="")
     ap.add_argument("--lock", action="store_true", help="hold each picture to the recording's refresh (HARN-20)")
+    ap.add_argument("--compare-lists", action="store_true", help="REND-01R: each picture against its draw list")
     a = ap.parse_args()
-    out = WORK / f"gcase_{a.game}_{a.case}{('_' + a.tag) if a.tag else ''}{'_lock' if a.lock else ''}"
-    code = run_port(a.game, a.case, case_keys(a.game, a.case, a.keys_from), out, lock=True if a.lock else None)
+    out = case_out(a.game, a.case, a.tag, a.lock)
+    code = run_port(a.game, a.case, case_keys(a.game, a.case, a.keys_from), out, lock=True if a.lock else None,
+                    extra=("--compare_lists=1",) if a.compare_lists else ())
     if code != 0:
         print(f"COULD-NOT-RUN: the port's run failed ({code})")
         return 2

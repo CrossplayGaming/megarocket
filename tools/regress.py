@@ -378,17 +378,38 @@ def simv01():
     return common.PASS if "PASS" in r.stdout else common.FAIL
 
 
-def _timing_case(game, case, seconds, extra=()):
+def _tag(what):
+    """A work-folder tag naming this checkout too, so that worktrees running the same check at once do not
+    share the port's folders (screen_case.checkout_tag)."""
+    import screen_case
+    return screen_case.checkout_tag(what)
+
+
+def _lists(folder):
+    """REND-01R: the counts a session runner's --compare_lists left in `folder` (lists.json), {} if none."""
+    f = Path(folder) / "lists.json"
+    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+
+
+def _timing_case(game, case, seconds, extra=(), tag=None):
     """Run the port from power-on for a recording's case and score it refresh for refresh."""
+    code, lines, _ = _timing_run(game, case, seconds, extra, tag)
+    for line in lines:
+        print("  " + line)
+    return code
+
+
+def _timing_run(game, case, seconds, extra=(), tag=None):
+    """_timing_case's run: (code, the lines to report, the run's folder). The folder is named for the case
+    and `tag` (this checkout's by default)."""
     import gdtest
     import shutil
     import timing_score
     cfg = common.config()
     oracle = Path(cfg["oracle_runs"]) / f"{game}_{case}_a"
+    out = Path(cfg["oracle_runs"]).parent / "port_runs" / f"timing_{game}_{case}_{tag or _tag('regress')}"
     if not (oracle / "frames" / "frames.json").exists():
-        print(f"  COULD-NOT-RUN: no decoded oracle run {game}_{case}_a")
-        return common.COULD_NOT_RUN
-    out = Path(cfg["oracle_runs"]).parent / "port_runs" / f"timing_{game}_{case}"
+        return common.COULD_NOT_RUN, [f"COULD-NOT-RUN: no decoded oracle run {game}_{case}_a"], out
     shutil.rmtree(out, ignore_errors=True)
     args = [f"--game={game}", f"--seconds={seconds}", f"--out={out}"]
     port_case = Path(__file__).parent / "cases" / game / f"{case}.port.json"
@@ -404,21 +425,22 @@ def _timing_case(game, case, seconds, extra=()):
             args.append(f"--save_seed={(common.ROOT / spec['overrides']).as_posix()}")
     code, text = gdtest.run("simv01_boot", args + list(extra), timeout=900.0, quiet=True)
     if code != common.PASS:
-        for line in text.splitlines():
-            if "FAIL" in line or "ERROR" in line:
-                print("  " + line.strip())
-        return code
+        return code, [line.strip() for line in text.splitlines() if "FAIL" in line or "ERROR" in line], out
     k, note, port, orc, _ = timing_score.score(out, oracle, transient=True)
-    print(f"  {game} {case}: {note} (recording: {len(orc) - 1} complete pictures)")
-    return common.PASS if k >= len(orc) - 1 else common.FAIL
+    return (common.PASS if k >= len(orc) - 1 else common.FAIL,
+            [f"{game} {case}: {note} (recording: {len(orc) - 1} complete pictures)"], out)
+
+
+# TIME-V1's recordings: (game, case, seconds)
+TIME_V1_CASES = [("keen1", "boot", 33), ("keen1", "title", 53), ("keen1", "newgame", 120), ("keen1", "level1", 120),
+                 ("keen2", "title", 53), ("keen3", "title", 53)]
 
 
 def timev1():
     """The Vorticons port's timing against DOSBox, refresh for refresh: the Keen 1 boot (30 s)
     and title (50 s, through the id and high-score screens) recordings and Keen 2's and Keen 3's titles, every picture lasting
     exactly as many refreshes as in the recording (instruction-counted drawing, fitted phase/rate)."""
-    results = [_timing_case("keen1", "boot", 33), _timing_case("keen1", "title", 53), _timing_case("keen1", "newgame", 120), _timing_case("keen1", "level1", 120),
-               _timing_case("keen2", "title", 53), _timing_case("keen3", "title", 53)]
+    results = [_timing_case(game, case, seconds) for game, case, seconds in TIME_V1_CASES]
     return common.COULD_NOT_RUN if common.COULD_NOT_RUN in results else max(results)
 
 
@@ -610,8 +632,196 @@ def rend03():
     cases = ([("keen1", c) for c in REPLAY_V1_LEVELS] + [("keen2", c) for c in REPLAY_V2_LEVELS]
              + [("keen3", c) for c in REPLAY_V3_LEVELS])
     with ThreadPoolExecutor(max_workers=8) as pool:
-        results = list(pool.map(lambda gc: _timing_case(gc[0], gc[1], 120, ("--draw_capture=1",)), cases))
+        results = list(pool.map(lambda gc: _timing_case(gc[0], gc[1], 120, ("--draw_capture=1",), _tag("rend03")), cases))
     return common.COULD_NOT_RUN if common.COULD_NOT_RUN in results else max(results)
+
+
+def rend01r():
+    """REND-01R: the draw list drawn at 1x is the card's picture on every recorded session. Each session
+    runs with --compare_lists (tests/list_compare.gd: every picture shown held against the list of the
+    refresh the card took, composed with the data's images; a window over the play is the list with the
+    window's rectangle from the card; pictures no list makes set aside): Keen 1-3's TIME-V1 recordings and
+    level sessions (REPLAY-V1/V2/V3), Keen 4-6's boot recordings (TIME-G4/5/6, REPLAY-G6's demo) and every
+    level session (REPLAY-G4/5/6's verified ones and the others), Keen Dreams' level sessions and boots
+    (both releases), and every screen case (SCR-01). Every picture from a list must match and every window
+    be right; the game is left alone: the verified sessions still match their recordings with the lists on,
+    and the others (not yet matched to the end, their scores reported) show the same pictures as a run
+    without the lists. The totals per game and per corpus are printed."""
+    from concurrent.futures import ThreadPoolExecutor
+    tag = _tag("rend01r")
+    jobs = []
+    for game, case, seconds in TIME_V1_CASES:
+        jobs.append(("TIME-V1", game, case, lambda g=game, c=case, s=seconds: _rend01r_vort(g, c, s, tag)))
+    for corpus, game, levels in (("REPLAY-V1", "keen1", REPLAY_V1_LEVELS), ("REPLAY-V2", "keen2", REPLAY_V2_LEVELS),
+                                 ("REPLAY-V3", "keen3", REPLAY_V3_LEVELS)):
+        for case in levels:
+            jobs.append((corpus, game, case, lambda g=game, c=case: _rend01r_vort(g, c, 120, tag)))
+    for game in ("keen4", "keen5", "keen6"):
+        jobs.append((f"TIME-G{game[-1]}", game, "boot", lambda g=game: _rend01r_boot(g, tag)))
+    verified = {"keen4": REPLAY_G4_LEVELS, "keen5": REPLAY_G5_LEVELS, "keen6": REPLAY_G6_LEVELS}
+    for game in ("keen4", "keen5", "keen6"):
+        for case in sorted(p.name[:-len(".port.json")] for p in (Path(__file__).parent / "cases" / game).glob("level*.port.json")):
+            corpus = f"REPLAY-G{game[-1]}" if case in verified[game] else "level sessions (G)"
+            jobs.append((corpus, game, case, lambda g=game, c=case, v=case in verified[game]: _rend01r_galaxy(g, c, v, tag)))
+    for game in ("kdreams", "kdreams193"):
+        if not (common.config()["game_data"] / game).exists():
+            continue
+        for case in sorted(p.stem for p in (Path(__file__).parent / "cases" / game).glob("level*.json")
+                           if not p.name.endswith(".port.json")):
+            jobs.append(("REPLAY-D", game, case, lambda g=game, c=case: _rend01r_dreams(g, c, tag)))
+        jobs.append(("boot (D)", game, "boot", lambda g=game: _rend01r_dreams_boot(g, tag)))
+    import screen_case
+    for game in ("keen1", "keen2", "keen3", "keen4", "keen5", "keen6", "kdreams", "kdreams193"):
+        for case in screen_case.cases(game):
+            jobs.append(("SCR-01", game, case, lambda g=game, c=case: _rend01r_screen(g, c, tag)))
+    started = time.time()
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(lambda job: (job[0], job[1], job[2], *job[3]()), jobs))
+    keys = ("shown", "compared", "match", "differ", "windows", "windows_ok", "skipped")
+    by_game, by_corpus, why = {}, {}, {}
+    worst = common.PASS
+    for corpus, game, case, code, note, lists in results:
+        for table, k in ((by_game, game), (by_corpus, corpus)):
+            row = table.setdefault(k, {"cases": 0, **{x: 0 for x in keys}})
+            row["cases"] += 1
+            for x in keys:
+                row[x] += int(lists.get(x, 0))
+        for w, n in lists.get("why", {}).items():
+            why[w] = why.get(w, 0) + n
+        bad = []
+        if not lists:
+            bad.append("no counts (the run did not finish)")
+            code = max(code, common.COULD_NOT_RUN)
+        elif lists["differ"] or lists["windows_ok"] != lists["windows"]:
+            bad.append(f"{lists['differ']} of {lists['compared']} pictures differ from their lists, "
+                       f"{lists['windows'] - lists['windows_ok']} of {lists['windows']} windows wrong")
+            code = max(code, common.FAIL)
+        if code != common.PASS or bad:
+            print(f"  {corpus} {game} {case}: {common.NAMES[code]}: {'; '.join(bad + [note])}")
+        worst = max(worst, code)
+    for title, table in (("game", by_game), ("corpus", by_corpus)):
+        for k, row in table.items():
+            print(f"  {title} {k}: {row['cases']} runs, {row['shown']} pictures shown; {row['compared']} from a "
+                  f"refresh's list, {row['match']} match, {row['differ']} differ; {row['windows']} with a window "
+                  f"over the play, {row['windows_ok']} right; {row['skipped']} set aside")
+    print("  set aside: " + ", ".join(f"{w} {n}" for w, n in sorted(why.items(), key=lambda x: -x[1])))
+    for corpus, game, case, code, note, _lists in results:
+        if corpus in ("level sessions (G)", "REPLAY-D", "boot (D)", "SCR-01") and code == common.PASS:
+            print(f"  ({corpus}, not held to its recording) {note}")
+    print(f"  {len(results)} runs in {time.time() - started:.0f} s")
+    return worst
+
+
+def _rend01r_vort(game, case, seconds, tag):
+    """A Keen 1-3 recording with the lists compared: (code: its timing score, held; note; counts)."""
+    code, lines, out = _timing_run(game, case, seconds, ("--compare_lists=1",), tag)
+    return code, "; ".join(lines), _lists(out)
+
+
+def _rend01r_boot(game, tag):
+    """A Keen 4-6 boot recording with the lists compared, held to TIME-G's measure (and REPLAY-G6's demo)."""
+    import galaxy_boot_score
+    out = galaxy_boot_score.run_port(game, f"{game}_boot_a", 75, tag=tag, timer_offset=TIME_G_RUNS[game].get("timer_offset"),
+                                     extra=("--compare_lists=1",))
+    code, line = _time_g_judge(game, out)
+    if game == "keen6" and out is not None:
+        demo, dline = _replayg6_demo(galaxy_boot_score.score(out, "keen6_boot_a", 1317))
+        code, line = max(code, demo), line + "; " + dline
+    return code, f"{game} boot: {line}", _lists(out) if out else {}
+
+
+def _same_frames(a, b):
+    """REND-01R: two runs of the port wrote the same pictures for the same refreshes (their frames.json):
+    None, or where they part."""
+    fa = json.loads((Path(a) / "frames.json").read_text(encoding="ascii"))["frames"]
+    fb = json.loads((Path(b) / "frames.json").read_text(encoding="ascii"))["frames"]
+    for i, (x, y) in enumerate(zip(fa, fb)):
+        if x[2:] != y[2:]:
+            return f"picture {i} ({x[2]} refreshes, {x[3][:8]} with the lists; {y[2]}, {y[3][:8]} without)"
+    if len(fa) != len(fb):
+        return f"picture {min(len(fa), len(fb))} (with the lists {len(fa)} pictures, without {len(fb)})"
+    return None
+
+
+def _left_alone(code, note, with_lists, plain):
+    """REND-01R, a session not held to a recording: the run with the lists and the one without (folders of
+    frames, None if that run failed) wrote the same pictures. (code, note)."""
+    if with_lists is None or plain is None or not (Path(plain) / "frames.json").exists():
+        return max(code, common.COULD_NOT_RUN), note + "; the run without the lists failed"
+    parted = _same_frames(with_lists, plain)
+    if parted:
+        return max(code, common.FAIL), note + f"; the game played differently with the lists on, from {parted}"
+    return code, note + "; the same pictures without the lists"
+
+
+def _rend01r_galaxy(game, case, verified, tag):
+    """A Keen 4-6 level session with the lists compared: a verified one held to its recording (REPLAY-G); another
+    to its run finishing and showing the same pictures as a run without the lists (its score reported)."""
+    code, line, out = _galaxy_run(game, case, tag, compare=True)
+    lists = _lists(out)
+    if verified:
+        return code, line, lists
+    if code == common.FAIL:
+        code = common.PASS    # (the score is the session's own, not held here)
+    pcode, _pline, pout = _galaxy_run(game, case, tag + "_plain")
+    code, line = _left_alone(code, line, out if lists else None, pout if pcode != common.COULD_NOT_RUN else None)
+    return code, line, lists
+
+
+def _rend01r_dreams(game, case, tag):
+    """A Keen Dreams level session (REPLAY-D, in progress: its score reported, not held) with the lists compared,
+    and run again without them: the same pictures. A session that warps to a map v1.00 lacks ends with the
+    original's refusal ('Tried to load a non existant map!'), the run's own end (may_exit)."""
+    import dreams_case
+    spec = json.loads((Path(__file__).parent / "cases" / game / f"{case}.json").read_text(encoding="utf-8"))
+    work = Path(common.config()["oracle_runs"]).parent / "port_runs"
+    extra = ("--may_exit=1",) if spec.get("may_exit") else ()
+    outs = []
+    for name, more in ((f"dcase_{game}_{case}_{tag}", ("--compare_lists=1",)), (f"dcase_{game}_{case}_{tag}_plain", ())):
+        out = work / name
+        code, log = dreams_case.run_port(game, case, dreams_case.case_keys(game, case), out, extra=extra + more)
+        # (the original's own Quit is printed as an engine error: with may_exit the run's end, not a broken run)
+        finished = code == common.PASS or (spec.get("may_exit") and "RESULT: PASS" in log)
+        outs.append(out / game if finished and (out / game / "frames.json").exists() else None)
+    if outs[0] is None:
+        return common.COULD_NOT_RUN, f"{game} {case}: the port's run failed", {}
+    j, note, n, *_ = dreams_case.score(game, case, outs[0].parent)
+    code, line = _left_alone(common.PASS, f"{game} {case}: {j} of {n} pictures ({note})", outs[0], outs[1])
+    return code, line, _lists(outs[0])
+
+
+def _rend01r_dreams_boot(game, tag):
+    """A Keen Dreams release from its start through the title demo (its boot recording's length; the start-up
+    screens' keys drm_boot's own) with the lists compared, and run again without them: the same pictures."""
+    import gdtest
+    import shutil
+    seconds = json.loads((Path(__file__).parent / "cases" / game / "boot.json").read_text(encoding="utf-8"))["seconds"]
+    outs = []
+    for name, more in ((f"dboot_{game}_{tag}", ["--compare_lists=1"]), (f"dboot_{game}_{tag}_plain", [])):
+        out = Path(common.config()["oracle_runs"]).parent / "port_runs" / name
+        shutil.rmtree(out, ignore_errors=True)
+        code, _ = gdtest.run("drm_boot", [f"--only={game}", f"--seconds={seconds}", f"--out={out.as_posix()}", *more],
+                             timeout=900.0, quiet=True)
+        outs.append(out / game if code == common.PASS else None)
+    if outs[0] is None:
+        return common.COULD_NOT_RUN, f"{game} boot: the port's run failed", {}
+    code, line = _left_alone(common.PASS, f"{game} boot", outs[0], outs[1])
+    return code, line, _lists(outs[0])
+
+
+def _rend01r_screen(game, case, tag):
+    """A screen case (SCR-01) with the lists compared, and run again without them: the same pictures (its own
+    check against the recording, SCR-01's, reported)."""
+    import screen_case
+    lines = []
+    screen_case.check(game, case, tag=tag, say=lines.append, more={"compare_lists": 1})
+    port = screen_case.work_dir(game, case, tag) / "port"
+    frames_at = port / game if (port / game).is_dir() else port
+    plain = screen_case.work_dir(game, case, tag + "_plain") / "port"
+    pcode, pframes, _ = screen_case.run_port(game, case, plain, say=lambda _line: None)
+    note = lines[0] if lines else f"{game} {case}: no report"
+    code, line = _left_alone(common.PASS, note, frames_at if (frames_at / "frames.json").exists() else None, pframes)
+    return code, line, _lists(frames_at)
 
 
 def replayv1():
@@ -636,12 +846,22 @@ REPLAY_G4_LEVELS = ["level01", "level02", "level04"]
 
 def _galaxy_case(game, case):
     """One Galaxy level session (tools/galaxy_case.py): its fitted keys, timer phase and DOS clock."""
-    p = subprocess.run([sys.executable, "tools/galaxy_case.py", game, case, "--tag", "regress"],
-                       cwd=str(common.ROOT), capture_output=True, text=True, encoding="utf-8", errors="replace")
+    code, line, _ = _galaxy_run(game, case)
+    print("  " + line)
+    return code
+
+
+def _galaxy_run(game, case, tag=None, compare=False):
+    """_galaxy_case's run: (galaxy_case's exit code: 0 every picture matched, 1 one differs, 2 the port's run
+    failed; its last line; the run's folder). The folder is named for `tag` (this checkout's by default);
+    with `compare` the port holds each picture against its draw list too (REND-01R: lists.json there)."""
     import galaxy_case
+    tag = tag or _tag("regress")
+    p = subprocess.run([sys.executable, "tools/galaxy_case.py", game, case, "--tag", tag,
+                        *(["--compare-lists"] if compare else [])],
+                       cwd=str(common.ROOT), capture_output=True, text=True, encoding="utf-8", errors="replace")
     lock = " [frame lock]" if galaxy_case.case_lock(game, case) else ""
-    print("  " + (p.stdout.strip().splitlines() or ["(no output)"])[-1] + lock)
-    return p.returncode
+    return p.returncode, (p.stdout.strip().splitlines() or ["(no output)"])[-1] + lock, galaxy_case.case_out(game, case, tag)
 
 
 REPLAY_G5_LEVELS = ["level01", "level02", "level04", "level12"]    # the verified ones (15 is the high scores)
@@ -671,14 +891,19 @@ def replayg6():
     import galaxy_boot_score
     with ThreadPoolExecutor(max_workers=8) as pool:
         results = list(pool.map(lambda case: _galaxy_case("keen6", case), REPLAY_G6_LEVELS))
-    r = galaxy_boot_score.run("keen6", "keen6_boot_a", 75, 1317, tag="regress")
+    code, line = _replayg6_demo(galaxy_boot_score.run("keen6", "keen6_boot_a", 75, 1317, tag=_tag("regress")))
+    print("  " + line)
+    return max(results + [code])
+
+
+def _replayg6_demo(r):
+    """REPLAY-G6's measure of keen6_boot_a's demo (galaxy_boot_score from picture 1317): (code, line)."""
     if r is None:
-        print("  keen6 demo: the port's run failed")
-        return common.COULD_NOT_RUN
+        return common.COULD_NOT_RUN, "keen6 demo: the port's run failed"
     ok = r["matched"] >= REPLAY_G6_DEMO_FLOOR
-    print(f"  keen6 demo (v1.0): {r['matched']} of {r['pictures'] - 1317} pictures in order from the title "
-          f"(floor {REPLAY_G6_DEMO_FLOOR})")
-    return max(results + [0 if ok else 1])
+    return (common.PASS if ok else common.FAIL,
+            f"keen6 demo (v1.0): {r['matched']} of {r['pictures'] - 1317} pictures in order from the title "
+            f"(floor {REPLAY_G6_DEMO_FLOOR})")
 
 
 def mm01():
@@ -884,16 +1109,7 @@ def timeg4():
     (the original's 11 refreshes against 3-4 for its like; a one-off, probably MML_SortMem
     compacting memory, not seen in the manager's trace); 1321, a step a refresh off; 2065, the
     recording's last pictures (the story screen's reveal rows are within 4)."""
-    import galaxy_boot_score
-    r = galaxy_boot_score.run("keen4", "keen4_boot_a", 75, 1317, timer_offset=6000000)
-    if r is None:
-        print("  COULD-NOT-RUN")
-        return 2
-    durs = [e for e in r["events"] if e[0] == "duration"]
-    print(f"  exact to picture {r['exact']}; from 1317: {r['matched']} matched, {len(durs)} durations differ "
-          f"(at {[e[1] for e in durs]})")
-    allowed = {1318, 1321, 2065}
-    return 0 if r["exact"] >= 1317 and r["matched"] >= 743 and all(e[1] in allowed for e in durs) else 1
+    return _time_g("keen4")
 
 
 def timeg5():
@@ -901,15 +1117,7 @@ def timeg5():
     the terminator and the title (picture 1317, one-refresh slips that recover allowed), then the demo's
     pictures in order to its end; the ones not matched are one-refresh in-between pictures (at least
     810 of 867 matched)."""
-    import galaxy_boot_score
-    r = galaxy_boot_score.run("keen5", "keen5_boot_a", 75, 1317)
-    if r is None:
-        print("  COULD-NOT-RUN")
-        return 2
-    lost = [e for e in r["events"] if e[0] == "lost"]
-    print(f"  exact to picture {r['exact']}; from 1317: {r['matched']} of {r['pictures'] - 1317} in order"
-          f"{'; lost at ' + str(lost[0][1]) if lost else ''}")
-    return 0 if r["exact"] >= 1317 and r["matched"] >= 810 and not lost else 1
+    return _time_g("keen5")
 
 
 def timeg6():
@@ -917,16 +1125,48 @@ def timeg6():
     in order from the first to the demo's first frames (picture 1335), every duration within one
     refresh (the terminator intro's one-refresh pairs). The demo itself parts where v1.0's rules
     differ from v1.4's (J-19; REPLAY-G6 keeps its floor)."""
+    return _time_g("keen6")
+
+
+# TIME-G4/5/6: each boot recording's run (the timer's phase where it is fitted) and the picture its
+# measure counts from
+TIME_G_RUNS = {"keen4": {"timer_offset": 6000000, "frm": 1317}, "keen5": {"frm": 1317}, "keen6": {"frm": 0}}
+
+
+def _time_g(game):
     import galaxy_boot_score
-    r = galaxy_boot_score.run("keen6", "keen6_boot_a", 75, 0)
-    if r is None:
-        print("  COULD-NOT-RUN")
-        return 2
-    early = [e for e in r["events"] if e[1] < 1336]
-    skips = [e for e in early if e[0] != "duration"]
-    worst = max([abs(e[2] - e[3]) for e in early if e[0] == "duration" and e[1] < 1317] or [0])
-    print(f"  to picture 1335: {len(skips)} pictures out of order, durations within {worst} refresh")
-    return 0 if not skips and worst <= 1 else 1
+    out = galaxy_boot_score.run_port(game, f"{game}_boot_a", 75, tag=_tag("timeg"),
+                                     timer_offset=TIME_G_RUNS[game].get("timer_offset"))
+    code, line = _time_g_judge(game, out)
+    print("  " + line)
+    return code
+
+
+def _time_g_judge(game, out):
+    """TIME-G4/5/6's measure of a run of the game's boot recording (galaxy_boot_score, in `out`; None: the
+    run failed): (code, line)."""
+    import galaxy_boot_score
+    if out is None:
+        return common.COULD_NOT_RUN, f"{game} boot: COULD-NOT-RUN (the port's run failed)"
+    r = galaxy_boot_score.score(out, f"{game}_boot_a", TIME_G_RUNS[game]["frm"])
+    if game == "keen4":
+        durs = [e for e in r["events"] if e[0] == "duration"]
+        allowed = {1318, 1321, 2065}
+        ok = r["exact"] >= 1317 and r["matched"] >= 743 and all(e[1] in allowed for e in durs)
+        line = (f"exact to picture {r['exact']}; from 1317: {r['matched']} matched, {len(durs)} durations differ "
+                f"(at {[e[1] for e in durs]})")
+    elif game == "keen5":
+        lost = [e for e in r["events"] if e[0] == "lost"]
+        ok = r["exact"] >= 1317 and r["matched"] >= 810 and not lost
+        line = (f"exact to picture {r['exact']}; from 1317: {r['matched']} of {r['pictures'] - 1317} in order"
+                f"{'; lost at ' + str(lost[0][1]) if lost else ''}")
+    else:
+        early = [e for e in r["events"] if e[1] < 1336]
+        skips = [e for e in early if e[0] != "duration"]
+        worst = max([abs(e[2] - e[3]) for e in early if e[0] == "duration" and e[1] < 1317] or [0])
+        ok = not skips and worst <= 1
+        line = f"to picture 1335: {len(skips)} pictures out of order, durations within {worst} refresh"
+    return (common.PASS if ok else common.FAIL), line
 
 
 def shell01():
@@ -1291,7 +1531,8 @@ def harn23():
     the game state's hash equal every play-loop frame (tools/dreams_trace.py; all levels: --level 1-16)."""
     worst = 0
     for game in ("kdreams", "kdreams193"):
-        p = subprocess.run([sys.executable, "tools/dreams_trace.py", "--game", game, "--level", "1", "--runs", "2"],
+        p = subprocess.run([sys.executable, "tools/dreams_trace.py", "--game", game, "--level", "1", "--runs", "2",
+                            "--tag", _tag("harn23")],
                            cwd=common.ROOT, capture_output=True, text=True, errors="replace")
         for line in p.stdout.splitlines():
             if line.startswith(("level", "RESULT")):
@@ -1554,6 +1795,7 @@ CHECKS = {
     "CHEAT-01": (cheat01, "fast"),
     "REND-01": (rend01, "slow"),
     "REND-03": (rend03, "slow"),
+    "REND-01R": (rend01r, "slow"),
     "REND-04": (rend04, "slow"),
     "REND-01G": (rend01g, "slow"),
     "REND-01D": (rend01d, "fast"),

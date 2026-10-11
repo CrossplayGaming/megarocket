@@ -11,7 +11,8 @@ extends SceneTree
 ## don't account for (the title picture, the panel, the high scores) are counted apart; the claim is that
 ## every picture from a refresh matches (the level's, and v1.00's title map, which the shell shows framed
 ## as a screen but which is a refresh's picture all the same). The first few mismatches are saved as PNGs
-## (card left, render right) to --out.
+## (card left, render right) to --out. The comparison is tests/list_compare.gd's, which the session
+## runners' --compare_lists make on the recorded sessions (REND-01R).
 ## REND-02: at 4x (native) the same images in the same order, each under its step from its 1x place (two
 ## original pixels; a sprite with two shifted copies four, with one eight: the original moves those on the
 ## copies' grid). REND-03D: between two refreshes, at 1 the newest's layout, at a half each followed sprite
@@ -144,7 +145,7 @@ func _run(root: String, folder: String, level: int, seconds: float, out: String,
 	if level >= 0:
 		_play_keys(vm, 6.0, seconds - 6.0)
 	var card: EgaCard = vm.card
-	var cache: Dictionary = {"t": -1.0, "overlay": Rect2i(), "pic": PackedByteArray()}
+	var lc: ListCompare = ListCompare.new(r, out, "%s_level%d" % [folder, level], images)
 	var awake: Dictionary = {}
 	vm.on_display = func() -> void:
 		if not capture or card.video_mode != EgaCard.MODE_EGA or card.frame_mixed:
@@ -159,26 +160,12 @@ func _run(root: String, folder: String, level: int, seconds: float, out: String,
 					r.beyond = r.get("beyond", 0) + 1
 				awake[o] = [o.obclass, o.active]
 				o = o.next
-		var list: Dictionary = shown(g, vm)
-		if list.is_empty():
+		# the list composed at 1x against the card's picture (a window over the play: the window check;
+		# a picture no list makes set aside)
+		var list: Dictionary = lc.dreams_list(g, vm)
+		if list.is_empty() or lc.galaxy_check(g, list, card, false).is_empty():
 			return
-		var why: String = ""
-		if list.get("none", false):
-			why = "not a refresh"
-		elif list.get("touched", false):
-			why = "written onto the page"
-		elif str(list.user) != "":
-			why = "draw routine " + str(list.user)
-		if why != "":
-			r.skipped += 1
-			r["why " + why] = r.get("why " + why, 0) + 1
-			return
-		if list.get("overlay", Rect2i()).size != Vector2i.ZERO:
-			_window(g, images, list, card, r, out, folder, cache)
-			return
-		r.compared += 1
 		var ops1: Array = DrmDrawLayout.ops(g, list)
-		var pic: PackedByteArray = _composed(g, images, list, cache)
 		# REND-02 at 4x, native: the same images in the same order, each less than two original pixels
 		# from its 1x place (1x drops a sprite to its shifted copy's pixel and the scroll to its even one)
 		var ops4: Array = DrmDrawLayout.ops(g, list, Vector2(4, 4), false)
@@ -203,13 +190,6 @@ func _run(root: String, folder: String, level: int, seconds: float, out: String,
 		var before: Dictionary = g.draw_list_prev if is_same(list, g.draw_list) else {}
 		if not before.is_empty() and not before.get("none", false) and before.has("sprites"):
 			_smooth_check(g, d, before, list, r)
-		if pic == card.frame_pixels or _same_colours(pic, card.frame_pixels, card.frame_palette):
-			r.match += 1
-			return
-		r.differ += 1
-		if r.saved < 6:
-			r.saved += 1
-			_save(card, pic, out.path_join("%s_level%d_differ_%d.png" % [folder, level, r.saved]))
 	vm.time_limit = DosMachine.seconds_to_units(seconds)
 	vm.on_limit = func() -> void:
 		g.quitting = true
@@ -223,18 +203,6 @@ func _run(root: String, folder: String, level: int, seconds: float, out: String,
 	vm.on_display = Callable()
 	vm.on_limit = Callable()
 	return end
-
-
-## The list composed at 1x (kept for the next picture of the same refresh).
-func _composed(g: Object, images: DrmImages, list: Dictionary, cache: Dictionary) -> PackedByteArray:
-	var over: Rect2i = list.get("overlay", Rect2i())
-	if float(cache.t) == float(list.t) and cache.overlay == over and not (cache.pic as PackedByteArray).is_empty():
-		return cache.pic
-	var pic: PackedByteArray = DrmDrawLayout.compose(images, DrmDrawLayout.ops(g, list), list.dyn)
-	cache.t = float(list.t)
-	cache.overlay = over
-	cache.pic = pic
-	return pic
 
 
 ## REND-04D: at 320 + 16 * wide (wide: the tiles the view reaches past the picture on one side, the host's
@@ -319,68 +287,3 @@ func _view_of(a: Dictionary, b: Dictionary, alpha: float) -> Vector2:
 	if absf(bv.x - av.x) <= DrmDrawLayout.JUMP and absf(bv.y - av.y) <= DrmDrawLayout.JUMP:
 		return av.lerp(bv, alpha)
 	return bv
-
-
-## A picture with a window over the play: the list's with the overlay's rectangle copied from the card's
-## is the card's.
-func _window(g: Object, images: DrmImages, list: Dictionary, card: EgaCard, r: Dictionary, out: String, folder: String, cache: Dictionary) -> void:
-	var with: PackedByteArray = _composed(g, images, list, cache).duplicate()
-	var rect: Rect2i = (list.overlay as Rect2i).intersection(Rect2i(0, 0, 320, 200))
-	for y: int in range(rect.position.y, rect.end.y):
-		var row: int = y * 320
-		for x: int in range(rect.position.x, rect.end.x):
-			with[row + x] = card.frame_pixels[row + x]
-	r.windows = r.get("windows", 0) + 1
-	if rect.size.x < 320 or rect.size.y < 200:
-		r.windows_part = r.get("windows_part", 0) + 1
-	if with == card.frame_pixels or _same_colours(with, card.frame_pixels, card.frame_palette):
-		r.windows_ok = r.get("windows_ok", 0) + 1
-	elif r.get("win_saved", 0) < 3:
-		r.win_saved = r.get("win_saved", 0) + 1
-		_save(card, with, out.path_join("%s_window_differ_%d.png" % [folder, r.win_saved]))
-
-
-## The list of the picture on display (taken at the last retrace): the newest whose start was written
-## before it, if the card's start and panning are that list's; {} when none is.
-static func shown(g: Object, vm: DosMachine) -> Dictionary:
-	var list: Dictionary = g.draw_list
-	if int(list.get("written_vbl", -1)) < 0 or int(list.written_vbl) >= vm.vbl_count:
-		list = g.draw_list_prev
-	if list.is_empty() or int(list.get("written_vbl", -1)) < 0 or int(list.written_vbl) >= vm.vbl_count:
-		return {}
-	if vm.card.display_start != int(list.start):
-		return {}
-	if not list.get("none", false) and (vm.card.atc[EgaCard.ATR_PELPAN] & 7) != int(list.get("pan", 0)):
-		return {}
-	return list
-
-
-## The two pictures look the same through the palette (every index pair the same colour).
-func _same_colours(a: PackedByteArray, b: PackedByteArray, pal: PackedByteArray) -> bool:
-	var same: Dictionary = {}
-	for i: int in range(a.size()):
-		var x: int = a[i]
-		var y: int = b[i]
-		if x == y:
-			continue
-		var key: int = x * 16 + y
-		if not same.has(key):
-			same[key] = pal[x * 3] == pal[y * 3] and pal[x * 3 + 1] == pal[y * 3 + 1] and pal[x * 3 + 2] == pal[y * 3 + 2]
-		if not same[key]:
-			return false
-	return true
-
-
-func _save(card: EgaCard, pic: PackedByteArray, path: String) -> void:
-	var pal: PackedByteArray = card.frame_palette
-	var rgb: PackedByteArray = PackedByteArray()
-	rgb.resize(640 * 200 * 3)
-	for y: int in range(200):
-		for x: int in range(320):
-			for side: int in range(2):
-				var c: int = (card.frame_pixels if side == 0 else pic)[y * 320 + x] * 3
-				var o: int = (y * 640 + side * 320 + x) * 3
-				rgb[o] = pal[c]
-				rgb[o + 1] = pal[c + 1]
-				rgb[o + 2] = pal[c + 2]
-	Image.create_from_data(640, 200, false, Image.FORMAT_RGB8, rgb).save_png(path)

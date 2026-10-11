@@ -10,6 +10,9 @@ extends SceneTree
 ##          --feed_keys=<make_tick:scancode:break_tick,...> (HARN-06: KEYFEED.COM's timetable, 1024 ticks
 ##          a second from the EGA mode set, no typematic repeat: tools/keyfeed.py, tools/screen_case.py)
 ##          --may_exit=1 (HARN-06: the program may quit before the time limit)
+##          --compare_lists=1 (REND-01R: the draw lists kept, as --draw_capture, and every picture shown held
+##          against its refresh's list composed at 1x, tests/list_compare.gd: the counts to <out>/lists.json,
+##          the first pictures that differ as PNGs to --compare_out=<folder>, by default <out>/lists)
 
 var t: T = T.new()
 
@@ -68,12 +71,18 @@ func _init() -> void:
 	var after_intro: Array = [int(opts.get("refreshes_after_intro", "-1"))]
 	var mark_written: Array = [-1]
 	var stopped: Array = [false]
+	# REND-01R: each picture shown against its refresh's draw list (presentation only: the game plays the same)
+	var lists: ListCompare = null
+	if opts.has("compare_lists"):
+		lists = ListCompare.new({}, str(opts.get("compare_out", out.path_join("lists"))), game)
 	vm.on_display = func() -> void:
 		if card.video_mode == EgaCard.MODE_EGA and not stopped[0]:
 			if card.frame_mixed:
 				writer.add(card.frame_rgb(), "P")
 			else:
 				writer.add_indexed(card.frame_pixels, card.frame_palette, "P")
+			if lists != null:
+				lists.vorticons(g, vm)
 			written[0] += 1
 			if written[0] == 1 and OS.has_environment("MR_TRACE"):
 				print("TRACE first_display vbl=%d" % vm.vbl_count)
@@ -93,7 +102,7 @@ func _init() -> void:
 		if opts.has(k):
 			timing[k] = int(opts[k])
 	g.apply_dosbox_timing(timing)
-	if opts.has("draw_capture"):
+	if opts.has("draw_capture") or opts.has("compare_lists"):
 		g.draw_capture = true    # REND-01..03: the draw lists kept, as native resolution keeps them
 	if opts.has("spawn_scan"):
 		g.spawn_scan_per_tile = int(opts["spawn_scan"])
@@ -129,6 +138,8 @@ func _init() -> void:
 		print("  intro mark at %.3f s, %d displays after it" % [float(vm.marks["intro"]) / (DosMachine.PIT_HZ * DosMachine.UNIT), written[0] - mark_written[0]])
 	if vm.marks.has("mode_0d"):
 		print("  mode 0Dh set at %.3f s" % (float(vm.marks["mode_0d"]) / (DosMachine.PIT_HZ * DosMachine.UNIT)))
+	if lists != null:
+		_write_lists(lists, out)
 	if opts.has("may_exit"):
 		# HARN-06: a screen case that quits to DOS (its "may_exit")
 		print("  the program %s" % ("ran to the time limit" if vm.limit_fired else "quit ('%s')" % g.exit_message))
@@ -142,3 +153,15 @@ func _init() -> void:
 	vm.on_limit = Callable()
 	g.vm = null
 	t.finish(self)
+
+
+## REND-01R: the counts of the pictures held against their lists, printed and kept beside the frames.
+func _write_lists(lists: ListCompare, out: String) -> void:
+	var line: String = lists.summary()
+	print("  LISTS " + line)
+	var f: FileAccess = FileAccess.open(out.path_join("lists.json"), FileAccess.WRITE)
+	if f == null:
+		t.blocked("cannot write lists.json in " + out)
+		return
+	f.store_string(line + "\n")
+	f.close()

@@ -12,6 +12,9 @@ ReflectionHLE's run folder (RUNS/<game>) holds the release's files, reflection-k
 --build rebuilds the executable first (VS 2022 build tools, CMake build folder BUILD).
 
     python tools/dreams_trace.py [--game kdreams193] [--level 1 | 1-16] [--seconds 45] [--way left] [--runs 3] [--build]
+                                 [--tag NAME]
+
+--tag names the port's run folder and its trace (copies of the project checking at once keep apart).
 """
 import argparse
 import os
@@ -64,8 +67,8 @@ def build():
     return "" if p.returncode == 0 else p.stdout + p.stderr
 
 
-def record(game, level, seconds, keys, trace):
-    out = WORK / "port_runs" / f"trace_{game}"
+def record(game, level, seconds, keys, trace, tag=""):
+    out = WORK / "port_runs" / f"trace_{game}{('_' + tag) if tag else ''}"
     shutil.rmtree(out, ignore_errors=True)
     if trace.exists():
         trace.unlink()
@@ -103,8 +106,8 @@ def levels(spec):
 def one_level(a, run, level):
     """Record the port's life on `level`, replay it a.runs times: 0 all matched, 1 a mismatch or a stall,
     2 the port wrote no trace."""
-    trace = run / "port.bin"
-    code, out = record(a.game, level, a.seconds, a.keys or default_keys(a.seconds, a.way), trace)
+    trace = run / f"port{('_' + a.tag) if a.tag else ''}.bin"
+    code, out = record(a.game, level, a.seconds, a.keys or default_keys(a.seconds, a.way), trace, a.tag)
     if not trace.exists() or trace.stat().st_size % 24 or trace.stat().st_size == 0:
         print(out[-3000:])
         print(f"level {level}: COULD-NOT-RUN (the port wrote no trace)")
@@ -133,6 +136,7 @@ def main():
     ap.add_argument("--way", default="left", choices=["left", "right"], help="the default keys' direction")
     ap.add_argument("--runs", type=int, default=3, help="replays: one that passes only sometimes is a harness bug")
     ap.add_argument("--build", action="store_true", help="rebuild ReflectionHLE and copy it to the run folder")
+    ap.add_argument("--tag", default="", help="a name for the port's run folder and trace (parallel runs)")
     a = ap.parse_args()
 
     run = RUNS / a.game

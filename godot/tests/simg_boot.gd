@@ -23,6 +23,10 @@ extends SceneTree
 ##          --save=<folder> (HARN-06: the player's files kept there, as the game writes them)
 ##          --may_exit=1 (HARN-06: the program may quit before the time limit; the
 ##            text screen it leaves is written as <out>/text_frames.json)
+##          --compare_lists=1 (REND-01R: the draw lists kept and every picture shown held
+##            against its refresh's list composed at 1x, tests/list_compare.gd: the counts
+##            to <out>/lists.json, the first pictures that differ as PNGs to
+##            --compare_out=<folder>, by default <out>/lists)
 
 const GAMES: Dictionary = {"keen4": "keen4", "keen5": "keen5", "keen6": "keen6e14"}
 const CLASSES: Dictionary = {"keen4": "res://games/galaxy/gal_keen4.gd",
@@ -88,6 +92,11 @@ func _init() -> void:
 	var card: EgaCard = vm.card
 	var written: Array = [0]
 	var lock: Dictionary = _lock_setup(g, vm, str(opts.get("lock", "")))
+	# REND-01R: each picture shown against its refresh's draw list (presentation only: the game plays the same)
+	var lists: ListCompare = null
+	if opts.has("compare_lists"):
+		g.draw_capture = true
+		lists = ListCompare.new({}, str(opts.get("compare_out", out.path_join("lists"))), game, GalImages.new(d))
 	vm.on_display = func() -> void:
 		if card.video_mode == EgaCard.MODE_EGA:
 			if card.frame_mixed:
@@ -95,6 +104,8 @@ func _init() -> void:
 			else:
 				writer.add_indexed(card.frame_pixels, card.frame_palette, "P")
 			written[0] += 1
+			if lists != null:
+				lists.galaxy(g, vm)
 			if not lock.is_empty():
 				_lock_display(g, vm, lock)
 	vm.time_limit = DosMachine.seconds_to_units(seconds)
@@ -110,6 +121,8 @@ func _init() -> void:
 		[game, vm.seconds(), wall, written[0], writer._index.size(), g.quit_message])
 	if vm.marks.has("mode_0d"):
 		print("  mode 0Dh set at %.3f s" % (float(vm.marks["mode_0d"]) / (DosMachine.PIT_HZ * DosMachine.UNIT)))
+	if lists != null:
+		_write_lists(lists, out)
 	if opts.has("may_exit"):
 		# HARN-06: a screen case that quits to DOS; the text screen the program leaves (the order screen)
 		# for tools/screen_case.py's text comparison, held from the quit to the time limit
@@ -135,6 +148,18 @@ func _init() -> void:
 	g.present_lock = Callable()
 	vm.on_limit = Callable()
 	t.finish(self)
+
+
+## REND-01R: the counts of the pictures held against their lists, printed and kept beside the frames.
+func _write_lists(lists: ListCompare, out: String) -> void:
+	var line: String = lists.summary()
+	print("  LISTS " + line)
+	var f: FileAccess = FileAccess.open(out.path_join("lists.json"), FileAccess.WRITE)
+	if f == null:
+		t.blocked("cannot write lists.json in " + out)
+		return
+	f.store_string(line + "\n")
+	f.close()
 
 
 # ----------------------------------------------------------------- HARN-20

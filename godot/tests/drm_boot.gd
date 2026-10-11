@@ -32,6 +32,9 @@ extends SceneTree
 ##          and saved games, read as the player's files)
 ##          --save=<folder> (HARN-06: the player's files kept there, as the program writes them)
 ##          --may_exit=1 (HARN-06: the program may quit before the time limit)
+##          --compare_lists=1 (REND-01R: the draw lists kept and every picture shown held against its
+##          refresh's list composed at 1x, tests/list_compare.gd: the counts to <out>/<folder>/lists.json,
+##          the first pictures that differ as PNGs to --compare_out=<folder>, by default <out>/<folder>/lists)
 ## Every text-mode refresh's 80x25 cells go to <out>/<folder>/text_frames.json (HARN-06: the text
 ## screens, held against the recording's by tools/screen_case.py).
 
@@ -158,6 +161,11 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 		return
 	var card: EgaCard = vm.card
 	var title: PackedByteArray = _decode_ilbm(d.title_shape) if d.version == "e193" else PackedByteArray()
+	# REND-01R: each picture shown against its refresh's draw list (presentation only: the game plays the same)
+	var lists: ListCompare = null
+	if opts.has("compare_lists"):
+		g.draw_capture = true
+		lists = ListCompare.new({}, str(opts.get("compare_out", out.path_join("lists"))), name, DrmImages.new(d))
 	# [EGA displays, text screen seen, best title match, most colours in a picture, last hash]
 	var st: Dictionary = {"ega": 0, "text": "", "title": 0.0, "colours": 0, "last": 0, "pictures": 0, "screens": []}
 	vm.on_display = func() -> void:
@@ -173,6 +181,8 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 				writer.add(card.frame_rgb(), "P")
 			else:
 				writer.add_indexed(card.frame_pixels, card.frame_palette, "P")
+			if lists != null:
+				lists.dreams(g, vm)
 			st.ega += 1
 			var h: int = hash(card.frame_pixels)
 			if h != st.last:
@@ -219,6 +229,16 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	print("  %s (%s): %.1f s of game time in %.1f s, %d EGA displays, %d distinct pictures, quit '%s'" %
 		[name, d.version, vm.seconds(), wall, st.ega, distinct.size(), g.quit_message])
 	print("  %s: title match %.3f, most colours in a picture %d" % [name, st.title, st.colours])
+	if lists != null:
+		# REND-01R: the counts, printed and kept beside the frames
+		var line: String = lists.summary()
+		print("  LISTS " + line)
+		var lf: FileAccess = FileAccess.open(out.path_join("lists.json"), FileAccess.WRITE)
+		if lf != null:
+			lf.store_string(line + "\n")
+			lf.close()
+		else:
+			t.blocked("cannot write lists.json in " + out)
 	var unported: bool = g.quit_message.begins_with("not ported yet")
 	t.ok("%s: past InitGame without a Quit (the EGA mode reached)" % name, st.ega > 0)
 	t.ok("%s: the text start screen in text mode (Keen Dreams, Press a Key)" % name,
