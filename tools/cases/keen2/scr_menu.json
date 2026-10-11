@@ -1,0 +1,87 @@
+{
+ "seconds": 36,
+ "keyfeed": true,
+ "held": [
+  [
+   16.0,
+   "enter",
+   0.2
+  ],
+  [
+   26.0,
+   "down",
+   0.15
+  ],
+  [
+   28.0,
+   "down",
+   0.15
+  ]
+ ],
+ "screens": [
+  [
+   0,
+   "one moment and the intro"
+  ],
+  [
+   13.9,
+   "title"
+  ],
+  [
+   16.0,
+   "main menu"
+  ],
+  [
+   26.0,
+   "main menu, cursor one row down"
+  ],
+  [
+   28.0,
+   "main menu, cursor two rows down"
+  ]
+ ],
+ "masks": [
+  {
+   "rect": [
+    0,
+    0,
+    320,
+    200
+   ],
+   "from": 13.1,
+   "to": 13.9,
+   "reason": "the intro's last pictures: the stars twinkle a step apart from the original's under DOSBox Staging 0.83; the DOSBox 0.80 recordings of the original (keen1_boot_a/_b, keen1_title_a, keen3_title_a) show the port's pictures, and TIME-V1 holds the intro to the refresh"
+  },
+  {
+   "rect": [
+    0,
+    142,
+    320,
+    200
+   ],
+   "from": 16.1,
+   "reason": "the title's animated tiles (rows 131-199) around the menu window run on at a phase set by when the original's loading finished (under DOSBox Staging 0.83 its ONE MOMENT picture is up 37 refreshes, the port's 32), so they meet the menu's spinning cursor in other combinations; the window (80-239, 48-141) is compared whole, and before the menu (Enter at 16.0, the window drawn at 16.2) the title is"
+  },
+  {
+   "rect": [
+    0,
+    131,
+    80,
+    142
+   ],
+   "from": 16.1,
+   "reason": "the title's animated tiles (rows 131-199) around the menu window run on at a phase set by when the original's loading finished (under DOSBox Staging 0.83 its ONE MOMENT picture is up 37 refreshes, the port's 32), so they meet the menu's spinning cursor in other combinations; the window (80-239, 48-141) is compared whole, and before the menu (Enter at 16.0, the window drawn at 16.2) the title is"
+  },
+  {
+   "rect": [
+    240,
+    131,
+    320,
+    142
+   ],
+   "from": 16.1,
+   "reason": "the title's animated tiles (rows 131-199) around the menu window run on at a phase set by when the original's loading finished (under DOSBox Staging 0.83 its ONE MOMENT picture is up 37 refreshes, the port's 32), so they meet the menu's spinning cursor in other combinations; the window (80-239, 48-141) is compared whole, and before the menu (Enter at 16.0, the window drawn at 16.2) the title is"
+  }
+ ],
+ "note": "HARN-06a (Keen 2): the intro and the title, Enter for the main menu, held 10 s, Down twice 2 s apart, held. Times are seconds after the EGA mode set (KEYFEED.COM types the keys in DOS)."
+}

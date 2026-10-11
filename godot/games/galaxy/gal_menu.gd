@@ -1514,9 +1514,11 @@ func USL_CtlDialog(s1: String, s2: String, s3: String, min_w: int = 0) -> int:
 	else:
 		w3 = 0
 
-	# Work out the window size and position and draw it
-	# (as C: when w2 >= w1 the window takes w2, however long the third line is)
-	window_w = ((w1 if w1 > w3 else w3) if w1 > w2 else w2)
+	# Work out the window size and position and draw it: the widest of the three lines, as id's own
+	# id_us_2.c (refkeen id91_11). omnispeak takes w2 whenever w2 >= w1, however long the third line is;
+	# the original's REALLY QUIT? box ("ESC TO BACK OUT" wider than "PRESS Y TO QUIT") is the wider one
+	# in DOSBox (HARN-06, keen4 scr_quit)
+	window_w = ((w1 if w1 > w3 else w3) if w1 > w2 else (w2 if w2 > w3 else w3))
 	window_w = u16(window_w + 7)
 	window_w = maxi(window_w, min_w)
 	sh = h

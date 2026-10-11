@@ -504,8 +504,7 @@ mount c "{game}"
 c:
 KEYFEED.COM
 {exe}{args}
-exit
-"""
+{exit}"""
 
 
 def _run_keyfeed(game, case, spec, cfg, entry, run_dir, game_dir, cap_dir, show):
@@ -517,9 +516,12 @@ def _run_keyfeed(game, case, spec, cfg, entry, run_dir, game_dir, cap_dir, show)
     mapper = run_dir / "oracle.map"
     mapper.write_text(MAPPER, encoding="ascii")
     conf = run_dir / "oracle.conf"
+    # "hold_exit" (HARN-06): DOSBox stays at DOS's prompt after the program quits, so the screen it leaves
+    # (an exit text screen, the prompt below it) is recorded to the run's end, as a player would see it
     conf.write_text(CONF_KEYFEED.format(
         mapper=mapper.as_posix(), captures=cap_dir.as_posix(), game=str(game_dir), cycles=spec["cycles"],
-        exe=entry["exe"], args=(" " + spec["args"]) if spec["args"] else ""), encoding="ascii")
+        exe=entry["exe"], args=(" " + spec["args"]) if spec["args"] else "",
+        exit="" if spec.get("hold_exit") else "exit\n"), encoding="ascii")
     (run_dir / "case.json").write_text(json.dumps({"game": game, "case": case, **spec}), encoding="utf-8")
     log = Log(run_dir / "stderr.txt")
     env = dict(os.environ, SDL_AUDIODRIVER="dummy")
