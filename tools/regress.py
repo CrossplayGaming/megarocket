@@ -1419,11 +1419,14 @@ def ctrl05():
 
 def menu08():
     """Every game's main menu in the modern order (MENU-08): Keen 1-3's title menu and Extras, the pause
-    menu (Escape in a game), its New Game and Load Game by the title; Keen 4-6's MAIN card."""
+    menu (Escape in a game), its New Game and Load Game by the title; Keen 4-6's MAIN card, where in a game
+    the pad's B or Start goes back to the game and the keyboard's Escape asks REALLY QUIT? (J-49)."""
     import gdtest
     worst = 0
     for test, extra in (("menu08_vorticons", []), ("menu08_galaxy", ["--game=keen4"]), ("menu08_galaxy", ["--game=keen5"]),
-                        ("menu08_galaxy", ["--game=keen6"]), ("menu08_dreams", [])):
+                        ("menu08_galaxy", ["--game=keen6"]), ("menu08_galaxy_pad", ["--game=keen4"]),
+                        ("menu08_galaxy_pad", ["--game=keen5"]), ("menu08_galaxy_pad", ["--game=keen6"]),
+                        ("menu08_dreams", [])):
         code, out = gdtest.run(test, extra, timeout=600.0, quiet=True)
         for line in out.splitlines():
             if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
@@ -1555,7 +1558,8 @@ def scr05g():
     letters (PadTextEntry) on their own; Keen 4's EXTRAS HELP walked by the pad, a game saved as KEEN typed with
     the d-pad (read back from the file), a high score's name KEEN by the d-pad (read back from CONFIG.CK4),
     REALLY QUIT? answered with A after Jump's buttons were cleared (the A held to open it no answer); Keen 6's
-    creature question (J-04): not asked by default, and when shown a wrong answer passes."""
+    creature question (J-04): not asked by default, and when shown a wrong answer passes; not asked for a new game
+    from the menu in a game (J-43); B and Start on the main card in a game go back to it (J-49)."""
     import gdtest
     worst = 0
     for test, extra in (("scr05_pad_text", []), ("scr05_galaxy_pad", ["--game=keen4"]), ("scr05_keen6_creature", [])):

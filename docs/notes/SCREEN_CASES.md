@@ -214,7 +214,7 @@ the row below once the program has quit, is masked: row 23, columns 0-4). The sh
 - **The DOS clock** the port starts with is `GALAXY_CLOCK_US` (screen_case.py), fitted on Paddle War's serves.
 - **Saved games** for the endings and game over: `python tools/galaxy_case_save.py keen4 keen5` (the port's own
   save, its score raised; never committed). Keen 6 v1.0 takes no save of the port's (its header's code offset
-  differs from v1.4's), so Keen 6's ending is reached from a new game.
+  differs from v1.4's), and its ending pages differ from v1.4's (below), so Keen 6 has no ending case.
 - **Masks used** (each says why in the case): the world map's one animated tile in view (Keen 4's water, Keen 5's
   rocket flame) from the level's start, because the frame it is held in under a window follows the port's
   timing of the panel's exit and the level load (not fitted: TIME-G); level 1's play around the Game Over!
