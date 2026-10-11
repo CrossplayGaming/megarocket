@@ -1894,9 +1894,11 @@ func PlayLoop() -> void:
 		# go through state changes and propose movements
 		obj = player
 		while obj != null and not quitting:
+			# (REND-04D, J-30: with the wide view, creatures wake by its edges: wide_tiles more each side; 0,
+			# the original's columns, otherwise)
 			if (not obj.active
-					and obj.tileright >= originxtile
-					and obj.tileleft <= originxtilemax
+					and obj.tileright >= originxtile - wide_tiles
+					and obj.tileleft <= originxtilemax + wide_tiles
 					and obj.tiletop <= originytilemax
 					and obj.tilebottom >= originytile):
 				obj.needtoreact = true

@@ -499,6 +499,19 @@ def rend01d():
     return code
 
 
+def rend04d():
+    """The wide view (REND-04D), Keen Dreams, a reach of six tiles past the picture: the 1x picture still the
+    card's, at 416 every image shifted alike with the score box kept on the screen and the map's tiles over
+    all of it, J-30's edges (creatures wake past the original's only with it); the trace against
+    ReflectionHLE (HARN-23) is the check that with it off the game is the original's."""
+    import gdtest
+    code, out = gdtest.run("rend01_dreams", ["--wide=6"], timeout=1800.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "compared" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend04g():
     """The wide view (REND-04), Keen 4-6, a reach of six tiles past the picture: the 1x picture still the
     card's, at 416 every image shifted alike with the score box kept on the screen and the map's tiles
@@ -1412,6 +1425,7 @@ CHECKS = {
     "MAKER-02": (maker02, "fast"),
     "MAKER-03": (maker03, "fast"),
     "REND-04G": (rend04g, "slow"),
+    "REND-04D": (rend04d, "fast"),
     "FIX-01": (fix01, "slow"),
     "SHELL-05": (shell05, "fast"),
     "SHELL-06": (shell06, "slow"),

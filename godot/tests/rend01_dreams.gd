@@ -23,6 +23,12 @@ extends SceneTree
 ## The game left alone: the level run again without the draw lists ends the same (the machine's time, the
 ## game state's hash, the origin).
 ##
+## REND-04D (--wide=N, the wide view's tiles each side): the 1x picture is still the card's, at 320 + 16N
+## every map tile and sprite the 320 view has is shifted by the same amount, the score box stays where it is
+## on the screen (the view's corner), the map's tiles (or the black past a narrow level) cover the whole
+## view; creatures wake past the original's edge (J-30: a creature inactive at one picture, active at the
+## next, wholly outside the original's waking columns); without it, none ever does.
+##
 ## Options: --game_data=<folder> [--releases=kdreams,kdreams193] [--level=1] [--title_seconds=30]
 ##          [--level_seconds=45] [--out=<folder>] [--wide=N]
 
@@ -79,6 +85,9 @@ func _init() -> void:
 		print("    windows over the play: %d pictures (%d within the picture), %d right" % [r.get("windows", 0), r.get("windows_part", 0), r.get("windows_ok", 0)])
 		t.ok("%s: windows over the play: the list's picture with the window's rectangle from the card is the card's (%d of %d)" % [folder, r.get("windows_ok", 0), r.get("windows", 0)],
 			r.get("windows", 0) > 20 and r.get("windows_ok", 0) == r.get("windows", 0))
+		print("    creatures woken past the original's edge: %d" % r.get("beyond", 0))
+		t.ok("%s: J-30, creatures wake by the wide view's edges only with it (%d woke past the original's)" % [folder, r.get("beyond", 0)],
+			(r.get("beyond", 0) > 0) == (wide > 0))
 		if wide > 0:
 			t.ok("%s: REND-04D, at %d pixels every image shifted alike, the score box kept on the screen, the map's tiles over all of it (%d of %d)" % [folder, 320 + 16 * wide, r.get("shifted", 0), r.compared],
 				r.compared > 300 and r.get("shifted", 0) == r.compared)
@@ -135,9 +144,20 @@ func _run(root: String, folder: String, level: int, seconds: float, out: String,
 		_play_keys(vm, 6.0, seconds - 6.0)
 	var card: EgaCard = vm.card
 	var cache: Dictionary = {"t": -1.0, "overlay": Rect2i(), "pic": PackedByteArray()}
+	var awake: Dictionary = {}
 	vm.on_display = func() -> void:
 		if not capture or card.video_mode != EgaCard.MODE_EGA or card.frame_mixed:
 			return
+		# J-30: a creature asleep at the last picture, awake at this one, wholly past the original's waking
+		# columns (the port's 21 tiles, and the tile the view may have scrolled since it woke)
+		if g.player != null and level >= 0:
+			var o: Object = g.player.next
+			while o != null:
+				if o.active != 0 and awake.get(o, [-1, 1]) == [o.obclass, 0] and \
+						(o.tileleft > g.originxtilemax + 1 or o.tileright < g.originxtile - 1):
+					r.beyond = r.get("beyond", 0) + 1
+				awake[o] = [o.obclass, o.active]
+				o = o.next
 		var list: Dictionary = shown(g, vm)
 		if list.is_empty():
 			return
