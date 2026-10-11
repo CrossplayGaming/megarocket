@@ -215,5 +215,22 @@ func _uses(m: MakerModel, game: String) -> void:
 			if not ok:
 				wrong.append("%s %d %s" % [c.name, v, pr])
 	t.ok("%s: every tile's kind agrees with its properties (%d wrong: %s)" % [game, wrong.size(), wrong.slice(0, 3)], wrong.is_empty())
+	# V15-02: every marker the palette names that the game draws shows the game's own sprite
+	var drawn: int = 0
+	var unseen: Array = []
+	for c: Dictionary in p.categories:
+		for v: int in (c.names as Dictionary):
+			var want_sprite: bool = MakerParts.SPRITES.get(game, {}).has(v) or (m.engine == KeenLevel.GALAXY and v >= 57 and v <= 68) \
+				or (m.engine == KeenLevel.DREAMS and v >= 21 and v <= 32)
+			if not want_sprite:
+				continue
+			var img: Dictionary = p.marker_sprite(v)
+			if img.is_empty() or int(img.w) <= 0 or (img.pixels as PackedByteArray).size() != int(img.w) * int(img.h):
+				unseen.append(v)
+			else:
+				drawn += 1
+	var keen: Dictionary = p.marker_sprite(MakerModel.START_MARKERS[m.engine][0])
+	t.ok("%s: %d markers drawn with the game's own sprites, Keen's start too (%s; missing %s)" % [game, drawn,
+		"%dx%d" % [keen.get("w", 0), keen.get("h", 0)], unseen], drawn >= 6 and unseen.is_empty() and int(keen.get("h", 0)) >= 24)
 	var named: Array = {"keen1": [1, "Yorp"], "keen4": [22, "Poison slug"], "kdreams": [41, "Broccolash"]}[game]
 	t.eq("%s: a creature named on the marker plane" % game, p.marker_name(named[0]), named[1])

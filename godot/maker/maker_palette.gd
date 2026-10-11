@@ -81,7 +81,7 @@ func _cell() -> float:
 
 
 func _row_h() -> float:
-	return maxf(20.0, get_theme_default_font_size() * 1.6)
+	return maxf(36.0, get_theme_default_font_size() * 2.2)
 
 
 func _resize() -> void:
@@ -166,7 +166,14 @@ func _draw() -> void:
 			var box: Rect2 = Rect2(r.position + Vector2(2, 2), Vector2(r.size.y - 4, r.size.y - 4))
 			draw_rect(box, colour, false, 1.0)
 			var label: String = str(c.names.get(values[i], str(values[i])))
-			draw_string(font, box.get_center() + Vector2(-fs * 0.5, fs * 0.35), label.substr(0, 2), HORIZONTAL_ALIGNMENT_LEFT, -1, maxi(8, fs - 2), colour)
+			var tex: Texture2D = tiles.marker_texture(values[i])
+			if tex != null:
+				# the game's own sprite, fitted to the box
+				var fit: float = minf(box.size.x / tex.get_width(), box.size.y / tex.get_height())
+				var s: Vector2 = tex.get_size() * fit
+				draw_texture_rect(tex, Rect2(box.get_center() - s / 2.0, s), false)
+			else:
+				draw_string(font, box.get_center() + Vector2(-fs * 0.5, fs * 0.35), label.substr(0, 2), HORIZONTAL_ALIGNMENT_LEFT, -1, maxi(8, fs - 2), colour)
 			draw_string(font, Vector2(box.end.x + 6, r.position.y + r.size.y * 0.5 + fs * 0.35), label, HORIZONTAL_ALIGNMENT_LEFT, size.x - box.end.x - 8, fs, MegaTheme.ega(15))
 		else:
 			var tex: Texture2D = tiles.texture(int(c.plane), values[i])

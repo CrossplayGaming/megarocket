@@ -71,6 +71,40 @@ const INFO_PARTS: Dictionary = {
 		EXIT: {33: "Exit door"}},
 }
 
+## V15-02: the sprite each marker shows in the maker, the one its creature, item or platform first shows in
+## the game (each engine's spawn code: Keen 1-3's shapenum, Keen 4-6's first action's left chunk, Dreams'
+## first state's left shape), by its name in the engine's own tables (VortNamesN.sprites(), GFXCHUNK's
+## SPR_ numbers, DrmDecl's chunk constants). The pictures come from the player's files when drawn. A marker
+## with none (the dart guns, ice cannons and turrets, which the game never draws) keeps its named box.
+const SPRITES: Dictionary = {
+	"keen1": {1: "YORPSTAND1SPR", 2: "GARGSTAND1SPR", 3: "VORTSTAND1SPR", 4: "CANSTAND1SPR", 5: "TANKSTAND1SPR", 10: "CHAINSPR"},
+	"keen2": {1: "GRUNTSTAND1SPR", 2: "YOUTHLEFT1SPR", 3: "ELITELEFT1SPR", 4: "SCRUBL1SPR", 5: "GUARDSTAND1SPR", 6: "PLATFORM1SPR", 7: "SPARK1SPR"},
+	"keen3": {1: "GRUNTSTAND1SPR", 2: "YOUTHLEFT1SPR", 3: "WOMANL1SPR", 4: "MEEPL1SPR", 5: "NINJAL1SPR", 6: "FOOBL1SPR", 7: "BALLSPR",
+		8: "JACK1SPR", 9: "PLATFORM1SPR", 10: "PLATFORM1SPR", 11: "GRUNTSTAND1SPR", 12: "SPARK1SPR"},
+	"keen4": {4: "SPR_MEMBERSHUFFLEL1", 5: "SPR_BERKEFLOATL1", 6: "SPR_LINDSEY1", 7: "SPR_WORMOUTHHINT", 8: "SPR_SKYPESTL1",
+		9: "SPR_CLOUDSTERSLEEP", 10: "SPR_FOOT", 12: "SPR_BOUNDERFACE1", 13: "SPR_EGG", 14: "SPR_LICKLEAPL3", 15: "SPR_DOPEFISHL1",
+		16: "SPR_SCHOOLFISHL1", 17: "SPR_SPRITEFACE", 18: "SPR_EATERSTAND1", 19: "SPR_MIMROCKSIT", 20: "SPR_ARACHNUT1",
+		21: "SPR_MADMUSHROOML1", 22: "SPR_SLUGL1", 27: "SPR_PLATFORM", 28: "SPR_PLATFORM", 29: "SPR_PLATFORM", 30: "SPR_PLATFORM",
+		32: "SPR_PLATFORM", 35: "SPR_SCUBAGEAR", 42: "SPR_KEENSWIML1", 69: "SPR_MINE", 77: "SPR_EGGBIRDWALKL1"},
+	"keen5": {4: "SPR_SPARKYL1", 7: "SPR_SHIKADIMINE", 10: "SPR_SLICESTAR", 13: "SPR_ROBOREDL", 16: "SPR_SPIROGRABD", 19: "SPR_SLICESTAR",
+		22: "SPR_SLICESTAR", 27: "SPR_PURPLEPLAT1", 28: "SPR_PURPLEPLAT1", 29: "SPR_PURPLEPLAT1", 30: "SPR_PURPLEPLAT1", 32: "SPR_PLATFORM",
+		33: "SPR_PLATFORM", 36: "SPR_PURPLEPLAT1", 37: "SPR_PURPLEPLAT1", 38: "SPR_PURPLEPLAT1", 39: "SPR_PURPLEPLAT1", 40: "SPR_PLATFORM",
+		42: "SPR_AMPTONWALKL1", 71: "SPR_VOLTEFACE1", 74: "SPR_SHELLEYL1", 77: "SPR_SPINDRED1", 88: "SPR_MASTER1", 99: "SPR_SHIKADI1",
+		102: "SPR_PETRUNL1", 105: "SPR_SPHEREFUL1", 124: "SPR_KORATHWALKL1", 70: "SPR_SECURITYCARD_1"},
+	"keen6": {4: "SPR_BLOOGWALKL1", 7: "SPR_RBLOOGLETWALKL1", 18: "SPR_FLEEXWALKL1", 27: "SPR_PLATFORM", 28: "SPR_PLATFORM",
+		29: "SPR_PLATFORM", 30: "SPR_PLATFORM", 32: "SPR_PLATFORM", 33: "SPR_PLATFORM", 36: "SPR_PLATFORM", 37: "SPR_PLATFORM",
+		38: "SPR_PLATFORM", 39: "SPR_PLATFORM", 40: "SPR_PLATFORM", 41: "SPR_BOBBAL2", 47: "SPR_NOSPIKESTAND", 50: "SPR_GIKWALKL1",
+		70: "SPR_ORBATRIXL1", 73: "SPR_BIPSHIPL", 76: "SPR_FLECTWALKL1", 79: "SPR_BLORB1", 82: "SPR_CEILICKTONGUE1",
+		85: "SPR_BLOOGUARDWALKL1", 88: "SPR_MAPGRABBITERSLEEP1", 99: "SPR_HOOK", 100: "SPR_SANDWICH", 101: "SPR_PASSCARD",
+		102: "SPR_BABOBBAL2", 105: "SPR_ROCKET"},
+	"kdreams": {33: "DOORSPR", 41: "BROCCOLASHRUNL1SPR", 42: "TOMATOOTHL1SPR", 43: "CARROTRUNL1SPR", 45: "ASPARAGUSRUNL1SPR",
+		46: "GRAPEONVINESPR", 47: "TATERTROOPWALKL1SPR", 48: "CANTCARTL1SPR", 49: "FRENCHYRUNL1SPR", 50: "MELONLIPSL1SPR",
+		57: "SQUASHERWALKL1SPR", 58: "APELWALKL1SPR", 59: "PEAPODRUNL1SPR", 60: "PEABRAINWALKL1SPR", 61: "BOOBUSWALKL1SPR"},
+}
+## Keen himself, on the start marker
+const KEEN_SPRITE: Dictionary = {"keen1": "KEENWALKR1SPR", "keen2": "KEENWALKR1SPR", "keen3": "KEENWALKR1SPR",
+	"keen4": "SPR_KEENSTANDR", "keen5": "SPR_KEENSTANDR", "keen6": "SPR_KEENSTANDR", "kdreams": "KEENSTANDRSPR"}
+
 var game_id: String = ""
 var engine: String = ""
 var error: String = ""
@@ -273,6 +307,38 @@ func put_first(values: Array) -> void:
 				vals.remove_at(at)
 				vals.insert(0, int(values[i]))
 		c.values = vals
+
+
+## The marker's sprite as an image {w, h, pixels, mask} from the player's files; empty for none.
+## Keen 4-6's items (57-68) are CK_SpawnItem's chunks; Dreams' (21-32) its bonusshape table.
+func marker_sprite(value: int) -> Dictionary:
+	var name: String = ""
+	if value in MakerModel.START_MARKERS[engine]:
+		name = KEEN_SPRITE.get(game_id, "")
+	elif engine == KeenLevel.GALAXY and value >= 57 and value <= 68:
+		name = GalAct.CK_ItemSpriteChunks[value - 57]
+	else:
+		name = SPRITES.get(game_id, {}).get(value, "")
+	var bonus: bool = engine == KeenLevel.DREAMS and value >= 21 and value <= 32
+	if name == "" and not bonus:
+		return {}
+	match engine:
+		KeenLevel.VORTICONS:
+			var names: Dictionary = (VortNames1 if game_id == "keen1" else (VortNames2 if game_id == "keen2" else VortNames3)).sprites()
+			var i: int = int(names.get(name, -1))
+			return vort.sprites[i] if i >= 0 and i < vort.sprites.size() else {}
+		KeenLevel.GALAXY:
+			if _gal_images == null:
+				_gal_images = GalImages.new(gal)
+			return _gal_images.sprite(int(gal.chunk_names.ints.get(name, -1)))
+		KeenLevel.DREAMS:
+			var chunk: int = int(DreamsGame.bonusshape[value - 21]) if bonus else int((DrmDecl as Script).get_script_constant_map().get(name, -1))
+			var i: int = chunk - DreamsData.STARTSPRITES
+			return dreams.sprite(i) if i >= 0 and i < dreams.sprite_table.size() else {}
+	return {}
+
+
+var _gal_images: GalImages = null
 
 
 ## The name of a marker value on the marker plane ("" if the palette has none for it).

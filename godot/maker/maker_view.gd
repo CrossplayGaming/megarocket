@@ -73,15 +73,27 @@ func _draw() -> void:
 				var fg: Texture2D = tiles.texture(1, l.get_word(1, x, y))
 				if fg != null:
 					draw_texture_rect(fg, r, false)
+	# the markers over the tiles: the game's own sprite where there is one (its foot on the marker's cell),
+	# else a named box; Keen's start framed yellow, creatures red, the rest green
+	for y: int in range(y0, mini(l.height, y1 + 3)):
+		for x: int in range(maxi(0, x0 - 3), x1):
 			var v: int = l.get_word(mplane, x, y)
-			if v in MakerModel.START_MARKERS[model.engine]:
-				_marker(r, "K", MegaTheme.ega(14), font, labels)
-			elif v != 0:
-				var n: String = parts.marker_name(v) if parts != null else ""
-				if n != "":
-					_marker(r, n.substr(0, 2), MegaTheme.ega(12) if parts.use_of(mplane, v) == MakerParts.ENEMIES else MegaTheme.ega(10), font, labels)
-				elif plane == mplane:
-					_marker(r, str(v), MegaTheme.ega(11), font, labels)
+			if v == 0:
+				continue
+			var r: Rect2 = _cell_rect(Vector2i(x, y))
+			var start: bool = v in MakerModel.START_MARKERS[model.engine]
+			var n: String = "K" if start else (parts.marker_name(v) if parts != null else "")
+			var colour: Color = MegaTheme.ega(14) if start else (MegaTheme.ega(12) if parts.use_of(mplane, v) == MakerParts.ENEMIES else MegaTheme.ega(10))
+			var tex: Texture2D = tiles.marker_texture(v) if n != "" else null
+			if tex != null:
+				var s: Vector2 = tex.get_size() * zoom
+				var at: Vector2 = r.position if model.engine == KeenLevel.VORTICONS else Vector2(r.position.x, r.end.y - s.y)
+				draw_texture_rect(tex, Rect2(at.round(), s), false)
+				draw_rect(r, colour, false, 1.0)
+			elif n != "":
+				_marker(r, n.substr(0, 2), colour, font, labels)
+			elif plane == mplane:
+				_marker(r, str(v), MegaTheme.ega(11), font, labels)
 	var t: float = 16.0 * zoom
 	draw_rect(Rect2(((Vector2.ZERO - scroll) * zoom).round(), Vector2(l.width, l.height) * t), MegaTheme.ega(8), false, 1.0)
 	# Keen's last run: a trail of his positions, fading from the oldest
