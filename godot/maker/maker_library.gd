@@ -18,6 +18,16 @@ static func dir_for(game: String) -> String:
 	return Settings.user_dir().path_join("maker").path_join(game)
 
 
+## V15-04's sharing: where shared level files are written (to send on), and where ones received are put
+## to bring in.
+static func shared_dir() -> String:
+	return Settings.user_dir().path_join("maker").path_join("shared")
+
+
+static func inbox_dir() -> String:
+	return Settings.user_dir().path_join("maker").path_join("inbox")
+
+
 ## The game's saved levels, newest change first: [{path, name, created, modified, slot, origin}].
 static func list(game: String) -> Array:
 	var out: Array = []

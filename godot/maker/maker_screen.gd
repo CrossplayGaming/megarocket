@@ -244,6 +244,7 @@ func show_library(focus_path: String = "") -> void:
 	_page_box.add_child(row)
 	var new_b: Button = _button(row, "New level", new_level, "NewLevel")
 	_button(row, "Remix a level", show_remix, "Remix")
+	_button(row, "Bring in shared levels", bring_in, "BringIn")
 	_button(row, "Other game", func() -> void:
 		_return_focus = game
 		show_games(), "OtherGame")
@@ -280,7 +281,57 @@ func _on_level_button(path: String) -> void:
 			name = e.name
 	ask(name, [["Edit", func() -> void: edit_saved(path)], ["Play", func() -> void: play_saved(path)],
 		["Rename", func() -> void: rename_box(path, name)], ["Duplicate", func() -> void: _duplicate(path)],
+		["Share", func() -> void: share(path)],
 		["Delete", func() -> void: _confirm_delete(path, name)], ["Cancel", func() -> void: pass]], "")
+
+
+## V15-04: a cleared level written as a file to share (MakerModel.share_text: a remix as its changes
+## only) into the shared folder, which the status line names.
+func share(path: String) -> String:
+	if not model.load_doc(path):
+		status.text = "Can't share it: " + model.error
+		return ""
+	var text: String = model.share_text()
+	if text == "":
+		show_library(path)
+		status.text = "Not shared: " + model.error
+		return ""
+	DirAccess.make_dir_recursive_absolute(MakerLibrary.shared_dir())
+	var to: String = MakerLibrary.shared_dir().path_join("%s_%s.keenlevel" % [game, model.doc_name.validate_filename().replace(" ", "_")])
+	var f: FileAccess = FileAccess.open(to, FileAccess.WRITE)
+	if f == null:
+		status.text = "Not shared: can't write " + to
+		return ""
+	f.store_string(text)
+	f.close()
+	show_library(path)
+	status.text = "Shared as %s (%d bytes): send that file; the other player puts it in %s and presses Bring in shared levels." % [to, text.length(), MakerLibrary.inbox_dir()]
+	return to
+
+
+## V15-04: the shared level files for this game in the inbox brought into the library (each opened against
+## the player's own copy of the game, saved as a new level; the file then marked brought in).
+func bring_in() -> int:
+	var dir: String = MakerLibrary.inbox_dir()
+	DirAccess.make_dir_recursive_absolute(dir)
+	var n: int = 0
+	var refused: PackedStringArray = PackedStringArray()
+	for f: String in DirAccess.get_files_at(dir):
+		if f.get_extension() != "keenlevel":
+			continue
+		var text: String = FileAccess.get_file_as_string(dir.path_join(f))
+		var doc: Variant = JSON.parse_string(text)
+		if not (doc is Dictionary) or str((doc as Dictionary).get("game", "")) != game:
+			continue
+		if model.open_shared(text) and model.save_doc():
+			DirAccess.rename_absolute(dir.path_join(f), dir.path_join(f + ".brought_in"))
+			n += 1
+		else:
+			refused.append("%s: %s" % [f, model.error])
+	show_library()
+	status.text = ("Brought in %d shared level%s. " % [n, "" if n == 1 else "s"] if n > 0 else "No shared %s levels in %s. " % [_title(game), dir]) \
+		+ (" ".join(refused) if not refused.is_empty() else "")
+	return n
 
 
 func _duplicate(path: String) -> void:

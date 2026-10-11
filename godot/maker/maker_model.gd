@@ -285,6 +285,103 @@ func save_doc() -> bool:
 	return true
 
 
+## V15-04: the level as a file to share (.keenlevel, JSON): a remix as its changes only (each cell that
+## differs from the game's own level, with that level's fingerprint so the receiver's copy is checked to
+## be the same), applied to the receiver's own game, so no level data of the game leaves the sender; a
+## new level whole (all of it the player's). Only a cleared level is shared. "" with `error`.
+func share_text() -> String:
+	if level == null:
+		error = "no level"
+		return ""
+	if not is_cleared():
+		error = "Finish it from Keen's start first (the clear check), then share it."
+		return ""
+	var doc: Dictionary = {"megarocket_share": 1, "game": game_id, "name": doc_name, "slot": number, "origin": origin,
+		"width": level.width, "height": level.height}
+	var base: KeenLevel = original(number) if origin.begins_with("remix") else null
+	if base != null and base.width == level.width and base.height == level.height:
+		var changes: PackedInt32Array = PackedInt32Array()
+		for p: int in range(level.planes.size()):
+			for i: int in range(level.width * level.height):
+				if level.planes[p][i] != base.planes[p][i]:
+					changes.append_array(PackedInt32Array([p, i, level.planes[p][i]]))
+		doc["kind"] = "changes"
+		doc["base"] = fingerprint(base)
+		doc["changes"] = Marshalls.raw_to_base64(changes.to_byte_array().compress(FileAccess.COMPRESSION_DEFLATE))
+		doc["count"] = changes.size() / 3
+	else:
+		doc["kind"] = "whole"
+		doc["fields"] = level.fields
+		var planes: Array = []
+		for words: PackedInt32Array in level.planes:
+			planes.append(Marshalls.raw_to_base64(LevelCodec.words_to_bytes(words).compress(FileAccess.COMPRESSION_DEFLATE)))
+		doc["planes"] = planes
+	return JSON.stringify(doc)
+
+
+## Opens a shared level (share_text's) as the level being made, unsaved. False with `error`: another
+## game's, or a remix whose game level differs here (another release).
+func open_shared(text: String) -> bool:
+	var v: Variant = JSON.parse_string(text)
+	var doc: Dictionary = v if v is Dictionary else {}
+	if int(doc.get("megarocket_share", 0)) != 1:
+		error = "That is not a shared Keen Maker level."
+		return false
+	if str(doc.get("game", "")) != game_id:
+		error = "That level is for %s." % str(doc.get("game", "another game"))
+		return false
+	var n: int = int(doc.get("slot", NEW_SLOT))
+	var w: int = int(doc.get("width", 0))
+	var h: int = int(doc.get("height", 0))
+	var l: KeenLevel = null
+	if doc.get("kind", "") == "changes":
+		var base: KeenLevel = original(n)
+		var was: int = number
+		number = n    # (the fingerprint holds the slot)
+		var same: bool = base != null and fingerprint(base) == str(doc.get("base", ""))
+		number = was
+		if not same or base.width != w or base.height != h:
+			error = "That remix was made from another release of the game: its level %d differs here." % n
+			return false
+		l = base.copy()
+		var raw: PackedByteArray = Marshalls.base64_to_raw(str(doc.get("changes", ""))).decompress(int(doc.get("count", 0)) * 12, FileAccess.COMPRESSION_DEFLATE)
+		var changes: PackedInt32Array = raw.to_int32_array()
+		if changes.size() != int(doc.get("count", -1)) * 3:
+			error = "The shared level's changes are damaged."
+			return false
+		for k: int in range(0, changes.size(), 3):
+			if changes[k] < 0 or changes[k] >= l.planes.size() or changes[k + 1] < 0 or changes[k + 1] >= w * h:
+				error = "The shared level's changes are damaged."
+				return false
+			l.set_word(changes[k], changes[k + 1] % w, changes[k + 1] / w, changes[k + 2])
+	else:
+		var base: KeenLevel = original(n)
+		l = KeenLevel.create(engine, w, h, base.name if base != null else "")
+		var planes: Array = doc.get("planes", [])
+		if w <= 0 or h <= 0 or planes.size() != l.planes.size():
+			error = "The shared level is damaged."
+			return false
+		for p: int in range(planes.size()):
+			var raw: PackedByteArray = Marshalls.base64_to_raw(str(planes[p])).decompress(w * h * 2, FileAccess.COMPRESSION_DEFLATE)
+			if raw.size() != w * h * 2:
+				error = "The shared level is damaged."
+				return false
+			l.planes[p] = LevelCodec.bytes_to_words(raw)
+		var fields: Variant = doc.get("fields", {})
+		if fields is Dictionary:
+			for k: String in fields:
+				l.fields[k] = int(fields[k])
+	l.number = n
+	level = l
+	number = n
+	doc_name = str(doc.get("name", "Shared level"))
+	origin = str(doc.get("origin", "new"))
+	path = ""
+	_reset()
+	dirty = true
+	return true
+
+
 ## The planes' names for the screen (Keen 1-3: tiles, sprites; the others: background, foreground, info).
 func plane_names() -> Array:
 	return KeenLevel.PLANE_NAMES.get(engine, [])

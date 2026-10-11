@@ -105,6 +105,7 @@ func _game(root: String, game: String) -> void:
 	_uses(m, game)
 	_rules(m, game)
 	_brush(m, game)
+	_share(m, root, game)
 	if m.engine == KeenLevel.GALAXY:
 		_links(m, game)
 
@@ -146,6 +147,34 @@ func _links(m: MakerModel, game: String) -> void:
 	var hard: int = (p.VARIANTS[game] as Dictionary).keys()[0]
 	t.ok("%s: a harder difficulty's creature named (%d: %s)" % [game, hard, p.marker_name(hard)], p.marker_name(hard).contains("Hard")
 		and not p.marker_sprite(hard).is_empty())
+
+
+## V15-04's sharing: only a cleared level; a remix as its changes only (no planes, a small file) that
+## opens on another copy of the game equal to the sender's; a different game level refused; a new level
+## whole, equal too.
+func _share(m: MakerModel, root: String, game: String) -> void:
+	m.remix(1)
+	m.begin_stroke()
+	for x: int in range(4, 7):
+		m.paint(0, x, 4, (m.level.get_word(0, x, 4) + 3) % 100)
+	m.end_stroke()
+	t.ok("%s: an uncleared level is not shared (%s)" % [game, m.error if m.share_text() == "" else "SHARED"], m.share_text() == "" and m.error.contains("Finish"))
+	m.cleared_hash = m.fingerprint()
+	var text: String = m.share_text()
+	var doc: Dictionary = JSON.parse_string(text) if text != "" else {}
+	t.ok("%s: a remix shared as its 3 changes only, no planes (%d bytes)" % [game, text.length()],
+		doc.get("kind", "") == "changes" and int(doc.get("count", 0)) == 3 and not doc.has("planes") and text.length() < 1000)
+	var r: MakerModel = MakerModel.new()
+	r.open(game, root.path_join(game), "", false)
+	t.ok("%s: it opens on another copy of the game equal to the sender's (%s)" % [game, r.error], r.open_shared(text) and r.level.plane_difference(m.level) == ""
+		and r.number == 1 and r.doc_name == m.doc_name)
+	doc["base"] = "0" + str(doc.base).substr(1)
+	t.ok("%s: made from another release (its level differs): refused (%s)" % [game, r.error], not r.open_shared(JSON.stringify(doc)) and r.error.contains("another release"))
+	m.new_level("Shared new")
+	m.paint(MakerModel.START_PLANE[m.engine], 9, 9, {"keen1": 1, "keen4": 22, "kdreams": 41}[game])
+	m.cleared_hash = m.fingerprint()
+	var whole: String = m.share_text()
+	t.ok("%s: a new level shared whole opens equal" % game, whole.contains("\"whole\"") and r.open_shared(whole) and r.level.plane_difference(m.level) == "")
 
 
 ## V15-04's ground brush: a block brushed in the air gets the game's own top edge, corners and fill (by
