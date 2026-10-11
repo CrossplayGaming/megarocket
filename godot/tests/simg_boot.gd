@@ -134,8 +134,10 @@ func _init() -> void:
 				cells[i] = 0x20
 				cells[i + 1] = 0x07
 			var held: int = maxi(1, int(round((float(vm.time_limit) - float(vm.now)) * 70.086 / (DosMachine.PIT_HZ * DosMachine.UNIT))))
+			# the cursor the original leaves: column 0, row 23 (the 24 rows printed; DOS's prompt goes on the
+			# row below, row 24, as the recordings show; HARN-06 checks it there)
 			var f: FileAccess = FileAccess.open(out.path_join("text_frames.json"), FileAccess.WRITE)
-			f.store_string(JSON.stringify({"cols": 80, "rows": 25, "screens": [[held, cells.hex_encode(), 0, 24]]}))
+			f.store_string(JSON.stringify({"cols": 80, "rows": 25, "screens": [[held, cells.hex_encode(), 0, 23]]}))
 			f.close()
 	else:
 		t.ok("the run reached the time limit without the program quitting on its own", g.quit_message == "time limit")

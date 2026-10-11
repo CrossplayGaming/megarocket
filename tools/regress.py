@@ -113,7 +113,9 @@ def harn06a():
 def harn06():
     """The screen-case tool (tools/screen_case.py) fails on planted faults: in Keen 1's and Keen Dreams
     v1.93's menu cases, one settled picture of the port altered by a pixel and one settled picture of the
-    original left out of the port are each reported, and (v1.93's start screens) one text cell's colour."""
+    original left out of the port are each reported, two swapped, a screen no key ends cut to one refresh
+    (S4), and (v1.93's start screens) one text cell's colour, one character swapped for one the screen shows
+    nowhere else (cells read by shape, J-38) and the text cursor moved."""
     import screen_case
     worst = common.PASS
     tag = screen_case.checkout_tag("harn06")

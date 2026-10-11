@@ -29,8 +29,11 @@ the full case format and the rules. SCR-01V/G/D in `tools/regress.py` check ever
 - The title: Keen 1-3 at about 14 s (Enter at 16 opens the menu); Keen 4-6 fully shown at about 31 s
   (Escape at 33 opens the main card); Dreams at once (Space at 4 opens the control panel).
 - Keys 1.5-2 s apart, 0.15-0.2 s down. A key pressed while the original is still loading can be lost.
-- End on a still screen held 3 s or more: both sides are cut at `seconds`, and the last picture is never
-  compared.
+- End on a still screen held 3 s or more: both sides are cut at `seconds`; the last picture is compared
+  when it is up a second or more to the cut (FINAL_SETTLED), never for how long.
+- Name each screen from the moment its first picture comes (a key's picture comes 0.1-0.2 s after it, a
+  screen that follows by itself when it does): a picture is filed under the named screen it is up longest
+  in, and a named screen showing "0 settled pictures" is a label in the wrong place.
 - Key names: `tools/keyfeed.py` SCANCODES (letters, digits, f1-f12, esc, enter, space, arrows, ctrl, alt,
   lshift, backspace, tab, pgup/pgdn, home/end, ins/del, comma, period, slash, minus, equals).
 
@@ -68,6 +71,13 @@ the key), never in the middle of an animation. Examples (`keen1/scr_menu.json`):
 
 Text screens take `text_masks`: `{"cells": [row0, col0, row1, col1], "reason": "..."}`.
 
+## Sequences (S6)
+
+A timed animation no key steers (the ordering screen's walker in `scr_attract`) shows poses that repeat and
+steps up under 4 refreshes, so S1-S5 cannot tell another walk. `"sequences": [{"from": 64.9, "to": 81.5,
+"reason": "..."}]` holds every picture that starts in the span, however short, the same and in the same order
+on both sides. Put both edges mid-picture on both sides (`entries`-style listing: `screen_case.py port`).
+
 ## Reading a failure
 
     main menu (from 16.0 s): FAIL (2 differences: S1, S2; ...)
@@ -87,9 +97,14 @@ Text screens take `text_masks`: `{"cells": [row0, col0, row1, col1], "reason": "
 ## Text screens
 
 Text-mode screens are compared by their 80x25 cells, not pixels (the shell draws them in Megarocket's own
-font): cells the port says hold the same (character, colours) must look alike in the recording, different
-pairs must look different, and each cell's colours must be its attribute's. A failure names the cells by
-row/column. The hardware cursor is reported, not failed. The runners write text screens: `drm_boot` always
+font). J-38: a text screen is the original's when every cell holds the same character in the same colours.
+Each recorded cell is read as a character by its shape: the shapes are learnt each run from the recordings
+of Keen 1-3's `scr_quit`, whose exit screens the programs carry (ENDSCRN), so the original names every
+character on them (77 characters: letters, digits, punctuation, box and block characters; DOSBox's font is
+never committed). A character not among them must have one shape in all its cells, and none a known
+character's. Each cell's colours must be its attribute's. The hardware cursor, where the recording shows it,
+must be where the port's runner says; after the program quits, DOS's prompt (left out) must be on the row
+below the port's exit cursor. A failure names the cells by row/column and what the recording shows. The runners write text screens: `drm_boot` always
 (Dreams' start screens), `simg_boot` the quit screen when the case has `may_exit`; `simv01_boot` none. The
 recording's text pictures before the program's own (DOS's prompt) are left out, and so are those after it
 quits.
@@ -158,17 +173,21 @@ fails the case (one side's picture starts a refresh before the edge, the other's
   (x 80-239, y 48-143): Keen 1 240-284/131-144 instead of the first, Keen 2 without the first. Where the F1
   help, Keyboard Commands and joystick windows lie over the rest, a few of their pixels are masked too (the
   help is compared whole over the map);
-- the high scores' and the id screen's animated borders, in their fades;
+- the high scores' and the id screen's animated borders, in their fades only: from the fade-in to the moment
+  both sides' borders animate, and from the frame either side's border stops at to the fade-out's end (the
+  border's animation is compared unmasked; `scr_gameover`, `scr_hiscore`, `scr_map`, `scr_about`);
 - Keen 3's story scene (its stars, x 160-192 y 160-200); Keen 2-3's previews text: the title's tiles below it;
 - `scr_gameover`: Keen 2's twinkling star by the Earth (x 160-176 y 80-96), Keen 3's two map tiles by
   level 13's entrance while the map fades out;
-- `scr_about` (Keen 2-3): the ordering screen's walker (Scrub, Foob) where the screen is left; it is compared
-  in `scr_attract`;
+- `scr_about` (Keen 2): the ordering screen's walker in the fade after Space (43.99-44.47 s): the walk
+  starts with the Enter that opens it, read a few refreshes apart; the walk itself is held step by step
+  in `scr_attract` (S6). Keen 3's needs no mask;
 - `scr_about` and `scr_previews` (Keen 2-3): the menu's cursor column (x 96-104, y 56-120) while the menu is
-  moved through and an Enter chooses (each arrow is read up to three refreshes apart, so the cursor reaches a
-  row in another of its three pictures); the cursor is compared in their other cases, and Keen 1's About and
-  Previews have their keys moved off those edges instead (`steady_keys` on these two took over half an hour a
-  case on the shared machine);
+  moved through and an Enter chooses: the two machines read an arrow up to 7 refreshes apart (keen2
+  `scr_previews`' second Up: 19.11 s in the original, 19.01 s in the port), so the cursor reaches a row in
+  another of its three pictures. The cursor is compared in their other cases; Keen 1's About and Previews
+  have their keys moved off those edges instead (`steady_keys` on Keen 2-3's was not run to the end: over
+  half an hour a case);
 - `scr_attract`: each screen's animated tiles in its fades (no key resynchronises the attract loop, and the
   original's frames under 0.83 fall a few refreshes from the port's).
 
@@ -196,8 +215,8 @@ console). Mortimer's introduction is in REPLAY-V3's level 16 recording.
 **A port fix: the exit screen.** Keen 1-3 leave a text screen as they quit to DOS (KEENMAIN.C's `Quit`:
 ENDSCRN's 4000 bytes past its 7-byte header copied to B800:0000, the cursor at column 1, row 23). The port
 dropped it; `Quit("")` now keeps it (`VortLib.exit_textScreen`, `exit_cursor`) and `simv01_boot` writes it to
-`text_frames.json` when the case may exit. `scr_quit` compares it cell for cell (DOS's prompt, written on
-the row below once the program has quit, is masked: row 23, columns 0-4). The shell does not show it
+`text_frames.json` when the case may exit. `scr_quit` compares it cell for cell, characters read by shape; DOS's prompt, written on
+the row below the exit cursor once the program has quit, is left out by the tool, which checks it is there. The shell does not show it
 (as Keen 4-6's).
 
 ## Keen 4-6 (SCR-01G, 2026-10-11)
