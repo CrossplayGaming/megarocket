@@ -170,10 +170,31 @@ func _share(m: MakerModel, root: String, game: String) -> void:
 		and r.number == 1 and r.doc_name == m.doc_name)
 	doc["base"] = "0" + str(doc.base).substr(1)
 	t.ok("%s: made from another release (its level differs): refused (%s)" % [game, r.error], not r.open_shared(JSON.stringify(doc)) and r.error.contains("another release"))
+	var whole: String = ""
+	# the level's settings: the slot it plays as
+	var choices: Array = m.slot_choices()
+	var slot: int = int(choices[2][0])
+	t.ok("%s: the slots offered leave out the world maps (%d, first %s)" % [game, choices.size(), choices[0]],
+		choices.size() >= 10 and choices.all(func(e: Array) -> bool: return int(e[0]) > 0 and int(e[0]) < 80))
+	m.set_slot(slot)
+	var sreq: Dictionary = m.play_request("Slot")
+	var sback: KeenLevel = _read_back(m, sreq, slot)
+	t.ok("%s: set to play as level %d: the play request is that level, written there" % [game, slot],
+		sreq.get("play_level", -1) == slot and sback != null and sback.plane_difference(m.level) == "")
+	m.remix(1)
+	m.paint(0, 4, 4, (m.level.get_word(0, 4, 4) + 3) % 100)
+	m.end_stroke()
+	m.set_slot(slot)
+	m.cleared_hash = m.fingerprint()
+	var moved: String = m.share_text()
+	var mdoc: Dictionary = JSON.parse_string(moved)
+	t.ok("%s: a remix of level 1 playing as level %d still shares as its changes from level 1, and opens so" % [game, slot],
+		mdoc.get("kind", "") == "changes" and int(mdoc.get("from", -1)) == 1 and int(mdoc.get("count", 0)) == 1
+		and r.open_shared(moved) and r.number == slot and r.level.plane_difference(m.level) == "")
 	m.new_level("Shared new")
 	m.paint(MakerModel.START_PLANE[m.engine], 9, 9, {"keen1": 1, "keen4": 22, "kdreams": 41}[game])
 	m.cleared_hash = m.fingerprint()
-	var whole: String = m.share_text()
+	whole = m.share_text()
 	t.ok("%s: a new level shared whole opens equal" % game, whole.contains("\"whole\"") and r.open_shared(whole) and r.level.plane_difference(m.level) == "")
 
 

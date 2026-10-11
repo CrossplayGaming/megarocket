@@ -120,13 +120,13 @@ var _all_levels: Array = []
 
 
 ## The level's fingerprint (its size and planes).
-func fingerprint(l: KeenLevel = null) -> String:
+func fingerprint(l: KeenLevel = null, slot: int = -9999) -> String:
 	var target: KeenLevel = l if l != null else level
 	if target == null:
 		return ""
 	var h: HashingContext = HashingContext.new()
 	h.start(HashingContext.HASH_SHA256)
-	h.update(("%d %d %d" % [number, target.width, target.height]).to_ascii_buffer())
+	h.update(("%d %d %d" % [number if slot == -9999 else slot, target.width, target.height]).to_ascii_buffer())
 	for words: PackedInt32Array in target.planes:
 		h.update(LevelCodec.words_to_bytes(words))
 	return h.finish().hex_encode()
@@ -285,6 +285,32 @@ func save_doc() -> bool:
 	return true
 
 
+## The game's level a remix was made from (-1 for a new level).
+func remixed_from() -> int:
+	return int(origin.substr(6)) if origin.begins_with("remix ") else -1
+
+
+## The level slots a level can play as (its music and the level's own behaviour come with the slot):
+## [number, name], the world maps and Keen 1-3's title and ending maps left out.
+func slot_choices() -> Array:
+	return level_list().filter(func(e: Array) -> bool:
+		return (int(e[0]) < 80) if engine == KeenLevel.VORTICONS else int(e[0]) > 0)
+
+
+## The level plays as slot `n` (the level's settings); a new level takes that map's name with it.
+func set_slot(n: int) -> bool:
+	var base: KeenLevel = original(n)
+	if level == null or base == null or n == number:
+		return base != null and n == number
+	number = n
+	level.number = n
+	if origin == "new":
+		level.name = base.name
+		level.fields = base.fields.duplicate(true)
+	dirty = true
+	return true
+
+
 ## V15-04: the level as a file to share (.keenlevel, JSON): a remix as its changes only (each cell that
 ## differs from the game's own level, with that level's fingerprint so the receiver's copy is checked to
 ## be the same), applied to the receiver's own game, so no level data of the game leaves the sender; a
@@ -296,9 +322,10 @@ func share_text() -> String:
 	if not is_cleared():
 		error = "Finish it from Keen's start first (the clear check), then share it."
 		return ""
+	var from: int = remixed_from()
 	var doc: Dictionary = {"megarocket_share": 1, "game": game_id, "name": doc_name, "slot": number, "origin": origin,
-		"width": level.width, "height": level.height}
-	var base: KeenLevel = original(number) if origin.begins_with("remix") else null
+		"from": from, "width": level.width, "height": level.height}
+	var base: KeenLevel = original(from) if from >= 0 else null
 	if base != null and base.width == level.width and base.height == level.height:
 		var changes: PackedInt32Array = PackedInt32Array()
 		for p: int in range(level.planes.size()):
@@ -306,7 +333,7 @@ func share_text() -> String:
 				if level.planes[p][i] != base.planes[p][i]:
 					changes.append_array(PackedInt32Array([p, i, level.planes[p][i]]))
 		doc["kind"] = "changes"
-		doc["base"] = fingerprint(base)
+		doc["base"] = fingerprint(base, from)
 		doc["changes"] = Marshalls.raw_to_base64(changes.to_byte_array().compress(FileAccess.COMPRESSION_DEFLATE))
 		doc["count"] = changes.size() / 3
 	else:
@@ -335,13 +362,11 @@ func open_shared(text: String) -> bool:
 	var h: int = int(doc.get("height", 0))
 	var l: KeenLevel = null
 	if doc.get("kind", "") == "changes":
-		var base: KeenLevel = original(n)
-		var was: int = number
-		number = n    # (the fingerprint holds the slot)
-		var same: bool = base != null and fingerprint(base) == str(doc.get("base", ""))
-		number = was
+		var from: int = int(doc.get("from", n))
+		var base: KeenLevel = original(from)
+		var same: bool = base != null and fingerprint(base, from) == str(doc.get("base", ""))
 		if not same or base.width != w or base.height != h:
-			error = "That remix was made from another release of the game: its level %d differs here." % n
+			error = "That remix was made from another release of the game: its level %d differs here." % from
 			return false
 		l = base.copy()
 		var raw: PackedByteArray = Marshalls.base64_to_raw(str(doc.get("changes", ""))).decompress(int(doc.get("count", 0)) * 12, FileAccess.COMPRESSION_DEFLATE)
