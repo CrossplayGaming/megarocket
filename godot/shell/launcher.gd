@@ -31,7 +31,7 @@ var extra_folders: PackedStringArray = PackedStringArray()
 var settings: Settings = null
 var settings_path: String = Settings.default_path()
 ## SHELL-07: one copy at a time. The lock holds the running copy's process id.
-var lock_path: String = "user://megarocket.lock"
+var lock_path: String = Settings.user_dir().path_join("megarocket.lock")
 ## Another copy holds the lock: the screen says so and waits for Enter.
 var waiting_for_other: bool = false
 var _wait_panel: PanelContainer = null
@@ -246,12 +246,17 @@ func _scan() -> void:
 	show_results(f.scan_all(scan_roots()))
 
 
-## The folders scanned besides Steam and GOG: the player's own, and the games
-## imported into the app's storage (AND-02) once there are any.
+## The folders scanned besides Steam and GOG: the player's own, the games
+## imported into the app's storage (AND-02) once there are any, and a portable
+## copy's "Megarocket Games" folder beside the program (a SHELL-10 export).
 func scan_roots() -> PackedStringArray:
 	var roots: PackedStringArray = PackedStringArray(extra_folders)
 	if DirAccess.dir_exists_absolute(imported_games_root):
 		roots.append(imported_games_root)
+	if Settings.portable_dir() != "":
+		var beside: String = Settings.portable_dir().get_base_dir().path_join(GameExporter.FOLDER)
+		if DirAccess.dir_exists_absolute(beside) and not roots.has(beside):
+			roots.append(beside)
 	return roots
 
 

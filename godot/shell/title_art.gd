@@ -17,7 +17,12 @@ const VORTICONS_TITLE_SECONDS: float = 16.0
 
 static func cache_path(found: Dictionary) -> String:
 	var key: String = "%s|%s|%s" % [found.id, found.get("version", ""), String(found.get("folder", "")).to_lower()]
-	return CACHE.path_join("%s_%s.png" % [found.id, key.sha1_text().left(12)])
+	return cache_dir().path_join("%s_%s.png" % [found.id, key.sha1_text().left(12)])
+
+
+## The cache's folder: CACHE, in the player's folder (a portable copy keeps it beside the program).
+static func cache_dir() -> String:
+	return Settings.user_dir().path_join("titles")
 
 
 ## The title screen as an image, from the cache or made now (blocking: call
@@ -37,7 +42,7 @@ static func make(found: Dictionary) -> Image:
 		"kdreams":
 			img = _dreams(found)
 	if img != null:
-		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(CACHE))
+		DirAccess.make_dir_recursive_absolute(cache_dir())
 		img.save_png(ProjectSettings.globalize_path(path))
 	return img
 
