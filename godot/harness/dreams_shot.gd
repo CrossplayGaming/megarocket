@@ -5,6 +5,7 @@ extends SceneTree
 ##
 ##   godot --path godot --script res://harness/dreams_shot.gd -- --game_data=<folder> --out=<png>
 ##         [--folder=kdreams193] [--size=1280x800] [--enters=1] [--shots=6] [--every=3]
+##         [--level=N: straight into level N (the trace tool's way), no Enters]
 
 var _opts: Dictionary = {}
 
@@ -40,7 +41,10 @@ func _run() -> void:
 	host.settings_path = cfg
 	root.add_child(host)
 	var folder: String = str(_opts.get("folder", "kdreams193"))
-	if not host.start({"id": "kdreams", "title": "Keen Dreams", "folder": str(_opts.get("game_data", "")).path_join(folder)}):
+	var spec: Dictionary = {"id": "kdreams", "title": "Keen Dreams", "folder": str(_opts.get("game_data", "")).path_join(folder)}
+	if _opts.has("level"):
+		spec["play_level"] = int(_opts.level)
+	if not host.start(spec):
 		print("could not start: ", host.error)
 		quit(1)
 		return

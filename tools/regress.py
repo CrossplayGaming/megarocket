@@ -515,15 +515,23 @@ def rend04d():
 
 
 def rend04g():
-    """The wide view (REND-04), Keen 4-6, a reach of six tiles past the picture: the 1x picture still the
-    card's, at 416 every image shifted alike with the score box kept on the screen and the map's tiles
-    over all of it, and J-30's edges."""
+    """The wide view (REND-04), Keen 4-6: a reach of six tiles past the picture (416) and a 16:9 window's
+    427 (4:3 pixels; seven tiles' reach, not a whole number of tiles): the 1x picture still the card's,
+    every image shifted alike with the score box kept on the screen and the map's tiles over all of it,
+    and J-30's edges; the camera's edge rules (rend04_edges) at 356, 416, 427 and 448."""
     import gdtest
-    code, out = gdtest.run("rend01_galaxy", ["--games=keen4,keen5,keen6", "--wide=6", "--demos=0,1"], timeout=3600.0, quiet=True)
+    worst = 0
+    for args in (["--wide=6"], ["--view_w=427"]):
+        code, out = gdtest.run("rend01_galaxy", ["--games=keen4,keen5,keen6", "--demos=0,1", *args], timeout=3600.0, quiet=True)
+        for line in out.splitlines():
+            if "FAIL" in line or "checks" in line or "ERROR" in line or "compared" in line:
+                print("  %s: %s" % (args[0], line.strip()))
+        worst = max(worst, code)
+    code, out = gdtest.run("rend04_edges", [], timeout=120.0, quiet=True)
     for line in out.splitlines():
-        if "FAIL" in line or "checks" in line or "ERROR" in line or "compared" in line:
-            print("  " + line.strip())
-    return code
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  edges: " + line.strip())
+    return max(worst, code)
 
 
 def rend03():

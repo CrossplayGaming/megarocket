@@ -26,9 +26,14 @@ extends SceneTree
 ## every picture with a window over the play is the list's picture with the window's rectangle (the
 ## list's overlay) copied from the card's: what the shell shows. Any such picture in the demos counts too.
 ##
-## Options: --game_data=<folder> --games=keen4,keen5,keen6 --demos=0,1,2,3 --out=<folder> [--wide=N]
+## --view_w=P: the view's width in the original's pixels for the REND-04 checks (any width the host makes,
+## e.g. 427 for a 16:9 window with 4:3 pixels), the reach then the host's: its extra width in tiles.
+##
+## Options: --game_data=<folder> --games=keen4,keen5,keen6 --demos=0,1,2,3 --out=<folder> [--wide=N] [--view_w=P]
 
 var t: T = T.new()
+## The view's width for the REND-04 checks: --view_w, or 320 + 16 * --wide.
+var view_w: int = 320
 
 const GAMES: Dictionary = {"keen4": "keen4", "keen5": "keen5", "keen6": "keen6e14"}
 const CLASSES: Dictionary = {"keen4": "res://games/galaxy/gal_keen4.gd",
@@ -46,6 +51,10 @@ func _init() -> void:
 	DirAccess.make_dir_recursive_absolute(out)
 	var demos: PackedStringArray = str(opts.get("demos", "0,1,2,3")).split(",", false)
 	var wide: int = int(opts.get("wide", "0"))
+	view_w = 320 + 16 * wide
+	if opts.has("view_w"):
+		view_w = int(opts.view_w)
+		wide = (view_w - 320 + 15) / 16 if view_w > 320 else 0    # the host's reach (GameHost._layout_stage)
 	for game: String in str(opts.get("games", "keen4,keen5,keen6")).split(",", false):
 		var r: Dictionary = {"compared": 0, "match": 0, "differ": 0, "skipped": 0, "saved": 0}
 		var ends: Array = []
@@ -73,7 +82,7 @@ func _init() -> void:
 		t.ok("%s: J-30, creatures wake by the wide view's edges only with it (%d woke past the original's)" % [game, r.get("beyond", 0)],
 			(r.get("beyond", 0) > 0) == (wide > 0))
 		if wide > 0:
-			t.ok("%s: REND-04, at %d pixels every image shifted alike, the HUD kept on the screen, the map's tiles over all of it (%d of %d)" % [game, 320 + 16 * wide, r.get("shifted", 0), r.compared],
+			t.ok("%s: REND-04, at %d pixels every image shifted alike, the HUD kept on the screen, the map's tiles over all of it (%d of %d)" % [game, view_w, r.get("shifted", 0), r.compared],
 				r.compared > 300 and r.get("shifted", 0) == r.compared)
 		print("    smooth motion: %d pairs, %d right, %d sprites slid, %d stepped, %d new in a reused entry" % [r.get("smooth_pairs", 0), r.get("smooth", 0), r.get("slid", 0), r.get("stepped", 0), r.get("reused", 0)])
 		t.ok("%s: REND-03 between two refreshes: at 1 the newest picture, at a half each followed sprite midway (%d of %d)" % [game, r.get("smooth", 0), r.get("smooth_pairs", 0)],
@@ -153,7 +162,7 @@ func _demo(root: String, game: String, n: int, out: String, r: Dictionary, wide:
 		if wide > 0:
 			# at 320 + 16 * wide (wide: the tiles the view reaches past the picture on one side, the host's
 			# rule): every image the 320 view has, shifted alike; the HUD where it was on the screen
-			var vw: int = 320 + 16 * wide
+			var vw: int = view_w
 			var ow: Array = GalDrawLayout.ops(g, list, Vector2.ONE, true, vw)
 			var by_k: Dictionary = {}
 			for op: Dictionary in ow:
