@@ -107,3 +107,95 @@ quits.
   port, solid in the original (the wrist-watch picture redrawn at x 74 by USL_DialogSetup).
 - In the port, Up on Keen 4's NEW GAME does not wrap to QUIT (seen while designing `scr_quit`; the
   original's wrap is not recorded yet: SCR-02).
+
+## Keen 1-3's cases (SCR-01V, 2026-10-11)
+
+The cases in `tools/cases/keen1..3/scr_*.json` (`python tools/screen_case.py list keen1`, and so on):
+
+| case | screens |
+|---|---|
+| `scr_story` | Story: the text window scrolled (Down, PgDn twice, PgUp, Up), Escape |
+| `scr_about` | About ID..., High Scores, Ordering Info from the menu (each left with Space) |
+| `scr_previews` | Previews! (Keen 1: PREVIEW2/3 then the text; Keen 2-3: the text), Restart Demo |
+| `scr_fkeys` | on the menu: F1 help, F2 Sound (Y/N)?, F3 Keyboard Commands (8, Ctrl), F4 joystick, F5 not on the map, Escape Quit (Y/N)? N |
+| `scr_continue` | Continue Which Game?: a slot never saved, a file of the wrong size (`saves/scr_badsave`) |
+| `scr_quit` | Escape, Y: the exit screen in text mode (ENDSCRN), compared by its cells |
+| `scr_map` | from a new game's save on the map: status (Space), F5 1 Y (Overwrite), C+T+Space (the cheat), G+O+D on and off, Escape T (GAME OVER, the scores) |
+| `scr_hiscore` | a crafted save with 15000 points: F1 over the map, Escape T, the high-score window, a name typed (Backspace too), the table |
+| `scr_gameover` | a save with no Keens left beside a pit: the last death, GAME OVER over the level (Keen 2: the Earth explodes first), the table |
+| `scr_attract` | no keys: title, id screen, high scores, the timed ordering screen (Keen 1's Yorp and Garg, Keen 2's Scrub, Keen 3's Foob), the title again |
+| `scr_ending` (Keen 1) | all four ship parts, level 5 walked through: DoFinale to the end text |
+
+Saves for these (game state only, so committed) are in `tools/cases/keenN/saves/scr_*`, made from the
+level-entrance saves by changing fields (score, lives, parts, cities; the 92-byte layout is
+`VortMain.GameState`).
+
+**The recordings are DOSBox Staging 0.83's; the port's timing is fitted to 0.80.** Two things differ and
+each case says so in its `port` options:
+
+- `costs: loadgraphics=...`: the start-up's length. 0.83 takes a few refreshes more or less before the clock
+  starts (Keen 1 +4, Keen 2 -8, Keen 3 -5 refreshes: the middle of the range over which the main menu's
+  first picture comes out right in each game's `scr_menu` recording).
+- `dos_ticks: 23` (Keen 1 only; 22 for the 0.80 recordings): the BIOS tick the program reads the DOS clock at,
+  which seeds the random numbers. With 22 the ordering screen's Yorp walks another way (`scr_attract`: 6 of
+  42 steps alike; with 23 all 42). Keen 3's Foob matches with its usual 4 (262 of 263); Keen 2 draws no
+  random numbers outside the levels.
+
+**What still falls apart, and the masks for it.** From the first key on, the two machines' refreshes and
+loop passes stand up to three refreshes apart (Keen 2's main menu comes up three refreshes earlier in the
+original than in the port). Animated tiles stop at the clock's phase whenever a screen stops refreshing
+(the main menu and every window over the title, the fades, the map under a window, the story's scene), so
+one time in three or so the two machines stop them at different phases. Every case masks only the tiles
+that animate (listed below, taken from the game's tile data and the attract loop's recording), only while
+they stand still, and each mask starts and ends in the black between two screens (0.61-0.67 s after an
+Enter that leaves the menu, 0.38-0.55 s after a key that leaves a screen) or while the tiles animate, where a
+masked and an unmasked picture cannot be told apart by timing. A mask edge in the middle of a still screen
+fails the case (one side's picture starts a refresh before the edge, the other's after).
+
+- the title: Keen 1 x 197-284 y 131-144, 256-267/177-190, 48-80/192-200, 193-238/192-200; Keen 2 179-189/
+  128-140, 97-127/145-171, 3-13 and 35-45/151-153, 192-304/192-200; Keen 3 192-288/161-200, 16-32/162-175,
+  115-124/163-168, 55-62/176-178, 49-61/184-191. Under the main menu, less what the menu's window covers
+  (x 80-239, y 48-143): Keen 1 240-284/131-144 instead of the first, Keen 2 without the first. Where the F1
+  help, Keyboard Commands and joystick windows lie over the rest, a few of their pixels are masked too (the
+  help is compared whole over the map);
+- the high scores' and the id screen's animated borders, in their fades;
+- Keen 3's story scene (its stars, x 160-192 y 160-200); Keen 2-3's previews text: the title's tiles below it;
+- `scr_gameover`: Keen 2's twinkling star by the Earth (x 160-176 y 80-96), Keen 3's two map tiles by
+  level 13's entrance while the map fades out;
+- `scr_about` (Keen 2-3): the ordering screen's walker (Scrub, Foob) where the screen is left; it is compared
+  in `scr_attract`;
+- `scr_about` and `scr_previews` (Keen 2-3): the menu's cursor column (x 96-104, y 56-120) while the menu is
+  moved through and an Enter chooses (each arrow is read up to three refreshes apart, so the cursor reaches a
+  row in another of its three pictures); the cursor is compared in their other cases, and Keen 1's About and
+  Previews have their keys moved off those edges instead (`steady_keys` on these two took over half an hour a
+  case on the shared machine);
+- `scr_attract`: each screen's animated tiles in its fades (no key resynchronises the attract loop, and the
+  original's frames under 0.83 fall a few refreshes from the port's).
+
+`keen1/scr_gameover` was recorded twice: the two runs agree on every picture and refresh (`pair`).
+
+**Keys.** On an edge that decides which pass of a loop reads a key (the main menu reads the arrows on six
+refreshes of thirteen, Enter on one), the menu's spinning cursor ends up in another phase.
+`python tools/steady_keys.py <game> <case> --write` runs the port with each key moved up to four refreshes
+either way and moves the key until what follows it does not change (mask edges between it and the next key
+move with it); record the case again after it. In a level the frames come every three refreshes, so a key
+pressed during play meets them at another phase whenever the level began a refresh or two apart: the
+level cases press Right while the map fades out, so Keen walks from the level's first frame on both
+machines, and need no key during play.
+
+**Not covered yet (Keen 1-3).** Keen 2's finale (all eight cities saved and a level finished) and Keen 3's
+(Mortimer's machine: its six sparks and the heart shot) need keys pressed during level play, and those do
+not land on the same frame on both machines: with the level entered on the same refresh (Ctrl steadied),
+Keen 1 level 5 with Right, Ctrl and Left pressed in play still parted at the first press (the original's
+level frames under 0.83 fall a refresh from the port's 0.80-fitted ones, so a press meets another frame).
+The cases here play only with keys held from the level's first frame. Also not compared: the levels'
+message windows (Keen 1's Yorp statues, Keen 2's Vorticon Elders: inside levels), Keen 2's "Oops." (the
+Tantalus switch), and the start-up lines DOS prints before the game's graphics (the port has no DOS
+console). Mortimer's introduction is in REPLAY-V3's level 16 recording.
+
+**A port fix: the exit screen.** Keen 1-3 leave a text screen as they quit to DOS (KEENMAIN.C's `Quit`:
+ENDSCRN's 4000 bytes past its 7-byte header copied to B800:0000, the cursor at column 1, row 23). The port
+dropped it; `Quit("")` now keeps it (`VortLib.exit_textScreen`, `exit_cursor`) and `simv01_boot` writes it to
+`text_frames.json` when the case may exit. `scr_quit` compares it cell for cell (DOS's prompt, written on
+the row below once the program has quit, is masked: row 23, columns 0-4). The shell does not show it
+(as Keen 4-6's).

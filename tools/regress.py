@@ -137,7 +137,8 @@ def _screen_cases(games):
 
 
 def scr01v():
-    """Keen 1-3's screen cases (SCR-01V)."""
+    """Keen 1-3's screen cases (SCR-01V): 34 cases, every menu row, F-key window, prompt, the map's
+    windows, high scores, game over, the attract loop, the exit screen and Keen 1's ending (about 45 s)."""
     return _screen_cases(("keen1", "keen2", "keen3"))
 
 
@@ -2017,7 +2018,7 @@ CHECKS = {
     "PREP-01": (prep01, "fast"),
     "HARN-06": (harn06, "fast"),
     "HARN-06a": (harn06a, "slow"),
-    "SCR-01V": (scr01v, "slow"),
+    "SCR-01V": (scr01v, "fast"),
     "SCR-01G": (scr01g, "slow"),
     "SCR-01D": (scr01d, "slow"),
     "HARN-09": (harn09, "slow"),

@@ -9,7 +9,8 @@ extends SceneTree
 ##          --keys=<at:scancode:hold,...> --save=<folder for CTLPANEL/SCORES>
 ##          --feed_keys=<make_tick:scancode:break_tick,...> (HARN-06: KEYFEED.COM's timetable, 1024 ticks
 ##          a second from the EGA mode set, no typematic repeat: tools/keyfeed.py, tools/screen_case.py)
-##          --may_exit=1 (HARN-06: the program may quit before the time limit)
+##          --may_exit=1 (HARN-06: the program may quit before the time limit; SCR-01V: the exit screen it
+##          leaves goes to <out>/text_frames.json)
 ##          --compare_lists=1 (REND-01R: the draw lists kept, as --draw_capture, and every picture shown held
 ##          against its refresh's list composed at 1x, tests/list_compare.gd: the counts to <out>/lists.json,
 ##          the first pictures that differ as PNGs to --compare_out=<folder>, by default <out>/lists)
@@ -141,8 +142,14 @@ func _init() -> void:
 	if lists != null:
 		_write_lists(lists, out)
 	if opts.has("may_exit"):
-		# HARN-06: a screen case that quits to DOS (its "may_exit")
+		# HARN-06: a screen case that quits to DOS (its "may_exit"); SCR-01V: the exit screen the program
+		# leaves, for tools/screen_case.py's text comparison, held from the quit to the time limit
 		print("  the program %s" % ("ran to the time limit" if vm.limit_fired else "quit ('%s')" % g.exit_message))
+		if not g.exit_textScreen.is_empty():
+			var held: int = maxi(1, int(round((float(vm.time_limit) - float(vm.now)) * 70.086 / (DosMachine.PIT_HZ * DosMachine.UNIT))))
+			var f: FileAccess = FileAccess.open(out.path_join("text_frames.json"), FileAccess.WRITE)
+			f.store_string(JSON.stringify({"cols": 80, "rows": 25, "screens": [[held, g.exit_textScreen.hex_encode(), g.exit_cursor.x, g.exit_cursor.y]]}))
+			f.close()
 	else:
 		t.ok("the run reached the time limit without the program quitting on its own", g.exit_message == "" and vm.limit_fired)
 	t.ok("pictures were written", written[0] > 100)
