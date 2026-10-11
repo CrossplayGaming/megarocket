@@ -1,0 +1,21 @@
+{
+ "seconds": 66,
+ "keyfeed": true,
+ "held": [
+  [3.0, "space", 0.2],
+  [5.0, "space", 0.2],
+  [6.75, "p", 0.2],
+  [8.5, "enter", 0.2],
+  [62.5, "enter", 0.2]
+ ],
+ "screens": [
+  [0, "id logo and the terminator credits"],
+  [3.0, "title"],
+  [5.0, "main card"],
+  [6.75, "main card, PADDLE WAR"],
+  [8.5, "Paddle War to 21 for the computer"],
+  [59.3, "You lost!"],
+  [62.5, "main card, PADDLE WAR again"]
+ ],
+ "note": "SCR-01G (Keen 4): a whole game of Paddle War with Keen's paddle left alone, the computer's score counted up to 21 (one and two figures) and the You lost! box, then any key back to the main card. Menu keys 1.75 s apart, between two blinks of the cursor. Times are seconds after the EGA mode set (KEYFEED.COM types the keys in DOS)."
+}

@@ -1,0 +1,53 @@
+{
+ "seconds": 49.0,
+ "keyfeed": true,
+ "settled": 5,
+ "overrides": "F:/KeenReworkWork/case_saves/scrg/keen5/end",
+ "held": [
+  [3.0, "space", 0.2],
+  [5.0, "space", 0.2],
+  [6.75, "l", 0.2],
+  [8.5, "enter", 0.2],
+  [10.25, "enter", 0.2],
+  [12.0, "space", 0.2],
+  [13.5, "a", 1.0],
+  [13.5, "2", 1.0],
+  [14.0, "enter", 0.2],
+  [15.5, "space", 0.2],
+  [18.0, "space", 0.2],
+  [20.0, "f10", 1.0],
+  [20.3, "w", 0.2],
+  [21.6, "1", 0.2],
+  [22.63, "enter", 0.2],
+  [24.5, "f10", 1.0],
+  [24.8, "z", 0.2],
+  [36.38, "space", 0.2],
+  [37.48, "k", 0.2],
+  [38.51, "e", 0.2],
+  [39.53, "enter", 0.2]
+ ],
+ "screens": [
+  [0, "id logo and the terminator credits"],
+  [3.0, "title"],
+  [5.0, "main card"],
+  [6.75, "main card, LOAD GAME"],
+  [8.5, "LOAD GAME card (the saved game)"],
+  [10.25, "Loading, the world map, PAUSED"],
+  [12.0, "the world map"],
+  [13.5, "A+2+Enter: Debug keys active"],
+  [15.5, "the status window"],
+  [18.0, "the world map again"],
+  [20.0, "F10+W: the level warp's question"],
+  [21.6, "1 typed"],
+  [22.63, "level 1's box and the level"],
+  [24.5, "F10+Z: Keen dies, no lives left"],
+  [36.38, "a key on GAME OVER"],
+  [36.68, "the high scores: a name typed"],
+  [39.53, "the high scores with the new name"]
+ ],
+ "masks": [
+  {"rect": [72, 160, 136, 200], "from": 10.25, "reason": "the world map's animated rocket flame (the only tiles animated in view): the frame it is in when the map is held still (the PAUSED window after the load, the debug window, the status window, the level warp's question) follows when the level started from the control panel and when the play came back from it, which the port reaches some refreshes off (scr_game: a new game's box 3 refreshes late, the play back from the panel 11 early; the panel's exit and the level load are not fitted, TIME-G); every frame of it is the original's, a step apart. From the level's start to the end, so the cards and windows drawn over that corner lose it too"},
+  {"rect": [0, 0, 320, 200], "from": 24.5, "to": 26.7, "reason": "level 1's play while Keen dies: its creatures and drips move by the random numbers the level's load seeds from the DOS clock, which the port reaches a refresh or so off after the warp (the load's timing, TIME-G; the level sessions' random timing, REPLAY-G); masked whole until the screen has faded to black (the galaxy's explosion after it is kept)"}
+ ],
+ "note": "SCR-01G (Keen 5): game over. From the main card LOAD GAME, the first slot (the port's own saved game, its score set to 31415; never committed); on the map A+2+Enter turns the debug keys on (Debug keys active, a key; the status window the Enter opens, a key); F10+W, 1, Enter warps to level 1 (its box, the level's first moments); F10+Z at once leaves no lives and kills Keen: the galaxy explodes; the high scores, a name typed (K, E, Enter), the high scores with it. Times are seconds after the EGA mode set (KEYFEED.COM types the keys in DOS). settled 5, as scr_end: the Loading box is up 4 refreshes in the port and 2-3 in the original (the load a refresh or two quicker there: TIME-G)."
+}

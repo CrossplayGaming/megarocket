@@ -783,6 +783,9 @@ func CK_SaveGame(fp: FS_File) -> bool:
 	for i: int in range(3):
 		var buf: PackedInt64Array = PackedInt64Array([0])    # the length word, then buf + 2
 		cmplen = u16(CAL_RLEWCompress(CA_mapPlanes[i], CA_TilePtrAtPos(0, 0, i), bufsize, buf, 0xABCD))
+		# SCR-01: the original's compression takes time a word at a time, while the Saving box is up
+		# (keen4 and keen5 scr_game: 3 and 4 refreshes for maps of 4026 and 5928 words a plane)
+		cost_n("rlewword", bufsize / 2)
 
 		# Write the size of the compressed level
 		buf[0] = cmplen
@@ -1410,6 +1413,10 @@ var help_topic: int = 0
 var help_full_page: int = 0
 ## The chunks for each of the topics (HAS_HELPSCREEN).
 const help_chunks: PackedStringArray = ["TEXT_HELPMENU", "TEXT_CONTROLS", "TEXT_STORY", "TEXT_ORDER", "TEXT_ABOUTID"]
+## SCR-01: Keen 4's own table (KEEN4E.EXE image 0x2F586) reads chunks 4739, 4741, 4740, 4745, 4742: THE GAME
+## opens 4741, the controls (omnispeak's GFXCHUNK.CK4 names 4740 TEXT_CONTROLS and 4741 TEXT_STORY the other
+## way round, and gave THE GAME the story; keen4 scr_help1). Keen 5's table is omnispeak's order.
+const help_chunks_ck4: PackedStringArray = ["TEXT_HELPMENU", "TEXT_STORY", "TEXT_CONTROLS", "TEXT_ORDER", "TEXT_ABOUTID"]
 
 
 static func _game_int_array(n: int) -> PackedInt32Array:
@@ -1933,7 +1940,7 @@ func HelpScreens() -> void:
 			return
 
 		# Cache the chunk with the topic
-		n = s16(CK_LookupChunk(help_chunks[n]))
+		n = s16(CK_LookupChunk((help_chunks_ck4 if ck_currentEpisode_ep == EP_CK4 else help_chunks)[n]))
 		CA_CacheGrChunk(n)
 
 		# Set up the help ptr and initialise the parser
@@ -1979,6 +1986,11 @@ func HelpScreens() -> void:
 
 func help_endgame() -> void:
 	# Set up
+	# SCR-01: the original clears video memory itself (VW_ClearVideo(4), KEEN4E.EXE 0900:0C84), which DOSBox
+	# shows black from the next refresh until the first page (keen4 scr_end); the port showed the last
+	# picture on until then
+	if costs.has("clearvideo"):
+		VL_ClearVideo()
 	VL_ClearScreen(4)
 	# RF_Reset();
 	CA_UpLevel()
@@ -2042,9 +2054,18 @@ func help_endgame() -> void:
 		ca_graphChunks[CK_CHUNKNUM("TEXT_END")] = null
 	ca_graphChunks[CK_CHUNKNUM("PIC_ARROWBRIGHT")] = null
 	ca_graphChunks[CK_CHUNKNUM("PIC_ARROWDIM")] = null
-	# CA_DownLevel();
+	# SCR-01: as the original (KEEN4E.EXE 0900:0DA0): the cache level the start raised goes down again, and
+	# video memory is cleared (black in DOSBox until the high scores; the port showed the page half
+	# cleared, keen5 scr_end)
+	CA_DownLevel()
 	IN_ClearKeysDown()
-	VL_ClearScreen(4)
+	if costs.has("clearvideo"):
+		# (VW_ClearVideo(4) leaves video memory black under DOSBox, as USL_EndCards' does: the port's screen
+		# too, or the next present shows it red for a few refreshes)
+		VL_ClearVideo()
+		VL_ClearScreen(0)
+	else:
+		VL_ClearScreen(4)
 	# RF_Reset();
 	# CA_SetGrPurge();
 

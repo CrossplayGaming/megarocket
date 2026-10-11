@@ -1137,13 +1137,15 @@ func CK_DrawStatusWindow() -> void:
 		for r: int in range(ck_gameState.ck4_membersRescued):
 			VHB_DrawTile8(80 + 8 * r, 96, 40)
 	elif ck_currentEpisode_ep == EP_CK5:
-		US_SetPrintY(91)
+		# (SCR-01: a pixel lower than omnispeak's 91, 90, 91: Keen 5's own code, KEEN5E.EXE image 0x7E00,
+		# prints at 92, the bar at 91, the card at 92; keen5 scr_game's status window)
+		US_SetPrintY(92)
 		US_SetPrintX(80)
 		US_Print(CK_STRING("ck5_str_statusKeycard"))
 
-		VHB_Bar(135, 90, 10, 10, 0)
+		VHB_Bar(135, 91, 10, 10, 0)
 		if ck_gameState.ck5_securityCard != 0:
-			VHB_DrawTile8(136, 91, 40)
+			VHB_DrawTile8(136, 92, 40)
 	elif ck_currentEpisode_ep == EP_CK6:
 		US_SetPrintX(80)
 		US_SetPrintY(96)

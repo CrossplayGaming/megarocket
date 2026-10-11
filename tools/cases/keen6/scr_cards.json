@@ -1,0 +1,41 @@
+{
+ "seconds": 63.5,
+ "keyfeed": true,
+ "held": [
+  [33.0, "esc", 0.2],
+  [34.75, "enter", 0.2],
+  [36.5, "esc", 0.2],
+  [38.25, "l", 0.2],
+  [40.0, "enter", 0.2],
+  [41.75, "esc", 0.2],
+  [43.5, "p", 0.2],
+  [45.25, "enter", 0.2],
+  [49.5, "esc", 0.2],
+  [51.25, "q", 0.2],
+  [53.0, "enter", 0.2],
+  [54.75, "esc", 0.2],
+  [56.5, "up", 0.2],
+  [58.25, "up", 0.2],
+  [60.0, "up", 0.2]
+ ],
+ "screens": [
+  [0, "id logo and the terminator credits"],
+  [27.5, "title"],
+  [33.0, "main card"],
+  [34.75, "NEW GAME card"],
+  [36.5, "main card again"],
+  [38.25, "main card, LOAD GAME"],
+  [40.0, "LOAD GAME card (no saves)"],
+  [41.75, "main card, LOAD GAME again"],
+  [43.5, "main card, PADDLE WAR"],
+  [45.25, "Paddle War"],
+  [49.5, "main card, PADDLE WAR again"],
+  [51.25, "main card, QUIT"],
+  [53.0, "REALLY QUIT?"],
+  [54.75, "main card, QUIT again"],
+  [56.5, "main card, PADDLE WAR by Up"],
+  [58.25, "main card, END GAME by Up"],
+  [60.0, "main card, RETURN TO DEMO by Up"]
+ ],
+ "note": "SCR-01G (Keen 6): the control panel's cards from the title, reached as the intro ends (Escape on the title at 33 s: a key that cuts the intro short opens the panel at once in the user's v1.0 and shows the title first in v1.4, which the port plays, J-19). NEW GAME, LOAD GAME (no saves), Paddle War for 4.25 s, the REALLY QUIT? box backed out of, then Up through the main card's rows. CONFIGURE and its cards are left out: v1.0's differ from v1.4's (J-19; Keen 4 and 5 cover them). Keys 1.75 s apart, between two blinks of the cursor. Times are seconds after the EGA mode set (KEYFEED.COM types the keys in DOS)."
+}

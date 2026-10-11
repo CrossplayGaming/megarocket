@@ -1,0 +1,17 @@
+{
+ "seconds": 66,
+ "keyfeed": true,
+ "held": [
+  [33.0, "esc", 0.2],
+  [34.75, "p", 0.2],
+  [36.5, "enter", 0.2]
+ ],
+ "screens": [
+  [0, "id logo and the terminator credits"],
+  [27.5, "title"],
+  [33.0, "main card"],
+  [34.75, "main card, PADDLE WAR"],
+  [36.5, "Paddle War, the computer's score to two figures"]
+ ],
+ "note": "SCR-01G (Keen 6): Paddle War from the title as the intro ends (Escape at 33 s: a key that cuts the intro short opens the panel at once in the user's v1.0 and shows the title first in v1.4, which the port plays, J-19), Keen's paddle left alone for half a minute: the computer's score counts into two figures. The whole game to 21 and its You lost! box are Keen 4's and 5's scr_paddle (the same code). Menu keys 1.75 s apart, between two blinks of the cursor. Times are seconds after the EGA mode set (KEYFEED.COM types the keys in DOS)."
+}

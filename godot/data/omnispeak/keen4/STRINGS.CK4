@@ -24,10 +24,12 @@
 
 %string ck_str_itemCheat "Cheat Option!\n\nYou just got all\nthe keys, 99 shots,\nand an extra keen!"
 
-%string ck_str_godModeOn "God Mode ON"
-%string ck_str_godModeOff "God Mode OFF"
+# (SCR-01: these three, Hillville, the Pyramid's "lies", "You know" and "fella.  Let's" set as KEEN4E.EXE
+# has them; tools/cases/keen4/scr_end shows the last council message)
+%string ck_str_godModeOn "God mode ON"
+%string ck_str_godModeOff "God mode OFF"
 
-%string ck_str_freeItems "Free Items!"
+%string ck_str_freeItems "Free items!"
 
 %string ck_str_jumpCheatOn "\nJump cheat ON"
 %string ck_str_jumpCheatOff "\nJump cheat OFF"
@@ -79,7 +81,7 @@
 	"Cave of the Descendents",
 	"Chasm of Chills",
 	"Crystalus",
-	"Hilville",
+	"Hillville",
 	"Sand Yego",
 	"Miragia",
 	"Lifewater Oasis",
@@ -199,7 +201,7 @@
 				"Miragia.\n"
 
 %string ck4_str_lindsayMessage2	"The way to the Pyramid\n"
-				"of the Forbidden lines\n"
+				"of the Forbidden lies\n"
 				"under the Pyramid of\n"
 				"Moons.\n"
 
@@ -242,7 +244,7 @@
 
 	"No problemo.",
 
-	"Great.  You known, you\n"
+	"Great.  You know, you\n"
 	"look a lot like the\n"
 	"last guy I rescued...",
 
@@ -256,7 +258,7 @@
 	"your ancientness.",
 
 	"You're the last one,\n"
-	"fella. Let's both\n"
+	"fella.  Let's both\n"
 	"get back to the\n"
 	"Oracle chamber!"
 

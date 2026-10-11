@@ -1,0 +1,18 @@
+{
+ "seconds": 42,
+ "keyfeed": true,
+ "held": [
+  [33.0, "esc", 0.2],
+  [35.75, "esc", 0.2],
+  [37.75, "y", 0.2]
+ ],
+ "screens": [
+  [0, "id logo and the terminator credits"],
+  [27.5, "title"],
+  [33.0, "main menu"],
+  [35.75, "the quit question"],
+  [37.75, "the order screen (text mode)"]
+ ],
+ "may_exit": true,
+ "note": "SCR-01G (Keen 6), as keen4/scr_quit (HARN-06's exit-screen path: Escape on the title for the main card, Escape again for the quit question, Y; the program quits to DOS and leaves its order screen in text mode; Escape again 2.75 s after the first, between two blinks of the cursor). Times are seconds after the EGA mode set (KEYFEED.COM types the keys in DOS)."
+}

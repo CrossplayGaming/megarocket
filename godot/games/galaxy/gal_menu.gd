@@ -299,7 +299,10 @@ func US_LoadMain(i: int, fromMenu: bool) -> bool:
 		ck_startingSavedGame = 1
 		e.used = true
 		in_Paused = true
-		in_PausedMessage = "GAME LOADED"
+		# (omnispeak's GAME LOADED, for a player; the original's window reads PAUSED: "GAME LOADED" is in
+		# none of the three programs, keen4 and keen5 scr_end, SCR-01)
+		if options != null:
+			in_PausedMessage = "GAME LOADED"
 		CK_Cross_LogMessage(CK_LOG_MSG_NORMAL, "US_LoadMain: Loaded savegame %d\n" % i)
 		return true
 
@@ -586,10 +589,11 @@ var ck_us_buttonsMenuItems: Array = [
 var ck_us_buttonsMenu: US_Card = _us_card(0, 0, "PIC_BUTTONSCARD", 0, ck_us_buttonsMenuItems, &"CK_US_ControlsMenuProc", 0, 0, 0)
 
 # Keyboard Menu
-# (both items have the shortcut M, as in C: the first one wins)
+# (SCR-01: BUTTONS has the shortcut B in Keen 4's and 5's own item table, KEEN4E.EXE image 0x1FC42;
+# omnispeak gives both items M)
 var ck_us_keyboardMenuItems: Array = [
 	_us_item(US_ITEM_Submenu, 0, IN_SC_M, "MOVEMENT", US_Comm_None, ck_us_movementMenu),
-	_us_item(US_ITEM_Submenu, 0, IN_SC_M, "BUTTONS", US_Comm_None, ck_us_buttonsMenu),
+	_us_item(US_ITEM_Submenu, 0, IN_SC_B, "BUTTONS", US_Comm_None, ck_us_buttonsMenu),
 	_us_item_end()]
 
 var ck_us_keyboardMenu: US_Card = _us_card(8, 0, "PIC_KEYBOARDCARD", 0, ck_us_keyboardMenuItems, &"CK_US_KeyboardMenuProc", 0, 0, 0)
@@ -601,19 +605,26 @@ var ck_us_joystick2Menu: US_Card = _us_card(0, 0, "PIC_JOYSTICKCARD", 0, [], &"C
 var ck_us_gamepadMenu: US_Card = _us_card(0, 0, "PIC_JOYSTICKCARD", 0, [], &"CK_US_GamepadMenuProc", 0, 0, 0)
 
 # Configure Menu
+# (SCR-01: as Keen 4's and 5's own item table has it, KEEN4E.EXE image 0x1FCC0: USE KEYBOARD, and the
+# gamepad item omnispeak leaves out, its caption set by CK_US_UpdateOptionsMenus; the recordings show both)
 var ck_us_configureMenuItems: Array = [
 	_us_item(US_ITEM_Submenu, 0, IN_SC_S, "SOUND", US_Comm_None, ck_us_soundMenu),
 	_us_item(US_ITEM_Submenu, 0, IN_SC_M, "MUSIC", US_Comm_None, ck_us_musicMenu),
 	_us_item(US_ITEM_Submenu, 0, IN_SC_O, "OPTIONS", US_Comm_None, ck_us_optionsMenu),
-	_us_item(US_ITEM_Submenu, US_IS_Gap, IN_SC_K, "KEYBOARD", US_Comm_None, ck_us_keyboardMenu),
+	_us_item(US_ITEM_Submenu, US_IS_Gap, IN_SC_K, "USE KEYBOARD", US_Comm_None, ck_us_keyboardMenu),
 	_us_item(US_ITEM_Submenu, 0, IN_SC_One, "USE JOYSTICK #1", US_Comm_None, ck_us_joystick1Menu),
 	_us_item(US_ITEM_Submenu, 0, IN_SC_Two, "USE JOYSTICK #2", US_Comm_None, ck_us_joystick2Menu),
-	# { US_ITEM_Submenu, 0, IN_SC_G, "", US_Comm_None, &ck_us_gamepadMenu, 0, 0 },
+	_us_item(US_ITEM_Submenu, 0, IN_SC_G, "", US_Comm_None, ck_us_gamepadMenu),
 	_us_item_end()]
 
 var ck_us_configureMenu: US_Card = _us_card(0, 0, "PIC_CONFIGURECARD", 0, ck_us_configureMenuItems, &"CK_US_ConfigureMenuProc", 0, 0, 0)
 ## The two joystick items, by reference (MENU-02 inserts DISPLAY after MUSIC).
 var ck_us_joystickItems: Array = [ck_us_configureMenuItems[4], ck_us_configureMenuItems[5]]
+## The gamepad item, by reference (SCR-01).
+var ck_us_gamepadItem: US_CardItem = ck_us_configureMenuItems[6]
+## The Gravis gamepad's switch (C's `gamepad`): never set here (the port reads no Gravis gamepad), so the
+## item reads (OFF), as in a recording with no gamepad.
+var ck_us_gamepad: bool = false
 
 # Paddle War!
 
@@ -799,8 +810,33 @@ func CK_US_GamepadMenuProc(_msg: int, _item: US_CardItem) -> bool:
 # not in the vanilla build.)
 
 
-func CK_US_ConfigureMenuProc(_msg: int, _item: US_CardItem) -> bool:
+## The controller names CONFIGURE's card shows, by in_controlType (C's CtlNames).
+const CK_US_CTL_NAMES: Array = ["KEYBOARD", "KEYBOARD", "JOYSTICK #1", "JOYSTICK #2", "MOUSE"]
+
+
+## SCR-01: omnispeak's does nothing; Keen 4's and 5's own (KEEN4E.EXE 1A89:0A0A, id's USL_ConfigCustom)
+## writes "CONTROL: " and the controller's name centred under the items once the card is drawn. (Not on
+## the shell's card: its CONTROLS card has taken the controller items' place.)
+func CK_US_ConfigureMenuProc(msg: int, _item: US_CardItem) -> bool:
+	if msg == US_MSG_PostDraw and ck_us_controlsMenu == null:
+		var s: String = "CONTROL: "
+		var name: String = CK_US_CTL_NAMES[in_controlType] if in_controlType < CK_US_CTL_NAMES.size() else ""
+		var wh: PackedInt32Array = VH_MeasurePropString(s, 1)
+		var tw: int = wh[0]
+		wh = VH_MeasurePropString(name, 1)
+		tw += wh[0]
+		var py: int = 150 - 18 - wh[1]
+		var px: int = 74 + (160 - tw) / 2
+		VHB_DrawPropString(s, px, py, 1, us_menu_foregroundColour)
+		VHB_DrawPropString(name, USL_DrawStringEnd(s, px), py, 1, us_menu_foregroundColour)
 	return false
+
+
+## Where id's VW_DrawPropString leaves px after drawing `s` from x: past the string's width and, as its
+## buffer starts at x's bit within its byte, that bit again (x & 7) (SCR-01: Paddle War's COMP score and
+## CONFIGURE's controller name sit that much further right in the recordings, keen4 scr_cards).
+func USL_DrawStringEnd(s: String, x: int) -> int:
+	return x + VH_MeasurePropString(s, 1)[0] + (x & 7)
 
 
 func USL_DrawPaddleWarScore(keen_score: int, comp_score: int) -> void:
@@ -826,7 +862,7 @@ func USL_DrawPaddleWarScore(keen_score: int, comp_score: int) -> void:
 	w = wh[0]
 	_h = wh[1]
 	VH_DrawPropString(keenString, print_x, print_y, 1, print_color)
-	US_SetPrintX(print_x + w)
+	US_SetPrintX(USL_DrawStringEnd(keenString, print_x))    # (PrintX = px: print_x + w and x's bit, SCR-01)
 	US_SetPrintY(print_y)
 	US_PrintF("%d", [s16(keen_score) & 0xFFFFFFFF])    # "%u" of the int the int16_t promotes to
 
@@ -839,7 +875,8 @@ func USL_DrawPaddleWarScore(keen_score: int, comp_score: int) -> void:
 	_h = wh[1]
 	VH_DrawPropString(compString, print_x, print_y, 1, print_color)
 
-	US_SetPrintX(print_x + w)
+	# (PrintX = px: print_x + w and x's bit, 182 & 7, six pixels further than omnispeak's; SCR-01)
+	US_SetPrintX(USL_DrawStringEnd(compString, print_x))
 	US_SetPrintY(print_y)
 	US_PrintF("%d", [s16(comp_score) & 0xFFFFFFFF])
 
@@ -934,8 +971,8 @@ func USL_PlayPaddleWar() -> void:
 				speedup_delay = 10
 				new_round = false
 
-				# Erase the ball
-				VH_Bar(old_ball_x, old_ball_y, 6, 5, us_menu_backgroundColour)
+				# Erase the ball (SCR-01: five wide, as Keen 4's own code, KEEN4E.EXE 1A89:1ABF; omnispeak six)
+				VH_Bar(old_ball_x, old_ball_y, 5, 5, us_menu_backgroundColour)
 
 			if ball_visible:
 				var counter: int = comp_move_counter
@@ -1024,7 +1061,7 @@ func USL_PlayPaddleWar() -> void:
 					y_bounce = 0
 
 		if ball_visible:
-			VH_Bar(old_ball_x, old_ball_y, 6, 5, us_menu_backgroundColour)
+			VH_Bar(old_ball_x, old_ball_y, 5, 5, us_menu_backgroundColour)    # (five wide: 1A89:1D69)
 			old_ball_x = ball_x
 			old_ball_y = ball_y
 
@@ -1106,7 +1143,11 @@ func CK_US_UpdateOptionsMenus() -> void:
 		(ck_us_joystickItems[1] as US_CardItem).state |= US_IS_Disabled
 
 	# Set up the gamepad menu item
-	# (an #if 0 block in C)
+	# (an #if 0 block in omnispeak; SCR-01: Keen 4's and 5's own code has it, KEEN4E.EXE 1A89:08E8)
+	ck_us_gamepadItem.state |= US_IS_Disabled
+	if in_controlType == IN_ctrl_Joystick1 or in_controlType == IN_ctrl_Joystick2:
+		ck_us_gamepadItem.state &= ~US_IS_Disabled
+	ck_us_gamepadItem.caption = "USE GRAVIS GAMEPAD (ON)" if ck_us_gamepad else "USE GRAVIS GAMEPAD (OFF)"
 
 
 class CK_CreatureType:
@@ -1991,6 +2032,12 @@ func USL_EndCards() -> void:
 	# FIXME: Cyan should be drawn, but this results in a cyan background
 	# for longer than expected (possibly due to legal of EGA features)
 	# VL_ClearScreen(3); // Draw Cyan
+	# SCR-01: the original clears video memory itself here (VW_ClearVideo(3), KEEN4E.EXE 1A89:256A),
+	# which DOSBox shows black from the next refresh until the game draws again (keen4 scr_game: 3
+	# refreshes before a new game's level box, 15-17 before the play comes back); the port showed the
+	# card on until then
+	if costs.has("clearvideo"):
+		VL_ClearVideo()
 	VL_ClearScreen(0)    # For now we draw black
 	CA_DownLevel()
 	CA_LoadAllSounds()
@@ -2287,7 +2334,8 @@ var _shell_capture_w: int = 0
 
 
 ## CTRL-04 (the user, 2026-10-10: the same Controls pages in every game, in its own style; the old control
-## screens replaced): CONFIGURE's KEYBOARD and USE JOYSTICK #1 / #2 become one CONTROLS card: KEYBOARD and
+## screens replaced): CONFIGURE's USE KEYBOARD, USE JOYSTICK #1 / #2 and the Gravis gamepad item (SCR-01)
+## become one CONTROLS card: KEYBOARD and
 ## CONTROLLER (each action and its keys or buttons; an action's card CHANGE, ADD SECOND, CLEAR), FIRE BUTTON
 ## (OWN BUTTON / JUMP + POGO, the original's TWO-BUTTON FIRING) and RESET TO DEFAULTS.
 func _shell_controls_card() -> void:
@@ -2322,7 +2370,7 @@ func _shell_controls_card() -> void:
 	ck_us_controlsMenu = _us_card(8, 0, "TEXT:CONTROLS", 0, items, &"", 0, 0, 0)
 	var at: int = ck_us_configureMenuItems.size() - 1
 	for item: US_CardItem in ck_us_configureMenuItems.duplicate():
-		if item.subMenu == ck_us_keyboardMenu or ck_us_joystickItems.has(item):
+		if item.subMenu == ck_us_keyboardMenu or ck_us_joystickItems.has(item) or item == ck_us_gamepadItem:
 			at = mini(at, ck_us_configureMenuItems.find(item))
 			ck_us_configureMenuItems.erase(item)
 	ck_us_configureMenuItems.insert(at, _us_item(US_ITEM_Submenu, US_IS_Gap, IN_SC_C, "CONTROLS", US_Comm_None, ck_us_controlsMenu))

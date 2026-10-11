@@ -532,7 +532,9 @@ func CK5_ExplodeGalaxy() -> void:
 		IN_PumpEvents()
 
 		endsplosion_palette[8] = endsplosion_pal_change[0][i]
-		endsplosion_palette[7] = endsplosion_pal_change[0][i]
+		# (SCR-01: the second row, as Keen 5's own code has it, KEEN5E.EXE 0F00:0701; omnispeak gives both
+		# colours the first row, keen5 scr_over)
+		endsplosion_palette[7] = endsplosion_pal_change[1][i]
 		VL_SetPaletteAndBorderColor(endsplosion_palette)
 		# VW_WaitVBL(10);
 		VL_DelayTics(10)
