@@ -1101,6 +1101,39 @@ def menu08():
     return worst
 
 
+def scr04():
+    """Keen 1-3's letter and digit questions answered by a pad (SCR-04): the pad's buttons fed through the host
+    in Keen 1 answer the title's Quit, F2's Sound, Save Game's nine positions and Overwrite, Leave this game and
+    Continue Which Game, Reset every control and (D)os or (T)itle; the files saved and loaded checked; Extras'
+    Help on the title and in a game; F4's Controller page and the pad's way to it; each question still
+    answered by its letter or digit key; headless, the original's prompts. Keen 2 and 3: a save and load by
+    the pad, and Quit to the title."""
+    import gdtest
+    worst = 0
+    for extra in ([], ["--game=keen2", "--smoke=1"], ["--game=keen3", "--smoke=1"]):
+        code, out = gdtest.run("scr04_vorticons", extra, timeout=900.0, quiet=True)
+        for line in out.splitlines():
+            if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+                print("  %s: %s" % ((extra or ["--game=keen1"])[0][7:], line.strip()))
+        worst = max(worst, code)
+    return worst
+
+
+def scr05v():
+    """Keen 1-3's high-score names by the d-pad (SCR-05's Vorticons part): KEEN spelled by the pad and read
+    back from SCORES.CKn in each game; in Keen 1 also typing unchanged and B ending as the original's Escape;
+    headless, the original's Input."""
+    import gdtest
+    worst = 0
+    for game in ("keen1", "keen2", "keen3"):
+        code, out = gdtest.run("scr05v_names", ["--game=" + game], timeout=600.0, quiet=True)
+        for line in out.splitlines():
+            if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+                print("  %s: %s" % (game, line.strip()))
+        worst = max(worst, code)
+    return worst
+
+
 def audio06():
     """Keen 4-6's AdLib effects in Keen 1-3 (AUDIO-06): every table sound from Keen 4 and 5, and from Keen 5
     alone; an effect's writes and its sound through the chip; in Keen 1 a jump's effect, the speaker silent."""
@@ -1520,6 +1553,8 @@ CHECKS = {
     "AND-02a": (and02a, "fast"),
     "SHELL-10b": (shell10b, "fast"),
     "AND-03a": (and03a, "fast"),
+    "SCR-04": (scr04, "fast"),
+    "SCR-05V": (scr05v, "fast"),
     "HOST-01": (host01, "slow"),
     "SHELL-02": (shell02, "slow"),
     "SIM-G-01d": (simg01d, "slow"),
