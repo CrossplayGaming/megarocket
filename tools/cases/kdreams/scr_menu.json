@@ -1,0 +1,40 @@
+{
+ "seconds": 28,
+ "keyfeed": true,
+ "held": [
+  [
+   4.0,
+   "space",
+   0.2
+  ],
+  [
+   14.0,
+   "down",
+   0.15
+  ],
+  [
+   16.0,
+   "down",
+   0.15
+  ]
+ ],
+ "screens": [
+  [
+   0,
+   "title"
+  ],
+  [
+   4.0,
+   "control panel"
+  ],
+  [
+   14.0,
+   "control panel, one row down"
+  ],
+  [
+   16.0,
+   "control panel, two rows down"
+  ]
+ ],
+ "note": "HARN-06a (Keen Dreams v1.00): the start screens (text mode; KEYFEED.COM's own Enter taps answer them), the title, Space for the control panel, held 10 s, Down twice 2 s apart, held. Times are seconds after the EGA mode set (KEYFEED.COM types the keys in DOS)."
+}

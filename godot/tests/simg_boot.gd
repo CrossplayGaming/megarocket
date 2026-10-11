@@ -15,6 +15,14 @@ extends SceneTree
 ##          --seed_ticks=n:d,... (BIOS ticks added to the clock's n-th reading)
 ##          --lock=<json> (HARN-20: each picture after a fade-in held until the
 ##            refresh the recording first shows it, counted from that fade-in)
+##          --feed_keys=<make_tick:scancode:break_tick,...> (HARN-06: KEYFEED.COM's
+##            timetable, 1024 ticks a second from the EGA mode set, no typematic
+##            repeat: tools/keyfeed.py, tools/screen_case.py)
+##          --save_seed=<folder> (HARN-06: the files placed beside the original's
+##            program, CONFIG.CKx and SAVEGAMn.CKx, read as the player's files)
+##          --save=<folder> (HARN-06: the player's files kept there, as the game writes them)
+##          --may_exit=1 (HARN-06: the program may quit before the time limit; the
+##            text screen it leaves is written as <out>/text_frames.json)
 
 const GAMES: Dictionary = {"keen4": "keen4", "keen5": "keen5", "keen6": "keen6e14"}
 const CLASSES: Dictionary = {"keen4": "res://games/galaxy/gal_keen4.gd",
@@ -57,6 +65,21 @@ func _init() -> void:
 	for spec: String in str(opts.get("keys", "")).split(",", false):
 		var parts: PackedStringArray = spec.split(":")
 		vm.add_key(float(parts[0]), int(parts[1]), float(parts[2]) if parts.size() > 2 else 0.1)
+	# HARN-06: a screen case's keys, timed from the EGA mode set as KEYFEED.COM types them into the
+	# original (no repeats: the feeder sends none)
+	for spec: String in str(opts.get("feed_keys", "")).split(",", false):
+		var parts: PackedStringArray = spec.split(":")
+		vm.repeat_pause_ms = 0
+		vm.add_key_after("mode_0d", int(parts[0]) / 1024.0, int(parts[1]), (int(parts[2]) - int(parts[0])) / 1024.0)
+	# HARN-06: a case's files beside the program (its oracle "overrides") in a fresh folder of the player's,
+	# or --save's folder, which keeps what the program writes (a saved game for another case to start from)
+	if opts.has("save_seed") or opts.has("save"):
+		g.user_dir = str(opts.get("save", OS.get_temp_dir().path_join("mr_gal_save_%d" % Time.get_ticks_usec())))
+		DirAccess.make_dir_recursive_absolute(g.user_dir)
+		if opts.has("save_seed"):
+			for f: String in DirAccess.get_files_at(str(opts["save_seed"])):
+				DirAccess.copy_absolute(str(opts["save_seed"]).path_join(f), g.user_dir.path_join(f.to_upper()))
+		g.load_user_files()
 	var writer: FrameWriter = FrameWriter.new()
 	if not writer.open(out):
 		t.blocked("cannot write " + out + ": " + writer.error)
@@ -85,7 +108,24 @@ func _init() -> void:
 	writer.close({"game": game, "seconds": seconds, "kinds": [], "level_starts": [0]})
 	print("  %s: %.1f s of game time in %.1f s, %d displays, %d distinct pictures, quit '%s'" %
 		[game, vm.seconds(), wall, written[0], writer._index.size(), g.quit_message])
-	t.ok("the run reached the time limit without the program quitting on its own", g.quit_message == "time limit")
+	if vm.marks.has("mode_0d"):
+		print("  mode 0Dh set at %.3f s" % (float(vm.marks["mode_0d"]) / (DosMachine.PIT_HZ * DosMachine.UNIT)))
+	if opts.has("may_exit"):
+		# HARN-06: a screen case that quits to DOS; the text screen the program leaves (the order screen)
+		# for tools/screen_case.py's text comparison, held from the quit to the time limit
+		print("  the program %s" % ("ran to the time limit" if g.quit_message == "time limit" else "quit ('%s')" % g.quit_message))
+		if not g.us_textScreen.is_empty():
+			var cells: PackedByteArray = g.us_textScreen.duplicate()
+			cells.resize(4000)
+			for i: int in range(g.us_textScreen.size(), 4000, 2):
+				cells[i] = 0x20
+				cells[i + 1] = 0x07
+			var held: int = maxi(1, int(round((float(vm.time_limit) - float(vm.now)) * 70.086 / (DosMachine.PIT_HZ * DosMachine.UNIT))))
+			var f: FileAccess = FileAccess.open(out.path_join("text_frames.json"), FileAccess.WRITE)
+			f.store_string(JSON.stringify({"cols": 80, "rows": 25, "screens": [[held, cells.hex_encode(), 0, 24]]}))
+			f.close()
+	else:
+		t.ok("the run reached the time limit without the program quitting on its own", g.quit_message == "time limit")
 	t.ok("pictures were written", written[0] > 100)
 	g.CK_ReleaseLinks()
 	g.RF_Shutdown()

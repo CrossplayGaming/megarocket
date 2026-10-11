@@ -22,7 +22,7 @@ FRAME_BYTES = WIDTH * HEIGHT * 3
 
 
 class Writer:
-    def __init__(self, folder):
+    def __init__(self, folder, width=WIDTH, height=HEIGHT):
         self.folder = Path(folder)
         self.folder.mkdir(parents=True, exist_ok=True)
         self.bin = open(self.folder / "frames.bin", "wb")
@@ -30,6 +30,7 @@ class Writer:
         self.offset = 0
         self.last = None
         self.raw_count = 0
+        self.width, self.height = width, height     # (another size: a text-mode capture, HARN-06)
 
     def add(self, rgb_bytes):
         """Add one displayed frame; consecutive identical frames are merged."""
@@ -46,7 +47,7 @@ class Writer:
 
     def close(self, meta=None):
         self.bin.close()
-        doc = {"width": WIDTH, "height": HEIGHT, "raw_frames": self.raw_count,
+        doc = {"width": self.width, "height": self.height, "raw_frames": self.raw_count,
                "frames": self.index, "meta": meta or {}}
         (self.folder / "frames.json").write_text(json.dumps(doc), encoding="ascii")
         return len(self.index)
@@ -76,6 +77,7 @@ class Sequence:
         # "indexed": each stored picture is 64000 palette indices followed by
         # the palette as RGB triples. The port writes these.
         self.indexed = doc.get("format", "rgb") == "indexed"
+        self.width, self.height = doc.get("width", WIDTH), doc.get("height", HEIGHT)
         self._rgb_digests = {}
         self.meta = doc.get("meta", {})
         self._bin = open(self.folder / "frames.bin", "rb")
@@ -106,7 +108,7 @@ class Sequence:
             palette = np.frombuffer(raw[pixels:], dtype=np.uint8).reshape(-1, 3)
             picture = np.ascontiguousarray(palette[indices].reshape(HEIGHT, WIDTH, 3))
         else:
-            picture = np.frombuffer(raw, dtype=np.uint8).reshape(HEIGHT, WIDTH, 3)
+            picture = np.frombuffer(raw, dtype=np.uint8).reshape(self.height, self.width, 3)
         return as_rgb565(picture) if self.rgb565 else picture
 
     def digests(self):
@@ -144,10 +146,14 @@ def from_video(video, folder, meta=None):
     return from_videos([video], folder, meta)
 
 
-def from_videos(videos, folder, meta=None, skip_other_sizes=False):
+def from_videos(videos, folder, meta=None, skip_other_sizes=False, text_folder=None):
     """Decode several captures, in order, into one sequence. With `skip_other_sizes` a capture of another
-    size is left out (DOSBox 0.83 starts a new file at a mode change: the text-mode start-up's, HARN-22)."""
+    size is left out (DOSBox 0.83 starts a new file at a mode change: the text-mode start-up's, HARN-22);
+    with `text_folder` too, those (text mode's 720x400 or 640x400) go there, in order, as a sequence of
+    their own size (HARN-06: the text screens a game shows on starting or quitting)."""
     writer = Writer(folder)
+    text_writer = None
+    text_parts = []
     for video in videos:
         probe = subprocess.run(
             ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
@@ -158,6 +164,16 @@ def from_videos(videos, folder, meta=None, skip_other_sizes=False):
         # colour, which is checked, so halving it loses nothing
         double = (width, height) == (2 * WIDTH, 2 * HEIGHT)
         if (width, height) != (WIDTH, HEIGHT) and not double and skip_other_sizes:
+            if text_folder is not None and height == 400 and width in (640, 720):
+                if text_writer is None:
+                    text_writer = Writer(text_folder, width, height)
+                if (width, height) == (text_writer.width, text_writer.height):
+                    # each capture's pictures apart from the last one's (the EGA ones lie between), and
+                    # [file, its first refresh, refreshes, the EGA refreshes recorded before it]
+                    text_writer.last = None
+                    before = text_writer.raw_count
+                    _decode_into(video, text_writer, width * height * 3)
+                    text_parts.append([video.name, before, text_writer.raw_count - before, writer.raw_count])
             continue
         if (width, height) != (WIDTH, HEIGHT) and not double:
             raise ValueError(f"{video}: expected {WIDTH}x{HEIGHT}, got {width}x{height}")
@@ -180,4 +196,20 @@ def from_videos(videos, folder, meta=None, skip_other_sizes=False):
         proc.wait()
         if proc.returncode != 0:
             raise RuntimeError(f"ffmpeg failed on {video}")
+    if text_writer is not None:
+        text_writer.close(dict(meta or {}, parts=text_parts))
     return writer.close(meta)
+
+
+def _decode_into(video, writer, size):
+    """Every picture of one capture into `writer`, as recorded."""
+    proc = subprocess.Popen(["ffmpeg", "-v", "error", "-i", str(video), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+                            stdout=subprocess.PIPE)
+    while True:
+        raw = proc.stdout.read(size)
+        if len(raw) < size:
+            break
+        writer.add(raw)
+    proc.wait()
+    if proc.returncode != 0:
+        raise RuntimeError(f"ffmpeg failed on {video}")

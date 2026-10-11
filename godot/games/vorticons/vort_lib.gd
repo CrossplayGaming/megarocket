@@ -1449,6 +1449,7 @@ func LoadGraphics() -> void:
 
 	# start graphics mode
 	vm.card.bios_set_video_mode(0x0D)
+	vm.mark("mode_0d")    # HARN-06: a screen case's key timetable starts here (KEYFEED.COM sees the BIOS mode)
 	screenseg = 0xA000
 	for i: int in range(4):
 		EGAplane(i)

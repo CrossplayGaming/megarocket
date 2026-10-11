@@ -7,6 +7,9 @@ extends SceneTree
 ##
 ## Options: --game_data=<folder> --game=keen1 --seconds=30 --out=<folder>
 ##          --keys=<at:scancode:hold,...> --save=<folder for CTLPANEL/SCORES>
+##          --feed_keys=<make_tick:scancode:break_tick,...> (HARN-06: KEYFEED.COM's timetable, 1024 ticks
+##          a second from the EGA mode set, no typematic repeat: tools/keyfeed.py, tools/screen_case.py)
+##          --may_exit=1 (HARN-06: the program may quit before the time limit)
 
 var t: T = T.new()
 
@@ -47,6 +50,12 @@ func _init() -> void:
 	for spec: String in str(opts.get("keys_after_intro", "")).split(",", false):
 		var parts: PackedStringArray = spec.split(":")
 		vm.add_key_after("intro", float(parts[0]), int(parts[1]), float(parts[2]) if parts.size() > 2 else 0.1)
+	# HARN-06: a screen case's keys, timed from the EGA mode set as KEYFEED.COM types them into the
+	# original (no repeats: the feeder sends none)
+	for spec: String in str(opts.get("feed_keys", "")).split(",", false):
+		var parts: PackedStringArray = spec.split(":")
+		vm.repeat_pause_ms = 0
+		vm.add_key_after("mode_0d", int(parts[0]) / 1024.0, int(parts[1]), (int(parts[2]) - int(parts[0])) / 1024.0)
 	var writer: FrameWriter = FrameWriter.new()
 	if not writer.open(out):
 		t.blocked("cannot write " + out + ": " + writer.error)
@@ -118,7 +127,13 @@ func _init() -> void:
 		[game, vm.seconds(), wall, written[0], writer._index.size(), g.exit_message])
 	if vm.marks.has("intro"):
 		print("  intro mark at %.3f s, %d displays after it" % [float(vm.marks["intro"]) / (DosMachine.PIT_HZ * DosMachine.UNIT), written[0] - mark_written[0]])
-	t.ok("the run reached the time limit without the program quitting on its own", g.exit_message == "" and vm.limit_fired)
+	if vm.marks.has("mode_0d"):
+		print("  mode 0Dh set at %.3f s" % (float(vm.marks["mode_0d"]) / (DosMachine.PIT_HZ * DosMachine.UNIT)))
+	if opts.has("may_exit"):
+		# HARN-06: a screen case that quits to DOS (its "may_exit")
+		print("  the program %s" % ("ran to the time limit" if vm.limit_fired else "quit ('%s')" % g.exit_message))
+	else:
+		t.ok("the run reached the time limit without the program quitting on its own", g.exit_message == "" and vm.limit_fired)
 	t.ok("pictures were written", written[0] > 100)
 	# break the cycles between the machine's handlers and the game
 	vm.int8 = Callable()

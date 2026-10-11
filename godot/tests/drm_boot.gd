@@ -28,6 +28,12 @@ extends SceneTree
 ##          --kl_record=<file> --kl_warp=<level> (HARN-23: the verify harness's trace, straight into a level)
 ##          --clock=us (the DOS clock at the start, microseconds since 00:00:00: the random
 ##          table's seed is its hundredths at US_Startup; unset, the port's own seed)
+##          --save_seed=<folder> (HARN-06: the files placed beside the original's program, the config
+##          and saved games, read as the player's files)
+##          --save=<folder> (HARN-06: the player's files kept there, as the program writes them)
+##          --may_exit=1 (HARN-06: the program may quit before the time limit)
+## Every text-mode refresh's 80x25 cells go to <out>/<folder>/text_frames.json (HARN-06: the text
+## screens, held against the recording's by tools/screen_case.py).
 
 ## DOSBox's timing as the Vorticons fit found it (same runner settings)
 const DOSBOX: Dictionary = {"cycles": 20000, "vbl_period": 17024400, "timer_offset": 0}
@@ -101,6 +107,15 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	# the files the program opens itself (gelib's reads): v1.93's title archive
 	if d.version == "e193":
 		g.us_files["KDREAMS.CMP"] = d._read("KDREAMS.CMP")
+	# HARN-06: a case's files beside the program (its oracle "overrides") in a fresh folder of the player's,
+	# or --save's folder, which keeps what the program writes (a saved game for another case to start from)
+	if opts.has("save_seed") or opts.has("save"):
+		g.user_dir = str(opts.get("save", OS.get_temp_dir().path_join("mr_drm_save_%d" % Time.get_ticks_usec())))
+		DirAccess.make_dir_recursive_absolute(g.user_dir)
+		if opts.has("save_seed"):
+			for f: String in DirAccess.get_files_at(str(opts["save_seed"])):
+				DirAccess.copy_absolute(str(opts["save_seed"]).path_join(f), g.user_dir.path_join(f.to_upper()))
+		g.load_user_files()
 	var feeding: bool = str(opts.get("feed_keys", "")) != ""
 	if not feeding:
 		for k: Array in keys:
@@ -144,7 +159,7 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	var card: EgaCard = vm.card
 	var title: PackedByteArray = _decode_ilbm(d.title_shape) if d.version == "e193" else PackedByteArray()
 	# [EGA displays, text screen seen, best title match, most colours in a picture, last hash]
-	var st: Dictionary = {"ega": 0, "text": "", "title": 0.0, "colours": 0, "last": 0, "pictures": 0}
+	var st: Dictionary = {"ega": 0, "text": "", "title": 0.0, "colours": 0, "last": 0, "pictures": 0, "screens": []}
 	vm.on_display = func() -> void:
 		feed_taps.call()
 		if card.video_mode == EgaCard.MODE_EGA:
@@ -164,10 +179,18 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 				st.last = h
 				st.pictures += 1
 				_look(card.frame_pixels, title, st)
-		elif st.text == "":
-			var txt: String = _text_screen(g.textmem)
-			if txt.to_lower().contains("press a key"):
-				st.text = txt
+		else:
+			# HARN-06: the text-mode refresh's cells and cursor, consecutive repeats counted
+			var cells: PackedByteArray = g.textmem.slice(0, 4000)
+			var screens: Array = st.screens
+			if not screens.is_empty() and screens[-1][1] == cells and screens[-1][2] == g.textcursor:
+				screens[-1][0] += 1
+			else:
+				screens.append([1, cells, g.textcursor])
+			if st.text == "":
+				var txt: String = _text_screen(g.textmem)
+				if txt.to_lower().contains("press a key"):
+					st.text = txt
 	vm.time_limit = DosMachine.seconds_to_units(seconds)
 	vm.on_limit = func() -> void:
 		# end the run the way Quit does, without Quit's error report
@@ -185,6 +208,14 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 		if f != null:
 			f.store_string(st.text)
 			f.close()
+	# HARN-06: [refreshes, cells as hex, cursor column, cursor row] per text screen, in order
+	var shown: Array = []
+	for s: Array in st.screens:
+		shown.append([s[0], (s[1] as PackedByteArray).hex_encode(), s[2].x, s[2].y])
+	var tf: FileAccess = FileAccess.open(out.path_join("text_frames.json"), FileAccess.WRITE)
+	if tf != null:
+		tf.store_string(JSON.stringify({"cols": 80, "rows": 25, "screens": shown}))
+		tf.close()
 	print("  %s (%s): %.1f s of game time in %.1f s, %d EGA displays, %d distinct pictures, quit '%s'" %
 		[name, d.version, vm.seconds(), wall, st.ega, distinct.size(), g.quit_message])
 	print("  %s: title match %.3f, most colours in a picture %d" % [name, st.title, st.colours])
@@ -199,6 +230,8 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	t.ok("%s: distinct pictures (%d)" % [name, distinct.size()], distinct.size() >= 3)
 	if unported:
 		print("  %s: stopped at an unported function: %s" % [name, g.quit_message])
+	elif opts.has("may_exit"):
+		print("  %s: the program %s" % [name, "ran to the time limit" if g.quit_message == "time limit" else "quit ('%s')" % g.quit_message])
 	else:
 		t.ok("%s: the demo loop ran to the time limit (quit '%s')" % [name, g.quit_message], g.quit_message == "time limit")
 	g.RF_Shutdown()

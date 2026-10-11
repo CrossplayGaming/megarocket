@@ -1,0 +1,18 @@
+{
+ "seconds": 42,
+ "keyfeed": true,
+ "held": [
+  [33.0, "esc", 0.2],
+  [36.0, "esc", 0.2],
+  [38.0, "y", 0.2]
+ ],
+ "screens": [
+  [0, "id logo and the terminator credits"],
+  [27.5, "title"],
+  [33.0, "main menu"],
+  [36.0, "the quit question"],
+  [38.0, "the order screen (text mode)"]
+ ],
+ "may_exit": true,
+ "note": "HARN-06's exit-screen path: Escape on the title for the main card, Escape again for the quit question, Y; the program quits to DOS and leaves its order screen in text mode. Times are seconds after the EGA mode set (KEYFEED.COM types the keys in DOS)."
+}
