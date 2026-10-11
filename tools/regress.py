@@ -486,6 +486,19 @@ def rend01g():
     return code
 
 
+def rend01d():
+    """The draw list (REND-01D), Keen Dreams v1.00 and v1.93: every gameplay picture of the title demo and a
+    level played by script, drawn again from its refresh's list, equals the card's; the native layout within
+    each image's step; windows over the play (the credits, the status window) as the list's overlay from the
+    card; the level ends the same without the lists."""
+    import gdtest
+    code, out = gdtest.run("rend01_dreams", [], timeout=1800.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "compared" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend04g():
     """The wide view (REND-04), Keen 4-6, a reach of six tiles past the picture: the 1x picture still the
     card's, at 416 every image shifted alike with the score box kept on the screen and the map's tiles
@@ -1377,6 +1390,7 @@ CHECKS = {
     "REND-03": (rend03, "slow"),
     "REND-04": (rend04, "slow"),
     "REND-01G": (rend01g, "slow"),
+    "REND-01D": (rend01d, "fast"),
     "REND-09": (rend09, "fast"),
     "CHEAT-03": (cheat03, "fast"),
     "SAVE-02": (save02, "fast"),

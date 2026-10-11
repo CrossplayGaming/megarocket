@@ -86,6 +86,7 @@ func VW_Shutdown() -> void:
 
 ## Calls the BIOS to set the text or EGA mode (`mode` is the C's grmode argument).
 func VW_SetScreenMode(mode: int) -> void:
+	_draw_none()    # REND-01D: the mode set clears the memory: no list is the picture
 	match mode:
 		TEXTGR:
 			BE_ST_SetScreenMode(3)    # (screenseg: the text memory is the machine's)
@@ -162,6 +163,7 @@ func VW_SetLineWidth(width: int) -> void:
 
 
 func VW_ClearVideo(color: int) -> void:
+	_draw_none()    # REND-01D
 	if GRMODE == EGAGR:
 		BE_ST_EGAUpdateGFXBufferFrom4bitsPixel(0, color, 0xffff)
 
@@ -393,8 +395,12 @@ func VW_UpdateScreen() -> void:
 	if cursorvisible > 0:
 		VWL_DrawCursor()
 	if GRMODE == EGAGR:
+		_draw_blocks = Rect2i()
 		VWL_UpdateScreenBlocks()
 		BE_ST_SetScreenStartAddress(u16(displayofs + panadjust))
+		if draw_capture:
+			# REND-01D: what was just copied onto the page on display (a window) is the lists' overlay
+			_draw_touched(_draw_blocks, u16(displayofs + panadjust), vm.card.atc[EgaCard.ATR_PELPAN] & 7)
 	if cursorvisible > 0:
 		VWL_EraseCursor()
 
@@ -699,6 +705,7 @@ func VWL_UpdateScreenBlocks() -> void:
 		if _vw_update_at(scanPtr) != 1:
 			# copy a single tile
 			scanPtr += 1    # we know the next tile is nothing
+			_draw_block(scanPtr - updateptr - 2, 1)
 			var tileLoc: int = blockstarts[scanPtr - updateptr - 2]    # start of tile location on screen
 			var egaSrcOff: int = u16(tileLoc + bufferofs)
 			var egaDestOff: int = u16(tileLoc + displayofs)
@@ -720,6 +727,7 @@ func VWL_UpdateScreenBlocks() -> void:
 			if v != 1:
 				break
 		var bytesPerRow: int = u16(2 * (scanPtr - rowScanStartPtr))
+		_draw_block(rowScanStartPtr - updateptr - 1, scanPtr - rowScanStartPtr)
 		var tileLoc: int = blockstarts[rowScanStartPtr - updateptr - 1]    # start of tile location
 		var egaSrcOff: int = u16(tileLoc + bufferofs)
 		var egaDestOff: int = u16(tileLoc + displayofs)
@@ -741,8 +749,121 @@ func VWL_UpdateScreenBlocks() -> void:
 func VW_SetScreen_EGA(CRTC: int, pelpan: int) -> void:
 	vm.wait_retrace_end()
 	BE_ST_SetScreenStartAddress(u16(CRTC))
+	if draw_capture:
+		_draw_presented(u16(CRTC), pelpan & 7)    # REND-01D: the list of the page going on display
 	vm.wait_in_retrace()
 	BE_ST_EGASetPelPanning(pelpan)
+
+
+# ===================================================================== REND-01D: the draw list (not the C's)
+
+## REND-01 (Keen Dreams): the refresh's draw list, kept for a renderer when draw_capture is on (the shell
+## and the tests set it; the simulation never reads it), as Keen 4-6's (gal_lib.gd). RF_Refresh_EGA makes
+## it (drm_rf.gd) just before its page flip; every picture put on the card is one, so a picture not from
+## a refresh (the title, the panel, the high scores) is a list marked "none": a renderer draws a list only
+## if it is the one the card shows. The previous list is kept too: until this one's start is taken at a
+## retrace, the card still shows that one.
+var draw_capture: bool = false
+## REND-03: the objects that moved in a step since the last refresh (a step state's move, made all at
+## once as its time runs out, with its next picture: most of Dreams' creatures): smooth motion draws
+## them where they are, not slid. Presentation only; emptied every refresh.
+var draw_stepped: Dictionary = {}
+var draw_list: Dictionary = {}
+var draw_list_prev: Dictionary = {}
+## A refresh's list waiting for its present (set by RF_Refresh_EGA just before VW_SetScreen_EGA)
+var _draw_pending: Dictionary = {}
+## REND-04: the wide view's extra tiles each side of the original's 20 (the host sets it from the
+## window's shape; 0 in Classic, headless and the oracle runs: the original exactly)
+var wide_tiles: int = 0
+## REND-09: what was drawn on the pages outside the refreshes (a window: the status window, "Loading",
+## the credits) since the last full repaint, in world pixels: the pages keep their place in the world as
+## the view scrolls (RF_Scroll moves the pages' start, not their bytes). A refresh's list carries it as
+## its "overlay" (on the picture), so the shell copies that much of the card's picture over its own view
+## and keeps the play wide; a full repaint (RF_NewPosition) clears it.
+var _draw_extra: Rect2i = Rect2i()
+## The last refresh's list, for the pictures a window is put over
+var _draw_last_play: Dictionary = {}
+## The update blocks VWL_UpdateScreenBlocks copied to the page on display (in the port's tiles)
+var _draw_blocks: Rect2i = Rect2i()
+## More of the picture than this changed outside a refresh is a screen of its own, not a window.
+const DRAW_EXTRA_MAX: int = 320 * 200 * 6 / 10
+
+
+## The list for a picture just put on the card: `start` the CRTC address written, `pan` the pel panning
+## it shows with; its retrace count is now (the start is taken at the next retrace).
+func _draw_presented(start: int, pan: int) -> void:
+	draw_list_prev = draw_list
+	if not _draw_pending.is_empty():
+		draw_list = _draw_pending
+		_draw_pending = {}
+		_draw_last_play = draw_list
+	else:
+		draw_list = _draw_window_list(start, pan)
+	draw_list["start"] = start
+	draw_list["written_vbl"] = vm.vbl_count
+
+
+## A block of update tiles copied onto the page on display (VWL_UpdateScreenBlocks): `idx` its place in
+## the update array, `n` tiles along the row.
+func _draw_block(idx: int, n: int) -> void:
+	if not draw_capture:
+		return
+	@warning_ignore("integer_division")
+	var r: Rect2i = Rect2i(idx % UPDATEWIDE, idx / UPDATEWIDE, n, 1)
+	_draw_blocks = r if _draw_blocks.size == Vector2i.ZERO else _draw_blocks.merge(r)
+
+
+## Something copied onto the page on display outside a refresh (a window's blocks, in the port's tiles,
+## at the port's place in the world): kept as the overlay the lists carry; the list shown becomes the
+## last refresh's with it, if that is a window over the play; neither list is the picture otherwise.
+func _draw_touched(blocks: Rect2i, start: int, pan: int) -> void:
+	if blocks.size != Vector2i.ZERO:
+		var r: Rect2i = Rect2i((originxtile + blocks.position.x) * 16, (originytile + blocks.position.y) * 16,
+			blocks.size.x * 16, blocks.size.y * 16)
+		_draw_extra = r if _draw_extra.size == Vector2i.ZERO else _draw_extra.merge(r)
+	var shown: Dictionary = _draw_window_list(start, pan)
+	if shown.get("none", false):
+		draw_list["touched"] = true
+		draw_list_prev["touched"] = true
+		return
+	shown["start"] = draw_list.get("start", -1)
+	shown["written_vbl"] = draw_list.get("written_vbl", -1)
+	draw_list = shown
+
+
+## The card's picture is something else than a refresh's (the mode set, the memory cleared): no list is
+## it until the next refresh.
+func _draw_none() -> void:
+	if not draw_capture:
+		return
+	_draw_last_play = {}
+	_draw_extra = Rect2i()
+	draw_list["touched"] = true
+	draw_list_prev["touched"] = true
+
+
+## The last refresh's list with what has been drawn over it since as its overlay, if the card shows that
+## page (its start and panning); {"none": true} when the screen is something else (another page, or
+## mostly changed).
+func _draw_window_list(start: int, pan: int) -> Dictionary:
+	var last: Dictionary = _draw_last_play
+	if last.is_empty() or int(last.get("start", -1)) != start or int(last.get("pan", -1)) != pan:
+		return {"none": true}
+	var on_pic: Rect2i = _draw_overlay_on(int(last.sx), int(last.sy))
+	if on_pic.size.x * on_pic.size.y > DRAW_EXTRA_MAX:
+		return {"none": true}
+	var list: Dictionary = last.duplicate()
+	var over: Rect2i = list.get("overlay", Rect2i())
+	if on_pic.size != Vector2i.ZERO:
+		list["overlay"] = on_pic if over.size == Vector2i.ZERO else over.merge(on_pic)
+	return list
+
+
+## Where the windows drawn since the last full repaint lie on a picture whose top-left is (sx, sy).
+func _draw_overlay_on(sx: int, sy: int) -> Rect2i:
+	if _draw_extra.size == Vector2i.ZERO:
+		return Rect2i()
+	return Rect2i(_draw_extra.position - Vector2i(sx, sy), _draw_extra.size).intersection(Rect2i(0, 0, 320, 200))
 
 
 # ---- general font drawing routines
