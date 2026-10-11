@@ -32,7 +32,7 @@ static func list(game: String) -> Array:
 			continue
 		out.append({"path": dir.path_join(f), "name": str(meta.get("name", f.get_basename())),
 			"created": int(meta.get("created", 0)), "modified": int(meta.get("modified", 0)),
-			"slot": int(meta.get("slot", 1)), "origin": str(meta.get("origin", "new"))})
+			"slot": int(meta.get("slot", 1)), "origin": str(meta.get("origin", "new")), "cleared": str(meta.get("cleared", "")) != ""})
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return a.modified > b.modified or (a.modified == b.modified and str(a.path) < str(b.path)))
 	return out
@@ -78,7 +78,7 @@ func save(path: String, level: KeenLevel, meta: Dictionary, trail: PackedVector2
 		t.append([snappedf(p.x, 0.01), snappedf(p.y, 0.01)])
 	var doc: Dictionary = {"megarocket_maker": FORMAT, "game": game, "engine": level.engine,
 		"name": str(meta.get("name", "My level")), "created": int(old.get("created", meta.get("created", now))),
-		"modified": now, "slot": int(meta.get("slot", 1)), "origin": str(meta.get("origin", "new")),
+		"modified": now, "slot": int(meta.get("slot", 1)), "origin": str(meta.get("origin", "new")), "cleared": str(meta.get("cleared", "")),
 		"width": level.width, "height": level.height, "fields": level.fields, "planes": planes, "trail": t}
 	var f: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 	if f == null:

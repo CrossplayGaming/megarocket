@@ -68,6 +68,8 @@ var _a_down: bool = false
 var _b_down: bool = false
 var _trig: Dictionary = {}
 var _played_from: String = ""
+var _from_start: bool = false
+var _played: Object = null
 var _rename_edit: LineEdit = null
 ## A refusal's reason, shown first on the status line for a few seconds
 var _notice: String = ""
@@ -251,7 +253,7 @@ func show_library(focus_path: String = "") -> void:
 	var saved: Array = MakerLibrary.list(game)
 	for e: Dictionary in saved:
 		var when: String = Time.get_datetime_string_from_unix_time(int(e.modified) + _tz(), true).substr(0, 16)
-		var b: Button = _button(list, "%s    %s    %s" % [e.name, when, "remix of level %s" % str(e.origin).substr(6) if str(e.origin).begins_with("remix") else "new"],
+		var b: Button = _button(list, "%s    %s    %s%s" % [e.name, when, "remix of level %s" % str(e.origin).substr(6) if str(e.origin).begins_with("remix") else "new", "    cleared" if e.cleared else ""],
 			_on_level_button.bind(str(e.path)), "Level_%s" % str(e.path).get_file().get_basename())
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.set_meta("path", e.path)
@@ -486,9 +488,9 @@ func _refresh() -> void:
 		if to.x >= 0:
 			under += ", works on %d,%d" % [to.x, to.y]
 	var notice: String = _notice + "   " if Time.get_ticks_msec() < _notice_until else ""
-	status.text = notice + "%s (%s)   %dx%d   objects %d/%d   %s   cursor %d,%d %s   Keen starts %s%s" % [model.doc_name, _title(game), model.level.width,
+	status.text = notice + "%s (%s)   %dx%d   objects %d/%d   %s   cursor %d,%d %s   Keen starts %s%s%s" % [model.doc_name, _title(game), model.level.width,
 		model.level.height, model.objects(), MakerModel.OBJECT_LIMIT[model.engine], TOOL_NAMES[view.tool] + ((" - pick what it works on" if view.tool == "link" else " - pick the other corner") if view.anchor.x >= 0 else ""),
-		view.cursor.x, view.cursor.y, under, "at %d,%d" % [s.x, s.y] if s.x >= 0 else "nowhere yet", "   not saved" if model.dirty else ""]
+		view.cursor.x, view.cursor.y, under, "at %d,%d" % [s.x, s.y] if s.x >= 0 else "nowhere yet", "   cleared" if model.is_cleared() else "   not cleared yet", "   not saved" if model.dirty else ""]
 
 
 func save() -> bool:
@@ -672,6 +674,8 @@ func _play(at: Vector2i, checked: bool = false) -> void:
 		return
 	_body.visible = false
 	model.trail = PackedVector2Array()
+	_from_start = at.x < 0 or not model.level.in_bounds(at.x, at.y)
+	_played = host.engine    # kept: the host lets its engine go before it says the game finished
 	host.finished.connect(_on_played)
 
 
@@ -732,6 +736,10 @@ func _record_trail() -> void:
 
 
 func _on_played(_message: String) -> void:
+	var won: bool = model.note_play(_played, _from_start)
+	_played = null
+	if won and _from_start and model.path != "" and not model.dirty:
+		model.save_doc()    # the clear kept with the level (nothing else changed since the play)
 	host.queue_free()
 	host = null
 	_body.visible = true
@@ -739,7 +747,7 @@ func _on_played(_message: String) -> void:
 		view.grab_focus()
 		view.queue_redraw()
 		_refresh()
-		status.text = "Back from playing: Keen's run is the trail. " + status.text
+		status.text = ("Cleared! You finished it from Keen's start. " if won and _from_start else ("Finished from the cursor (a clear counts from Keen's start). " if won else "Back from playing: Keen's run is the trail. ")) + status.text
 	else:
 		show_library(_played_from)
 		status.text = "Back from playing."

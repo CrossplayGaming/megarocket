@@ -49,6 +49,9 @@ var origin: String = ""
 var path: String = ""
 ## Keen's last test run: his positions in cells (MakerScreen keeps it while he plays)
 var trail: PackedVector2Array = PackedVector2Array()
+## V15-04's clear check: the level's fingerprint when the player last finished it from Keen's start
+## ("" never); it holds only while the level is unchanged since
+var cleared_hash: String = ""
 ## Undo: lists of changes, each [plane, x, y, before, after]; a stroke is one entry
 var _undo: Array = []
 var _redo: Array = []
@@ -116,7 +119,42 @@ func open(id: String, dir: String, ver: String = "", parts_too: bool = true) -> 
 var _all_levels: Array = []
 
 
+## The level's fingerprint (its size and planes).
+func fingerprint(l: KeenLevel = null) -> String:
+	var target: KeenLevel = l if l != null else level
+	if target == null:
+		return ""
+	var h: HashingContext = HashingContext.new()
+	h.start(HashingContext.HASH_SHA256)
+	h.update(("%d %d %d" % [number, target.width, target.height]).to_ascii_buffer())
+	for words: PackedInt32Array in target.planes:
+		h.update(LevelCodec.words_to_bytes(words))
+	return h.finish().hex_encode()
+
+
+## Whether the player has finished the level as it is now, from Keen's start (V15-04's clear check).
+func is_cleared() -> bool:
+	return cleared_hash != "" and cleared_hash == fingerprint()
+
+
+## After a play: whether the game ended with the level finished (Keen 1-3's LevelDone ex_completed,
+## Keen 4-6's levelState LS_LevelComplete, Dreams' playstate levelcomplete). Played from Keen's start,
+## a finish clears the level as it is.
+func note_play(engine_obj: Object, from_start: bool) -> bool:
+	var won: bool = false
+	if engine_obj is GalGame:
+		won = int((engine_obj as GalGame).ck_gameState.levelState) == GalCK.LS_LevelComplete
+	elif engine_obj is DreamsGame:
+		won = int((engine_obj as DreamsGame).playstate) == DrmDecl.levelcomplete
+	elif engine_obj != null and engine_obj.get("LevelDone") != null:
+		won = int(engine_obj.get("LevelDone")) == 1    # ex_completed
+	if won and from_start:
+		cleared_hash = fingerprint()
+	return won
+
+
 func _reset() -> void:
+	cleared_hash = ""
 	if parts != null and original(number) != null:
 		parts.learn_brush([original(number)], _all_levels)
 	_undo = []
@@ -227,6 +265,7 @@ func load_doc(file: String) -> bool:
 	path = file
 	_reset()
 	trail = got.trail
+	cleared_hash = str(got.meta.get("cleared", ""))
 	return true
 
 
@@ -238,7 +277,7 @@ func save_doc() -> bool:
 	end_stroke()
 	var lib: MakerLibrary = MakerLibrary.new()
 	var to: String = path if path != "" else MakerLibrary.new_path(game_id)
-	if not lib.save(to, level, {"game": game_id, "name": doc_name, "slot": number, "origin": origin}, trail):
+	if not lib.save(to, level, {"game": game_id, "name": doc_name, "slot": number, "origin": origin, "cleared": cleared_hash}, trail):
 		error = lib.error
 		return false
 	path = to
