@@ -217,9 +217,12 @@ the row below once the program has quit, is masked: row 23, columns 0-4). The sh
   differs from v1.4's), and its ending pages differ from v1.4's (below), so Keen 6 has no ending case.
 - **Masks used** (each says why in the case): the world map's one animated tile in view (Keen 4's water, Keen 5's
   rocket flame) from the level's start, because the frame it is held in under a window follows the port's
-  timing of the panel's exit and the level load (not fitted: TIME-G); level 1's play around the Game Over!
-  window and before Keen 5's galaxy explodes (the creatures' random numbers, REPLAY-G). `settled: 5` in the
-  cases that load a game: the Loading box is up 4 refreshes in the port, 2-3 partly copied in the original.
+  timing of the panel's exit and the level load (not fitted: TIME-G), from 10.2 s in the cases that load a
+  game, before the Loading box on both sides (the box itself is the same picture: the port holds it 4
+  refreshes, the original 2 whole and a part at each end); Keen 4's level 1 play around the Game Over! window
+  (the creatures' random numbers, REPLAY-G). Keen 5's scr_over keeps `settled: 5`: Keen's death and the
+  galaxy explosion's frames follow the death animation US_RndT picks, and the port's level 1 runs a frame
+  ahead of the original's (TIME-G's level openings); its note says more.
 - **Not comparable with the user's Keen 6 v1.0** (v1.4's rules, J-19): CONFIGURE and OPTIONS (other items),
   the creature question (v1.0 never asks it: the code is there, nothing calls it), the ending's pages (grey,
   dark text), the debug keys (A+2 does nothing), so no game over by F10+Z.
