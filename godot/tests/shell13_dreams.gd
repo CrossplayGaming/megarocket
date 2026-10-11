@@ -60,7 +60,7 @@ func _release(root_dir: String, folder: String, version: String, screens: Array)
 	if not ok:
 		host.queue_free()
 		return
-	t.ok("%s: the player's files kept in %s" % [version, host.engine.user_dir], str(host.engine.user_dir).ends_with("saves/kdreams"))
+	t.ok("%s: the player's files kept in %s" % [version, host.engine.user_dir], str(host.engine.user_dir).ends_with("saves/" + folder))    # J-51: each release its own
 	# TIME-D: the fitted costs (godot/data/dreams_costs.json) reach the game and the machine in play
 	var cst: Dictionary = host.engine.costs
 	t.ok("%s: TIME-D's costs in play (grbyte %d, mmscan %d, the timer's phase %d)" % [version, cst.get("grbyte", 0), cst.get("mmscan", 0), host.vm.timer_offset],

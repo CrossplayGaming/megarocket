@@ -11,6 +11,19 @@ extends RefCounted
 
 const PATH: String = "user://settings.cfg"
 
+
+## Where the player's files live: user://, or the folder the environment's MR_USER_DIR names (the test
+## runner gives every run its own, so no test reads or writes the player's settings, saves or scores).
+static func user_dir() -> String:
+	var d: String = OS.get_environment("MR_USER_DIR")
+	return d if d != "" else ProjectSettings.globalize_path("user://")
+
+
+## The settings file: PATH, under MR_USER_DIR when it is set.
+static func default_path() -> String:
+	var d: String = OS.get_environment("MR_USER_DIR")
+	return d.path_join("settings.cfg") if d != "" else PATH
+
 ## name -> [default, kind, extra]: kind "bool", "int" (extra [min, max]),
 ## "enum" (extra: the allowed strings), "folders" (an array of paths).
 const SPEC: Dictionary = {

@@ -32,10 +32,10 @@ var frames_shown: int = 0
 var frames_made: int = 0
 var error: String = ""
 ## Where the player's settings are read from (AUDIO-06's volumes; a test gives its own).
-var settings_path: String = Settings.PATH
+var settings_path: String = Settings.default_path()
 ## SAVE-06: where the games keep the player's saved games, high scores and their own settings, a folder
 ## each (<this>/<game>; a test gives its own, so HARN-09's walk never writes the player's).
-var saves_dir: String = ProjectSettings.globalize_path("user://saves")
+var saves_dir: String = Settings.user_dir().path_join("saves")
 
 var _mutex: Mutex = Mutex.new()
 var _keys: Array = []                 # [scancode, down] waiting for the engine thread
@@ -277,7 +277,8 @@ func start(found: Dictionary) -> bool:
 			_dreams_costs(dg, "kdreams193" if dd.version == "e193" else "kdreams")
 			if dd.version == "e193":
 				dg.us_files["KDREAMS.CMP"] = dd._read("KDREAMS.CMP")    # v1.93's title archive, from the game
-			dg.user_dir = saves_dir.path_join(game_id)
+			# J-51: each release its own folder (their saves map objects to their own state tables)
+			dg.user_dir = saves_dir.path_join("kdreams193" if dd.version == "e193" else game_id)
 			dg.load_user_files()
 			if _play_level >= 0:
 				dg.kl_warp = _play_level    # straight into the level (HARN-23's way), left when it ends

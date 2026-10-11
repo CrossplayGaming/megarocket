@@ -180,7 +180,7 @@ func _go() -> void:
 	await _pause(0.5)
 	await _type("KEEN")
 	await _button(JOY_BUTTON_A)
-	var file: String = saves.path_join("kdreams").path_join(g.USL_GiveSaveName(0).to_upper())
+	var file: String = saves.path_join("kdreams193").path_join(g.USL_GiveSaveName(0).to_upper())
 	t.ok("A accepts: the game saved (%s)" % file.get_file(), await _wait(func() -> bool: return not g.shell_text_entry and FileAccess.file_exists(file), 10.0))
 	await _pause(0.5)
 	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(file)
@@ -208,14 +208,14 @@ func _go() -> void:
 	await _pause(6.0)
 	host.stop()
 	t.ok("the game quits", await _wait(func() -> bool: return host.thread == null, 20.0))
-	var cb: PackedByteArray = FileAccess.get_file_as_bytes(saves.path_join("kdreams").path_join("KDREAMS.CFG"))
+	var cb: PackedByteArray = FileAccess.get_file_as_bytes(saves.path_join("kdreams193").path_join("KDREAMS.CFG"))
 	t.eq("KDREAMS.CFG's first high score is named KEEN", GalUS._cstr(cb, 0, 58) if cb.size() > 58 else "(no file)", "KEEN")
 	host.queue_free()
 	await _pause(0.2)
-	if DirAccess.dir_exists_absolute(saves.path_join("kdreams")):
-		for name: String in DirAccess.get_files_at(saves.path_join("kdreams")):
-			DirAccess.remove_absolute(saves.path_join("kdreams").path_join(name))
-		DirAccess.remove_absolute(saves.path_join("kdreams"))
+	if DirAccess.dir_exists_absolute(saves.path_join("kdreams193")):
+		for name: String in DirAccess.get_files_at(saves.path_join("kdreams193")):
+			DirAccess.remove_absolute(saves.path_join("kdreams193").path_join(name))
+		DirAccess.remove_absolute(saves.path_join("kdreams193"))
 	DirAccess.remove_absolute(saves)
 	DirAccess.remove_absolute(cfg)
 	t.finish(self)

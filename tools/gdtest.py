@@ -82,9 +82,13 @@ def run(test, extra=(), timeout=120.0, quiet=False, project=None):
     cmd = [str(cfg["godot"]), "--headless", "--path", str(project or common.ROOT / "godot"),
            "--script", f"res://tests/{test}.gd", "--",
            f"--game_data={cfg['game_data']}", *extra]
+    # every run its own player folder (settings, saves, scores): no test touches the player's
+    import tempfile
+    env = dict(os.environ)
+    env["MR_USER_DIR"] = tempfile.mkdtemp(prefix="mr_user_")
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
-                              encoding="utf-8", errors="replace")
+                              encoding="utf-8", errors="replace", env=env)
         out = proc.stdout + proc.stderr
     except subprocess.TimeoutExpired as err:
         out = (err.stdout or b"").decode("utf-8", "replace") if isinstance(err.stdout, bytes) else (err.stdout or "")
@@ -93,6 +97,9 @@ def run(test, extra=(), timeout=120.0, quiet=False, project=None):
             print(out)
         print(f"COULD-NOT-RUN: {test} exceeded {timeout:.0f} s (a script error stops a headless run from quitting)")
         return common.COULD_NOT_RUN, out
+    finally:
+        import shutil
+        shutil.rmtree(env["MR_USER_DIR"], ignore_errors=True)
     if not quiet:
         print(out.rstrip())
     result = None

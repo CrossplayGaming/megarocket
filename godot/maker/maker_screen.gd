@@ -98,7 +98,7 @@ func _ready() -> void:
 	for a: String in OS.get_cmdline_user_args():
 		if a.begins_with("--game_data="):
 			roots.append(a.substr(12))
-	var s: Settings = Settings.new(Settings.PATH)
+	var s: Settings = Settings.new(Settings.default_path())
 	roots.append_array(PackedStringArray(s.get_value("game_folders")))
 	var imported: String = OS.get_user_data_dir().path_join("games")    # the launcher's imports (AND-02)
 	if DirAccess.dir_exists_absolute(imported):

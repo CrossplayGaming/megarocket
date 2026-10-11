@@ -29,7 +29,7 @@ var TILE_MIN: Vector2 = Vector2(224, 208)
 var extra_folders: PackedStringArray = PackedStringArray()
 ## The shell's settings (SHELL-05); a test gives its own file.
 var settings: Settings = null
-var settings_path: String = Settings.PATH
+var settings_path: String = Settings.default_path()
 ## SHELL-07: one copy at a time. The lock holds the running copy's process id.
 var lock_path: String = "user://megarocket.lock"
 ## Another copy holds the lock: the screen says so and waits for Enter.
