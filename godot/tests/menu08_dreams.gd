@@ -2,7 +2,8 @@
 extends SceneTree
 ## MENU-08: Keen Dreams' control panel in the modern order (v1.93 in the host, real time; text keycaps, no
 ## new art): the icons Start or Resume, Load / Save / Quit, Options, Sound, Music, Extras. Options (O): the
-## Input, Video and Game keycaps; Video (V) the Display page in the box, Fullscreen changed with Enter;
+## Input, Video, Audio, Game and Cheat keycaps; Video (V) the Display page in the box, Fullscreen changed
+## with Enter; Audio (A) the volumes, Effects volume moved with Right;
 ## Game (G) the Gameplay page (Mode, quicksave, Fixes...), Mode moved with Right; Extras (E): the help's three and Score (S), the high scores
 ## over the panel, a key, the panel again. Pictures to --shots.
 ##
@@ -95,6 +96,17 @@ func _go() -> void:
 	await _tap(KEY_ENTER)    # Fullscreen
 	t.ok("Video's Display page: Enter changes Fullscreen (%s -> %s)" % [was, host.options.get_value("fullscreen")],
 		await _wait(func() -> bool: return bool(host.options.get_value("fullscreen")) != was, 3.0))
+	await _tap(KEY_ESCAPE)
+	await _pause(0.6)
+	await _tap(KEY_A)        # Audio: the volumes
+	await _pause(0.8)
+	await _shot("m08d_audio")
+	var vol: int = int(host.options.get_value("effects_volume"))
+	await _tap(KEY_RIGHT)
+	await _pause(0.3)
+	t.ok("Audio's page: Effects volume moved with Right (%d -> %d); Music volume there too" % [vol, int(host.options.get_value("effects_volume"))],
+		int(host.options.get_value("effects_volume")) == mini(vol + 10, 100)
+		and host.options.page("sound").any(func(r: Dictionary) -> bool: return r.key == "music_volume"))
 	await _tap(KEY_ESCAPE)
 	await _pause(0.6)
 	await _tap(KEY_G)        # Game: the Gameplay page

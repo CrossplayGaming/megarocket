@@ -2578,17 +2578,19 @@ func _shell_panel_setup() -> void:
 	CtlPanels[3].key = sc_O
 	CtlPanels[1].key = sc_E
 	var keys: Array = []
-	# (a cap's face holds some 38 pixels of the panel's font: the help line names each in full)
-	for e: Array in [[1, "Input", "controls", "Controls: Keys and Controller Buttons", sc_F3],
-			[8, "Video", "display", "Display: Fullscreen, Pixel Shape", sc_V],
-			[15, "Game", "gameplay", "Gameplay: Fixes for the Original's Bugs", sc_G],
-			[22, "Cheat", "cheats", "Cheats (Only During a Game)", sc_C]]:
+	# (a cap's face holds some 38 pixels of the panel's font: the help line names each in full; five caps
+	# six units apart fill the box)
+	for e: Array in [[0, "Input", "controls", "Controls: Keys and Controller Buttons", sc_F3],
+			[6, "Video", "display", "Display: Fullscreen, Pixel Shape", sc_V],
+			[12, "Audio", "sound", "Audio: the Volume of Effects and Music", sc_A],
+			[18, "Game", "gameplay", "Gameplay: Mode, Quicksave, Fixes", sc_G],
+			[24, "Cheat", "cheats", "Cheats (Only During a Game)", sc_C]]:
 		var item: UserItem = _ui(CtlPanelKC2R(e[0], 0), uii_KeyCap, CTL_KEYCAPPIC, CTL_KEYCAPCURPIC, e[3], e[4], ui_Normal,
 			&"USL_CtlShellKeyCustom", e[1])
 		keys.append(item)
 	keys.append(_ui_end())
 	CtlPanels2[3] = keys
-	_shell_pages = ["controls", "display", "gameplay", "cheats"]
+	_shell_pages = ["controls", "display", "sound", "gameplay", "cheats"]
 	# the help's three moved left to make room: the row of four centred in the box
 	for k: int in range(3):
 		var hr: Array = CtlPanel2R(4 + 5 * k, 0)

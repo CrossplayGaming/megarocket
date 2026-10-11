@@ -95,7 +95,7 @@ func page(name: String) -> Array:
 				mr["desc"] = "Keen 4 and 5's music, a track for each level (from your own Keen 4 or 5)."
 				rows.append(mr)
 				rows.append(_value("music_volume", "Music volume", "%d%%" % int(get_value("music_volume"))))
-			if engine == "galaxy":
+			if engine == "galaxy" or engine == "dreams":    # (Dreams' AdLib music too)
 				rows.append(_value("music_volume", "Music volume", "%d%%" % int(get_value("music_volume"))))
 			rows.append(_row("exit", "Back", "action"))
 			return rows
