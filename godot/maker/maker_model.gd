@@ -347,6 +347,18 @@ func end_stroke() -> void:
 		_stroke = []
 
 
+## Keen 4-6: the linking tile at `from` (a switch, gem holder or door) set to work on `to` (the info
+## plane's (x << 8) | y at its cell), one undo step. False where it can't.
+func link(from: Vector2i, to: Vector2i) -> bool:
+	if level == null or engine != KeenLevel.GALAXY or not level.in_bounds(from.x, from.y) or not level.in_bounds(to.x, to.y) \
+			or not parts.is_linking(level.get_word(1, from.x, from.y)):
+		return false
+	begin_stroke()
+	paint(2, from.x, from.y, (to.x << 8) | to.y)
+	end_stroke()
+	return true
+
+
 ## V15-04's ground brush: ground put in (on) or taken out of (off: the erased cell left empty) the cell
 ## at (x, y), and it and the cells round it given the edge, corner or fill piece their shape takes in the
 ## game's own levels (MakerParts.brush). Part of the current stroke.

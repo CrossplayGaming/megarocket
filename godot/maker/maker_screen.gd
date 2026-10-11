@@ -24,7 +24,7 @@ signal closed
 
 const GAMES: Array = [["keen1", "Keen 1"], ["keen2", "Keen 2"], ["keen3", "Keen 3"], ["keen4", "Keen 4"],
 	["keen5", "Keen 5"], ["keen6", "Keen 6"], ["kdreams", "Keen Dreams"]]
-const TOOL_NAMES: Dictionary = {"paint": "Paint", "brush": "Ground brush", "pick": "Pick", "erase": "Erase", "rect": "Fill box", "start": "Keen start"}
+const TOOL_NAMES: Dictionary = {"paint": "Paint", "brush": "Ground brush", "pick": "Pick", "erase": "Erase", "rect": "Fill box", "link": "Link", "start": "Keen start"}
 ## The cursor's repeat while a direction is held: first step, then every
 const REPEAT_FIRST: float = 0.28
 const REPEAT_EVERY: float = 0.06
@@ -439,7 +439,7 @@ func _category(d: int) -> void:
 func _on_part(plane: int, value: int) -> void:
 	view.plane = plane
 	view.value = value
-	if view.tool in ["pick", "erase", "start", "brush"]:
+	if view.tool in ["pick", "erase", "start", "brush", "link"]:
 		set_tool("paint")
 	view.queue_redraw()
 	_refresh()
@@ -482,9 +482,12 @@ func _refresh() -> void:
 		var mv: int = model.level.get_word(model.parts.marker_plane(), view.cursor.x, view.cursor.y)
 		var tv: int = model.level.get_word(model.parts.tile_plane(), view.cursor.x, view.cursor.y)
 		under = model.parts.marker_name(mv) if mv != 0 and model.parts.marker_name(mv) != "" else model.parts.use_of(model.parts.tile_plane(), tv)
+		var to: Vector2i = model.parts.link_target(model.level, view.cursor.x, view.cursor.y)
+		if to.x >= 0:
+			under += ", works on %d,%d" % [to.x, to.y]
 	var notice: String = _notice + "   " if Time.get_ticks_msec() < _notice_until else ""
 	status.text = notice + "%s (%s)   %dx%d   objects %d/%d   %s   cursor %d,%d %s   Keen starts %s%s" % [model.doc_name, _title(game), model.level.width,
-		model.level.height, model.objects(), MakerModel.OBJECT_LIMIT[model.engine], TOOL_NAMES[view.tool] + (" - pick the other corner" if view.anchor.x >= 0 else ""),
+		model.level.height, model.objects(), MakerModel.OBJECT_LIMIT[model.engine], TOOL_NAMES[view.tool] + ((" - pick what it works on" if view.tool == "link" else " - pick the other corner") if view.anchor.x >= 0 else ""),
 		view.cursor.x, view.cursor.y, under, "at %d,%d" % [s.x, s.y] if s.x >= 0 else "nowhere yet", "   not saved" if model.dirty else ""]
 
 

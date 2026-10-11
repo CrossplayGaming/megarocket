@@ -15,7 +15,7 @@ signal changed
 ## V15-04: a part refused, and why
 signal refused(reason: String)
 
-const TOOLS: Array = ["paint", "brush", "pick", "erase", "rect", "start"]
+const TOOLS: Array = ["paint", "brush", "pick", "erase", "rect", "link", "start"]
 const ZOOMS: Array = [0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 6.0]
 
 var model: MakerModel = null
@@ -92,8 +92,28 @@ func _draw() -> void:
 				draw_rect(r, colour, false, 1.0)
 			elif n != "":
 				_marker(r, n.substr(0, 2), colour, font, labels)
-			elif plane == mplane:
+			elif plane == mplane and parts.link_target(l, x, y).x < 0:
 				_marker(r, str(v), MegaTheme.ega(11), font, labels)
+			# a harder difficulty's creature: N or H in its corner
+			var vr: String = parts.variant(v) if parts != null else ""
+			if vr != "" and labels:
+				var fs2: int = maxi(8, int(r.size.y * 0.35))
+				draw_rect(Rect2(r.position, Vector2(fs2, fs2)), Color(0, 0, 0, 0.8))
+				draw_string(font, r.position + Vector2(1, fs2 - 1), vr, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2, MegaTheme.ega(15))
+	# Keen 4-6's links as lines: a switch to its platform or bridge, a gem holder to its door, a door to
+	# its exit (the info plane's (x << 8) | y at the linking tile)
+	if model.engine == KeenLevel.GALAXY:
+		for y: int in range(l.height):
+			for x: int in range(l.width):
+				var to: Vector2i = parts.link_target(l, x, y)
+				if to.x >= 0:
+					var a: Vector2 = _cell_rect(Vector2i(x, y)).get_center()
+					var b: Vector2 = _cell_rect(to).get_center()
+					draw_line(a, b, MegaTheme.ega(13), maxf(1.0, zoom))
+					draw_rect(_cell_rect(to).grow(-2), MegaTheme.ega(13), false, 1.0)
+					draw_circle(a, maxf(2.0, 3.0 * zoom), MegaTheme.ega(13))
+	if anchor.x >= 0 and tool == "link":
+		draw_line(_cell_rect(anchor).get_center(), _cell_rect(cursor).get_center(), MegaTheme.ega(15), maxf(1.0, zoom))
 	var t: float = 16.0 * zoom
 	draw_rect(Rect2(((Vector2.ZERO - scroll) * zoom).round(), Vector2(l.width, l.height) * t), MegaTheme.ega(8), false, 1.0)
 	# Keen's last run: a trail of his positions, fading from the oldest
@@ -104,7 +124,7 @@ func _draw() -> void:
 		c.a = 0.15 + 0.75 * float(i) / float(maxi(1, n))
 		draw_rect(Rect2(p - Vector2(2, 2), Vector2(4, 4)), c)
 	# the rectangle being filled, and the cursor with the part it places
-	if anchor.x >= 0:
+	if anchor.x >= 0 and tool == "rect":
 		var a: Rect2 = _cell_rect(Vector2i(mini(anchor.x, cursor.x), mini(anchor.y, cursor.y)))
 		var b: Rect2 = _cell_rect(Vector2i(maxi(anchor.x, cursor.x), maxi(anchor.y, cursor.y)))
 		draw_rect(a.merge(b), MegaTheme.ega(11), false, 2.0)
@@ -154,6 +174,19 @@ func act_at(c: Vector2i, drag: bool = false) -> void:
 		"pick":
 			if not drag:
 				pick_at(c)
+		"link":
+			if drag:
+				return
+			if anchor.x < 0:
+				if model.engine != KeenLevel.GALAXY:
+					refused.emit("Only Keen 4-6 link switches, gem holders and doors.")
+				elif not parts.is_linking(model.level.get_word(1, c.x, c.y)):
+					refused.emit("Start a link on a switch, gem holder or door.")
+				else:
+					anchor = c
+			else:
+				model.link(anchor, c)
+				anchor = Vector2i(-1, -1)
 		"rect":
 			if drag:
 				return

@@ -143,7 +143,7 @@ func _go() -> void:
 	await _button(JOY_BUTTON_A)
 	await _button(JOY_BUTTON_X)
 	t.eq("X: the next tool", v.tool, "brush")
-	for i: int in range(5):
+	for i: int in range(6):
 		await _button(JOY_BUTTON_X)
 	t.eq("X round to paint again", v.tool, "paint")
 	# the keyboard: arrows, Enter, Ctrl+Z

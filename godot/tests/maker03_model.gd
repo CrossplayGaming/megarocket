@@ -105,6 +105,47 @@ func _game(root: String, game: String) -> void:
 	_uses(m, game)
 	_rules(m, game)
 	_brush(m, game)
+	if m.engine == KeenLevel.GALAXY:
+		_links(m, game)
+
+
+## Keen 4-6's links: every switch, gem holder and door of the game's own levels that names a cell in the
+## info plane is read as a link to a cell inside its level, and those of switches and gem holders land on
+## something (a tile in the foreground or a marker); the link tool sets one; the harder difficulties'
+## creatures are named.
+func _links(m: MakerModel, game: String) -> void:
+	var p: MakerParts = m.parts
+	var links: int = 0
+	var landed: int = 0
+	var bad: Array = []
+	for e: Array in m.level_list():
+		var l: KeenLevel = m.original(int(e[0]))
+		for y: int in range(l.height):
+			for x: int in range(l.width):
+				var to: Vector2i = p.link_target(l, x, y)
+				if to.x < 0:
+					continue
+				links += 1
+				if l.get_word(1, to.x, to.y) != 0 or l.get_word(2, to.x, to.y) != 0 or l.get_word(1, to.x, to.y + 1) != 0:
+					landed += 1
+				elif p.props(l.get_word(1, x, y)).use != 2 and bad.size() < 3:
+					bad.append("level %d (%d,%d) -> %s" % [e[0], x, y, to])
+	t.ok("%s: %d links read from the levels, %d land on something (nothing at: %s)" % [game, links, landed, bad], links >= 20 and landed * 10 >= links * 9)
+	m.new_level("Links")
+	var sw: int = -1
+	for v: int in range(1, p.count[1]):
+		if p.props(v).use == 15:
+			sw = v
+			break
+	m.paint(1, 10, 20, sw)
+	m.end_stroke()
+	t.ok("%s: the link tool joins a switch (tile %d) to a cell (%s)" % [game, sw, p.link_target(m.level, 10, 20)],
+		sw > 0 and m.link(Vector2i(10, 20), Vector2i(30, 12)) and p.link_target(m.level, 10, 20) == Vector2i(30, 12)
+		and m.level.get_word(2, 10, 20) == (30 << 8 | 12))
+	t.ok("%s: a plain tile does not link" % game, not m.link(Vector2i(11, 20), Vector2i(30, 12)))
+	var hard: int = (p.VARIANTS[game] as Dictionary).keys()[0]
+	t.ok("%s: a harder difficulty's creature named (%d: %s)" % [game, hard, p.marker_name(hard)], p.marker_name(hard).contains("Hard")
+		and not p.marker_sprite(hard).is_empty())
 
 
 ## V15-04's ground brush: a block brushed in the air gets the game's own top edge, corners and fill (by

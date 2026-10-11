@@ -101,6 +101,27 @@ const SPRITES: Dictionary = {
 		46: "GRAPEONVINESPR", 47: "TATERTROOPWALKL1SPR", 48: "CANTCARTL1SPR", 49: "FRENCHYRUNL1SPR", 50: "MELONLIPSL1SPR",
 		57: "SQUASHERWALKL1SPR", 58: "APELWALKL1SPR", 59: "PEAPODRUNL1SPR", 60: "PEABRAINWALKL1SPR", 61: "BOOBUSWALKL1SPR"},
 }
+## The info plane's other creatures: the ones Keen 4-6 add on the harder difficulties (each engine's
+## ScanInfoLayer: a number that spawns on Normal and Hard, another on Hard only, falling through to the
+## always-there one): value -> [that one, "N" or "H"]
+const VARIANTS: Dictionary = {
+	"keen4": {43: [22, "N"], 44: [22, "H"], 45: [8, "N"], 46: [8, "H"], 47: [14, "N"], 48: [14, "H"], 49: [5, "N"], 50: [5, "H"],
+		51: [7, "N"], 52: [7, "H"], 73: [20, "N"], 74: [20, "H"], 78: [77, "H"], 87: [15, "N"], 88: [15, "H"], 23: [17, "N"], 24: [17, "H"],
+		79: [53, "N"], 83: [53, "H"], 80: [54, "N"], 84: [54, "H"], 81: [55, "N"], 85: [55, "H"], 82: [56, "N"], 86: [56, "H"]},
+	"keen5": {5: [4, "N"], 6: [4, "H"], 8: [7, "N"], 9: [7, "H"], 11: [10, "N"], 12: [10, "H"], 14: [13, "N"], 15: [13, "H"],
+		17: [16, "N"], 18: [16, "H"], 20: [19, "N"], 21: [19, "H"], 23: [22, "N"], 24: [22, "H"], 43: [42, "N"], 44: [42, "H"],
+		49: [45, "N"], 50: [46, "N"], 51: [47, "N"], 52: [48, "N"], 53: [45, "H"], 54: [46, "H"], 55: [47, "H"], 56: [48, "H"],
+		72: [71, "N"], 73: [71, "H"], 75: [74, "N"], 76: [74, "H"], 78: [77, "N"], 79: [77, "H"], 89: [88, "N"], 90: [88, "H"],
+		100: [99, "N"], 101: [99, "H"], 103: [102, "N"], 104: [102, "H"], 106: [105, "N"], 107: [105, "H"]},
+	"keen6": {5: [4, "N"], 6: [4, "H"], 19: [18, "N"], 20: [18, "H"], 42: [41, "N"], 43: [41, "H"], 48: [47, "N"], 49: [47, "H"],
+		51: [50, "N"], 52: [50, "H"], 71: [70, "N"], 72: [70, "H"], 74: [73, "N"], 75: [73, "H"], 77: [76, "N"], 78: [76, "H"],
+		80: [79, "N"], 81: [79, "H"], 83: [82, "N"], 84: [82, "H"], 86: [85, "N"], 87: [85, "H"], 103: [102, "N"], 104: [102, "H"]},
+}
+## Keen 4-6's linking tiles (their foreground's misc): a door (2), the switches (5, 6, 15), the gem
+## holders (7-10) and a teleporter (20) find what they work on in the info plane at their own cell, as
+## (x << 8) | y (CK_KeenPressSwitchThink, CK_KeenPlaceGem, the door code)
+const LINKING: Array = [2, 5, 6, 7, 8, 9, 10, 15, 20]
+
 ## Keen himself, on the start marker
 const KEEN_SPRITE: Dictionary = {"keen1": "KEENWALKR1SPR", "keen2": "KEENWALKR1SPR", "keen3": "KEENWALKR1SPR",
 	"keen4": "SPR_KEENSTANDR", "keen5": "SPR_KEENSTANDR", "keen6": "SPR_KEENSTANDR", "kdreams": "KEENSTANDRSPR"}
@@ -286,6 +307,8 @@ func _build() -> void:
 			marks[v] = c
 		var key: String = c + "@info" if by.has(c) else c
 		by[key] = {"name": c, "plane": mp, "values": values, "names": names}
+	for v: int in VARIANTS.get(game_id, {}):
+		marks[v] = marks.get(VARIANTS[game_id][v][0], ENEMIES)
 	_use[mp] = marks
 	for c: String in ORDER:
 		for key: String in [c, c + "@info"]:
@@ -429,7 +452,8 @@ func marker_sprite(value: int) -> Dictionary:
 	elif engine == KeenLevel.GALAXY and value >= 57 and value <= 68:
 		name = GalAct.CK_ItemSpriteChunks[value - 57]
 	else:
-		name = SPRITES.get(game_id, {}).get(value, "")
+		var base: Array = VARIANTS.get(game_id, {}).get(value, [])
+		name = SPRITES.get(game_id, {}).get(base[0] if not base.is_empty() else value, "")
 	var bonus: bool = engine == KeenLevel.DREAMS and value >= 21 and value <= 32
 	if name == "" and not bonus:
 		return {}
@@ -452,8 +476,41 @@ func marker_sprite(value: int) -> Dictionary:
 var _gal_images: GalImages = null
 
 
+## A harder difficulty's creature: "N" (Normal and Hard) or "H" (Hard only); "" for others.
+func variant(value: int) -> String:
+	var v: Array = VARIANTS.get(game_id, {}).get(value, [])
+	return v[1] if not v.is_empty() else ""
+
+
+## Keen 4-6: the cell a linking tile at (x, y) works on (a switch's platform or bridge, a gem holder's
+## door, a door's or teleporter's exit), from the info plane; (-1, -1) for none.
+func link_target(l: KeenLevel, x: int, y: int) -> Vector2i:
+	if engine != KeenLevel.GALAXY or not is_linking(l.get_word(1, x, y)):
+		return Vector2i(-1, -1)
+	var v: int = l.get_word(2, x, y)
+	if v == 0 or v in MakerModel.START_MARKERS[engine] or marker_name(v) != "":
+		return Vector2i(-1, -1)
+	var at: Vector2i = Vector2i(v >> 8, v & 0xFF)
+	return at if l.in_bounds(at.x, at.y) else Vector2i(-1, -1)
+
+
+## Whether a foreground tile links to another cell (Keen 4-6).
+func is_linking(tile: int) -> bool:
+	if engine != KeenLevel.GALAXY or tile <= 0:
+		return false
+	if not _linking.has(tile):
+		_linking[tile] = props(tile).use in LINKING
+	return _linking[tile]
+
+
+var _linking: Dictionary = {}
+
+
 ## The name of a marker value on the marker plane ("" if the palette has none for it).
 func marker_name(value: int) -> String:
+	var v: Array = VARIANTS.get(game_id, {}).get(value, [])
+	if not v.is_empty():
+		return "%s (%s)" % [marker_name(v[0]), "Normal and Hard" if v[1] == "N" else "Hard only"]
 	for c: Dictionary in categories:
 		if c.plane == marker_plane() and c.names.has(value):
 			return c.names[value]

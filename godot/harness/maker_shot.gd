@@ -78,7 +78,7 @@ func _run() -> void:
 	await _editor(m, "keen1", "keen1")
 	await _editor(m, "kdreams", "kdreams")
 	m.open_game(game)
-	m.remix(1)
+	m.remix(int(_opts.get("remix", "1")))
 	await _frames(10)
 	_shot("remix")
 	quit(0)
