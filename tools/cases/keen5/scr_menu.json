@@ -1,0 +1,44 @@
+{
+ "seconds": 54,
+ "keyfeed": true,
+ "held": [
+  [
+   33.0,
+   "esc",
+   0.2
+  ],
+  [
+   43.0,
+   "down",
+   0.15
+  ],
+  [
+   45.0,
+   "down",
+   0.15
+  ]
+ ],
+ "screens": [
+  [
+   0,
+   "id logo and the terminator credits"
+  ],
+  [
+   27.5,
+   "title"
+  ],
+  [
+   33.0,
+   "main menu"
+  ],
+  [
+   43.0,
+   "main menu, one row down"
+  ],
+  [
+   45.0,
+   "main menu, two rows down"
+  ]
+ ],
+ "note": "HARN-06a (Keen 5): the intro to the title, Escape on the title for the control panel's main card, held 10 s, Down twice 2 s apart, held. Times are seconds after the EGA mode set (KEYFEED.COM types the keys in DOS)."
+}
