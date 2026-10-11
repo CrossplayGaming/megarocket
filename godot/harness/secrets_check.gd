@@ -13,9 +13,18 @@ extends SceneTree
 ## --misses (Keen 4-6): no pictures; every item sprite the game hides (a foreground drawn over Keen on
 ## its cell, painting at least --cover percent of it) that no entry of the list covers, map by map:
 ## what the list may have missed.
+## Keen Dreams (--game=kdreams or kdreams193, the list data/secrets/kdreams.json for both releases):
+## its items are the info plane's bonuses (21-32), hidden as Keen 4-6's are, under a foreground tile
+## drawn over Keen (INTILE's top bit) painting --cover percent of the cell or more; --misses lists
+## those no entry covers. Without it, a picture per level that has entries, for review: the whole
+## level, the entries' cells tinted magenta (traps orange) and outlined, items dotted white, those the
+## foreground hides red, Keen's start outlined green, a faint line every 10 tiles
+## (<out>/<game>_mapNN.png).
 
 const SF = preload("res://maker/secret_finder.gd")
 const MARGIN: int = 6
+## Keen Dreams' INTILE table, from the start of DreamsData.tileinfo (id_ca.c's tinf past SPEED).
+const DRM_INTILE: int = DreamsData.NUMTILE16 * 2 + DreamsData.NUMTILE16M * 5
 const SCALE: int = 2
 
 const EGA: Array = [
@@ -35,7 +44,8 @@ func _init() -> void:
 	var out: String = str(_opts.get("out", OS.get_temp_dir().path_join("secrets_check")))
 	var game: String = str(_opts.get("game", "keen5"))
 	DirAccess.make_dir_recursive_absolute(out)
-	var list: String = str(_opts.get("list", "res://data/secrets/%s.json" % game))
+	var dreams: bool = game.begins_with("kdreams")
+	var list: String = str(_opts.get("list", "res://data/secrets/%s.json" % ("kdreams" if dreams else game)))
 	var doc: Variant = JSON.parse_string(FileAccess.get_file_as_string(list))
 	if typeof(doc) != TYPE_DICTIONARY:
 		print("no list: " + list)
@@ -47,7 +57,14 @@ func _init() -> void:
 	var gd: GalData = null
 	var imgs: GalImages = null
 	var vd: VortData = null
-	if gal:
+	var dd: DreamsData = null
+	if dreams:
+		dd = DreamsData.new()
+		if not dd.load_game(root.path_join(game)):
+			print("load failed: ", dd.error)
+			quit(1)
+			return
+	elif gal:
 		gd = GalData.new()
 		if not gd.load_game(root.path_join(game), "res://data/omnispeak/" + ("keen6e14" if game == "keen6" else game)):
 			print("load failed: ", gd.error)
@@ -65,6 +82,10 @@ func _init() -> void:
 	var fopts: Dictionary = {}
 	if _opts.has("fore"):
 		fopts.fore_opaque = float(_opts.fore)
+	if dreams:
+		_dreams(dd, doc, ids, source, out, game)
+		quit(0)
+		return
 	if gal and str(_opts.get("misses", "0")) != "0":
 		_misses(gd, imgs, doc)
 		quit(0)
@@ -249,6 +270,176 @@ func _picture(view: Dictionary, r: Dictionary, e: Dictionary, path: String) -> v
 
 func _put(px: PackedByteArray, pw: int, x: int, y: int, c: Color) -> void:
 	var o: int = (y * pw + x) * 3
+	if o < 0 or o + 2 >= px.size():
+		return
 	px[o] = int(c.r * 255)
 	px[o + 1] = int(c.g * 255)
 	px[o + 2] = int(c.b * 255)
+
+
+# ------------------------------------------------------------------ Keen Dreams
+
+func _dreams(d: DreamsData, doc: Dictionary, ids: PackedStringArray, source: String, out: String, game: String) -> void:
+	var m16: Dictionary = d.tiles16m()
+	# how much of its cell each masked tile paints (its mask clear)
+	var cover: PackedInt32Array = PackedInt32Array()
+	cover.resize(DreamsData.NUMTILE16M)
+	for t: int in range(DreamsData.NUMTILE16M):
+		var painted: int = 0
+		for k: int in range(256):
+			painted += 1 if m16.mask[t * 256 + k] == 0 else 0
+		cover[t] = painted * 100 / 256
+	if str(_opts.get("misses", "0")) != "0":
+		_dreams_misses(d, doc, cover)
+		return
+	var t16: PackedByteArray = d.tiles16()
+	var made: int = 0
+	for key: String in doc.levels:
+		var entries: Array = []
+		for e: Dictionary in doc.levels[key]:
+			if (ids.is_empty() or str(e.id) in ids) and (source == "" or str(e.get("source", "")) == source):
+				entries.append(e)
+		if entries.is_empty():
+			continue
+		var n: int = int(key)
+		if not d.has_map(n):
+			print("level %d: no such map" % n)
+			continue
+		_dreams_picture(d, n, entries, t16, m16, cover, out.path_join("%s_map%02d.png" % [game, n]))
+		made += 1
+	print("%d pictures in %s" % [made, out])
+
+
+## An item (the info plane's 21-32) the game draws a foreground tile over, painting --cover percent
+## of its cell or more.
+func _dreams_hidden(d: DreamsData, m: Dictionary, p: int, cover: PackedInt32Array) -> bool:
+	var v: int = m.plane[2][p]
+	var f: int = m.plane[1][p]
+	if v < 21 or v > 32 or f <= 0 or f >= DreamsData.NUMTILE16M:
+		return false
+	if (d.tileinfo[DRM_INTILE + f] & 0x80) == 0:
+		return false
+	return cover[f] >= int(_opts.get("cover", "75"))
+
+
+func _dreams_misses(d: DreamsData, doc: Dictionary, cover: PackedInt32Array) -> void:
+	var total: int = 0
+	for i: int in range(DreamsData.NUM_MAPS):
+		if not d.has_map(i):
+			continue
+		var m: Dictionary = d.load_map(i)
+		if m.is_empty():
+			print("map %d: %s" % [i, d.error])
+			d.error = ""
+			continue
+		var w: int = int(m.width)
+		var covered: Dictionary = {}
+		for e: Dictionary in doc.levels.get(str(i), []):
+			for c: Array in e.cells:
+				for y: int in range(int(c[1]), int(c[3]) + 1):
+					for x: int in range(int(c[0]), int(c[2]) + 1):
+						covered[y * w + x] = true
+		var out: PackedStringArray = PackedStringArray()
+		for p: int in range(w * int(m.height)):
+			if _dreams_hidden(d, m, p, cover) and not covered.has(p):
+				out.append("(%d, %d) info %d cover %d%%" % [p % w, p / w, m.plane[2][p], cover[m.plane[1][p]]])
+		if not out.is_empty():
+			total += out.size()
+			print("map %d %s: %d hidden items in no entry: %s" % [i, m.name, out.size(), ", ".join(out)])
+	print("%d hidden items in no entry" % total)
+
+
+func _dreams_picture(d: DreamsData, n: int, entries: Array, t16: PackedByteArray, m16: Dictionary, cover: PackedInt32Array, path: String) -> void:
+	var m: Dictionary = d.load_map(n)
+	if m.is_empty():
+		print("level %d: %s" % [n, d.error])
+		d.error = ""
+		return
+	var w: int = int(m.width)
+	var h: int = int(m.height)
+	var pw: int = w * 16
+	var px: PackedByteArray = PackedByteArray()
+	px.resize(pw * h * 16 * 3)
+	for ty: int in range(h):
+		for tx: int in range(w):
+			var b: int = m.plane[0][ty * w + tx]
+			var f: int = m.plane[1][ty * w + tx]
+			var fore: bool = f > 0 and f < DreamsData.NUMTILE16M
+			for y: int in range(16):
+				for x: int in range(16):
+					var k: int = y * 16 + x
+					var c: int = t16[b * 256 + k] if b >= 0 and b < DreamsData.NUMTILE16 else 0
+					if fore and m16.mask[f * 256 + k] == 0:
+						c = m16.pixels[f * 256 + k]
+					_put(px, pw, tx * 16 + x, ty * 16 + y, EGA[c & 15])
+	for ty: int in range(h):
+		for tx: int in range(w):
+			if tx % 10 == 0:
+				for y: int in range(16):
+					_blend(px, pw, tx * 16, ty * 16 + y, Color(1, 1, 1), 0.35)
+			if ty % 10 == 0:
+				for x: int in range(16):
+					_blend(px, pw, tx * 16 + x, ty * 16, Color(1, 1, 1), 0.35)
+	for e: Dictionary in entries:
+		var tint: Color = Color(1, 0.5, 0) if str(e.get("kind", "secret")) == "trap" else Color(1, 0, 1)
+		var mine: Dictionary = {}
+		for c: Array in e.cells:
+			for ty: int in range(int(c[1]), int(c[3]) + 1):
+				for tx: int in range(int(c[0]), int(c[2]) + 1):
+					mine[ty * w + tx] = true
+		var items: int = 0
+		var hidden: int = 0
+		for p: int in mine:
+			_tint_cell(px, pw, p % w, p / w, tint, 0.35)
+			# an outline along the entry's edge only
+			var tx: int = p % w
+			var ty: int = p / w
+			for k: int in range(16):
+				if not mine.has(p - w) or ty == 0:
+					_put(px, pw, tx * 16 + k, ty * 16, tint)
+				if not mine.has(p + w) or ty == h - 1:
+					_put(px, pw, tx * 16 + k, ty * 16 + 15, tint)
+				if not mine.has(p - 1) or tx == 0:
+					_put(px, pw, tx * 16, ty * 16 + k, tint)
+				if not mine.has(p + 1) or tx == w - 1:
+					_put(px, pw, tx * 16 + 15, ty * 16 + k, tint)
+			var v: int = m.plane[2][p]
+			if v >= 21 and v <= 32:
+				items += 1
+				hidden += 1 if _dreams_hidden(d, m, p, cover) else 0
+		print("%s: %d cells, %d items, %d of them hidden by the foreground" % [e.id, mine.size(), items, hidden])
+	for p: int in range(w * h):
+		var v: int = m.plane[2][p]
+		if v == 1 or v == 2:
+			_outline(px, pw, p % w, p / w, Color(0, 1, 0))
+			_outline(px, pw, p % w, p / w + 1, Color(0, 1, 0))
+		elif v >= 21 and v <= 32:
+			var col: Color = Color(1, 0, 0) if _dreams_hidden(d, m, p, cover) else Color(1, 1, 1)
+			for y: int in range(6, 10):
+				for x: int in range(6, 10):
+					_put(px, pw, (p % w) * 16 + x, (p / w) * 16 + y, col)
+	var img: Image = Image.create_from_data(pw, h * 16, false, Image.FORMAT_RGB8, px)
+	img.save_png(path)
+
+
+func _tint_cell(px: PackedByteArray, pw: int, tx: int, ty: int, c: Color, a: float) -> void:
+	for y: int in range(16):
+		for x: int in range(16):
+			_blend(px, pw, tx * 16 + x, ty * 16 + y, c, a)
+
+
+func _outline(px: PackedByteArray, pw: int, tx: int, ty: int, c: Color) -> void:
+	for k: int in range(16):
+		_put(px, pw, tx * 16 + k, ty * 16, c)
+		_put(px, pw, tx * 16 + k, ty * 16 + 15, c)
+		_put(px, pw, tx * 16, ty * 16 + k, c)
+		_put(px, pw, tx * 16 + 15, ty * 16 + k, c)
+
+
+func _blend(px: PackedByteArray, pw: int, x: int, y: int, c: Color, a: float) -> void:
+	var o: int = (y * pw + x) * 3
+	if o < 0 or o + 2 >= px.size():
+		return
+	px[o] = int(px[o] * (1.0 - a) + c.r * 255 * a)
+	px[o + 1] = int(px[o + 1] * (1.0 - a) + c.g * 255 * a)
+	px[o + 2] = int(px[o + 2] * (1.0 - a) + c.b * 255 * a)

@@ -1111,6 +1111,38 @@ def secret01():
     return common.PASS if not bad else common.FAIL
 
 
+def secret01d():
+    """The Reveal secrets list for Keen Dreams (SECRET-01D): godot/data/secrets/kdreams.json well formed
+    (ids unique, every entry with cells), and no bonus item the game hides under a foreground tile drawn
+    over Keen (75% of its cell painted) left out of it, on either release's maps (v1.00 and v1.93 share
+    them; harness/secrets_check.gd --game=kdreams|kdreams193 --misses)."""
+    bad = []
+    doc = json.loads((common.ROOT / "godot" / "data" / "secrets" / "kdreams.json").read_text(encoding="utf-8"))
+    ids = [e["id"] for es in doc["levels"].values() for e in es]
+    if len(ids) != len(set(ids)):
+        bad.append("kdreams: an id twice")
+    for es in doc["levels"].values():
+        for e in es:
+            if not e.get("cells") or any(len(c) != 4 or c[0] > c[2] or c[1] > c[3] for c in e["cells"]):
+                bad.append(f"kdreams {e['id']}: cells")
+    print(f"  kdreams: {len(ids)} entries")
+    cfg = common.config()
+    for game in ("kdreams", "kdreams193"):
+        if not (cfg["game_data"] / game).is_dir():
+            print(f"  {game}: no game data, skipped")
+            continue
+        p = subprocess.run([str(cfg["godot"]), "--headless", "--path", "godot", "--script", "res://harness/secrets_check.gd",
+                            "--", f"--game_data={cfg['game_data']}", f"--game={game}", "--misses=1", "--cover=75"],
+                           cwd=common.ROOT, capture_output=True, text=True, errors="replace", timeout=900)
+        line = next((ln for ln in p.stdout.splitlines() if "hidden items in no entry" in ln and not ln.startswith("map")), "")
+        print(f"  {game}: {line or 'no answer'}")
+        if not line.startswith("0 "):
+            bad.append(f"{game}: {line or 'no answer'}")
+    for b in bad:
+        print("  FAIL " + b)
+    return common.PASS if not bad else common.FAIL
+
+
 def secret02():
     """The Reveal secrets cheat (SECRET-02), Keen 1-6: on the cheat rows, off at launch; on, the list's
     cells of the map on screen marked (Keen 4-6's foreground over them see-through); off, nothing."""
@@ -1426,6 +1458,7 @@ CHECKS = {
     "AUDIO-06": (audio06, "fast"),
     "SHELL-15": (shell15, "fast"),
     "SECRET-01": (secret01, "fast"),
+    "SECRET-01D": (secret01d, "fast"),
     "SECRET-02": (secret02, "fast"),
     "AND-02a": (and02a, "fast"),
     "SHELL-10b": (shell10b, "fast"),
