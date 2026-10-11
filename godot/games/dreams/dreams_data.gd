@@ -80,6 +80,9 @@ var rle_tag: int = 0
 var pic_table: Array[Dictionary] = []
 var picm_table: Array[Dictionary] = []
 var sprite_table: Array[Dictionary] = []
+## A18 / PREP-01: the asset stage the sprite chunks pass through as they are expanded (identity unless
+## filters are set)
+var stage: AssetStage = AssetStage.new()
 var tileinfo: PackedByteArray = PackedByteArray()
 var game_text: PackedByteArray = PackedByteArray()
 var context_text: PackedByteArray = PackedByteArray()
@@ -225,6 +228,7 @@ func load_game(game_dir: String) -> bool:
 		var e: int = i * 18
 		sprite_table.append({"w": u16(st, e), "h": u16(st, e + 2), "orgx": s16(st, e + 4), "orgy": s16(st, e + 6),
 			"xl": s16(st, e + 8), "yl": s16(st, e + 10), "xh": s16(st, e + 12), "yh": s16(st, e + 14), "shifts": u16(st, e + 16)})
+	stage.bind("kdreams", AssetStage.dreams_names(STARTSPRITES, NUMSPRITES))
 	return true
 
 
@@ -285,6 +289,9 @@ func chunk(c: int) -> PackedByteArray:
 	var out: PackedByteArray = g.huff_expand(_gr_file, src, comp, length, _gr_dict, "EGAGRAPH.KDR chunk %d" % c)
 	if g.error != "":
 		_fail(g.error)
+	elif c >= STARTSPRITES and c < STARTSPRITES + NUMSPRITES:
+		var st: Dictionary = sprite_table[c - STARTSPRITES]
+		return stage.planar_masked(c, out, st.w, st.h)
 	return out
 
 

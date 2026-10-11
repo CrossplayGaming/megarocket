@@ -53,5 +53,6 @@ func sprite(chunk: int, dyn: Dictionary = {}) -> Dictionary:
 		return {"w": int(t.w) * 8, "h": int(t.h), "pixels": m.pixels, "mask": m.mask}
 	if not _sprites.has(chunk):
 		var s: Dictionary = data.sprite(i)
-		_sprites[chunk] = {} if s.is_empty() else {"w": int(s.w), "h": int(s.h), "pixels": s.pixels, "mask": s.mask}
+		_sprites[chunk] = {} if s.is_empty() else {"w": int(s.w), "h": int(s.h), "pixels": s.pixels, "mask": s.mask,
+			"extras": data.stage.extras(chunk)}
 	return _sprites[chunk]

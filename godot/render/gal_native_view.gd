@@ -16,6 +16,7 @@ var _dyn_tex: ImageTexture = null
 
 
 func setup(data: Object) -> void:
+	_stage = data.stage
 	images = GalImages.new(data as GalData)
 	_gtiles = {}
 	_gmtiles = {}
@@ -114,4 +115,5 @@ static func _image_texture(img: Dictionary, white: bool) -> ImageTexture:
 		pix = PackedByteArray()
 		pix.resize(n)
 		pix.fill(15)
-	return _texture(pix, cover, int(img.w), int(img.h))
+		return _texture(pix, cover, int(img.w), int(img.h))
+	return _staged_texture(pix, cover, int(img.w), int(img.h), img.get("extras", {}))

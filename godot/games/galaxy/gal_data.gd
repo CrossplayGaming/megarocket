@@ -101,6 +101,9 @@ var num_chunks: int = 0
 var bitmap_table: Array[Dictionary] = []      # {w (bytes), h}
 var masked_table: Array[Dictionary] = []
 var sprite_table: Array[Dictionary] = []      # {w (bytes), h, orgx, orgy, xl, yl, xh, yh, shifts}
+## A18 / PREP-01: the asset stage the sprite chunks pass through as they are expanded (identity unless
+## filters are set; bound to the game's sprite names at load)
+var stage: AssetStage = AssetStage.new()
 var tileinfo: PackedByteArray = PackedByteArray()
 var map_names: PackedStringArray = PackedStringArray()   # "" where no map
 
@@ -365,6 +368,7 @@ func load_game(game_dir: String, meta: String) -> bool:
 		episode.actions[key] = f
 	if not _setup_graphics():
 		return false
+	stage.bind("keen" + ext.substr(2, 1), AssetStage.galaxy_names(chunk_names, int(gfx.offSprites), int(gfx.numSprites)))
 	if not _setup_maps():
 		return false
 	if not _setup_audio():
@@ -579,6 +583,7 @@ func chunk(c: int) -> PackedByteArray:
 	if c >= gfx.offSprites and c < gfx.offSprites + gfx.numSprites:
 		var s: Dictionary = sprite_table[c - gfx.offSprites]
 		length = s.w * s.h * 5
+		return stage.planar_masked(c, huff_expand(_gr_file, src, comp, length, _gr_dict, "EGAGRAPH chunk %d" % c), s.w, s.h)
 	return huff_expand(_gr_file, src, comp, length, _gr_dict, "EGAGRAPH chunk %d" % c)
 
 

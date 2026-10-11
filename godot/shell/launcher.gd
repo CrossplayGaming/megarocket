@@ -77,6 +77,12 @@ var _export_thread: Thread = null
 var _export_label: Label = null
 ## The how-to page (J-12), over the tiles while open.
 var howto: PanelContainer = null
+## V15-06 / V15-01: Keen's Closet and the asset packs, pages of this screen (the user, 2026-10-11: opened
+## from the main screen in the same window, Back returning here with the focus where it was)
+var closet_button: Button = null
+var packs_button: Button = null
+var closet_page: ClosetPage = null
+var packs_page: PacksPage = null
 ## SHELL-16: the folder chooser while it is up, and the control the keys go back to when it closes.
 var folder_chooser: FolderChooser = null
 var _chooser_return: Control = null
@@ -159,6 +165,16 @@ func _ready() -> void:
 	export_button.visible = not OS.has_feature("android")
 	export_button.pressed.connect(show_export)
 	top.add_child(export_button)
+	closet_button = Button.new()
+	closet_button.name = "Closet"
+	closet_button.text = "Keen's Closet"
+	closet_button.pressed.connect(show_closet)
+	top.add_child(closet_button)
+	packs_button = Button.new()
+	packs_button.name = "Packs"
+	packs_button.text = "Asset packs"
+	packs_button.pressed.connect(show_packs)
+	top.add_child(packs_button)
 	top.add_child(howto_button)
 	# a way out in fullscreen too (Escape on this screen asks the same); Android leaves by Back
 	quit_button = Button.new()
@@ -837,6 +853,59 @@ func show_howto() -> void:
 	back.grab_focus()
 
 
+# ---- the creative suite's pages (V15-06, V15-01)
+
+## The games the player owns (id -> the finder's result) and every game's title.
+func _owned() -> Array:
+	var owned: Dictionary = {}
+	var names: Dictionary = {}
+	for g: Array in GAMES:
+		names[g[0]] = g[1]
+		if states.get(g[0], "") == "found" and found_results.has(g[0]):
+			owned[g[0]] = found_results[g[0]]
+	return [owned, names]
+
+
+func show_closet() -> void:
+	if closet_page != null:
+		return
+	var o: Array = _owned()
+	closet_page = ClosetPage.new()
+	closet_page.closed.connect(close_closet)
+	add_child(closet_page)
+	_page.visible = false
+	closet_page.open(settings, o[0], o[1], selected, pixel)
+
+
+func close_closet() -> void:
+	if closet_page == null:
+		return
+	closet_page.queue_free()
+	closet_page = null
+	_page.visible = true
+	closet_button.grab_focus()
+
+
+func show_packs() -> void:
+	if packs_page != null:
+		return
+	var o: Array = _owned()
+	packs_page = PacksPage.new()
+	packs_page.closed.connect(close_packs)
+	add_child(packs_page)
+	_page.visible = false
+	packs_page.open(settings, o[0], o[1], selected)
+
+
+func close_packs() -> void:
+	if packs_page == null:
+		return
+	packs_page.queue_free()
+	packs_page = null
+	_page.visible = true
+	packs_button.grab_focus()
+
+
 func close_howto() -> void:
 	if howto == null:
 		return
@@ -1000,7 +1069,8 @@ func back() -> String:
 	return did
 
 
-## Closes whichever launcher page is open (the folder chooser, the quit box, how-to, import, export).
+## Closes whichever launcher page is open (the folder chooser, the quit box, how-to, the closet, the packs,
+## import, export).
 ## False if none.
 func close_page() -> bool:
 	if folder_chooser != null:
@@ -1011,6 +1081,12 @@ func close_page() -> bool:
 		return true
 	if howto != null:
 		close_howto()
+		return true
+	if closet_page != null:
+		close_closet()
+		return true
+	if packs_page != null:
+		close_packs()
 		return true
 	if import_page != null and _import_thread == null:
 		close_import()

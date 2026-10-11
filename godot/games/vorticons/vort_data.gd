@@ -64,6 +64,9 @@ var off_tiles: int = 0
 var off_pics: int = 0
 var pic_entries: Array[Dictionary] = []        # {w (bytes), h, shape}
 var sprite_entries: Array[Dictionary] = []     # 4 per sprite (the shifts): {w (bytes), h, shape, xl, yl, xh, yh}
+## A18 / PREP-01: the asset stage the sprites pass through as they are decoded (set its filters before
+## load_game; with none, the identity: nothing changes)
+var stage: AssetStage = AssetStage.new()
 
 # text files, as loaded (PrepareText is the engine's business)
 var help_text: PackedByteArray = PackedByteArray()
@@ -502,7 +505,55 @@ func _load_graphics() -> bool:
 					mask[(y * w + xb) * 8 + bit] = 0 if (mb & (0x80 >> bit)) != 0 else 1
 		sprites.append({"name": sname, "w": w * 8, "h": h, "pixels": pixels, "mask": mask,
 			"xl": s16(head, e + 8), "yl": s16(head, e + 10), "xh": s16(head, e + 12), "yh": s16(head, e + 14)})
+	_stage_sprites(sprinfo_start, head)
 	return true
+
+
+## A18: every sprite through the asset stage; one a filter changed is written back both into its decoded
+## copy and into the sprite file's planes (which the game's loader copies onto the card), so the card
+## and the native view show the same.
+func _stage_sprites(sprinfo_start: int, head: PackedByteArray) -> void:
+	stage.bind(_game_id(), AssetStage.vorticons_names(_sprite_names()))
+	if stage.is_identity():
+		return
+	for i: int in range(sprites.size()):
+		var s: Dictionary = sprites[i]
+		var img: Dictionary = {"w": s.w, "h": s.h, "pixels": s.pixels, "opaque": s.mask}
+		var out: Dictionary = stage.run(i, img)
+		if out == img:
+			continue
+		s.pixels = out.pixels
+		s.mask = out.opaque
+		var wb: int = int(s.w) / 8
+		var shape: int = farptr(head, sprinfo_start + i * 4 * 32 + 4)
+		for y: int in range(int(s.h)):
+			for xb: int in range(wb):
+				var planes: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0])
+				for bit: int in range(8):
+					var p: int = (y * wb + xb) * 8 + bit
+					var c: int = out.pixels[p]
+					for b: int in range(4):
+						if c & (1 << b):
+							planes[b] |= 0x80 >> bit
+					if out.opaque[p] == 0:
+						planes[4] |= 0x80 >> bit
+				for pl: int in range(5):
+					sprite_planes[spritesize * pl + shape + y * wb + xb] = planes[pl]
+
+
+func _game_id() -> String:
+	return "keen" + ext.substr(2, 1)
+
+
+func _sprite_names() -> PackedStringArray:
+	match ext:
+		"CK1":
+			return VortNames1.SPRITE_NAMES
+		"CK2":
+			return VortNames2.SPRITE_NAMES
+		"CK3":
+			return VortNames3.SPRITE_NAMES
+	return PackedStringArray()
 
 
 ## SOUNDS: a 16-byte header {"SND", file size, count, ...} then 16-byte

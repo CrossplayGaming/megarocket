@@ -15,6 +15,7 @@ var _dyn_tex: ImageTexture = null
 
 
 func setup(data: Object) -> void:
+	_stage = data.stage
 	images = DrmImages.new(data as DreamsData)
 	_gtiles = {}
 	_gmtiles = {}
@@ -104,4 +105,4 @@ static func _image_texture(img: Dictionary) -> ImageTexture:
 		cover.resize(n)
 		for k: int in range(n):
 			cover[k] = 1 if mask[k] == 0 else 0
-	return _texture(img.pixels, cover, int(img.w), int(img.h))
+	return _staged_texture(img.pixels, cover, int(img.w), int(img.h), img.get("extras", {}))

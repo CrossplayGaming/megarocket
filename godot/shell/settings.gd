@@ -63,6 +63,12 @@ const SPEC: Dictionary = {
 	"touch_opacity": [50, "int", [10, 100]],
 	"touch_size": [100, "int", [50, 150]],
 	"touch_with_pad": [false, "bool", null],
+	# V15-06 Keen's Closet, per game: on or off, and a colour per part (KeenCloset.REGIONS -> "#rrggbb";
+	# a part missing keeps Keen's own)
+	"closet_on": [false, "bool", null],
+	"closet": [{}, "colors", null],
+	# V15-01 replacement packs, per game: [name, on] in the order they apply (a later pack wins)
+	"packs": [[], "packs", null],
 }
 
 var path: String = PATH
@@ -123,6 +129,20 @@ static func valid(name: String, value: Variant) -> bool:
 				for c: Variant in value[a]:
 					if not c is int:
 						return false
+			return true
+		"colors":
+			if not value is Dictionary:
+				return false
+			for k: Variant in value:
+				if not k is String or not value[k] is String or not Color.html_is_valid(value[k]):
+					return false
+			return true
+		"packs":
+			if not value is Array:
+				return false
+			for e: Variant in value:
+				if not e is Array or (e as Array).size() != 2 or not e[0] is String or not e[1] is bool:
+					return false
 			return true
 		"folders":
 			if not value is Array:

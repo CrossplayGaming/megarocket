@@ -627,6 +627,30 @@ def rend01d():
     return code
 
 
+def v1506():
+    """Keen's Closet (V15-06): every Keen frame of every game recoloured exactly on the rules' parts, every
+    other sprite unchanged, a planted fault caught, Keen 4's demo ending the same with an outfit on; the
+    frames the rules cannot settle listed."""
+    import gdtest
+    code, out = gdtest.run("v15_closet", [], timeout=1800.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "Keen frames" in line:
+            print("  " + line.strip())
+    return code
+
+
+def v1501():
+    """Replacement packs (V15-01) made from shapes: a 4x picture in the native view, an own-size one on
+    the card, broken files falling back with a log line, packs off restoring the originals, the listing,
+    the export; the closet and packs pages opened from the launcher and driven with a pad."""
+    import gdtest
+    code, out = gdtest.run("v15_packs", [], timeout=900.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend04d():
     """The wide view (REND-04D), Keen Dreams, a reach of six tiles past the picture: the 1x picture still the
     card's, at 416 every image shifted alike with the score box kept on the screen and the map's tiles over
@@ -2017,6 +2041,8 @@ CHECKS = {
     "REND-04": (rend04, "slow"),
     "REND-01G": (rend01g, "slow"),
     "REND-01D": (rend01d, "fast"),
+    "V15-06": (v1506, "fast"),
+    "V15-01": (v1501, "fast"),
     "REND-09": (rend09, "fast"),
     "CHEAT-03": (cheat03, "fast"),
     "SAVE-02": (save02, "fast"),

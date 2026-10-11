@@ -9,16 +9,44 @@ extends Control
 ## Textures: red the palette index, green the coverage (a sprite's mask; a masked tile shows where the
 ## tile after it, its mask, is clear).
 
+## A18: two more kinds of texture come from the asset stage (AssetStage.extras): a Keen's Closet sprite
+## (blue = the closet's code, slot * 40 + (tone + 1) * 8: those pixels take the slot's colour in the
+## tone (lighter, as is, shaded, deeper), darkened as the frame's palette darkens that pixel's own colour
+## against the EGA default, so fades still fade him) and a pack's picture in its
+## own colours (alpha 0.5 where it draws, 0 where it is clear; darkened by the frame's overall fade).
 const SHADER: String = """
 shader_type canvas_item;
 uniform sampler2D palette : filter_nearest;
+uniform vec3 slots[6];
+uniform float fade = 1.0;
+const vec3 EGA[16] = vec3[16](vec3(0.0), vec3(0.0, 0.0, 0.667), vec3(0.0, 0.667, 0.0), vec3(0.0, 0.667, 0.667),
+	vec3(0.667, 0.0, 0.0), vec3(0.667, 0.0, 0.667), vec3(0.667, 0.333, 0.0), vec3(0.667), vec3(0.333),
+	vec3(0.333, 0.333, 1.0), vec3(0.333, 1.0, 0.333), vec3(0.333, 1.0, 1.0), vec3(1.0, 0.333, 0.333),
+	vec3(1.0, 0.333, 1.0), vec3(1.0, 1.0, 0.333), vec3(1.0));
 void fragment() {
 	vec4 t = texture(TEXTURE, UV);
-	if (t.g < 0.5) discard;
-	float i = floor(t.r * 255.0 + 0.5);
-	COLOR = vec4(texture(palette, vec2((i + 0.5) / 16.0, 0.5)).rgb, COLOR.a);
+	if (t.a < 0.75) {
+		if (t.a < 0.25) discard;
+		COLOR = vec4(t.rgb * fade, 1.0);
+	} else {
+		if (t.g < 0.5) discard;
+		float i = floor(t.r * 255.0 + 0.5);
+		vec3 c = texture(palette, vec2((i + 0.5) / 16.0, 0.5)).rgb;
+		int code = int(floor(t.b * 255.0 + 0.5));
+		int slot = code / 40;
+		if (slot > 0) {
+			int tone = (code - slot * 40) / 8 - 1;
+			vec3 s = slots[slot];
+			vec3 shade = tone < 0 ? mix(s, vec3(1.0), 0.4) : s * (tone == 0 ? 1.0 : (tone == 1 ? 0.62 : 0.4));
+			float k = clamp(dot(c, vec3(1.0)) / max(dot(EGA[int(i)], vec3(1.0)), 0.05), 0.0, 1.0);
+			c = shade * k;
+		}
+		COLOR = vec4(c, COLOR.a);
+	}
 }
 """
+## The EGA default palette's sum of channels (the fade's measure for a pack's own colours)
+const EGA_SUM: float = 6035.0
 
 var _eng: Object = null
 var _list: Dictionary = {}
@@ -41,6 +69,8 @@ var _tiles: Array = []         # ImageTexture per tile
 var _mtiles: Dictionary = {}   # tile -> its masked texture
 var _sprites: Array = []
 var _pics: Array = []
+## A18: the game's asset stage (its closet colours, its packs' pictures)
+var _stage: AssetStage = null
 var _palette_image: Image = Image.create(16, 1, false, Image.FORMAT_RGB8)
 var _palette_tex: ImageTexture = ImageTexture.create_from_image(_palette_image)
 ## The Reveal secrets cheat's tints, over the picture (its own canvas item: no palette shader)
@@ -79,13 +109,15 @@ func _init() -> void:
 
 ## The game's images as textures (once per game).
 func setup(data: Object) -> void:
+	_stage = data.stage
 	var tiles: PackedByteArray = data.tiles
 	_tiles = []
 	for t: int in range(tiles.size() / 256):
 		_tiles.append(_texture(tiles.slice(t * 256, t * 256 + 256), PackedByteArray(), 16, 16))
 	_sprites = []
-	for s: Dictionary in data.sprites:
-		_sprites.append(_texture(s.pixels, s.mask, int(s.w), int(s.h)))
+	for i: int in range(data.sprites.size()):
+		var s: Dictionary = data.sprites[i]
+		_sprites.append(_staged_texture(s.pixels, s.mask, int(s.w), int(s.h), _stage.extras(i)))
 	_pics = []
 	for p: Dictionary in data.pics:
 		_pics.append(_texture(p.pixels, PackedByteArray(), int(p.w), int(p.h)))
@@ -105,6 +137,16 @@ func show_frame(eng: Object, list: Dictionary, palette: PackedByteArray, machine
 	_machine_t = machine_t
 	_palette_image.set_data(16, 1, false, Image.FORMAT_RGB8, palette.slice(0, 48))
 	_palette_tex.update(_palette_image)
+	if _stage != null and not _stage.is_identity():
+		var sum: int = 0
+		for k: int in range(48):
+			sum += palette[k]
+		var mat: ShaderMaterial = material as ShaderMaterial
+		mat.set_shader_parameter("fade", clampf(float(sum) / EGA_SUM, 0.0, 1.0))
+		var cols: PackedVector3Array = PackedVector3Array()
+		for c: Color in _stage.slot_colors:
+			cols.append(Vector3(c.r, c.g, c.b))
+		mat.set_shader_parameter("slots", cols)
 	queue_redraw()
 
 
@@ -191,6 +233,32 @@ static func _texture(pixels: PackedByteArray, cover: PackedByteArray, w: int, h:
 		rg[k * 2] = pixels[k]
 		rg[k * 2 + 1] = 255 if cover.is_empty() or cover[k] != 0 else 0
 	return ImageTexture.create_from_image(Image.create_from_data(w, h, false, Image.FORMAT_RG8, rg))
+
+
+## A18: a sprite's texture with what the asset stage added (AssetStage.extras): a pack's picture in its
+## own colours, drawn at the sprite's size (its detail kept), or the closet's slots in the blue channel.
+static func _staged_texture(pixels: PackedByteArray, cover: PackedByteArray, w: int, h: int, x: Dictionary) -> ImageTexture:
+	if x.has("image"):
+		var src: Image = x.image
+		var img: Image = Image.create(src.get_width(), src.get_height(), false, Image.FORMAT_RGBA8)
+		for y: int in range(src.get_height()):
+			for xx: int in range(src.get_width()):
+				var c: Color = src.get_pixel(xx, y)
+				img.set_pixel(xx, y, Color(c.r, c.g, c.b, 128.0 / 255.0 if c.a >= 0.5 else 0.0))
+		var tex: ImageTexture = ImageTexture.create_from_image(img)
+		tex.set_size_override(Vector2i(w, h))
+		return tex
+	if not x.has("slots"):
+		return _texture(pixels, cover, w, h)
+	var slots: PackedByteArray = x.slots
+	var rgba: PackedByteArray = PackedByteArray()
+	rgba.resize(w * h * 4)
+	for k: int in range(w * h):
+		rgba[k * 4] = pixels[k]
+		rgba[k * 4 + 1] = 255 if cover.is_empty() or cover[k] != 0 else 0
+		rgba[k * 4 + 2] = slots[k]
+		rgba[k * 4 + 3] = 255
+	return ImageTexture.create_from_image(Image.create_from_data(w, h, false, Image.FORMAT_RGBA8, rgba))
 
 
 ## The rectangle of the picture a window was printed on (empty for none).
