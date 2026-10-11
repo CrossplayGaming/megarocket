@@ -814,7 +814,9 @@ func _touch_key(code: int, down: bool) -> void:
 		return
 	var sent: int = int(TOUCH_TYPING.get(code, code)) if text_entry() else code
 	_touch_sent[code] = sent
-	_pad_escape(false)    # (J-49: the on-screen keys are keys)
+	# J-49: the on-screen Menu (Escape) is the player's way back like the pad's B and Start (the user,
+	# 2026-10-11): on Keen 4-6's main card in a game it goes back to the game; the other keys are keys
+	_pad_escape(sent == 0x01)
 	send_key(sent, true)
 
 

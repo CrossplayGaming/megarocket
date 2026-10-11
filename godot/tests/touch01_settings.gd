@@ -145,6 +145,16 @@ func _go() -> void:
 		and o.dpad_rect().position.x < SCREEN.x / 2.0 and o.has_method("shade"))
 	t.ok("a Status button of its own (J-50: the touch screen's Status code, 0x74)",
 		o.codes_at(o.button_rect("Status").get_center()) == [0x74] and ControlsModel.TOUCH_CODES.get("status") == 0x74)
+	if game == "keen4":
+		# J-49 (the user, 2026-10-11): the on-screen Menu goes back to the game like the pad's B and Start;
+		# the other on-screen keys are keys
+		host._touch_key(0x01, true)
+		var menu_marked: bool = bool(host.engine.get("shell_pad_escape"))
+		host._touch_key(0x01, false)
+		host._touch_key(0x1C, true)
+		var ok_marked: bool = bool(host.engine.get("shell_pad_escape"))
+		host._touch_key(0x1C, false)
+		t.ok("the on-screen Menu is the way back as the pad's is (%s), OK a key (%s)" % [menu_marked, ok_marked], menu_marked and not ok_marked)
 	match game:
 		"keen1":
 			await _vorticons()
