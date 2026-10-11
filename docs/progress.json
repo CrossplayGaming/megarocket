@@ -49,7 +49,7 @@
    ],
    "notes": {
     "matches": "Title, menu, world map and all 16 levels match the original to the refresh",
-    "extras": "Options and Cheats in the game's own menu window; more rows (fixes, quicksave, display) to come"
+    "extras": "Options, Controls, Cheats and Extras in the game's own menu window, in the modern order. Still to prove: every original screen against the original (SCR-01), and every prompt answerable by controller alone (being built)"
    }
   },
   {
@@ -79,7 +79,7 @@
    "notes": {
     "runs": "Every level plays",
     "matches": "Title, menu, world map and all 16 levels match the original to the refresh",
-    "extras": "Options and Cheats in the game's own menu window; more rows (fixes, quicksave, display) to come"
+    "extras": "Options, Controls, Cheats and Extras in the game's own menu window, in the modern order. Still to prove: every original screen against the original (SCR-01), and every prompt answerable by controller alone (being built)"
    }
   },
   {
@@ -109,7 +109,7 @@
    "notes": {
     "runs": "Every level plays",
     "matches": "Title, menu, world map and all 16 levels match the original to the refresh",
-    "extras": "Options and Cheats in the game's own menu window; more rows (fixes, quicksave, display) to come"
+    "extras": "Options, Controls, Cheats and Extras in the game's own menu window, in the modern order. Still to prove: every original screen against the original (SCR-01), and every prompt answerable by controller alone (being built)"
    }
   },
   {
@@ -139,7 +139,7 @@
    ],
    "notes": {
     "matches": "Proven against the original: the start-up, title and built-in demo refresh for refresh; levels 1, 2 and 4 whole; every other recorded difference checked and found to be timing a player cannot see",
-    "extras": "Options rows, a DISPLAY card (widescreen, native resolution, smooth motion) and a CHEATS card in the game's own wristwatch menus"
+    "extras": "Options, Display, Controls, Cheats and Extras cards in the game's own wristwatch menus. Still to prove: every original screen against the original (SCR-01), and every card usable by controller alone (being built)"
    }
   },
   {
@@ -170,7 +170,7 @@
    ],
    "notes": {
     "matches": "Proven against the original: the built-in demo's play throughout, levels 1, 2, 4 and 12 whole; the remaining differences are timing a player cannot see",
-    "extras": "Options rows, a DISPLAY card (widescreen, native resolution, smooth motion) and a CHEATS card in the game's own wristwatch menus"
+    "extras": "Options, Display, Controls, Cheats and Extras cards in the game's own wristwatch menus. Still to prove: every original screen against the original (SCR-01), and every card usable by controller alone (being built)"
    }
   },
   {
@@ -202,7 +202,7 @@
    "notes": {
     "files": "Your v1.0 copy, read as it is",
     "matches": "Plays by v1.4's rules (your decision): equal to v1.4 frame for frame on all four demos; level 4 proven against your v1.0. Your v1.0 differs from v1.4 in a few places id changed; three found and documented",
-    "extras": "Options rows, a DISPLAY card (widescreen, native resolution, smooth motion) and a CHEATS card in the game's own wristwatch menus"
+    "extras": "Options, Display, Controls, Cheats and Extras cards in the game's own wristwatch menus. Still to prove: every original screen against the original (SCR-01), and every card usable by controller alone (being built)"
    }
   },
   {
@@ -231,9 +231,9 @@
    ],
    "notes": {
     "files": "v1.00 and v1.93 (your Steam Definitive Edition) read",
-    "runs": "Plays from the launcher, v1.00 and v1.93 (your Steam Definitive Edition); about 500 functions ported",
-    "extras": "Starts once Dreams is proven against the original; its cheats will use the same shared parts",
-    "matches": "Its game logic matches the original frame by frame: one life on every level of both releases checked against ReflectionHLE, every object identical on every frame. About 6,100 pictures across 32 recorded sessions match; the remaining differences are loading-time, not gameplay"
+    "runs": "Plays from the launcher, v1.00 and v1.93 (your Steam Definitive Edition); the whole engine checked, every level of both releases traced frame by frame against ReflectionHLE",
+    "extras": "Input, Video, Audio, Game and Cheat keycaps in the control panel, Reveal secrets and quicksave, as Keen 1-6 have. Still to prove: every original screen against the original (SCR-01), and the panel usable by controller alone (being built)",
+    "matches": "Its game logic matches the original frame by frame: one life on every level of both releases checked against ReflectionHLE, every object identical on every frame. 6,934 pictures across the 32 recorded sessions match in order; where a session parts from the recording it is at a load, a refresh early or late (timing, not gameplay), still being traced"
    }
   }
  ],
