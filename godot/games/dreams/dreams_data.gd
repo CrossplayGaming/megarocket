@@ -435,6 +435,23 @@ func map_plane_sizes(i: int) -> Array:
 	return out
 
 
+## MAKER-01 for Keen Dreams: the maker's map set (TedMaps.write: MAPHEAD as the program links it, with its
+## tile info, and GAMEMAPS) in place of the program's table and the folder's GAMEMAPS. Only with a player
+## at the controls (the maker's play button); the game's own files are never written.
+func use_maps(maphead: PackedByteArray, gamemaps: PackedByteArray) -> bool:
+	if maphead.size() != _map_head.size() or u16(maphead, 0) != u16(_map_head, 0):
+		return _fail("the maker's MAPHEAD is %d bytes, the program's %d" % [maphead.size(), _map_head.size()])
+	for i: int in range(NUM_MAPS):
+		var off: int = u32(maphead, 2 + i * 4)
+		if off != 0xFFFFFFFF and off >= 8 and off + maphead[402 + i] > gamemaps.size():
+			return _fail("the maker's GAMEMAPS: map %d lies past its end" % i)
+	_map_head = maphead
+	_maps_file = gamemaps
+	rle_tag = u16(_map_head, 0)
+	tileinfo = _map_head.slice(502)
+	return true
+
+
 ## The map header as the program links it in (mapfiletype: RLEW tag, offsets, sizes, then the
 ## tile info id_ca.c's tinf indexes from the start: tinf[SPEED + tile], SPEED = 502).
 func map_header() -> PackedByteArray:

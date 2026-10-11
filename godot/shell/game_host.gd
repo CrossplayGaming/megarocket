@@ -212,7 +212,7 @@ func _dreams_costs(dg: DreamsGame, release: String) -> void:
 ## engine isn't ready to play or its files don't load.
 ## MAKER-02, the maker's play button: with "play_level" (a level number) the game goes straight into
 ## that level and is left when the level ends; "maker_files" (Keen 1-3: file name -> bytes, a level
-## written by the maker) or "maker_maps" (Keen 4-6: {maphead, gamemaps}) stand in for the folder's.
+## written by the maker) or "maker_maps" (Keen 4-6 and Keen Dreams: {maphead, gamemaps}) stand in for the folder's.
 func start(found: Dictionary) -> bool:
 	game_id = found.id
 	var folder: String = found.folder
@@ -263,6 +263,10 @@ func start(found: Dictionary) -> bool:
 		"kdreams":
 			var dd: DreamsData = DreamsData.new()
 			if not dd.load_game(folder):
+				error = ShellMessages.cant_load(_short_title(found), dd.error)
+				return false
+			var dmaps: Dictionary = found.get("maker_maps", {})
+			if not dmaps.is_empty() and not dd.use_maps(dmaps.maphead, dmaps.gamemaps):
 				error = ShellMessages.cant_load(_short_title(found), dd.error)
 				return false
 			var dg: DreamsGame = DreamsGame.new()

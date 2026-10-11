@@ -93,6 +93,10 @@ var found_results: Dictionary = {}
 ## The game being played, if any (SHELL-02: launched from a tile, back here when it ends).
 var host: GameHost = null
 var _page: Control
+## V15-03: Keen Maker, opened from its button in this window (the launcher steps aside as for a game), and
+## the button the focus goes back to when it closes.
+var maker: MakerScreen = null
+var maker_button: Button = null
 
 
 ## The UI's scale for a screen: phones and tablets by density (Android's
@@ -142,6 +146,11 @@ func _ready() -> void:
 	add.text = "Import games" if OS.has_feature("android") else "Add a folder"
 	add.pressed.connect(_pick_folder)
 	top.add_child(add)
+	maker_button = Button.new()
+	maker_button.name = "KeenMaker"
+	maker_button.text = "Keen Maker"
+	maker_button.pressed.connect(open_maker)
+	top.add_child(maker_button)
 	# SHELL-10: the games found here, ready for the Android app (not on Android itself)
 	export_button = Button.new()
 	export_button.name = "ExportAndroid"
@@ -845,10 +854,9 @@ func _input(event: InputEvent) -> void:
 	# delivers them later in the same flush (after this event, never nested in its dispatch). Not in a
 	# game (the host takes the controller there) and not where the button is already in the action (no
 	# double press under a Godot that adds them; upstream issue godotengine/godot#75225, open since 4.0).
-	# (The level maker's scene, run on its own, has no launcher above it: when it joins the program it
-	# needs this too, or the actions given the buttons in project.godot.)
+	# (Keen Maker opened from here gets this too; its scene run on its own does the same itself.)
 	var jb: InputEventJoypadButton = event as InputEventJoypadButton
-	if host == null and jb != null:
+	if not _in_game() and jb != null:
 		var action: String = ""
 		if (jb.button_index == JOY_BUTTON_A or jb.button_index == JOY_BUTTON_START) and not jb.is_action("ui_accept"):
 			action = "ui_accept"
@@ -867,13 +875,13 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	# F11: fullscreen on or off, everywhere (a game's host takes it in a game)
 	var k: InputEventKey = event as InputEventKey
-	if host == null and k != null and k.pressed and not k.echo and k.keycode == KEY_F11:
+	if not _in_game() and k != null and k.pressed and not k.echo and k.keycode == KEY_F11:
 		toggle_fullscreen()
 		get_viewport().set_input_as_handled()
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if host == null and event.is_action_pressed("ui_cancel"):
+	if host == null and maker == null and event.is_action_pressed("ui_cancel"):
 		if not close_page() and not OS.has_feature("android"):
 			confirm_quit()    # Escape on the launcher itself: the way out, asked first
 		get_viewport().set_input_as_handled()
@@ -979,6 +987,9 @@ func back() -> String:
 			if host != null:
 				host.send_key(0x01, false))
 		did = "Escape to the game"
+	elif maker != null:
+		maker.back()
+		did = "Keen Maker: back"
 	elif close_page():
 		did = "page closed"
 	else:
@@ -1072,6 +1083,38 @@ func _exit_tree() -> void:
 	if _export_thread != null:
 		_export_thread.wait_to_finish()
 		_export_thread = null
+
+
+## Whether a game is being played (the launcher's or one Keen Maker started): the host has the controller.
+func _in_game() -> bool:
+	return host != null or (maker != null and maker.host != null)
+
+
+## V15-03: Keen Maker in this window, with the games found here; the launcher comes back when it closes,
+## the Keen Maker button focused.
+func open_maker() -> void:
+	if maker != null or host != null:
+		return
+	maker = MakerScreen.new()
+	maker.name = "Maker"
+	for id: String in found_results:
+		if states.get(id, "") == "found" and MakerModel.ENGINES.has(id):
+			maker.found[id] = found_results[id]
+	maker.closed.connect(close_maker)
+	_page.visible = false
+	starfield.visible = false
+	add_child(maker)
+	ShellMessages.note("Keen Maker opened (%d games)" % maker.found.size())
+
+
+func close_maker() -> void:
+	if maker == null:
+		return
+	maker.queue_free()
+	maker = null
+	_page.visible = true
+	starfield.visible = true
+	maker_button.grab_focus()
 
 
 func _tile_input(event: InputEvent, id: String) -> void:

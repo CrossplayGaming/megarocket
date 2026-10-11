@@ -1,30 +1,54 @@
 # Copyright (C) 2026 the Megarocket contributors. GPL v2 or later. See LICENSE.md.
 class_name MakerModel
 extends RefCounted
-## MAKER-03: the editor's document, without its screen. A game's levels opened with the maker's readers
-## (VortLevels for Keen 1-3, TedMaps for Keen 4-6), one level being edited; painting a cell, placing
-## Keen's start, undo and redo; saving into Megarocket's own folder (never the game's); and the play
-## button's request for GameHost.start (MAKER-02: straight into this level, the edits in place of the
-## game's files). Everything a screen shows comes from here, so the tests can drive it headless.
+## MAKER-03, V15-02..04: the editor's document, without its screen. A game's levels opened with the
+## maker's readers (VortLevels for Keen 1-3, TedMaps for Keen 4-6 and Keen Dreams); the level being made
+## is always the maker's own copy: a new one (ground and Keen's start, of a size for the engine) or a
+## remix of any of the game's levels, or one from the player's library (MakerLibrary). Painting a cell, a
+## filled rectangle, placing Keen's start, undo and redo; saving into the library (the player's folder,
+## never the game's); and the play button's request for GameHost.start (MAKER-02: straight into this
+## level, written in the engine's own format in place of the game's, from Keen's start or set down at
+## the cursor). Everything a screen shows comes from here, so the tests can drive it headless.
 
 const ENGINES: Dictionary = {"keen1": KeenLevel.VORTICONS, "keen2": KeenLevel.VORTICONS, "keen3": KeenLevel.VORTICONS,
-	"keen4": KeenLevel.GALAXY, "keen5": KeenLevel.GALAXY, "keen6": KeenLevel.GALAXY}
-const GALAXY_META: Dictionary = {"keen4": "keen4", "keen5": "keen5", "keen6": "keen6e14"}
-## Keen's start: Keen 1-3 the sprite plane's 255; Keen 4-6 the info plane's 1 (facing right; 2 left)
-const START_PLANE: Dictionary = {KeenLevel.VORTICONS: 1, KeenLevel.GALAXY: 2}
-const START_MARKERS: Dictionary = {KeenLevel.VORTICONS: [255], KeenLevel.GALAXY: [1, 2]}
+	"keen4": KeenLevel.GALAXY, "keen5": KeenLevel.GALAXY, "keen6": KeenLevel.GALAXY, "kdreams": KeenLevel.DREAMS}
+## Keen's start: Keen 1-3 the sprite plane's 255; Keen 4-6 and Dreams the info plane's 1 (facing right; 2 left)
+const START_PLANE: Dictionary = {KeenLevel.VORTICONS: 1, KeenLevel.GALAXY: 2, KeenLevel.DREAMS: 2}
+const START_MARKERS: Dictionary = {KeenLevel.VORTICONS: [255], KeenLevel.GALAXY: [1, 2], KeenLevel.DREAMS: [1, 2]}
+## A new level's size by engine (cells), and the level slot it plays as (the first level after the map)
+const NEW_SIZE: Dictionary = {KeenLevel.VORTICONS: Vector2i(96, 26), KeenLevel.GALAXY: Vector2i(96, 32), KeenLevel.DREAMS: Vector2i(96, 32)}
+const NEW_SLOT: int = 1
+## V15-04's rules: the most creatures, items and platforms a level may hold, the engine's object table
+## less Keen and ten for what the level makes as it plays (shots, sparks, spawned helpers): Keen 1-3's
+## MAXOBJECTS 80, Keen 4-6's CK_MAX_OBJECTS 100, Dreams' MAXACTORS 100 (each engine quits or runs out
+## when its table is full)
+const OBJECT_LIMIT: Dictionary = {KeenLevel.VORTICONS: 80 - 11, KeenLevel.GALAXY: 100 - 11, KeenLevel.DREAMS: 100 - 11}
+## Rows of ground under a new level, and the solid frame round it
+const NEW_GROUND: int = 4
+const NEW_FRAME: int = 2
 
 var game_id: String = ""
 var folder: String = ""
+var version: String = ""
 var engine: String = ""
 var ext: String = ""             # Keen 1-3: "CK1" ...
 var error: String = ""
-## Keen 1-3: level number -> KeenLevel (the LEVELnn files found); Keen 4-6: the map set
+## Keen 1-3: level number -> KeenLevel (the LEVELnn files found); Keen 4-6 and Dreams: the map set
 var levels: Dictionary = {}
 var maps: TedMaps = null
-## The level being edited (its number) and its KeenLevel
-var number: int = -1
+## The tile-use tables and the game's data (MakerParts); made by open() unless `parts_too` is false
+var parts: MakerParts = null
+## The tiles a new level is made of, chosen by use from the game's level NEW_SLOT (MakerParts.defaults)
+var tile_defaults: Dictionary = {}
+## The level being made (the maker's own copy), the game's level slot it plays as, its name, where it
+## came from ("new", "remix <n>") and its library file ("" until saved)
 var level: KeenLevel = null
+var number: int = -1
+var doc_name: String = ""
+var origin: String = ""
+var path: String = ""
+## Keen's last test run: his positions in cells (MakerScreen keeps it while he plays)
+var trail: PackedVector2Array = PackedVector2Array()
 ## Undo: lists of changes, each [plane, x, y, before, after]; a stroke is one entry
 var _undo: Array = []
 var _redo: Array = []
@@ -33,18 +57,27 @@ var _stroke: Array = []
 var dirty: bool = false
 
 
-## Opens a game's levels (`game_id` keen1..keen6, `dir` its folder). False with `error`.
-func open(id: String, dir: String) -> bool:
+## The omnispeak metadata folder for a Galaxy game (Keen 6 v1.5 its own).
+static func meta_dir(id: String, ver: String = "") -> String:
+	var m: String = {"keen4": "keen4", "keen5": "keen5", "keen6": "keen6e14"}.get(id, id)
+	if id == "keen6" and ver.contains("1.5"):
+		m = "keen6e15"
+	return "res://data/omnispeak".path_join(m)
+
+
+## Opens a game's levels (`id` keen1..keen6 or kdreams, `dir` its folder, `ver` its release as the
+## launcher found it). False with `error`.
+func open(id: String, dir: String, ver: String = "", parts_too: bool = true) -> bool:
 	game_id = id
 	folder = dir
+	version = ver
 	engine = ENGINES.get(id, "")
 	levels = {}
 	maps = null
-	number = -1
+	parts = null
 	level = null
-	_undo = []
-	_redo = []
-	dirty = false
+	number = -1
+	_reset()
 	match engine:
 		KeenLevel.VORTICONS:
 			ext = "CK" + id.substr(4, 1)
@@ -55,16 +88,33 @@ func open(id: String, dir: String) -> bool:
 			if levels.is_empty():
 				error = "No level files (LEVELnn.%s) in %s" % [ext, dir]
 				return false
-		KeenLevel.GALAXY:
-			maps = TedMaps.open_galaxy(dir, "res://data/omnispeak".path_join(GALAXY_META[id]))
+		KeenLevel.GALAXY, KeenLevel.DREAMS:
+			maps = TedMaps.open_galaxy(dir, meta_dir(id, ver)) if engine == KeenLevel.GALAXY else TedMaps.open_dreams(dir)
 			if maps == null or maps.error != "":
 				error = maps.error if maps != null else "the maps did not open"
 				return false
 		_:
 			error = "The maker does not have %s yet" % id
 			return false
+	if parts_too:
+		parts = MakerParts.new()
+		var e: String = parts.open(id, dir, ver)
+		if e != "":
+			error = e
+			return false
+		if original(NEW_SLOT) != null:
+			tile_defaults = parts.defaults(original(NEW_SLOT))
+			parts.put_first([tile_defaults.top, tile_defaults.fill])
 	error = ""
 	return true
+
+
+func _reset() -> void:
+	_undo = []
+	_redo = []
+	_stroke = []
+	dirty = false
+	trail = PackedVector2Array()
 
 
 ## The levels to choose from: [number, name] in order (Keen 1-3 name theirs by number).
@@ -81,18 +131,113 @@ func level_list() -> Array:
 	return out
 
 
-func select(n: int) -> bool:
-	var l: KeenLevel = levels.get(n) if engine == KeenLevel.VORTICONS else (maps.maps[n] if maps != null and n >= 0 and n < maps.maps.size() else null)
+## The game's own level `n` (not a copy: never edited), or null.
+func original(n: int) -> KeenLevel:
+	if engine == KeenLevel.VORTICONS:
+		return levels.get(n)
+	return maps.maps[n] if maps != null and n >= 0 and n < maps.maps.size() else null
+
+
+## Opens the game's level `n` as a copy to remix (V15-04): it plays as level `n`.
+func remix(n: int) -> bool:
+	var l: KeenLevel = original(n)
 	if l == null:
+		error = "There is no level %d" % n
 		return false
+	level = l.copy()
 	number = n
-	level = l
-	_undo = []
-	_redo = []
+	var label: String = l.name.strip_edges() if l.name.strip_edges() != "" else "Level %d" % n
+	doc_name = label + " remix"
+	origin = "remix %d" % n
+	path = ""
+	_reset()
 	return true
 
 
-## The planes' names for the screen (Keen 1-3: tiles, sprites; Keen 4-6: background, foreground, info).
+## MAKER-03's preview opened a level by number: now a remix of it.
+func select(n: int) -> bool:
+	return remix(n)
+
+
+## A new level (V15-03): the engine's size, the game's own background, a solid frame, ground along the
+## bottom (its top edge and fill chosen by use from the game's level 1) and Keen's start on the ground at
+## the left. It plays as level NEW_SLOT (the header values and the map's name taken from that level).
+func new_level(name: String = "My level") -> bool:
+	var base: KeenLevel = original(NEW_SLOT)
+	if base == null or parts == null:
+		error = "This game has no level %d to start from" % NEW_SLOT
+		return false
+	var size: Vector2i = NEW_SIZE[engine]
+	var l: KeenLevel = KeenLevel.create(engine, size.x, size.y, base.name)
+	l.number = NEW_SLOT
+	l.fields = base.fields.duplicate(true)
+	var d: Dictionary = tile_defaults if not tile_defaults.is_empty() else parts.defaults(base)
+	var tp: int = parts.tile_plane()
+	var ground_top: int = size.y - NEW_GROUND
+	for y: int in range(size.y):
+		for x: int in range(size.x):
+			l.set_word(0, x, y, d.background)
+			var frame: bool = x < NEW_FRAME or x >= size.x - NEW_FRAME or y < NEW_FRAME
+			if y == ground_top and not frame:
+				l.set_word(tp, x, y, d.top)
+			elif y > ground_top or frame:
+				l.set_word(tp, x, y, d.fill)
+	# Keen 1-3 set Keen 8 pixels into the marker's cell, 24 tall: two cells above the ground; the others
+	# stand him on the cell below the marker
+	var sy: int = ground_top - (2 if engine == KeenLevel.VORTICONS else 1)
+	l.set_word(START_PLANE[engine], NEW_FRAME + 2, sy, START_MARKERS[engine][0])
+	level = l
+	number = NEW_SLOT
+	doc_name = name
+	origin = "new"
+	path = ""
+	_reset()
+	dirty = true
+	return true
+
+
+## Opens a level from the player's library. False with `error`.
+func load_doc(file: String) -> bool:
+	var lib: MakerLibrary = MakerLibrary.new()
+	var got: Dictionary = lib.load_level(file)
+	if got.is_empty():
+		error = lib.error
+		return false
+	var l: KeenLevel = got.level
+	if l.engine != engine or str(got.meta.get("game", "")) != game_id:
+		error = "%s is a level for another game" % file.get_file()
+		return false
+	level = l
+	number = int(got.meta.get("slot", NEW_SLOT))
+	var base: KeenLevel = original(number)
+	if base != null:
+		l.name = base.name if l.name == "" else l.name
+		l.number = number
+	doc_name = str(got.meta.get("name", ""))
+	origin = str(got.meta.get("origin", "new"))
+	path = file
+	_reset()
+	trail = got.trail
+	return true
+
+
+## Saves the level into the library (a new file the first time). False with `error`.
+func save_doc() -> bool:
+	if level == null:
+		error = "no level"
+		return false
+	end_stroke()
+	var lib: MakerLibrary = MakerLibrary.new()
+	var to: String = path if path != "" else MakerLibrary.new_path(game_id)
+	if not lib.save(to, level, {"game": game_id, "name": doc_name, "slot": number, "origin": origin}, trail):
+		error = lib.error
+		return false
+	path = to
+	dirty = false
+	return true
+
+
+## The planes' names for the screen (Keen 1-3: tiles, sprites; the others: background, foreground, info).
 func plane_names() -> Array:
 	return KeenLevel.PLANE_NAMES.get(engine, [])
 
@@ -110,6 +255,78 @@ func paint(plane: int, x: int, y: int, value: int) -> bool:
 	return true
 
 
+## Fills the rectangle between two cells (either corner first) with `value`: one undo step.
+func fill_rect(plane: int, a: Vector2i, b: Vector2i, value: int) -> int:
+	begin_stroke()
+	var n: int = 0
+	for y: int in range(mini(a.y, b.y), maxi(a.y, b.y) + 1):
+		for x: int in range(mini(a.x, b.x), maxi(a.x, b.x) + 1):
+			if paint(plane, x, y, value):
+				n += 1
+	end_stroke()
+	return n
+
+
+## The objects the level places (the marker plane's creatures, items and platforms).
+func objects(l: KeenLevel = null) -> int:
+	var target: KeenLevel = l if l != null else level
+	if target == null or parts == null:
+		return 0
+	var plane: int = START_PLANE[engine]
+	var n: int = 0
+	for v: int in target.planes[plane]:
+		if v != 0 and parts.marker_name(v) != "":
+			n += 1
+	return n
+
+
+## V15-04: why a part may not go at (x, y), at once and in words ("" when it may): outside the level;
+## Keen's start painted as a part (the start tool keeps him to one); one object more than the engine holds.
+func refusal(plane: int, x: int, y: int, value: int) -> String:
+	if level == null or not level.in_bounds(x, y):
+		return "That's outside the level."
+	if plane == START_PLANE[engine] and value in START_MARKERS[engine]:
+		return "Keen starts in one place: use the Keen start tool."
+	if plane == START_PLANE[engine] and parts != null and parts.marker_name(value) != "" 			and parts.marker_name(level.get_word(plane, x, y)) == "" and objects() >= OBJECT_LIMIT[engine]:
+		return "No room: the game holds %d creatures, items and platforms in a level." % OBJECT_LIMIT[engine]
+	return ""
+
+
+## V15-04: what would spoil a play, in words: no start; a door whose key or gem is nowhere in the level
+## (Keen 1-3: a door's keycard, intile 2-5 and 18-21; Keen 4-6: a gem holder's gem, misc 7-10 and info
+## 57-60). Empty when there is nothing.
+func problems() -> Array:
+	var out: Array = []
+	if level == null:
+		return out
+	if start_at().x < 0:
+		out.append("Keen has nowhere to start.")
+	if parts == null or engine == KeenLevel.DREAMS:
+		return out
+	var colours: Array = ["yellow", "red", "green", "blue"] if engine == KeenLevel.VORTICONS else ["red", "yellow", "blue", "green"]
+	var tp: int = parts.tile_plane()
+	var doors: Dictionary = {}
+	var keys: Dictionary = {}
+	for i: int in range(level.width * level.height):
+		var u: int = parts.props(level.planes[tp][i]).use
+		if engine == KeenLevel.VORTICONS:
+			if u >= 2 and u <= 5:
+				doors[u - 2] = true
+			elif u >= 18 and u <= 21:
+				keys[u - 18] = true
+		else:
+			if u >= 7 and u <= 10:
+				doors[u - 7] = true
+			var info: int = level.planes[2][i]
+			if info >= 57 and info <= 60:
+				keys[info - 57] = true
+	for c: int in doors:
+		if not keys.has(c):
+			out.append("The %s %s has no %s %s in the level." % [colours[c], "door" if engine == KeenLevel.VORTICONS else "gem holder",
+				colours[c], "keycard" if engine == KeenLevel.VORTICONS else "gem"])
+	return out
+
+
 func begin_stroke() -> void:
 	end_stroke()
 
@@ -121,38 +338,52 @@ func end_stroke() -> void:
 		_stroke = []
 
 
-## Keen's start at (x, y): every start marker cleared, one placed (Keen 4-6 keeps the facing it had).
-func place_start(x: int, y: int) -> bool:
-	if level == null or not level.in_bounds(x, y):
+## Keen's start at (x, y) in `l` (the level being made if null): every start marker cleared, one placed
+## (facing as before). As one undo step when it is the level being made.
+func place_start(x: int, y: int, l: KeenLevel = null) -> bool:
+	var target: KeenLevel = l if l != null else level
+	if target == null or not target.in_bounds(x, y):
 		return false
 	var plane: int = START_PLANE[engine]
 	var value: int = START_MARKERS[engine][0]
-	begin_stroke()
-	for yy: int in range(level.height):
-		for xx: int in range(level.width):
-			var v: int = level.get_word(plane, xx, yy)
+	if target == level:
+		begin_stroke()
+	for yy: int in range(target.height):
+		for xx: int in range(target.width):
+			var v: int = target.get_word(plane, xx, yy)
 			if v in START_MARKERS[engine]:
 				value = v
-				paint(plane, xx, yy, 0)
-	paint(plane, x, y, value)
-	end_stroke()
+				if target == level:
+					paint(plane, xx, yy, 0)
+				else:
+					target.set_word(plane, xx, yy, 0)
+	if target == level:
+		paint(plane, x, y, value)
+		end_stroke()
+	else:
+		target.set_word(plane, x, y, value)
 	return true
 
 
 ## Where Keen starts (-1, -1 when the level has no start).
-func start_at() -> Vector2i:
-	if level == null:
+func start_at(l: KeenLevel = null) -> Vector2i:
+	var target: KeenLevel = l if l != null else level
+	if target == null:
 		return Vector2i(-1, -1)
 	var plane: int = START_PLANE[engine]
-	for y: int in range(level.height):
-		for x: int in range(level.width):
-			if level.get_word(plane, x, y) in START_MARKERS[engine]:
+	for y: int in range(target.height):
+		for x: int in range(target.width):
+			if target.get_word(plane, x, y) in START_MARKERS[engine]:
 				return Vector2i(x, y)
 	return Vector2i(-1, -1)
 
 
 func can_undo() -> bool:
 	return not _undo.is_empty() or not _stroke.is_empty()
+
+
+func can_redo() -> bool:
+	return not _redo.is_empty()
 
 
 func undo() -> bool:
@@ -179,56 +410,51 @@ func redo() -> bool:
 	return true
 
 
-## The edited files: Keen 1-3 {"LEVELnn.CKn": bytes} for every level; Keen 4-6 {maphead, gamemaps}.
-## Empty with `error` when a writer refuses (a limit the engine has).
-func files() -> Dictionary:
+## The engine's files with `l` (the level being made if null) as level `number`: Keen 1-3
+## {"LEVELnn.CKn": bytes}; Keen 4-6 and Dreams the whole map set {maphead, gamemaps}, the game's other
+## maps as they are. Empty with `error` when a writer refuses (a limit the engine has).
+func files(l: KeenLevel = null) -> Dictionary:
+	var lv: KeenLevel = l if l != null else level
+	if lv == null:
+		error = "no level"
+		return {}
 	if engine == KeenLevel.VORTICONS:
-		var out: Dictionary = {}
-		for n: int in levels:
-			var w: VortLevels = VortLevels.new()
-			var bytes: PackedByteArray = w.write(levels[n])
-			if bytes.is_empty():
-				error = w.error
-				return {}
-			out[("LEVEL%02d." % n) + ext] = bytes
-		return out
+		var w: VortLevels = VortLevels.new()
+		lv.number = number
+		var bytes: PackedByteArray = w.write(lv)
+		if bytes.is_empty():
+			error = w.error
+			return {}
+		return {("LEVEL%02d." % number) + ext: bytes}
+	var was: KeenLevel = maps.maps[number]
+	maps.maps[number] = lv
 	var set: Dictionary = maps.write()
+	maps.maps[number] = was
 	if set.is_empty():
 		error = maps.error
 	return set
 
 
-## Saves into `dir` (Megarocket's own folder for this game, e.g. user://maker/keen4): the level files,
-## or GAMEMAPS and MAPHEAD. The game's folder is never written.
-func save(dir: String) -> bool:
-	var f: Dictionary = files()
-	if f.is_empty():
-		return false
-	if ProjectSettings.globalize_path(dir).simplify_path() == ProjectSettings.globalize_path(folder).simplify_path():
-		error = "Saving into the game's own folder is not allowed"
-		return false
-	DirAccess.make_dir_recursive_absolute(dir)
-	var named: Dictionary = f
-	if engine == KeenLevel.GALAXY:
-		named = {"GAMEMAPS." + game_id.substr(4, 1).insert(0, "CK"): f.gamemaps, "MAPHEAD." + game_id.substr(4, 1).insert(0, "CK"): f.maphead}
-	for name: String in named:
-		var fa: FileAccess = FileAccess.open(dir.path_join(name), FileAccess.WRITE)
-		if fa == null:
-			error = "%s: cannot write (%s)" % [name, error_string(FileAccess.get_open_error())]
-			return false
-		fa.store_buffer(named[name])
-		fa.close()
-	dirty = false
-	return true
-
-
-## The play button's request for GameHost.start: this game, straight into the level being edited, the
-## edits in place of the game's files (MAKER-02).
-func play_request(title: String = "") -> Dictionary:
-	var f: Dictionary = files()
-	if f.is_empty() or level == null:
+## The play button's request for GameHost.start: this game, straight into the level being made, written
+## in place of the game's (MAKER-02). With `at` inside the level, Keen is set down there (a copy's start
+## moved; the level being made is not changed).
+func play_request(title: String = "", at: Vector2i = Vector2i(-1, -1)) -> Dictionary:
+	if level == null:
+		error = "no level"
 		return {}
-	var found: Dictionary = {"id": game_id, "title": title if title != "" else game_id, "folder": folder, "play_level": number}
+	end_stroke()
+	var lv: KeenLevel = level
+	if level.in_bounds(at.x, at.y):
+		lv = level.copy()
+		place_start(at.x, at.y, lv)
+	if start_at(lv).x < 0:
+		error = "Keen has nowhere to start: place his start first"
+		return {}
+	var f: Dictionary = files(lv)
+	if f.is_empty():
+		return {}
+	var found: Dictionary = {"id": game_id, "title": title if title != "" else game_id, "folder": folder,
+		"version": version, "play_level": number}
 	if engine == KeenLevel.VORTICONS:
 		found["maker_files"] = f
 	else:
