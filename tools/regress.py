@@ -83,6 +83,74 @@ def harn01a():
     return worst
 
 
+# HARN-06a: each game's main-menu screen case (tools/cases/<game>/scr_menu.json), recorded twice
+MENU_GAMES = ("keen1", "keen2", "keen3", "keen4", "keen5", "keen6", "kdreams", "kdreams193")
+
+
+def harn06a():
+    """Two key-fed recordings of each game's main-menu case (the title, the menu opened, held, Down twice,
+    held) agree on every picture up four refreshes or more, in order (harn01a's rule, first and last left
+    out); a planted altered picture is noticed. A run not yet recorded is recorded (tools/screen_case.py)."""
+    import screen_case
+    root = common.config()["oracle_runs"]
+    worst = common.PASS
+    for game in MENU_GAMES:
+        if not common.game_files(game):
+            print(f"  {game}: COULD-NOT-RUN (no game files)")
+            return common.COULD_NOT_RUN
+        for run in ("a", "b"):
+            if not (root / screen_case.run_name(game, "scr_menu", run) / "frames" / "frames.json").exists():
+                code = screen_case.record(game, "scr_menu", run)
+                if code != common.PASS:
+                    return code
+        code, lines = screen_case.pair(game, "scr_menu")
+        for line in lines:
+            print("  " + line)
+        worst = max(worst, code)
+    return worst
+
+
+def harn06():
+    """The screen-case tool (tools/screen_case.py) fails on planted faults: in Keen 1's and Keen Dreams
+    v1.93's menu cases, one settled picture of the port altered by a pixel and one settled picture of the
+    original left out of the port are each reported, and (v1.93's start screens) one text cell's colour."""
+    import screen_case
+    worst = common.PASS
+    tag = screen_case.checkout_tag("harn06")
+    for game in ("keen1", "kdreams193"):
+        lines = []
+        code = screen_case.check(game, "scr_menu", tag=tag, say=lines.append)
+        print("  " + lines[0] if lines else f"  {game}: no report")
+        if code != common.PASS:
+            for line in lines[1:]:
+                print("  " + line)
+            return code
+        worst = max(worst, screen_case.selftest(game, "scr_menu", tag=tag))
+    return worst
+
+
+def _screen_cases(games):
+    """SCR-01's per-engine rows: every tools/cases/<game>/scr_*.json of the games, the port held against
+    the original's recording by content (tools/screen_case.py check: S1-S5, masks, text screens)."""
+    import screen_case
+    return screen_case.check_games(games)
+
+
+def scr01v():
+    """Keen 1-3's screen cases (SCR-01V)."""
+    return _screen_cases(("keen1", "keen2", "keen3"))
+
+
+def scr01g():
+    """Keen 4-6's screen cases (SCR-01G)."""
+    return _screen_cases(("keen4", "keen5", "keen6"))
+
+
+def scr01d():
+    """Keen Dreams' screen cases, v1.00 and v1.93 (SCR-01D)."""
+    return _screen_cases(("kdreams", "kdreams193"))
+
+
 def harn03a():
     """Godot writes a known pattern through FrameWriter; Python regenerates it and reads the store back."""
     import shutil
@@ -1554,6 +1622,11 @@ CHECKS = {
     "REPLAY-V2": (replayv2, "slow"),
     "REPLAY-V3": (replayv3, "slow"),
     "PREP-01": (prep01, "fast"),
+    "HARN-06": (harn06, "fast"),
+    "HARN-06a": (harn06a, "slow"),
+    "SCR-01V": (scr01v, "slow"),
+    "SCR-01G": (scr01g, "slow"),
+    "SCR-01D": (scr01d, "slow"),
 }
 
 
