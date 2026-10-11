@@ -1576,10 +1576,12 @@ func USL_CtlDialog(s1: String, s2: String, s3: String, min_w: int = 0) -> int:
 		IN_PumpEvents()
 		IN_ReadControls(0, state)
 		if enter_held:
+			# (a repeat of the held Enter is no answer, nor one the machine sent just before its release:
+			# both can come in one pump, which SCR-05G's held A showed in about half its runs)
+			if IN_GetLastScan() == IN_SC_Enter:
+				IN_SetLastScan(IN_SC_None)
 			if not IN_GetKeyState(IN_SC_Enter):
 				enter_held = false
-			elif IN_GetLastScan() == IN_SC_Enter:
-				IN_SetLastScan(IN_SC_None)
 		if state.jump:
 			k = IN_SC_Y
 		elif state.pogo:
