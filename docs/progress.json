@@ -272,6 +272,10 @@
  "milestones": [
   {
    "date": "2026-10-10",
+   "text": "The launcher answers the controller's buttons (A or Start plays, B goes back): Godot's own menu actions held no controller buttons. Keen Dreams' secrets list is written (20 secrets from the official solution text and the level data), ready for the Reveal secrets cheat once Dreams' new drawing lands"
+  },
+  {
+   "date": "2026-10-10",
    "text": "Keen Dreams catches up with Keen 1-6: the cheats (a Cheat keycap in its panel: God mode, infinite ammo and lives, no clipping, jump, slow motion, freeze enemies, free items, extra lives, skip level, level select), quicksave and quickload (F8/F9), the Mode row, touch controls, and the fitted loading times now apply in play. Keen 1-3 can play Keen 4-5's music, a track per level"
   },
   {

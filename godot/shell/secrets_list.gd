@@ -13,7 +13,7 @@ static var _games: Dictionary = {}    # game -> {level: {Vector2i: "secret" | "t
 ## The level's cells to reveal, by the game's data extension ("CK1" ... "CK6") and level (Keen 1-3's
 ## LEVELnn number, Keen 4-6's map): {Vector2i(x, y): "secret" | "trap"}, empty where there are none.
 static func cells(ext: String, level: int) -> Dictionary:
-	var game: String = "keen" + ext.substr(2, 1)
+	var game: String = "kdreams" if ext == "KDR" else "keen" + ext.substr(2, 1)    # (Keen Dreams' data extension: SECRET-01D)
 	if not _games.has(game):
 		_games[game] = _load(game)
 	return _games[game].get(level, {})
