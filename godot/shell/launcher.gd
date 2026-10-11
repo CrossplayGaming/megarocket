@@ -796,6 +796,27 @@ func close_howto() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# SHELL-15 (the user, 2026-10-10: on the launcher only the sticks did anything): Godot 4.7's built-in
+	# ui_accept holds Enter and Space only and ui_cancel Escape only (the d-pad and left stick are in
+	# ui_left..ui_down, so they moved the focus), so a controller's A and Start press the focused control
+	# as Enter does and B goes back as Escape does: the same action events, sent through Input so they
+	# arrive on the next flush and not inside this one. Not in a game (the host takes the controller there)
+	# and not where the button is already in the action (no double press under a Godot that adds them).
+	var jb: InputEventJoypadButton = event as InputEventJoypadButton
+	if host == null and jb != null:
+		var action: String = ""
+		if (jb.button_index == JOY_BUTTON_A or jb.button_index == JOY_BUTTON_START) and not jb.is_action("ui_accept"):
+			action = "ui_accept"
+		elif jb.button_index == JOY_BUTTON_B and not jb.is_action("ui_cancel"):
+			action = "ui_cancel"
+		if action != "":
+			var ac: InputEventAction = InputEventAction.new()
+			ac.action = action
+			ac.pressed = jb.pressed
+			ac.device = jb.device
+			Input.parse_input_event(ac)
+			get_viewport().set_input_as_handled()
+			return
 	if waiting_for_other and event.is_action_pressed("ui_accept"):
 		start_anyway()
 		get_viewport().set_input_as_handled()
@@ -1009,7 +1030,7 @@ func _tile_input(event: InputEvent, id: String) -> void:
 	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 		go = true
 	elif event.is_action_pressed("ui_accept"):
-		go = true    # Enter, Space, a pad's A
+		go = true    # Enter, Space; a controller's A and Start (_input makes them this action)
 	if go:
 		accept_event()
 		launch(id)

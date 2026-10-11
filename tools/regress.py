@@ -1058,6 +1058,18 @@ def audio06():
     return code
 
 
+def shell15():
+    """The controller on the launcher (SHELL-15), with real controller events: the d-pad and stick move
+    between tiles, A and Start start the focused game, B asks to quit, the quit box and the how-to page
+    take the pad, a second controller too."""
+    import gdtest
+    code, out = gdtest.run("shell15_launcher_pad", [], timeout=400.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+            print("  " + line.strip())
+    return code
+
+
 def perf01():
     """Keen 4-6's faster drawing (PERF-01): the screen's conversion into the card's planes, the surface copies,
     tiles, sprites, the intro's one-bit picture and the masked fill give byte for byte what the per-pixel loops
@@ -1412,6 +1424,7 @@ CHECKS = {
     "CTRL-05": (ctrl05, "fast"),
     "MENU-08": (menu08, "fast"),
     "AUDIO-06": (audio06, "fast"),
+    "SHELL-15": (shell15, "fast"),
     "SECRET-01": (secret01, "fast"),
     "SECRET-02": (secret02, "fast"),
     "AND-02a": (and02a, "fast"),
