@@ -1780,6 +1780,8 @@ func DoActor(ob: objtype, ntics: int) -> int:
 				ob.xmove = s16(ob.xmove + (state.xmove if ob.xdir == 1 else -state.xmove))
 			if ob.ydir:
 				ob.ymove = s16(ob.ymove + (state.ymove if ob.ydir == 1 else -state.ymove))
+			if draw_capture and ((ob.xdir != 0 and state.xmove != 0) or (ob.ydir != 0 and state.ymove != 0)):
+				draw_stepped[ob] = true    # REND-03D: a step (the whole move with the next picture), not a slide; presentation only
 
 		if state.thinkptr != &"":
 			if ob.nothink:

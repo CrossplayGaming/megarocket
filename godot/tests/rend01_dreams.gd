@@ -14,7 +14,9 @@ extends SceneTree
 ## (card left, render right) to --out.
 ## REND-02: at 4x (native) the same images in the same order, each under its step from its 1x place (two
 ## original pixels; a sprite with two shifted copies four, with one eight: the original moves those on the
-## copies' grid).
+## copies' grid). REND-03D: between two refreshes, at 1 the newest's layout, at a half each followed sprite
+## midway; a creature that stepped (its state's whole move made as its time ran out, with its next picture)
+## where the newest has it.
 ## Windows over the play (REND-09): the credits over v1.00's title map, "Loading" and the level's name, the
 ## status window (Space), each a rectangle the list carries as its overlay: the list's picture with that
 ## rectangle copied from the card's is the card's.
@@ -80,6 +82,9 @@ func _init() -> void:
 		if wide > 0:
 			t.ok("%s: REND-04D, at %d pixels every image shifted alike, the score box kept on the screen, the map's tiles over all of it (%d of %d)" % [folder, 320 + 16 * wide, r.get("shifted", 0), r.compared],
 				r.compared > 300 and r.get("shifted", 0) == r.compared)
+		print("    smooth motion: %d pairs, %d right, %d sprites slid, %d stepped" % [r.get("smooth_pairs", 0), r.get("smooth", 0), r.get("slid", 0), r.get("stepped", 0)])
+		t.ok("%s: REND-03D between two refreshes: at 1 the newest picture, at a half each followed sprite midway, the creatures' steps not slid (%d of %d; %d stepped)" % [folder, r.get("smooth", 0), r.get("smooth_pairs", 0), r.get("stepped", 0)],
+			r.get("smooth_pairs", 0) > 100 and r.get("smooth", 0) == r.get("smooth_pairs", 0) and r.get("slid", 0) > 100 and r.get("stepped", 0) > 0)
 	if ran == 0:
 		t.blocked("no Keen Dreams release under " + root)
 	t.finish(self)
@@ -173,6 +178,10 @@ func _run(root: String, folder: String, level: int, seconds: float, out: String,
 			r.placed = r.get("placed", 0) + 1
 		if wide > 0:
 			_wide_check(g, list, ops1, wide, r)
+		# REND-03D: at 1 the newest list's layout; at a half each sprite in both (by its record) midway
+		var before: Dictionary = g.draw_list_prev if is_same(list, g.draw_list) else {}
+		if not before.is_empty() and not before.get("none", false) and before.has("sprites"):
+			_smooth_check(g, d, before, list, r)
 		if pic == card.frame_pixels or _same_colours(pic, card.frame_pixels, card.frame_palette):
 			r.match += 1
 			return
@@ -245,6 +254,48 @@ func _wide_check(g: Object, list: Dictionary, ops1: Array, wide: int, r: Diction
 		r.uncovered = r.get("uncovered", 0) + 1
 	if same:
 		r.shifted = r.get("shifted", 0) + 1
+
+
+## REND-03D, a pair of refreshes: at 1 the newest list's layout exactly; at a half every sprite whose record
+## is in both lists midway between its places (the view too), unless it stepped (b's "step") or jumped
+## further than JUMP, when it is where the newest has it.
+func _smooth_check(g: Object, d: DreamsData, before: Dictionary, list: Dictionary, r: Dictionary) -> void:
+	var s4: Vector2 = Vector2(4, 4)
+	var end_ok: bool = DrmDrawLayout.between(g, before, list, 1.0, s4) == DrmDrawLayout.ops(g, list, s4, false)
+	var half: Array = DrmDrawLayout.between(g, before, list, 0.5, s4).filter(func(op: Dictionary) -> bool:
+		return op.kind == "sprite")
+	var was: Dictionary = {}
+	for s: Array in before.sprites:
+		was[int(s[5])] = s
+	var mid_ok: bool = half.size() == list.sprites.size()
+	var view: Vector2 = _view_of(before, list, 0.5)
+	for k: int in range(mini(half.size(), list.sprites.size())):
+		var s: Array = list.sprites[k]
+		if int(s[5]) == int(list.hud):
+			continue
+		var expect: Vector2 = Vector2(float(s[6]), float(s[7])) / 16.0
+		if list.get("step", []).has(int(s[5])):
+			r.stepped = r.get("stepped", 0) + 1
+		elif was.has(int(s[5])):
+			var p: Vector2 = Vector2(float(was[int(s[5])][6]), float(was[int(s[5])][7])) / 16.0
+			if absf(expect.x - p.x) <= DrmDrawLayout.JUMP and absf(expect.y - p.y) <= DrmDrawLayout.JUMP:
+				expect = (expect + p) / 2.0
+				r.slid = r.get("slid", 0) + 1
+		var got: Vector2 = Vector2(half[k].x, half[k].y) / 4.0 + view
+		if got.distance_to(expect) > 0.01:
+			mid_ok = false
+	if end_ok and mid_ok:
+		r.smooth = r.get("smooth", 0) + 1
+	r.smooth_pairs = r.get("smooth_pairs", 0) + 1
+
+
+## Where REND-03's half-way picture has its view, in world pixels (the layout's own rule).
+func _view_of(a: Dictionary, b: Dictionary, alpha: float) -> Vector2:
+	var bv: Vector2 = Vector2(float(int(b.ux)), float(int(b.uy))) / 16.0
+	var av: Vector2 = Vector2(float(int(a.ux)), float(int(a.uy))) / 16.0
+	if absf(bv.x - av.x) <= DrmDrawLayout.JUMP and absf(bv.y - av.y) <= DrmDrawLayout.JUMP:
+		return av.lerp(bv, alpha)
+	return bv
 
 
 ## A picture with a window over the play: the list's with the overlay's rectangle copied from the card's
