@@ -14,6 +14,11 @@ extends ColorRect
 ## presses (the launcher's pad shim makes it Enter), Y goes up, Start chooses the folder shown, B cancels.
 ## Mouse: a click picks, a double click opens, the buttons press. Android keeps the system's picker (the
 ## launcher makes no box there).
+##
+## V15-05 file mode (file_types set, e.g. ["png"]): the list shows the folder's files of those types after
+## its folders, a picked picture is shown beside the list with its size, and the choice is the file picked
+## (Enter, A or a double click on it; Start or the choice button with it picked); `chosen` sends its path.
+## With allow_folder the folder shown may be chosen too (a shared pack's folder).
 
 ## The folder shown was chosen.
 signal chosen(dir: String)
@@ -30,6 +35,17 @@ var look_for_games: bool = true
 var file_name: String = ""
 ## A line saying what the choice does, when neither of those is shown.
 var note_text: String = ""
+## V15-05: the kinds of file listed and chosen (their extensions, lower case); none: folders only.
+var file_types: PackedStringArray = PackedStringArray()
+## In file mode, whether the folder shown may be chosen when no file is picked.
+var allow_folder: bool = false
+## In file mode, the files of those kinds in the folder shown (after the folders in the list).
+var files: PackedStringArray = PackedStringArray()
+var preview: TextureRect
+var preview_label: Label
+var _preview_box: VBoxContainer
+var _list_row: HBoxContainer
+var _file_icon: ImageTexture = null
 
 ## The folder shown.
 var current: String = ""
@@ -72,12 +88,14 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	GameFinder.crc32(PackedByteArray())    # its table made here, before a scan thread can ask for it
+	if not file_types.is_empty():
+		look_for_games = false
 	_build()
 	resized.connect(_on_resized)
 	_on_resized()
 	if start_dir == "" or not open(start_dir):
 		open(home_folder())
-	if folders.is_empty():
+	if folders.is_empty() and files.is_empty():
 		accept_button.grab_focus()
 	else:
 		list.grab_focus()
@@ -150,7 +168,30 @@ func _build() -> void:
 	list.max_columns = 1
 	list.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	list.item_activated.connect(open_item)
-	_column.add_child(list)
+	list.item_selected.connect(func(_i: int) -> void: _update_preview())
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# the list, and in file mode the picked picture beside it
+	_list_row = HBoxContainer.new()
+	_list_row.name = "ListRow"
+	_list_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_list_row.add_child(list)
+	_preview_box = VBoxContainer.new()
+	_preview_box.name = "Preview"
+	_preview_box.visible = not file_types.is_empty()
+	preview = TextureRect.new()
+	preview.name = "Picture"
+	preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_preview_box.add_child(preview)
+	preview_label = Label.new()
+	preview_label.name = "PictureSize"
+	preview_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	preview_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	preview_label.add_theme_color_override("font_color", MegaTheme.ega(7))
+	_preview_box.add_child(preview_label)
+	_list_row.add_child(_preview_box)
+	_column.add_child(_list_row)
 	note_label = Label.new()
 	note_label.name = "Note"
 	note_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -171,7 +212,8 @@ func _build() -> void:
 	_column.add_child(_buttons)
 	hints_label = Label.new()
 	hints_label.name = "Hints"
-	hints_label.text = "Open: Enter / A / double-click   Up: Backspace / Y   %s: Start   Cancel: Esc / B" % accept_text
+	hints_label.text = ("Open: Enter / A / double-click   Up: Backspace / Y   %s: Start   Cancel: Esc / B" % accept_text if file_types.is_empty()
+		else "Open or choose: Enter / A / double-click   Up: Backspace / Y   Cancel: Esc / B")
 	hints_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hints_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hints_label.add_theme_color_override("font_color", MegaTheme.ega(7))
@@ -218,6 +260,10 @@ func _on_resized() -> void:
 		pixel = s
 		theme = theme_for(s)
 		_icon = folder_icon(s)
+		_file_icon = picture_icon(s)
+		_list_row.add_theme_constant_override("separation", 4 * s)
+		preview.custom_minimum_size = Vector2(64, 64) * s
+		_preview_box.custom_minimum_size.x = 72 * s
 		for side: String in ["left", "right", "top", "bottom"]:
 			_margin.add_theme_constant_override("margin_" + side, 4 * s)
 		_column.add_theme_constant_override("separation", 4 * s)
@@ -233,7 +279,7 @@ func _on_resized() -> void:
 			b.custom_minimum_size.x = w + 8.0 * s
 		for i: int in range(list.item_count):
 			if list.get_item_icon(i) != null:
-				list.set_item_icon(i, _icon)
+				list.set_item_icon(i, _icon if i < folders.size() else _file_icon)
 	var mx: float = maxf(4.0 * s, roundf(size.x * 0.04))
 	var my: float = maxf(4.0 * s, roundf(size.y * 0.03))
 	box.offset_left = mx
@@ -327,6 +373,25 @@ static func folder_icon(s: int) -> ImageTexture:
 	return ImageTexture.create_from_image(img)
 
 
+## V15-05: a file (a picture's frame, a hill and a sun) in Megarocket's pixels, `s` screen pixels to one.
+static func picture_icon(s: int) -> ImageTexture:
+	var rows: PackedStringArray = PackedStringArray([
+		"#########",
+		"#ccccc*c#",
+		"#ccccccc#",
+		"#ccggccc#",
+		"#cggggcc#",
+		"#ggggggg#",
+		"#########"])
+	var colours: Dictionary = {"#": MegaTheme.ega(15), "c": MegaTheme.ega(1), "*": MegaTheme.ega(14), "g": MegaTheme.ega(2)}
+	var img: Image = Image.create(rows[0].length() * s, rows.size() * s, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	for y: int in range(rows.size()):
+		for x: int in range(rows[y].length()):
+			img.fill_rect(Rect2i(x * s, y * s, s, s), colours[rows[y][x]])
+	return ImageTexture.create_from_image(img)
+
+
 # ---- the folder shown
 
 ## Shows `dir` and the folders inside it. False (and the box says so) if it can't be opened.
@@ -342,12 +407,19 @@ func open(dir: String) -> bool:
 	var names: Array = Array(d.get_directories()).filter(func(n: String) -> bool: return not n.begins_with("."))
 	names.sort_custom(func(a: String, b: String) -> bool: return a.naturalnocasecmp_to(b) < 0)
 	folders = PackedStringArray(names)
+	var kinds: Array = Array(d.get_files()).filter(func(n: String) -> bool:
+		return not n.begins_with(".") and file_types.has(n.get_extension().to_lower()))
+	kinds.sort_custom(func(a: String, b: String) -> bool: return a.naturalnocasecmp_to(b) < 0)
+	files = PackedStringArray(kinds)
 	list.clear()
 	for n: String in folders:
 		var i: int = list.add_item(n, _icon)
 		list.set_item_tooltip(i, n)
-	if folders.is_empty():
-		var i: int = list.add_item("(no folders in here)")
+	for n: String in files:
+		var i: int = list.add_item(n, _file_icon)
+		list.set_item_tooltip(i, n)
+	if folders.is_empty() and files.is_empty():
+		var i: int = list.add_item("(no folders in here)" if file_types.is_empty() else "(no folders or %s files in here)" % "/".join(file_types).to_upper())
 		list.set_item_disabled(i, true)
 		list.set_item_selectable(i, false)
 		list.set_item_tooltip_enabled(i, false)
@@ -361,6 +433,7 @@ func open(dir: String) -> bool:
 	if look_for_games:
 		looking = true
 		_look()
+	_update_preview()
 	_update_note()
 	return true
 
@@ -368,16 +441,53 @@ func open(dir: String) -> bool:
 ## Opens `dir`, keeping the keys on the list (or on Add when it holds no folders).
 func open_and_focus(dir: String) -> void:
 	if open(dir):
-		if folders.is_empty():
+		if folders.is_empty() and files.is_empty():
 			accept_button.grab_focus()
 		else:
 			list.grab_focus()
 
 
-## The list's item `i` opened (Enter, A, a double click).
+## The list's item `i` opened (Enter, A, a double click): a folder opens, a file is chosen.
 func open_item(i: int) -> void:
 	if i >= 0 and i < folders.size():
 		open_and_focus(current.path_join(folders[i]))
+	elif i >= folders.size() and i < folders.size() + files.size():
+		var path: String = current.path_join(files[i - folders.size()])
+		ShellMessages.note("File chosen: %s" % path)
+		chosen.emit(path)
+
+
+## In file mode, the file picked in the list ("" for none).
+func picked_file() -> String:
+	var sel: PackedInt32Array = list.get_selected_items()
+	if sel.is_empty() or sel[0] < folders.size() or sel[0] >= folders.size() + files.size():
+		return ""
+	return current.path_join(files[sel[0] - folders.size()])
+
+
+## The picked picture beside the list, with its size (a PNG read when it is not huge; another file: its size
+## in bytes).
+func _update_preview() -> void:
+	if file_types.is_empty() or preview == null:
+		return
+	var path: String = picked_file()
+	preview.texture = null
+	preview_label.text = ""
+	if path == "":
+		return
+	if path.get_extension().to_lower() == "png":
+		var size: Vector2i = AssetPacks.png_size(path)
+		if size == Vector2i.ZERO:
+			preview_label.text = "not a PNG picture"
+			return
+		preview_label.text = "%dx%d" % [size.x, size.y]
+		if size.x * size.y <= 4096 * 4096:
+			var img: Image = Image.load_from_file(path)
+			if img != null and not img.is_empty():
+				preview.texture = ImageTexture.create_from_image(img)
+	else:
+		var fa: FileAccess = FileAccess.open(path, FileAccess.READ)
+		preview_label.text = "%d KB" % ceili((fa.get_length() if fa != null else 0) / 1024.0)
 
 
 ## The folder above `dir`, or "" at a drive's top.
@@ -403,6 +513,16 @@ func go_up() -> void:
 
 
 func choose() -> void:
+	if not file_types.is_empty():
+		var f: String = picked_file()
+		if f != "":
+			ShellMessages.note("File chosen: %s" % f)
+			chosen.emit(f)
+			return
+		if not allow_folder:
+			_message = "Pick a %s file in the list first." % "/".join(file_types).to_upper()
+			_update_note()
+			return
 	ShellMessages.note("Folder chosen: %s" % current)
 	chosen.emit(current)
 

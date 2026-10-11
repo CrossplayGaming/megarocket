@@ -69,6 +69,8 @@ const SPEC: Dictionary = {
 	"closet": [{}, "colors", null],
 	# V15-01 replacement packs, per game: [name, on] in the order they apply (a later pack wins)
 	"packs": [[], "packs", null],
+	# V15-05 the Asset Studio: the folder a replacement picture was last chosen from (global)
+	"studio_folder": ["", "text", null],
 }
 
 var path: String = PATH
@@ -144,6 +146,8 @@ static func valid(name: String, value: Variant) -> bool:
 				if not e is Array or (e as Array).size() != 2 or not e[0] is String or not e[1] is bool:
 					return false
 			return true
+		"text":
+			return value is String
 		"folders":
 			if not value is Array:
 				return false

@@ -83,6 +83,9 @@ var closet_button: Button = null
 var packs_button: Button = null
 var closet_page: ClosetPage = null
 var packs_page: PacksPage = null
+## V15-05: the Asset Studio, a page of this screen as the closet is (the asset packs page stays beside it)
+var studio_button: Button = null
+var studio_page: StudioPage = null
 ## SHELL-16: the folder chooser while it is up, and the control the keys go back to when it closes.
 var folder_chooser: FolderChooser = null
 var _chooser_return: Control = null
@@ -175,6 +178,11 @@ func _ready() -> void:
 	packs_button.text = "Asset packs"
 	packs_button.pressed.connect(show_packs)
 	top.add_child(packs_button)
+	studio_button = Button.new()
+	studio_button.name = "Studio"
+	studio_button.text = "Asset Studio"
+	studio_button.pressed.connect(show_studio)
+	top.add_child(studio_button)
 	top.add_child(howto_button)
 	# a way out in fullscreen too (Escape on this screen asks the same); Android leaves by Back
 	quit_button = Button.new()
@@ -553,7 +561,7 @@ func open_chooser(fc: FolderChooser) -> void:
 	close_chooser()
 	fc.canceled.connect(close_chooser)
 	_chooser_return = get_viewport().gui_get_focus_owner() if is_inside_tree() else null
-	for p: Control in [_page, export_page]:
+	for p: Control in [_page, export_page, studio_page, packs_page]:
 		if p != null:
 			p.focus_behavior_recursive = Control.FOCUS_BEHAVIOR_DISABLED
 	folder_chooser = fc
@@ -565,7 +573,7 @@ func close_chooser() -> void:
 		return
 	folder_chooser.queue_free()
 	folder_chooser = null
-	for p: Control in [_page, export_page]:
+	for p: Control in [_page, export_page, studio_page, packs_page]:
 		if p != null:
 			p.focus_behavior_recursive = Control.FOCUS_BEHAVIOR_INHERITED
 	if is_instance_valid(_chooser_return) and _chooser_return.is_visible_in_tree():
@@ -892,6 +900,8 @@ func show_packs() -> void:
 	var o: Array = _owned()
 	packs_page = PacksPage.new()
 	packs_page.closed.connect(close_packs)
+	packs_page.open_chooser_fn = open_chooser
+	packs_page.close_chooser_fn = close_chooser
 	add_child(packs_page)
 	_page.visible = false
 	packs_page.open(settings, o[0], o[1], selected)
@@ -904,6 +914,34 @@ func close_packs() -> void:
 	packs_page = null
 	_page.visible = true
 	packs_button.grab_focus()
+
+
+## V15-05: the Asset Studio, on the game picked on the main screen; its Asset packs button shows that page
+## in its place (Back there returns to the main screen).
+func show_studio() -> void:
+	if studio_page != null:
+		return
+	var o: Array = _owned()
+	studio_page = StudioPage.new()
+	studio_page.closed.connect(close_studio)
+	studio_page.packs_wanted.connect(func() -> void:
+		close_studio()
+		show_packs())
+	studio_page.open_chooser_fn = open_chooser
+	studio_page.close_chooser_fn = close_chooser
+	add_child(studio_page)
+	_page.visible = false
+	studio_page.open(settings, o[0], o[1], selected, pixel)
+
+
+func close_studio() -> void:
+	if studio_page == null:
+		return
+	close_chooser()
+	studio_page.queue_free()
+	studio_page = null
+	_page.visible = true
+	studio_button.grab_focus()
 
 
 func close_howto() -> void:
@@ -1087,6 +1125,9 @@ func close_page() -> bool:
 		return true
 	if packs_page != null:
 		close_packs()
+		return true
+	if studio_page != null:
+		close_studio()
 		return true
 	if import_page != null and _import_thread == null:
 		close_import()

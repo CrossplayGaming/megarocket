@@ -274,3 +274,188 @@ static func _opaque(s: Dictionary) -> Dictionary:
 	for k: int in range(op.size()):
 		op[k] = 1 - op[k]
 	return {"w": s.w, "h": s.h, "pixels": s.pixels, "opaque": op}
+
+
+# ---- sharing a pack (V15-05)
+
+## The file a shared pack carries: the game, the pack's name and the pictures it holds.
+const PACK_INFO: String = "pack.cfg"
+
+
+## A pack's own pictures: the PNG files in its folder (by name), nothing else.
+static func pack_pictures(game_id: String, pack: String) -> PackedStringArray:
+	var out: PackedStringArray = []
+	var dir: String = mods_dir(game_id).path_join(pack)
+	var d: DirAccess = DirAccess.open(dir)
+	if d == null:
+		return out
+	for f: String in d.get_files():
+		if f.get_extension().to_lower() == "png" and png_size(dir.path_join(f)) != Vector2i.ZERO:
+			out.append(f)
+	out.sort()
+	return out
+
+
+## V15-05: a pack ready to share, written into `dest` as a folder "<game> <pack>" holding the pack's own
+## pictures and PACK_INFO, and as "<game> <pack>.zip" beside it (the same files inside a folder of that
+## name). Only the player's pictures go in, never the originals. {ok, folder, zip, count, message}.
+static func export_pack(game_id: String, pack: String, dest: String) -> Dictionary:
+	var pics: PackedStringArray = pack_pictures(game_id, pack)
+	if pics.is_empty():
+		return {"ok": false, "message": "The pack \"%s\" has no pictures yet: replace a picture first." % pack}
+	var label: String = "%s %s" % [game_id, pack]
+	var folder: String = dest.path_join(label)
+	var zip_path: String = folder + ".zip"
+	if DirAccess.make_dir_recursive_absolute(folder) != OK:
+		return {"ok": false, "message": "Megarocket could not make the folder %s." % folder}
+	var old: DirAccess = DirAccess.open(folder)
+	for f: String in old.get_files():    # a shared copy made before: its pictures and info replaced
+		if f.get_extension().to_lower() == "png" or f == PACK_INFO:
+			DirAccess.remove_absolute(folder.path_join(f))
+	var info: ConfigFile = ConfigFile.new()
+	info.set_value("pack", "game", game_id)
+	info.set_value("pack", "name", pack)
+	var names: PackedStringArray = []
+	for f: String in pics:
+		names.append(f.get_basename().to_upper())
+	info.set_value("pack", "pictures", names)
+	info.set_value("pack", "made_with", "Megarocket")
+	var info_text: String = info.encode_to_text()
+	var src: String = mods_dir(game_id).path_join(pack)
+	var z: ZIPPacker = ZIPPacker.new()
+	if z.open(zip_path) != OK:
+		return {"ok": false, "message": "Megarocket could not write %s." % zip_path}
+	for f: String in pics:
+		var bytes: PackedByteArray = FileAccess.get_file_as_bytes(src.path_join(f))
+		var fa: FileAccess = FileAccess.open(folder.path_join(f), FileAccess.WRITE)
+		if fa == null:
+			z.close()
+			return {"ok": false, "message": "Megarocket could not write into %s." % folder}
+		fa.store_buffer(bytes)
+		fa.close()
+		z.start_file(label + "/" + f)
+		z.write_file(bytes)
+		z.close_file()
+	var fi: FileAccess = FileAccess.open(folder.path_join(PACK_INFO), FileAccess.WRITE)
+	if fi != null:
+		fi.store_string(info_text)
+		fi.close()
+	z.start_file(label + "/" + PACK_INFO)
+	z.write_file(info_text.to_utf8_buffer())
+	z.close_file()
+	z.close()
+	return {"ok": true, "folder": folder, "zip": zip_path, "count": pics.size(),
+		"message": "\"%s\" (%d pictures) is ready to share: the folder %s and the ZIP %s." % [pack, pics.size(), folder, zip_path]}
+
+
+## V15-05: a shared pack (a folder, or a ZIP, with PACK_INFO in it or in a folder one level down; or a
+## plain folder of PNG pictures) brought in as a pack of its game (the info's, else `fallback_game`), under
+## its own name (a number added when a pack of that name is there already), switched on as a new folder
+## is. Only PNG pictures are taken (by their own names; no folders inside). {ok, game, pack, count, message}.
+static func import_pack(source: String, fallback_game: String) -> Dictionary:
+	var entries: Dictionary = {}    # file name -> bytes
+	var info_text: String = ""
+	var is_zip: bool = source.get_extension().to_lower() == "zip"
+	var default_name: String = source.get_file().get_basename() if is_zip else source.trim_suffix("/").get_file()
+	if is_zip:
+		var z: ZIPReader = ZIPReader.new()
+		if z.open(source) != OK:
+			return {"ok": false, "message": "%s could not be opened as a ZIP." % source.get_file()}
+		var files: PackedStringArray = z.get_files()
+		var inside: String = ""
+		var depth: int = 99
+		for f: String in files:
+			if f.get_file() == PACK_INFO and f.count("/") < depth:
+				depth = f.count("/")
+				inside = f.get_base_dir()
+		for f: String in files:
+			if f.get_base_dir() != inside:
+				continue
+			if f.get_file() == PACK_INFO:
+				info_text = z.read_file(f).get_string_from_utf8()
+			elif f.get_extension().to_lower() == "png":
+				entries[f.get_file()] = z.read_file(f)
+		z.close()
+	else:
+		var dir: String = source
+		if not FileAccess.file_exists(dir.path_join(PACK_INFO)):
+			var d0: DirAccess = DirAccess.open(dir)
+			if d0 == null:
+				return {"ok": false, "message": "%s could not be opened." % source}
+			for sub: String in d0.get_directories():
+				if FileAccess.file_exists(dir.path_join(sub).path_join(PACK_INFO)):
+					dir = dir.path_join(sub)
+					break
+		if FileAccess.file_exists(dir.path_join(PACK_INFO)):
+			info_text = FileAccess.get_file_as_string(dir.path_join(PACK_INFO))
+		var d: DirAccess = DirAccess.open(dir)
+		if d != null:
+			for f: String in d.get_files():
+				if f.get_extension().to_lower() == "png":
+					entries[f] = FileAccess.get_file_as_bytes(dir.path_join(f))
+	var game_id: String = fallback_game
+	var name: String = default_name
+	if info_text != "":
+		var info: ConfigFile = ConfigFile.new()
+		if info.parse(info_text) == OK:
+			game_id = String(info.get_value("pack", "game", fallback_game))
+			name = String(info.get_value("pack", "name", default_name))
+	var known: bool = false
+	for g: Array in Launcher.GAMES:
+		known = known or g[0] == game_id
+	if not known:
+		return {"ok": false, "message": "%s is a pack for a game Megarocket does not know (%s)." % [source.get_file(), game_id]}
+	var pics: Dictionary = {}
+	for f: String in entries:
+		var b: PackedByteArray = entries[f]
+		if b.size() >= 33 and b.slice(0, 8) == PNG_SIG:
+			pics[f] = b
+	if pics.is_empty():
+		return {"ok": false, "message": "%s has no PNG pictures in it, so there is nothing to bring in." % source.get_file()}
+	name = _safe_name(name)
+	var pack: String = name
+	var n: int = 2
+	while DirAccess.dir_exists_absolute(mods_dir(game_id).path_join(pack)):
+		pack = "%s %d" % [name, n]
+		n += 1
+	var dest: String = mods_dir(game_id).path_join(pack)
+	if DirAccess.make_dir_recursive_absolute(dest) != OK:
+		return {"ok": false, "message": "Megarocket could not make the folder %s." % dest}
+	for f: String in pics:
+		var fa: FileAccess = FileAccess.open(dest.path_join(f), FileAccess.WRITE)
+		if fa != null:
+			fa.store_buffer(pics[f])
+			fa.close()
+	if info_text != "":
+		var fi: FileAccess = FileAccess.open(dest.path_join(PACK_INFO), FileAccess.WRITE)
+		if fi != null:
+			fi.store_string(info_text)
+			fi.close()
+	var skipped: int = entries.size() - pics.size()
+	return {"ok": true, "game": game_id, "pack": pack, "count": pics.size(),
+		"message": "The pack \"%s\" is in %s now: %d pictures, switched on.%s" % [pack, FolderChooser.short_name(game_id), pics.size(),
+			" %d files that were not PNG pictures were left out." % skipped if skipped > 0 else ""]}
+
+
+## A pack switched on in the "packs" setting (kept where it is in the order; added last when new), saved.
+static func switch_on(settings: Settings, game_id: String, pack: String) -> void:
+	var list: Array = listing(settings, game_id)
+	var at: int = -1
+	for i: int in range(list.size()):
+		if list[i][0] == pack:
+			at = i
+	if at < 0:
+		list.append([pack, true])
+	else:
+		list[at][1] = true
+	settings.set_value("packs", list, game_id)
+	settings.save()
+
+
+## A pack's name as a folder's: no characters a folder name can't have, not empty.
+static func _safe_name(name: String) -> String:
+	var out: String = ""
+	for ch: String in name:
+		out += "_" if "/\\:*?\"<>|".contains(ch) or ch.unicode_at(0) < 32 else ch
+	out = out.strip_edges().trim_prefix(".")
+	return out if out != "" else "Shared pack"
