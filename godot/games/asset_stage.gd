@@ -31,6 +31,7 @@ var slot_colors: PackedColorArray = PackedColorArray([Color.BLACK, Color.BLACK, 
 ## What the filters noted (a malformed pack file, a frame a rule could not settle), for the log and reports
 var notes: PackedStringArray = []
 var _done: Dictionary = {}       # key -> the img the filters made (only for sprites they changed)
+var _holders: Array = []         # the filters' objects
 
 
 ## The game ("keen1".."keen6", "kdreams") and its sprites' names (key -> name). Clears what was staged.
@@ -48,13 +49,17 @@ func name_of(key: int) -> String:
 	return names.get(key, "SPRITE_%d" % key)
 
 
+## A filter, its object kept alive with the stage (a Callable alone does not hold a RefCounted).
 func add_filter(f: Callable) -> void:
 	filters.append(f)
+	if f.get_object() != null:
+		_holders.append(f.get_object())
 	_done = {}
 
 
 func clear_filters() -> void:
 	filters.clear()
+	_holders.clear()
 	notes.clear()
 	_done = {}
 
