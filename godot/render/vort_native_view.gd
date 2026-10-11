@@ -10,8 +10,9 @@ extends Control
 ## tile after it, its mask, is clear).
 
 ## A18: two more kinds of texture come from the asset stage (AssetStage.extras): a Keen's Closet sprite
-## (blue = its slot times 40: those pixels take the slot's colour, darkened as the frame's palette darkens
-## that pixel's own colour against the EGA default, so fades still fade him) and a pack's picture in its
+## (blue = the closet's code, slot * 40 + (tone + 1) * 8: those pixels take the slot's colour in the
+## tone (lighter, as is, shaded, deeper), darkened as the frame's palette darkens that pixel's own colour
+## against the EGA default, so fades still fade him) and a pack's picture in its
 ## own colours (alpha 0.5 where it draws, 0 where it is clear; darkened by the frame's overall fade).
 const SHADER: String = """
 shader_type canvas_item;
@@ -31,11 +32,14 @@ void fragment() {
 		if (t.g < 0.5) discard;
 		float i = floor(t.r * 255.0 + 0.5);
 		vec3 c = texture(palette, vec2((i + 0.5) / 16.0, 0.5)).rgb;
-		int slot = int(floor(t.b * 255.0 / 40.0 + 0.5));
+		int code = int(floor(t.b * 255.0 + 0.5));
+		int slot = code / 40;
 		if (slot > 0) {
-			vec3 base = EGA[int(i)];
-			float k = clamp(dot(c, vec3(1.0)) / max(dot(base, vec3(1.0)), 0.05), 0.0, 1.0);
-			c = slots[slot] * k;
+			int tone = (code - slot * 40) / 8 - 1;
+			vec3 s = slots[slot];
+			vec3 shade = tone < 0 ? mix(s, vec3(1.0), 0.4) : s * (tone == 0 ? 1.0 : (tone == 1 ? 0.62 : 0.4));
+			float k = clamp(dot(c, vec3(1.0)) / max(dot(EGA[int(i)], vec3(1.0)), 0.05), 0.0, 1.0);
+			c = shade * k;
 		}
 		COLOR = vec4(c, COLOR.a);
 	}
@@ -252,7 +256,7 @@ static func _staged_texture(pixels: PackedByteArray, cover: PackedByteArray, w: 
 	for k: int in range(w * h):
 		rgba[k * 4] = pixels[k]
 		rgba[k * 4 + 1] = 255 if cover.is_empty() or cover[k] != 0 else 0
-		rgba[k * 4 + 2] = slots[k] * 40
+		rgba[k * 4 + 2] = slots[k]
 		rgba[k * 4 + 3] = 255
 	return ImageTexture.create_from_image(Image.create_from_data(w, h, false, Image.FORMAT_RGBA8, rgba))
 

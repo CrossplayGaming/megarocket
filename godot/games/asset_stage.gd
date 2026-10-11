@@ -15,7 +15,8 @@ extends RefCounted
 ##
 ## A filter is a Callable (stage, key, name, img) -> img, where img is {w, h, pixels (palette indices,
 ## a byte each), opaque (1 where the sprite draws)} and may gain native-view extras: "slots" (a byte a
-## pixel, 1..SLOTS where Keen's Closet colours the pixel in RGB, else 0) or "image" (an RGBA Image, a
+## pixel: 0, or where Keen's Closet colours the pixel in RGB its slot 1..SLOTS times 40 plus its tone
+## (-1 light, 0, 1 shade, 2 deep shade) plus one, times 8) or "image" (an RGBA Image, a
 ## whole multiple of the size, drawn by the native view instead). A filter returns the img it was given
 ## when it leaves the sprite alone. The pixels and opaque it returns keep the size.
 

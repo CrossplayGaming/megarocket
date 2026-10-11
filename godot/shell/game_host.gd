@@ -221,6 +221,7 @@ func start(found: Dictionary) -> bool:
 	match game_id:
 		"keen1", "keen2", "keen3":
 			var d: VortData = VortData.new()
+			_stage_filters(d.stage)
 			if not d.load_game(folder, "CK" + game_id.substr(4, 1)):
 				error = ShellMessages.cant_load(_short_title(found), d.error)
 				return false
@@ -242,6 +243,7 @@ func start(found: Dictionary) -> bool:
 			if game_id == "keen6" and String(found.get("version", "")).contains("1.5"):
 				meta = "keen6e15"
 			var d: GalData = GalData.new()
+			_stage_filters(d.stage)
 			if not d.load_game(folder, "res://data/omnispeak".path_join(meta)):
 				error = ShellMessages.cant_load(_short_title(found), d.error)
 				return false
@@ -262,6 +264,7 @@ func start(found: Dictionary) -> bool:
 			engine = g
 		"kdreams":
 			var dd: DreamsData = DreamsData.new()
+			_stage_filters(dd.stage)
 			if not dd.load_game(folder):
 				error = ShellMessages.cant_load(_short_title(found), dd.error)
 				return false
@@ -364,6 +367,17 @@ func start(found: Dictionary) -> bool:
 
 ## A setting changed in the game's Options (or at the start): applied to the window, the picture or
 ## the sound at once (main thread).
+## V15-01 / V15-06 (A18): the player's packs and Keen's Closet for this game, as the asset stage's filters,
+## set before the game's files are read (a later pack wins over an earlier; the closet colours what the
+## packs leave). Nothing is set with both off, so the stage stays the identity.
+func _stage_filters(stage: AssetStage) -> void:
+	var settings: Settings = Settings.new(settings_path)
+	AssetPacks.apply(stage, settings, game_id)
+	var cl: KeenCloset = KeenCloset.from_settings(settings, game_id)
+	if cl != null:
+		stage.add_filter(cl.filter)
+
+
 func apply_setting(name: String) -> void:
 	if options == null:
 		return
