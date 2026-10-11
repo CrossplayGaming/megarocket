@@ -565,11 +565,36 @@ def maker02():
 
 
 def maker03():
-    """The level maker's document (MAKER-03): Keen 1 and Keen 4 opened, a drag painted as one undo step,
-    undo and redo, Keen's start moved, saved into the maker's folder and read back, the game's own
-    folder refused, the play request."""
+    """The level maker's document (MAKER-03, V15-02..04): Keen 1, 4 and Dreams opened, a remix a copy, a
+    drag and a filled box each one undo step, Keen's start moved, a new level (ground, frame, start), the
+    library (save, list, read back, rename, duplicate, delete), play from the cursor written in the
+    engine's format, the tile-use tables (PREP-01) checked against the engines' tile properties."""
     import gdtest
     code, out = gdtest.run("maker03_model", [], timeout=300.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
+def v1502():
+    """Keen Maker's levels play through the games' own loaders (V15-02, V15-04; MAKER-01/02 for every
+    engine, Keen Dreams too): a new level played from the cursor in Keen 1, 4 and Dreams, and Dreams' own
+    level 1 remixed, each in the host with Keen set down where the maker said."""
+    import gdtest
+    code, out = gdtest.run("maker05_play_made", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
+def v1503():
+    """Keen Maker's screens by real input (V15-03, V15-02): from the launcher's button through the game
+    picker, the library (new, save, rename by d-pad, duplicate, delete asked first, play) and the editor
+    (cursor, tools, parts, play from the cursor and back with the trail), controller, keys and mouse."""
+    import gdtest
+    code, out = gdtest.run("maker04_screen", [], timeout=600.0, quiet=True)
     for line in out.splitlines():
         if "FAIL" in line or "checks" in line or "ERROR" in line:
             print("  " + line.strip())
@@ -1995,6 +2020,8 @@ CHECKS = {
     "MAKER-01": (maker01, "fast"),
     "MAKER-02": (maker02, "fast"),
     "MAKER-03": (maker03, "fast"),
+    "V15-02": (v1502, "fast"),
+    "V15-03": (v1503, "fast"),
     "REND-04G": (rend04g, "slow"),
     "REND-04D": (rend04d, "fast"),
     "FIX-01": (fix01, "slow"),
