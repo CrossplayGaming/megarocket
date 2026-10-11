@@ -59,7 +59,7 @@ func summary() -> String:
 		if k.begins_with("why "):
 			why[k.substr(4)] = r[k]
 	return JSON.stringify({"shown": r.shown, "compared": r.compared, "match": r.match, "differ": r.differ,
-		"windows": r.windows, "windows_ok": r.windows_ok, "skipped": r.skipped, "why": why})
+		"windows": r.windows, "windows_ok": r.windows_ok, "windows_part": r.get("windows_part", 0), "window_px": r.get("window_px", 0), "skipped": r.skipped, "why": why})
 
 
 # ------------------------------------------------------------------ Keen 1-3
@@ -234,6 +234,7 @@ func _window(card: EgaCard, pic: PackedByteArray, list: Dictionary, over: Rect2i
 	r.windows += 1
 	if rect.size.x < W or rect.size.y < H:
 		r.windows_part = r.get("windows_part", 0) + 1
+	r.window_px = r.get("window_px", 0) + rect.get_area()    # under the window: taken from the card, not compared
 	var key: Array = [float(list.get("t", -1.0)), rect]
 	var ok: bool = _memo_ok
 	if not _memo(key, card):

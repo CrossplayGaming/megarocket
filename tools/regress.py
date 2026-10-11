@@ -677,8 +677,8 @@ def rend01r():
     started = time.time()
     with ThreadPoolExecutor(max_workers=8) as pool:
         results = list(pool.map(lambda job: (job[0], job[1], job[2], *job[3]()), jobs))
-    keys = ("shown", "compared", "match", "differ", "windows", "windows_ok", "skipped")
-    by_game, by_corpus, why = {}, {}, {}
+    keys = ("shown", "compared", "match", "differ", "windows", "windows_ok", "windows_part", "window_px", "skipped")
+    by_game, by_corpus, why, empty = {}, {}, {}, []
     worst = common.PASS
     for corpus, game, case, code, note, lists in results:
         for table, k in ((by_game, game), (by_corpus, corpus)):
@@ -696,6 +696,10 @@ def rend01r():
             bad.append(f"{lists['differ']} of {lists['compared']} pictures differ from their lists, "
                        f"{lists['windows'] - lists['windows_ok']} of {lists['windows']} windows wrong")
             code = max(code, common.FAIL)
+        if lists and not lists["compared"] and not lists["windows"]:
+            empty.append(f"{game} {case}")    # nothing from a list: no coverage, said so
+        if corpus == "SCR-01" and ": FAIL" in note:
+            print(f"  {corpus} {game} {case}: (its own check against the recording fails: SCR-01's to fix) {note}")
         if code != common.PASS or bad:
             print(f"  {corpus} {game} {case}: {common.NAMES[code]}: {'; '.join(bad + [note])}")
         worst = max(worst, code)
@@ -703,7 +707,11 @@ def rend01r():
         for k, row in table.items():
             print(f"  {title} {k}: {row['cases']} runs, {row['shown']} pictures shown; {row['compared']} from a "
                   f"refresh's list, {row['match']} match, {row['differ']} differ; {row['windows']} with a window "
-                  f"over the play, {row['windows_ok']} right; {row['skipped']} set aside")
+                  f"over the play, {row['windows_ok']} right (compared outside the window: on average "
+                  f"{100.0 * row['window_px'] / max(1, row['windows'] * 64000):.0f}% of the picture was under it); "
+                  f"{row['skipped']} set aside")
+    if empty:
+        print("  compared nothing (every picture set aside; no coverage from these): " + ", ".join(empty))
     print("  set aside: " + ", ".join(f"{w} {n}" for w, n in sorted(why.items(), key=lambda x: -x[1])))
     for corpus, game, case, code, note, _lists in results:
         if corpus in ("level sessions (G)", "REPLAY-D", "boot (D)", "SCR-01") and code == common.PASS:
