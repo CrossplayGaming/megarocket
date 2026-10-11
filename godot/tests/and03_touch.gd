@@ -70,6 +70,12 @@ func _go() -> void:
 		o4.codes_at(o4.button_rect("Fire").get_center()) == [0x73] and o1.codes_at(o1.button_rect("Fire").get_center()) == [0x73])
 	o4.free()
 	o1.free()
+	var od: TouchOverlay = TouchOverlay.new("kdreams")
+	od.size = Vector2(851, 393)
+	od._place()
+	t.ok("Keen Dreams: Jump and Throw (the Fire code), no Pogo",
+		od._buttons.has("Throw") and not od._buttons.has("Pogo") and od.codes_at(od.button_rect("Throw").get_center()) == [0x73])
+	od.free()
 
 	var data: String = T.options().get("game_data", "")
 	if data == "":

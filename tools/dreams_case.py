@@ -95,7 +95,7 @@ def measured_start(game, case, out):
 # steps from 0.045 to 0.075 s; the outcome swings with it, which frame a key or the mode set falls in),
 # with the costs of dreams_costs.json: fit it again when they change.
 FEED_PRE = {"kdreams": 0.05, "kdreams193": 0.045}
-COSTS = CASES / "dreams_costs.json"
+COSTS = Path(__file__).resolve().parent.parent / "godot" / "data" / "dreams_costs.json"    # (the game's own copy: the host reads it)
 
 
 def feed_pre(game, case=None):

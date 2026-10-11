@@ -165,6 +165,24 @@ func _ready() -> void:
 	focus_mode = Control.FOCUS_ALL
 
 
+## TIME-D: Keen Dreams' costs (tools/calibrate_dreams.py fits them; drm_boot takes them on its command line)
+## into the engine and the machine, as drm_boot applies them.
+func _dreams_costs(dg: DreamsGame, release: String) -> void:
+	var text: String = FileAccess.get_file_as_string("res://data/dreams_costs.json")
+	var doc: Variant = JSON.parse_string(text) if text != "" else null
+	if not doc is Dictionary:
+		return
+	var costs: Dictionary = (doc as Dictionary).get("costs", {})
+	for k: String in costs:
+		dg.costs[k] = int(costs[k])
+	var own: Dictionary = ((doc as Dictionary).get("by_game", {}) as Dictionary).get(release, {})
+	for k: String in own:
+		dg.costs[k] = int(own[k])
+	vm.vga_access_units = int(dg.costs.get("vga", 0))
+	if dg.costs.has("pitphase"):
+		vm.timer_offset = int(dg.costs["pitphase"])
+
+
 ## Starts a found game (a GameFinder result). False, with `error`, when its
 ## engine isn't ready to play or its files don't load.
 ## MAKER-02, the maker's play button: with "play_level" (a level number) the game goes straight into
@@ -229,6 +247,9 @@ func start(found: Dictionary) -> bool:
 			vm.set_cycles(20000)
 			vm.vbl_period = 17024400
 			vm.timer_offset = 0
+			# TIME-D: the original's time for its loads and screens, the costs fitted on the recordings
+			# (godot/data/dreams_costs.json: the shared ones, then the release's own), and the timer's phase
+			_dreams_costs(dg, "kdreams193" if dd.version == "e193" else "kdreams")
 			if dd.version == "e193":
 				dg.us_files["KDREAMS.CMP"] = dd._read("KDREAMS.CMP")    # v1.93's title archive, from the game
 			dg.user_dir = ProjectSettings.globalize_path("user://saves").path_join(game_id)
@@ -650,9 +671,9 @@ func _pad(b: Variant, down: bool) -> void:
 	if _pad_sent.has(b):
 		return
 	var code: int = 0
-	var quick: bool = options != null and bool(options.get_value("quicksave")) and (engine is VortScreens or engine is GalGame)
+	var quick: bool = options != null and bool(options.get_value("quicksave"))
 	if b is int and quick and controls != null and controls.buttons("quicksave").has(b):
-		code = 0x41 if engine is VortScreens else 0x3F    # Keen 1-3's F7, Keen 4-6's F5
+		code = 0x41 if engine is VortScreens else (0x42 if engine is DreamsGame else 0x3F)    # Keen 1-3's F7, Dreams' F8, Keen 4-6's F5
 	elif b is int and quick and controls != null and controls.buttons("quickload").has(b):
 		code = 0x43    # F9
 	elif b is int and b == JOY_BUTTON_START:

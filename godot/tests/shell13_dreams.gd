@@ -61,10 +61,16 @@ func _release(root_dir: String, folder: String, version: String, screens: Array)
 		host.queue_free()
 		return
 	t.ok("%s: the player's files kept in %s" % [version, host.engine.user_dir], str(host.engine.user_dir).ends_with("saves/kdreams"))
+	# TIME-D: the fitted costs (godot/data/dreams_costs.json) reach the game and the machine in play
+	var cst: Dictionary = host.engine.costs
+	t.ok("%s: TIME-D's costs in play (grbyte %d, mmscan %d, the timer's phase %d)" % [version, cst.get("grbyte", 0), cst.get("mmscan", 0), host.vm.timer_offset],
+		int(cst.get("grbyte", 0)) == 4847 and int(cst.get("mmscan", 0)) == (1833 if version.contains("1.93") else 1362) and host.vm.timer_offset == 4500000)
+	# (the start screen with its key prompt: with TIME-D's costs the loading text before it stays up a while)
 	var text: bool = await _wait(func() -> bool:
 		if host.paused:
 			host.set_paused(false)
-		return host._text_view.visible and _text_of(host._text_view).strip_edges() != "", 20.0)
+		var w: String = _text_of(host._text_view) if host._text_view.visible else ""
+		return w.contains("Press") or w.contains("ENTER"), 30.0)
 	var words: String = _text_of(host._text_view)
 	t.ok("%s: the text start screen drawn by the shell, in the frame (%s...)" % [version, words.strip_edges().substr(0, 40)],
 		text and host._backdrop.frame_rect.size.x > 0.0 and (words.contains("Press") or words.contains("ENTER")))

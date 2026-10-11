@@ -7,14 +7,15 @@ extends Control
 ## so the game cannot tell them apart. Several fingers at once; a finger
 ## sliding on the d-pad changes direction (two arrows on a diagonal). Keen 1-3
 ## get Jump, Pogo and the added one-button Fire (Ctrl and Alt together: J-06,
-## J-13); Keen 4-6 and Dreams Jump, Pogo and Fire (Space). Shown on a touch
-## screen while no pad is being used.
+## J-13); Keen 4-6 Jump, Pogo and Fire (Space); Keen Dreams Jump and Throw (its
+## two buttons). Shown on a touch screen while no pad is being used.
 
 ## [name, label, scan codes]
 ## (CTRL-02: Jump, Pogo and Fire are the touch screen's own codes, ControlsModel.TOUCH_CODES, which the
 ## games' readers count whatever keys the player has bound)
 const VORTICONS: Array = [["Jump", "Jump", [0x71]], ["Pogo", "Pogo", [0x72]], ["Fire", "Fire", [0x73]]]
 const GALAXY: Array = [["Jump", "Jump", [0x71]], ["Pogo", "Pogo", [0x72]], ["Fire", "Fire", [0x73]]]
+const DREAMS: Array = [["Jump", "Jump", [0x71]], ["Throw", "Throw", [0x73]]]    # (Fire's code: the throw's)
 const TOP: Array = [["Menu", "Menu", [0x01]], ["OK", "OK", [0x1C]]]
 const UP: int = 0x48
 const DOWN: int = 0x50
@@ -35,7 +36,7 @@ func _init(game_id: String = "") -> void:
 	name = "TouchOverlay"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var actions: Array = VORTICONS if game_id in ["keen1", "keen2", "keen3"] else GALAXY
+	var actions: Array = VORTICONS if game_id in ["keen1", "keen2", "keen3"] else (DREAMS if game_id == "kdreams" else GALAXY)
 	for a: Array in actions + TOP:
 		_buttons[a[0]] = [Rect2(), a[2], a[1]]
 	resized.connect(_place)

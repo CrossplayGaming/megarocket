@@ -8,7 +8,7 @@ matches (the recording's picture reached) and, at each place the original shows 
 (a loading box, its bar, text being printed), how many refreshes the recording then runs behind the
 port (the drift; 0 when the load took the original's time). The fit raises the pictures matched in all,
 then lowers the drift, one cost at a time by factors (coordinate descent), and writes the costs to
-tools/cases/dreams_costs.json (tools/dreams_case.py passes them to the port).
+godot/data/dreams_costs.json (tools/dreams_case.py passes them to the port; the host applies them in play).
 
     python tools/calibrate_dreams.py [--games kdreams kdreams193] [--workers 8] [--rounds 6]
     python tools/calibrate_dreams.py --report       # the current costs' score per session
@@ -28,7 +28,7 @@ import dreams_case
 import frames
 import timing_score
 
-COSTS = Path(__file__).parent / "cases" / "dreams_costs.json"
+COSTS = Path(__file__).parent.parent / "godot" / "data" / "dreams_costs.json"    # (the game reads it too: the host)
 WORK = Path("F:/KeenReworkWork/port_runs")
 # the costs fitted and where each starts (Galaxy's TIME-G values for the shared engine's work)
 # (lzhbyte: v1.93's title, LZH-packed, takes the original 0.6 s after the mode set: 28500 a byte)
