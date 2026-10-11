@@ -71,7 +71,9 @@ const PAD_NAMES: Dictionary = {
 ## The d-pad's codes, part of the four directions whatever is bound.
 const PAD_MOVE: Dictionary = {"up": 0x6D, "down": 0x6E, "left": 0x6F, "right": 0x70}
 ## The touch screen's Jump, Pogo and Fire (TouchOverlay): their own codes, part of those actions always.
-const TOUCH_CODES: Dictionary = {"jump": 0x71, "pogo": 0x72, "fire": 0x73}
+## J-50: and its Status button, 0x74 (no PC key's; its release 0xF4 is nothing to the keyboard routines),
+## so the status screen opens whatever key the keyboard's Status is given.
+const TOUCH_CODES: Dictionary = {"jump": 0x71, "pogo": 0x72, "fire": 0x73, "status": 0x74}
 
 var settings: Settings = null
 

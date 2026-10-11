@@ -1,7 +1,8 @@
 # Copyright (C) 2026 the Megarocket contributors. GPL v2 or later. See LICENSE.md.
 extends SceneTree
 ## CTRL-04: Keen 4-6's CONTROLS card, walked from the title's menu with the keyboard (the host's part, the
-## capture's hand-over, played by the test): CONFIGURE has CONTROLS where KEYBOARD and the joysticks were;
+## capture's hand-over, played by the test): CONFIGURE has CONTROLS where KEYBOARD and the joysticks were
+## (and J-54's TOUCH after it);
 ## CONTROLS > KEYBOARD lists each action and its keys; JUMP > CHANGE catches Q (Jump: Q, Ctrl); ADD SECOND
 ## greyed while an action has two; FIRE BUTTON moves to JUMP + POGO; OPTIONS has no TWO-BUTTON FIRING.
 ## Pictures at the steps go to --shots.
@@ -55,6 +56,9 @@ func _init() -> void:
 		[11.5, KEY_DOWN], [12.0, KEY_DOWN], [12.5, KEY_DOWN], [13.0, KEY_DOWN], [14.0, KEY_ENTER],
 		[15.5, KEY_ENTER], [18.0, KEY_SPACE],
 		[19.5, KEY_ESC], [21.0, KEY_ESC], [22.5, KEY_DOWN], [23.0, KEY_DOWN], [24.0, KEY_ENTER], [25.5, KEY_SPACE]]
+	if FixesModel.for_game(game).is_empty():
+		# (Keen 6: no FIXES, CONTROLS fifth; J-54's TOUCH after it, so the fifth down would reach TOUCH)
+		script.erase([7.5, KEY_DOWN])
 	for k: Array in script:
 		vm.add_key_after("menu", k[0], k[1], 0.2)
 	var card: EgaCard = vm.card
@@ -105,7 +109,7 @@ func _init() -> void:
 				jump_card.append([str(item.get("caption")), (int(item.get("state")) & GalMenu.US_IS_Disabled) != 0])
 	t.ok("the run kept going (quit '%s')" % g.quit_message, g.quit_message == "time limit")
 	t.ok("CONFIGURE: CONTROLS where KEYBOARD and the joysticks were (%s)" % [configure],
-		configure.has("CONTROLS") and not configure.has("KEYBOARD") and not configure.any(func(c: String) -> bool: return c.begins_with("USE JOYSTICK")))
+		configure.has("CONTROLS") and configure.find("TOUCH") == configure.find("CONTROLS") + 1 and not configure.has("KEYBOARD") and not configure.any(func(c: String) -> bool: return c.begins_with("USE JOYSTICK")))
 	t.ok("OPTIONS has no TWO-BUTTON FIRING (%s)" % [options_rows], not options_rows.any(func(c: String) -> bool: return c.begins_with("TWO-BUTTON")))
 	t.eq("CONTROLS' items", controls, ["KEYBOARD", "CONTROLLER", "FIRE BUTTON (JUMP + POGO)", "RESET TO DEFAULTS"])
 	t.ok("KEYBOARD lists each action and its keys (%s)" % [keyboard],

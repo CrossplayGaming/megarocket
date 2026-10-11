@@ -1825,14 +1825,33 @@ def and04():
 
 
 def and03a():
-    """The touch controls: bounds at three screens, each engine's Fire, and in the host on Keen 1 the
-    touches delivered to the game as the keyboard's scan codes; hidden with a pad in use."""
+    """The touch controls: bounds at three screens (J-54: in each layout and size), each engine's Fire,
+    Status's own code (J-50), and in the host on Keen 1 the touches delivered to the game as the keyboard's
+    scan codes; hidden with a pad in use."""
     import gdtest
     code, out = gdtest.run("and03_touch", [], timeout=300.0, quiet=True)
     for line in out.splitlines():
         if "FAIL" in line or "checks" in line or "ERROR" in line:
             print("  " + line.strip())
     return code
+
+
+def touch01():
+    """The touch controls' settings and Status button (J-54, J-50), one game of each engine (Keen 1, Keen 4,
+    Keen Dreams v1.93) in the host with real key, controller and touch events: the game's Touch page (Keen
+    1-3's Options > Controls... > Touch..., Keen 4-6's CONFIGURE > TOUCH card, Dreams' Input keycap) moves
+    Layout, Opacity, Size and Show with a pad by the keys and the controller, the game's own setting
+    changes and the on-screen controls follow at once; with the keyboard's Status moved to Q the overlay's
+    Status opens the status screen (OK, Enter, no longer does) and a key closes it."""
+    import gdtest
+    worst = 0
+    for game in ("keen1", "keen4", "kdreams193"):
+        code, out = gdtest.run("touch01_settings", ["--game=" + game], timeout=600.0, quiet=True)
+        for line in out.splitlines():
+            if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+                print("  %s: %s" % (game, line.strip()))
+        worst = max(worst, code)
+    return worst
 
 
 def shell07():
@@ -1994,6 +2013,7 @@ CHECKS = {
     "AND-02a": (and02a, "fast"),
     "SHELL-10b": (shell10b, "fast"),
     "AND-03a": (and03a, "fast"),
+    "TOUCH-01": (touch01, "fast"),
     "SCR-04": (scr04, "fast"),
     "SCR-05V": (scr05v, "fast"),
     "HOST-01": (host01, "slow"),
