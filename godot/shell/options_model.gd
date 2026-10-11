@@ -31,6 +31,10 @@ const PRESETS: Dictionary = {
 	"enhanced": {"quicksave": true, "one_button_fire": true, "wide_view": true, "native_resolution": true, "smooth_motion": true, "creature_question": false, "fix_k2_esc_skips": true, "fix_k2_tantalus_fade": true, "fix_k3_messie_double": true, "fix_god_lurch": true, "fix_keen_over_scenery": true, "fix_dreams_keys_kept": true, "fix_dreams_death_box": true},
 }
 const VOLUME_STEP: int = 10
+## J-54: the touch controls' layouts as the Touch page names them, in the order a step goes; the step of
+## their opacity and size.
+const TOUCH_LAYOUTS: Dictionary = {"standard": "D-pad left", "swapped": "D-pad right", "compact": "Compact"}
+const TOUCH_STEP: int = 10
 
 
 func _init(p_settings: Settings, p_game: String, p_engine: String) -> void:
@@ -39,7 +43,7 @@ func _init(p_settings: Settings, p_game: String, p_engine: String) -> void:
 	engine = p_engine
 
 
-## The rows of a page: "options" (the top), "display", "sound", "controls", "keys", "pad", "fixes",
+## The rows of a page: "options" (the top), "display", "sound", "controls", "keys", "pad", "touch", "fixes",
 ## "bindact:<device>:<action>".
 func page(name: String) -> Array:
 	if name.begins_with("bindact:"):
@@ -112,7 +116,8 @@ func page(name: String) -> Array:
 		"controls":
 			# CTRL-03..05 (the user, 2026-10-10): the same pages in every game, each in its own style; the old
 			# control screens (Keen 1-3's Keyboard Commands, 4-6's KEYBOARD cards, Dreams' panel) replaced
-			var rows: Array = [_row("keys", "Keyboard...", "page"), _row("pad", "Controller...", "page")]
+			var rows: Array = [_row("keys", "Keyboard...", "page"), _row("pad", "Controller...", "page"),
+				_row("touch", "Touch...", "page")]    # (J-54: the on-screen controls' page, beside the others)
 			if engine == "vorticons":
 				# J-06: Fire on its own key (Fire's keys hold both buttons), or the original's two together
 				rows.append(_value("one_button_fire", "Fire button", "Own button" if bool(get_value("one_button_fire")) else "Two keys"))
@@ -122,6 +127,18 @@ func page(name: String) -> Array:
 			rows.append(_row("reset_controls", "Reset to defaults", "action"))
 			rows.append(_row("exit", "Back", "action"))
 			return rows
+		"touch":
+			# J-54 (MENUS.md's TOUCH: LAYOUT / OPACITY / SIZE / SHOW WHEN PAD PRESENT): the on-screen controls,
+			# which follow each change at once (GameHost.apply_setting)
+			var lr: Dictionary = _value("touch_layout", "Layout", str(TOUCH_LAYOUTS.get(get_value("touch_layout"), "D-pad left")))
+			lr["desc"] = "Which side the d-pad is on"
+			var orow: Dictionary = _value("touch_opacity", "Opacity", "%d%%" % int(get_value("touch_opacity")))
+			orow["desc"] = "How clearly the controls show"
+			var srow: Dictionary = _value("touch_size", "Size", "%d%%" % int(get_value("touch_size")))
+			srow["desc"] = "How big the controls are"
+			var prow: Dictionary = _value("touch_with_pad", "Show with a pad", _on_off(get_value("touch_with_pad")))
+			prow["desc"] = "Shown while a controller is used"
+			return [lr, orow, srow, prow, _row("exit", "Back", "action")]
 		"extras":
 			# MENU-08: what the main menus had beside the game itself
 			var rows: Array = []
@@ -244,6 +261,14 @@ func step(key: String, dir: int) -> void:
 			_put("pixel_shape", "square" if get_value("pixel_shape") == "4:3" else "4:3")
 		"effects_volume", "music_volume":
 			_put(key, clampi(int(get_value(key)) + dir * VOLUME_STEP, 0, 100))
+		"touch_layout":
+			var names: Array = TOUCH_LAYOUTS.keys()
+			_put(key, names[posmod(names.find(get_value(key)) + dir, names.size())])
+		"touch_opacity", "touch_size":
+			var lim: Array = Settings.SPEC[key][2]
+			_put(key, clampi(int(get_value(key)) + dir * TOUCH_STEP, int(lim[0]), int(lim[1])))
+		"touch_with_pad":
+			_put(key, not bool(get_value(key)))
 		_:
 			if key.begins_with("fix_"):
 				_put(key, not bool(get_value(key)))
@@ -251,19 +276,22 @@ func step(key: String, dir: int) -> void:
 
 
 ## SCR-03: a value row moved on by choosing it, where a menu has no left and right (Keen 4-6's cards): as
-## step(key, 1), and a volume at its top goes round to 0, so every value can be reached.
+## step(key, 1), and a volume at its top goes round to 0 (J-54: the touch controls' opacity and size to
+## their least), so every value can be reached.
 func cycle(key: String) -> void:
-	if key in ["effects_volume", "music_volume"] and int(get_value(key)) >= 100:
-		_put(key, 0)
-		_recompute_mode()
-		return
+	if key in ["effects_volume", "music_volume", "touch_opacity", "touch_size"]:
+		var lim: Array = Settings.SPEC[key][2]
+		if int(get_value(key)) >= int(lim[1]):
+			_put(key, int(lim[0]))
+			_recompute_mode()
+			return
 	step(key, 1)
 
 
 ## What choosing a row does.
 func activate(key: String) -> String:
 	# "cheats": the engine builds that page itself from CheatsModel (its rows are the engine's flags)
-	for name: String in ["options", "display", "sound", "controls", "gameplay", "cheats", "fixes", "keys", "pad", "extras"]:
+	for name: String in ["options", "display", "sound", "controls", "gameplay", "cheats", "fixes", "keys", "pad", "touch", "extras"]:
 		if key == name:
 			return "page:" + name
 	if key.begins_with("bind:"):

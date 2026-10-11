@@ -56,6 +56,13 @@ const SPEC: Dictionary = {
 	# action missing its defaults'
 	"keys": [{}, "bindings", null],
 	"pad": [{}, "bindings", null],
+	# J-54 (AND-03): the on-screen controls (TouchOverlay), per game as the buttons are: where the d-pad sits
+	# (the buttons the other side; compact: the buttons in a block of two columns), how clearly they show
+	# (50: the overlay's own look), their size (a percentage) and whether they stay with a pad in use
+	"touch_layout": ["standard", "enum", ["standard", "swapped", "compact"]],
+	"touch_opacity": [50, "int", [10, 100]],
+	"touch_size": [100, "int", [50, 150]],
+	"touch_with_pad": [false, "bool", null],
 }
 
 var path: String = PATH

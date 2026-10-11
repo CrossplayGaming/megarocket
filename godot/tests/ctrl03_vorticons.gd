@@ -112,7 +112,7 @@ func _go() -> void:
 
 	# every page fits the window
 	var fits: bool = true
-	for p: String in ["controls", "keys", "pad", "bindact:keys:jump", "bindact:pad:fire"]:
+	for p: String in ["controls", "keys", "pad", "touch", "bindact:keys:jump", "bindact:pad:fire"]:
 		var rows: Array = host.options.page(p)
 		if rows.size() > VortScreens.OPTIONS_H:
 			fits = false
@@ -197,13 +197,13 @@ func _go() -> void:
 	await _press(JOY_BUTTON_A)
 	await _leave(true)    # back out of Options with B
 
-	# Reset to defaults (Controls page: Keyboard, Controller, Fire button, Reset)
+	# Reset to defaults (Controls page: Keyboard, Controller, Touch (J-54), Fire button, Reset)
 	await _tap(KEY_F3)
 	await _pause(0.4)
 	await _tap(KEY_ESCAPE)    # from the Keyboard page up to Controls
 	await _pause(0.3)
 	await _shot("ctrl03_controls")
-	for i: int in range(3):
+	for i: int in range(4):
 		await _tap(KEY_DOWN)
 	await _tap(KEY_ENTER)
 	await _pause(0.3)

@@ -388,7 +388,7 @@ func _keen1() -> void:
 	await _presses(JOY_BUTTON_DPAD_DOWN, 3)
 	await _press(JOY_BUTTON_A)
 	await _page("controls")
-	await _presses(JOY_BUTTON_DPAD_DOWN, 3)
+	await _presses(JOY_BUTTON_DPAD_DOWN, 4)    # (Keyboard, Controller, Touch, Fire button: Reset)
 	await _press(JOY_BUTTON_A)
 	await _asked("Reset every control")
 	await _shot("reset")

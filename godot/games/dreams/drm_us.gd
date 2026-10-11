@@ -2624,7 +2624,7 @@ func _shell_panel_setup() -> void:
 	var keys: Array = []
 	# (a cap's face holds some 38 pixels of the panel's font: the help line names each in full; five caps
 	# six units apart fill the box)
-	for e: Array in [[0, "Input", "controls", "Controls: Keys and Controller Buttons", sc_F3],
+	for e: Array in [[0, "Input", "controls", "Controls: Keys, Controller, Touch", sc_F3],
 			[6, "Video", "display", "Display: Fullscreen, Pixel Shape", sc_V],
 			[12, "Audio", "sound", "Audio: the Volume of Effects and Music", sc_A],
 			[18, "Game", "gameplay", "Gameplay: Mode, Quicksave, Fixes", sc_G],

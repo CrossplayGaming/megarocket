@@ -69,11 +69,11 @@ const KEYS: Dictionary = {
 	"accept": KEY_ENTER, "back": KEY_ESCAPE, "menu": KEY_ESCAPE, "jump": KEY_CTRL, "pogo": KEY_ALT,
 	"fire": KEY_SPACE, "status": KEY_ENTER, "yes": KEY_Y, "spare": KEY_TAB, "spare2": KEY_BACKSLASH,
 }
-## (Touch: OK is Enter, Status's own key unless the keyboard's Status is bound elsewhere.)
+## (Touch: OK is Enter; J-50: Status its own button, whatever the keyboard's Status is bound to.)
 const TOUCH: Dictionary = {
 	"up": "dpad:up", "down": "dpad:down", "left": "dpad:left", "right": "dpad:right",
 	"accept": "OK", "back": "Menu", "menu": "Menu", "jump": "Jump", "pogo": "Pogo", "fire": "Fire", "yes": "Jump",
-	"status": "OK",
+	"status": "Status",
 }
 ## What each move is called on each device, for the notes.
 const SAY: Dictionary = {
@@ -82,16 +82,16 @@ const SAY: Dictionary = {
 		"spare2": "the left stick's button"},
 	"keys": {"accept": "Enter", "back": "Escape", "menu": "Escape", "jump": "Ctrl", "pogo": "Alt", "status": "Enter", "yes": "Y",
 		"spare": "Tab", "spare2": "Backslash"},
-	"touch": {"accept": "OK", "back": "Menu", "menu": "Menu", "yes": "Jump", "status": "OK"},
+	"touch": {"accept": "OK", "back": "Menu", "menu": "Menu", "yes": "Jump", "status": "Status"},
 }
 
 ## Keen 1-3's and Dreams' Options pages walked row by row where a row opens them (the others are opened
 ## and left: each action's binding page, Level select).
-const INTO: Array = ["display", "sound", "controls", "gameplay", "fixes", "keys", "pad", "codes"]
+const INTO: Array = ["display", "sound", "controls", "gameplay", "fixes", "keys", "pad", "touch", "codes"]
 ## The Options pages by the names the records give them (the OptionsModel's own, as Keen 1-3 show them).
 const PAGE_NAMES: Dictionary = {"options": "Options", "display": "Options > Display...", "sound": "Options > Sound...",
 	"controls": "Options > Controls...", "keys": "Options > Controls... > Keyboard...", "pad": "Options > Controls... > Controller...",
-	"gameplay": "Options > Gameplay...", "fixes": "Options > Gameplay... > Fixes...", "cheats": "Cheats...",
+	"touch": "Options > Controls... > Touch...", "gameplay": "Options > Gameplay...", "fixes": "Options > Gameplay... > Fixes...", "cheats": "Cheats...",
 	"codes": "Cheats... > Original codes...", "extras": "Extras..."}
 
 
@@ -1371,8 +1371,8 @@ func _items_given() -> bool:
 func _galaxy() -> void:
 	# (a) the title's MAIN: OPTIONS (CONFIGURE's cards: every OptionsModel row on its card), CHEATS greyed,
 	# HIGH SCORES, EXTRAS (Paddle War; Restart Demo is RETURN TO DEMO)
-	for page: String in ["options", "display", "sound", "controls", "keys", "pad", "gameplay", "fixes"]:
-		var label: String = PAGE_NAMES[page]
+	for page: String in ["options", "display", "sound", "controls", "keys", "pad", "touch", "gameplay", "fixes"]:
+		var label: String = PAGE_NAMES[page] if page != "touch" else "Options > Touch"    # (J-54: CONFIGURE's TOUCH card)
 		if page == "fixes" and FixesModel.for_game(game).is_empty():
 			continue
 		await _fn("Main menu > " + label + (" (CONFIGURE)" if page == "options" else ""), _g_visit_card.bind(page))
@@ -1568,6 +1568,8 @@ func _g_page_card(page: String) -> Object:
 			return g.get("ck_us_optionsMenu")
 		"cheats":
 			return g.get("ck_us_cheatsMenu")
+		"touch":
+			return g.get("ck_us_touchMenu")
 	var names: Dictionary = {"keys": "KEYBOARD", "pad": "CONTROLLER", "fixes": "FIXES", "extras": "EXTRAS"}
 	var holder: Object = g.get("ck_us_controlsMenu") if page in ["keys", "pad"] else (g.get("ck_us_configureMenu") if page == "fixes" else _g_main())
 	for it: Object in _g_items(holder):
@@ -1599,8 +1601,9 @@ func _g_option(key: String) -> Dictionary:
 		return _res(false, false, _stuck)
 	var before: Variant = _value(key)
 	var seen: Array = []
-	# a toggle comes back in two; a volume goes round its eleven steps (SCR-03: from the top to 0)
-	var times: int = 11 if key.ends_with("_volume") else 2
+	# a toggle comes back in two; a volume goes round its eleven steps (SCR-03: from the top to 0); J-54's
+	# touch rows: the three layouts, the opacity's ten steps (10-100), the size's eleven (50-150)
+	var times: int = {"touch_layout": 3, "touch_opacity": 10, "touch_size": 11}.get(key, 11 if key.ends_with("_volume") else 2)
 	for i: int in range(times):
 		await _press("accept")
 		if not await _wait(_g_dialog, 3.0):
@@ -1618,7 +1621,7 @@ func _g_option(key: String) -> Dictionary:
 
 ## What the model's row shows for a key (its value word: "On", "Wide", "Enhanced").
 func _shown(key: String) -> String:
-	for page: String in ["options", "gameplay", "display", "fixes", "controls", "sound"]:
+	for page: String in ["options", "gameplay", "display", "fixes", "controls", "sound", "touch"]:
 		for r: Dictionary in _opts().page(page):
 			if str(r.key) == key:
 				return str(r.value)
