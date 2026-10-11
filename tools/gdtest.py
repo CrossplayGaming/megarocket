@@ -46,8 +46,11 @@ def refresh_class_cache(cfg):
             fd = os.open(str(lock), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             break
         except FileExistsError:
-            if time.time() - lock.stat().st_mtime > 300:    # left by a run that died
-                lock.unlink(missing_ok=True)
+            try:
+                if time.time() - lock.stat().st_mtime > 300:    # left by a run that died
+                    lock.unlink(missing_ok=True)
+            except FileNotFoundError:
+                continue    # the import that held it has just finished: try again at once
             time.sleep(0.5)
     else:
         fd = None

@@ -960,6 +960,9 @@ func Quit(error: String) -> void:
 	vm.card.bios_set_video_mode(3)
 	if error == "":
 		SaveCtrls()
+		# SCR-01V: v1.31's exit screen (ENDSCRN past its 7-byte BSAVE header), then gotoxy(1, 23)
+		exit_textScreen = data.endscrn.slice(7, 7 + 4000)
+		exit_cursor = Vector2i(0, 22)
 	exit_message = error
 	if KBDstarted:
 		vm.int9 = Callable()

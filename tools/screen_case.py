@@ -165,16 +165,18 @@ def record(game, case, run="a", show=False):
     return oracle_decode.decode(name)
 
 
-def run_port(game, case, out, say=print, keep=None):
+def run_port(game, case, out, say=print, keep=None, spec=None, seconds=None):
     """The port's runner with the case's timetable, frames to `out`; `keep`: a folder the player's files the
-    program writes are kept in (a saved game for another case's overrides). Returns (code, frames folder,
-    text screens file)."""
+    program writes are kept in (a saved game for another case's overrides); `spec`: the case as given (its
+    keys changed: tools/steady_keys.py) instead of its file; `seconds`: the run cut there. Returns (code,
+    frames folder, text screens file)."""
     import gdtest
-    spec = load(game, case)
+    spec = spec or load(game, case)
     engine = common.game(game)["engine"]
     feed = ",".join(f"{m}:{c}:{b}" for m, c, b in keyfeed.feed_pairs(spec["held"]))
     shutil.rmtree(out, ignore_errors=True)
-    args = [f"--seconds={spec['seconds'] + PORT_EXTRA}", f"--out={Path(out).as_posix()}", f"--feed_keys={feed}"]
+    seconds = seconds if seconds is not None else spec["seconds"] + PORT_EXTRA
+    args = [f"--seconds={seconds}", f"--out={Path(out).as_posix()}", f"--feed_keys={feed}"]
     seed = overrides_dir(spec)
     if seed:
         args.append(f"--save_seed={seed.as_posix()}")

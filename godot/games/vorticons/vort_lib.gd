@@ -211,6 +211,11 @@ func cost(name: String) -> void:
 ## Set by Quit (the original exits to DOS); every loop and wait ends.
 var exited: bool = false
 var exit_message: String = ""
+## SCR-01V: the text screen the original leaves as it quits without an error (ENDSCRN's 80x25 character
+## and attribute bytes, copied to B800:0000) and where it puts the cursor (column, row); empty otherwise.
+## The screen cases compare it (simv01_boot writes it out); nothing in the game reads it.
+var exit_textScreen: PackedByteArray = PackedByteArray()
+var exit_cursor: Vector2i = Vector2i(0, 0)
 ## The episode's names: pictures, sprites and sounds by the original's enum
 ## names (GRAPHCKn.H, SNDSCKn.H), set by the episode class.
 var episode: int = 1
@@ -341,7 +346,7 @@ func _init() -> void:
 # ----------------------------------------------------------- state, hash
 
 ## Properties that are wiring or constant tables, not simulation state.
-const NOT_STATE: PackedStringArray = ["vm", "data", "save_dir", "dos_time", "dos_ticks", "spawn_scan_per_tile", "level_tc_shift", "map_anim0", "teleport_anim0", "costs", "exit_message", "episode", "P", "S", "SND", "classes"]
+const NOT_STATE: PackedStringArray = ["vm", "data", "save_dir", "dos_time", "dos_ticks", "spawn_scan_per_tile", "level_tc_shift", "map_anim0", "teleport_anim0", "costs", "exit_message", "exit_textScreen", "exit_cursor", "episode", "P", "S", "SND", "classes"]
 
 
 ## Every variable of the program, by name, as plain values: the whole
