@@ -49,7 +49,7 @@
    ],
    "from": 30.12,
    "to": 30.82,
-   "reason": "the title's animated tiles while they stand still (under the main menu and its windows, and in the fades): they stop at the phase the clock has when the title is last drawn; with no key the attract loop changes screen when the clock's count runs out, and the original's frames under DOSBox Staging 0.83 fall a few refreshes from the port's (fitted to 0.80), so a fade can stop the tiles a step apart (the high scores' first picture after the fade in, Keen 1 and 3). From 0.7 s before the black that ends a screen, while its tiles animate, and from the black that starts one to 1.2 s after, when they animate again; between, they are compared"
+   "reason": "the title's animated tiles while they stand still (in the fades): they stop at the phase the clock has when the title is last drawn; with no key the attract loop changes screen when the clock's count runs out, and the original's frames under DOSBox Staging 0.83 fall a few refreshes from the port's (fitted to 0.80), so a fade can stop the tiles a step apart (the high scores' first picture after the fade in, Keen 1 and 3). From 0.7 s before the black that ends a screen, while its tiles animate, and from the black that starts one to 1.2 s after, when they animate again; between, they are compared"
   },
   {
    "rect": [
@@ -60,7 +60,7 @@
    ],
    "from": 30.12,
    "to": 30.82,
-   "reason": "the title's animated tiles while they stand still (under the main menu and its windows, and in the fades): they stop at the phase the clock has when the title is last drawn; with no key the attract loop changes screen when the clock's count runs out, and the original's frames under DOSBox Staging 0.83 fall a few refreshes from the port's (fitted to 0.80), so a fade can stop the tiles a step apart (the high scores' first picture after the fade in, Keen 1 and 3). From 0.7 s before the black that ends a screen, while its tiles animate, and from the black that starts one to 1.2 s after, when they animate again; between, they are compared"
+   "reason": "the title's animated tiles while they stand still (in the fades): they stop at the phase the clock has when the title is last drawn; with no key the attract loop changes screen when the clock's count runs out, and the original's frames under DOSBox Staging 0.83 fall a few refreshes from the port's (fitted to 0.80), so a fade can stop the tiles a step apart (the high scores' first picture after the fade in, Keen 1 and 3). From 0.7 s before the black that ends a screen, while its tiles animate, and from the black that starts one to 1.2 s after, when they animate again; between, they are compared"
   },
   {
    "rect": [
@@ -71,7 +71,7 @@
    ],
    "from": 30.12,
    "to": 30.82,
-   "reason": "the title's animated tiles while they stand still (under the main menu and its windows, and in the fades): they stop at the phase the clock has when the title is last drawn; with no key the attract loop changes screen when the clock's count runs out, and the original's frames under DOSBox Staging 0.83 fall a few refreshes from the port's (fitted to 0.80), so a fade can stop the tiles a step apart (the high scores' first picture after the fade in, Keen 1 and 3). From 0.7 s before the black that ends a screen, while its tiles animate, and from the black that starts one to 1.2 s after, when they animate again; between, they are compared"
+   "reason": "the title's animated tiles while they stand still (in the fades): they stop at the phase the clock has when the title is last drawn; with no key the attract loop changes screen when the clock's count runs out, and the original's frames under DOSBox Staging 0.83 fall a few refreshes from the port's (fitted to 0.80), so a fade can stop the tiles a step apart (the high scores' first picture after the fade in, Keen 1 and 3). From 0.7 s before the black that ends a screen, while its tiles animate, and from the black that starts one to 1.2 s after, when they animate again; between, they are compared"
   },
   {
    "rect": [
@@ -82,7 +82,7 @@
    ],
    "from": 30.12,
    "to": 30.82,
-   "reason": "the title's animated tiles while they stand still (under the main menu and its windows, and in the fades): they stop at the phase the clock has when the title is last drawn; with no key the attract loop changes screen when the clock's count runs out, and the original's frames under DOSBox Staging 0.83 fall a few refreshes from the port's (fitted to 0.80), so a fade can stop the tiles a step apart (the high scores' first picture after the fade in, Keen 1 and 3). From 0.7 s before the black that ends a screen, while its tiles animate, and from the black that starts one to 1.2 s after, when they animate again; between, they are compared"
+   "reason": "the title's animated tiles while they stand still (in the fades): they stop at the phase the clock has when the title is last drawn; with no key the attract loop changes screen when the clock's count runs out, and the original's frames under DOSBox Staging 0.83 fall a few refreshes from the port's (fitted to 0.80), so a fade can stop the tiles a step apart (the high scores' first picture after the fade in, Keen 1 and 3). From 0.7 s before the black that ends a screen, while its tiles animate, and from the black that starts one to 1.2 s after, when they animate again; between, they are compared"
   },
   {
    "rect": [
@@ -269,7 +269,7 @@
    ],
    "from": 81.93,
    "to": 83.13,
-   "reason": "the title's animated tiles while they stand still (under the main menu and its windows, and in the fades): they stop at the phase the clock has when the title is last drawn; with no key the attract loop changes screen when the clock's count runs out, and the original's frames under DOSBox Staging 0.83 fall a few refreshes from the port's (fitted to 0.80), so a fade can stop the tiles a step apart (the high scores' first picture after the fade in, Keen 1 and 3). From 0.7 s before the black that ends a screen, while its tiles animate, and from the black that starts one to 1.2 s after, when they animate again; between, they are compared"
+   "reason": "the title's animated tiles while they stand still (in the fades): they stop at the phase the clock has when the title is last drawn; with no key the attract loop changes screen when the clock's count runs out, and the original's frames under DOSBox Staging 0.83 fall a few refreshes from the port's (fitted to 0.80), so a fade can stop the tiles a step apart (the high scores' first picture after the fade in, Keen 1 and 3). From 0.7 s before the black that ends a screen, while its tiles animate, and from the black that starts one to 1.2 s after, when they animate again; between, they are compared"
   },
   {
    "rect": [
@@ -280,7 +280,7 @@
    ],
    "from": 81.93,
    "to": 83.13,
-   "reason": "the title's animated tiles while they stand still (under the main menu and its windows, and in the fades): they stop at the phase the clock has when the title is last drawn; with no key the attract loop changes screen when the clock's count runs out, and the original's frames under DOSBox Staging 0.83 fall a few refreshes from the port's (fitted to 0.80), so a fade can stop the tiles a step apart (the high scores' first picture after the fade in, Keen 1 and 3). From 0.7 s before the black that ends a screen, while its tiles animate, and from the black that starts one to 1.2 s after, when they animate again; between, they are compared"
+   "reason": "the title's animated tiles while they stand still (in the fades): they stop at the phase the clock has when the title is last drawn; with no key the attract loop changes screen when the clock's count runs out, and the original's frames under DOSBox Staging 0.83 fall a few refreshes from the port's (fitted to 0.80), so a fade can stop the tiles a step apart (the high scores' first picture after the fade in, Keen 1 and 3). From 0.7 s before the black that ends a screen, while its tiles animate, and from the black that starts one to 1.2 s after, when they animate again; between, they are compared"
   },
   {
    "rect": [
@@ -291,7 +291,7 @@
    ],
    "from": 81.93,
    "to": 83.13,
-   "reason": "the title's animated tiles while they stand still (under the main menu and its windows, and in the fades): they stop at the phase the clock has when the title is last drawn; with no key the attract loop changes screen when the clock's count runs out, and the original's frames under DOSBox Staging 0.83 fall a few refreshes from the port's (fitted to 0.80), so a fade can stop the tiles a step apart (the high scores' first picture after the fade in, Keen 1 and 3). From 0.7 s before the black that ends a screen, while its tiles animate, and from the black that starts one to 1.2 s after, when they animate again; between, they are compared"
+   "reason": "the title's animated tiles while they stand still (in the fades): they stop at the phase the clock has when the title is last drawn; with no key the attract loop changes screen when the clock's count runs out, and the original's frames under DOSBox Staging 0.83 fall a few refreshes from the port's (fitted to 0.80), so a fade can stop the tiles a step apart (the high scores' first picture after the fade in, Keen 1 and 3). From 0.7 s before the black that ends a screen, while its tiles animate, and from the black that starts one to 1.2 s after, when they animate again; between, they are compared"
   },
   {
    "rect": [
@@ -302,7 +302,7 @@
    ],
    "from": 81.93,
    "to": 83.13,
-   "reason": "the title's animated tiles while they stand still (under the main menu and its windows, and in the fades): they stop at the phase the clock has when the title is last drawn; with no key the attract loop changes screen when the clock's count runs out, and the original's frames under DOSBox Staging 0.83 fall a few refreshes from the port's (fitted to 0.80), so a fade can stop the tiles a step apart (the high scores' first picture after the fade in, Keen 1 and 3). From 0.7 s before the black that ends a screen, while its tiles animate, and from the black that starts one to 1.2 s after, when they animate again; between, they are compared"
+   "reason": "the title's animated tiles while they stand still (in the fades): they stop at the phase the clock has when the title is last drawn; with no key the attract loop changes screen when the clock's count runs out, and the original's frames under DOSBox Staging 0.83 fall a few refreshes from the port's (fitted to 0.80), so a fade can stop the tiles a step apart (the high scores' first picture after the fade in, Keen 1 and 3). From 0.7 s before the black that ends a screen, while its tiles animate, and from the black that starts one to 1.2 s after, when they animate again; between, they are compared"
   }
  ],
  "port": {
