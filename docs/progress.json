@@ -272,6 +272,10 @@
  "milestones": [
   {
    "date": "2026-10-10",
+   "text": "Keen Dreams catches up with Keen 1-6: the cheats (a Cheat keycap in its panel: God mode, infinite ammo and lives, no clipping, jump, slow motion, freeze enemies, free items, extra lives, skip level, level select), quicksave and quickload (F8/F9), the Mode row, touch controls, and the fitted loading times now apply in play. Keen 1-3 can play Keen 4-5's music, a track per level"
+  },
+  {
+   "date": "2026-10-10",
    "text": "Menus: every game's main menu in one modern order in its own style (Resume, New Game, Load, Save, Options, Cheats, High Scores, Extras, Quit), a pause menu in Keen 1-3, Options tidied to Display, Sound, Controls, Gameplay; Keen Dreams' panel reordered with text keycaps. Keen 1-3 can use Keen 4-6's sound effects (from your own Keen 4 or 5)"
   },
   {
