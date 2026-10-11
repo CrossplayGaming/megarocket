@@ -710,6 +710,12 @@ var controls_read_vbl: int = -1000000
 ## -2 none yet) and the game never sees it.
 var controls_capture: String = ""
 var controls_captured: int = -2
+## SCR-03 (a player at the controls only): a question or screen of the menus that reads the controls while
+## it waits (a yes/no dialog, the help, Paddle War) asks the host for the menus' keys anyway (the pad's A
+## Enter, B Escape, whatever its buttons are bound to); SCR-05: a line being typed (US_LineInput) asks for
+## the d-pad's own codes, its letters (PadTextEntry).
+var shell_menu_keys: bool = false
+var shell_text_entry: bool = false
 
 
 func shell_held(action: String) -> bool:
@@ -1061,6 +1067,10 @@ func US_DrawCards() -> void:
 func IN_YesNo() -> bool:
 	var k: int = IN_SC_None
 	var state: IN_ControlFrame = IN_ControlFrame.new()
+	# SCR-03: with a player at the controls the pad is the menus' keys here and Enter (its A) is yes too
+	var player: bool = get("options") != null    # (gal_menu.gd)
+	var menu_keys: bool = shell_menu_keys
+	shell_menu_keys = menu_keys or player
 	IN_ClearKeysDown()
 	while not quitting:
 		k = IN_SC_None
@@ -1083,9 +1093,10 @@ func IN_YesNo() -> bool:
 		VL_Present()
 		if not (state.jump or state.pogo):
 			break
+	shell_menu_keys = menu_keys
 	IN_ClearKeysDown()
 	US_DrawCards()
-	return k == IN_SC_Y
+	return k == IN_SC_Y or (player and k == IN_SC_Enter)
 
 
 # ===================================================================== id_in pieces the game layer needs

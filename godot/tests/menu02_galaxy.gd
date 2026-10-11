@@ -4,7 +4,7 @@ extends SceneTree
 ## DISPLAY card after MUSIC and OPTIONS starts with MODE; from the keyboard: the menu from the title,
 ## CONFIGURE, DISPLAY, FULLSCREEN chosen (its dialog answered), back, OPTIONS, MODE chosen. Checks: the
 ## settings the model wrote (Fullscreen on, Mode Classic with its fixes off, for this game only), the run kept going, and
-## SVGA COMPATIBILITY gone (Keen 6: CREATURE QUESTION last); without a model the cards are the original's (no DISPLAY item, OPTIONS from
+## SVGA COMPATIBILITY gone (Keen 6: CREATURE QUESTION last, off by default, on once Classic is chosen); without a model the cards are the original's (no DISPLAY item, OPTIONS from
 ## SCORE BOX to SVGA COMPATIBILITY).
 ## Every picture is written to --out for review.
 ##
@@ -32,6 +32,7 @@ func _init() -> void:
 		return
 	var cfg: String = OS.get_temp_dir().path_join("mr_menu02_%d.cfg" % Time.get_ticks_usec())
 	var settings: Settings = Settings.new(cfg)
+	var asked_before: bool = bool(settings.get_value("creature_question", game))
 	var res: Dictionary = _run(root, game, out, OptionsModel.new(settings, game, "galaxy"))
 	var after: Settings = Settings.new(cfg)
 	t.ok("the run kept going to its end (quit '%s')" % res.quit, res.quit == "time limit")
@@ -43,7 +44,9 @@ func _init() -> void:
 		and res.options[1].begins_with("QUICKSAVE F5/F9") and res.options[2].begins_with("QUICKSAVE ASKS")
 		and res.options.all(func(c: String) -> bool: return not c.begins_with("SVGA")))
 	if game == "keen6":
-		t.ok("Keen 6's OPTIONS ends with CREATURE QUESTION (ON) (%s)" % res.options.back(), res.options.back() == "CREATURE QUESTION (ON)")
+		# (J-04: answered for the player by default; Classic, chosen by the walk, asks it)
+		t.ok("Keen 6's OPTIONS ends with CREATURE QUESTION, off by default and ON after Classic (%s; %s before)" % [res.options.back(), asked_before],
+			res.options.back() == "CREATURE QUESTION (ON)" and not asked_before and after.get_value("creature_question", game) == true)
 	t.ok("Fullscreen went on for %s (%s)" % [game, after.get_value("fullscreen", game)], after.get_value("fullscreen", game) == true)
 	t.ok("Mode went from Enhanced (the default) to Classic for %s (%s)" % [game, after.get_value("view", game)], after.get_value("view", game) == "classic")
 	t.ok("Classic turned this game's fixes off (%s)" % [OptionsModel.new(after, game, "").fixes()],

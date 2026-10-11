@@ -24,10 +24,11 @@ var controls: ControlsModel = null
 var galaxy_available: bool = false
 ## The Mode presets: the rows each sets (MENUS.md "The Mode row"). The wide view, native resolution, smooth motion and the fixes so far
 ## (FixesModel): one-button fire, all off in Classic, on in Enhanced; more join
-## as they are built.
+## as they are built. SCR-05 (J-04): Keen 6's creature question is asked in Classic, answered for the
+## player in Enhanced.
 const PRESETS: Dictionary = {
-	"classic": {"quicksave": false, "one_button_fire": false, "wide_view": false, "native_resolution": false, "smooth_motion": false, "fix_k2_esc_skips": false, "fix_k2_tantalus_fade": false, "fix_k3_messie_double": false, "fix_god_lurch": false, "fix_keen_over_scenery": false, "fix_dreams_keys_kept": false, "fix_dreams_death_box": false},
-	"enhanced": {"quicksave": true, "one_button_fire": true, "wide_view": true, "native_resolution": true, "smooth_motion": true, "fix_k2_esc_skips": true, "fix_k2_tantalus_fade": true, "fix_k3_messie_double": true, "fix_god_lurch": true, "fix_keen_over_scenery": true, "fix_dreams_keys_kept": true, "fix_dreams_death_box": true},
+	"classic": {"quicksave": false, "one_button_fire": false, "wide_view": false, "native_resolution": false, "smooth_motion": false, "creature_question": true, "fix_k2_esc_skips": false, "fix_k2_tantalus_fade": false, "fix_k3_messie_double": false, "fix_god_lurch": false, "fix_keen_over_scenery": false, "fix_dreams_keys_kept": false, "fix_dreams_death_box": false},
+	"enhanced": {"quicksave": true, "one_button_fire": true, "wide_view": true, "native_resolution": true, "smooth_motion": true, "creature_question": false, "fix_k2_esc_skips": true, "fix_k2_tantalus_fade": true, "fix_k3_messie_double": true, "fix_god_lurch": true, "fix_keen_over_scenery": true, "fix_dreams_keys_kept": true, "fix_dreams_death_box": true},
 }
 const VOLUME_STEP: int = 10
 

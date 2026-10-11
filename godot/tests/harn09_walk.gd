@@ -143,7 +143,7 @@ func _on_child(node: Node) -> void:
 	var h: GameHost = node as GameHost
 	if h == null:
 		return
-	h.saves_root = own.path_join("saves")
+	h.saves_dir = ProjectSettings.globalize_path(own.path_join("saves"))
 	h.force_touch = device == "touch"
 
 

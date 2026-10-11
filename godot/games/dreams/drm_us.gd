@@ -780,6 +780,14 @@ func US_LineInput(x: int, y: int, buf: PackedByteArray, def: Variant, escok: boo
 	LastASCII = key_None
 	LastScan = sc_None
 
+	# SCR-05: with a player at the controls the d-pad types too (PadTextEntry), a letter going in where a
+	# typed one may
+	var pad: bool = options != null
+	var fits: Callable = func(t: String) -> bool:
+		return (t.length() < MaxString - 1) and ((not maxchars) or (t.length() < maxchars)) \
+			and ((not maxwidth) or (_measure(t, -1)[0] < maxwidth))
+	shell_text_entry = pad
+
 	while not done and not quitting:
 		if cursorvis:
 			USL_XORICursor(x, y, s, cursor)
@@ -790,6 +798,14 @@ func US_LineInput(x: int, y: int, buf: PackedByteArray, def: Variant, escok: boo
 		LastScan = sc_None
 		var ch: int = LastASCII
 		LastASCII = key_None
+
+		if pad and PadTextEntry.is_pad(sc):
+			var line: Array = PadTextEntry.press(s, cursor, sc, fits)
+			redraw = redraw or line[0] != s
+			s = line[0]
+			cursor = line[1]
+			ch = key_None
+			cursormoved = true
 
 		match sc:
 			sc_LeftArrow:
@@ -876,6 +892,7 @@ func US_LineInput(x: int, y: int, buf: PackedByteArray, def: Variant, escok: boo
 
 		VW_UpdateScreen()
 
+	shell_text_entry = false
 	if cursorvis:
 		USL_XORICursor(x, y, s, cursor)
 	if not result:
@@ -2413,12 +2430,27 @@ func _shell_page_list(start: String) -> void:
 			page = back[0]
 			pos = back[1]
 		elif key == "reset_controls":
-			USL_ShowHelp("Reset Every Control? Press Y")
+			# Y resets, another key backs out; SCR-03: the pad answers as it chooses in the list, its choosing
+			# button (Jump's, A) pressed anew resets and its going-back one (Throw's, B) backs out (its own
+			# codes are no key)
+			USL_ShowHelp("Reset Every Control? A Resets, B Backs Out" if device == "pad" else "Reset Every Control? Press Y")
 			VW_UpdateScreen()
 			IN_ClearKeysDown()
-			while not quitting and LastScan == sc_None:
+			var yes: bool = false
+			var held: Array = [true, true]
+			while not quitting:
 				BE_ST_ShortSleep()
-			if LastScan == sc_Y:
+				IN_ReadControl(0, info)
+				if LastScan != sc_None and LastScan < 0x62:
+					yes = LastScan == sc_Y
+					break
+				if info.button0 and not held[0]:
+					yes = true
+					break
+				if info.button1 and not held[1]:
+					break
+				held = [info.button0, info.button1]
+			if yes:
 				options.reset_controls()
 				said = "The Controls Are Reset"
 			IN_ClearKeysDown()

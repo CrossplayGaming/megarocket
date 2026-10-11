@@ -26,7 +26,7 @@ Options (after `--`): `--games` (any of keen1..keen6, kdreams, kdreams193), `--d
 A function that cannot be completed is recorded with where the walk got stuck, and the walk goes on from a known
 place (Back pressed; for Keen 1-3 the game is started again if it cannot get back to the title). Every function has
 a time limit. The player's own files are never touched: the launcher's settings file and every game's saves go to a
-temporary folder of the walk's own (`GameHost.saves_root`, set as the launcher adds the host).
+temporary folder of the walk's own (`GameHost.saves_dir`, set as the launcher adds the host).
 
 ## Read-only probes it needs
 
