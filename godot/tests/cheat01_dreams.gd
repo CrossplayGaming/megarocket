@@ -102,7 +102,7 @@ func _go() -> void:
 	await _shot("cheat01d_title")
 	var rows: Array = g._shell_list_rows("cheats")
 	var cheat_rows: Array = rows.filter(func(r: Dictionary) -> bool: return str(r.key).begins_with("cheat:") and r.key != "cheat:codes")
-	t.ok("with no game every cheat row is greyed (%d rows)" % cheat_rows.size(), cheat_rows.size() == 11
+	t.ok("with no game every cheat row is greyed (%d rows)" % cheat_rows.size(), cheat_rows.size() == 12
 		and cheat_rows.all(func(r: Dictionary) -> bool: return not r.get("enabled", true)))
 	await _tap(KEY_ENTER)    # God mode: a word why
 	await _pause(0.4)
@@ -123,8 +123,8 @@ func _go() -> void:
 	await _tap(KEY_C)
 	await _pause(0.6)
 	await _shot("cheat01d_cheats")
-	for i: int in range(10):
-		await _tap(KEY_DOWN)    # Level select... (the eleventh row)
+	for i: int in range(11):
+		await _tap(KEY_DOWN)    # Level select... (the twelfth row)
 	await _shot("cheat01d_scrolled")
 	await _tap(KEY_ENTER)
 	await _pause(0.4)
@@ -157,8 +157,8 @@ func _go() -> void:
 	await _tap(KEY_RIGHT)    # Infinite ammo, moved
 	await _pause(0.3)
 	t.ok("Infinite ammo on (moved with Right)", bool(g.get("cheat_infiniteAmmo")))
-	for i: int in range(6):
-		await _tap(KEY_DOWN)    # Free items (the eighth row)
+	for i: int in range(7):
+		await _tap(KEY_DOWN)    # Free items (the ninth row, after Reveal secrets and Freeze enemies)
 	await _tap(KEY_ENTER)
 	await _pause(0.3)
 	t.ok("Free items: 99 flowers (%d)" % int(g.gamestate.flowerpowers), int(g.gamestate.flowerpowers) == 99)
@@ -178,8 +178,8 @@ func _go() -> void:
 	await _pause(0.5)
 	await _tap(KEY_C)
 	await _pause(0.6)
-	for i: int in range(6):
-		await _tap(KEY_DOWN)    # Freeze enemies (the seventh row)
+	for i: int in range(7):
+		await _tap(KEY_DOWN)    # Freeze enemies (the eighth row)
 	await _tap(KEY_ENTER)
 	await _pause(0.3)
 	t.ok("Freeze enemies on", bool(g.get("cheat_freezeEnemies")))
@@ -199,8 +199,8 @@ func _go() -> void:
 	await _pause(0.5)
 	await _tap(KEY_C)
 	await _pause(0.6)
-	for i: int in range(9):
-		await _tap(KEY_DOWN)    # Skip this level (the tenth row)
+	for i: int in range(10):
+		await _tap(KEY_DOWN)    # Skip this level (the eleventh row)
 	await _tap(KEY_ENTER)
 	t.ok("Skip this level: on the map, The Melon Mines done",
 		await _wait(func() -> bool: return int(g.gamestate.mapon) == 0 and bool(g.gamestate.leveldone[2]) and host.controls_live(), 20.0))

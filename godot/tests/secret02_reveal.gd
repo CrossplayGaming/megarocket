@@ -19,6 +19,7 @@ func _init() -> void:
 		return
 	_galaxy(root)
 	_vorticons(root)
+	_dreams(root)
 	t.finish(self)
 
 
@@ -85,6 +86,37 @@ func _vorticons(root: String) -> void:
 	list.level = 6
 	t.eq("on, another level: no marks", _reveals(VortDrawLayout.ops(g, list)), [])
 	SecretsList._games.erase("keen1")
+
+
+func _dreams(root: String) -> void:
+	var d: DreamsData = DreamsData.new()
+	if not d.load_game(root.path_join("kdreams193")):
+		t.blocked("kdreams193: " + d.error)
+		return
+	var g: Object = DreamsGame.new()
+	g.data = d
+	t.ok("Keen Dreams offers Reveal secrets", "reveal_secrets" in g.shell_cheat_supported())
+	t.ok("Keen Dreams: off at launch", not g.shell_cheat_get("reveal_secrets"))
+	g.shell_cheat_set("reveal_secrets", true)
+	t.ok("Keen Dreams: turns on", g.shell_cheat_get("reveal_secrets"))
+	g.shell_cheat_set("reveal_secrets", false)
+	t.ok("Keen Dreams: and off", not g.shell_cheat_get("reveal_secrets"))
+	SecretsList._games["kdreams"] = {2: {Vector2i(11, 20): "secret", Vector2i(12, 20): "trap"}}
+	# a 3x1 strip of map 2 at (10-12, 20), a foreground tile on the middle cell
+	var list: Dictionary = {"map": 2, "sx": 160, "sy": 320, "ux": 160 * 16, "uy": 320 * 16, "xmin": -1000, "xmax": 10000,
+		"gx": 10, "gy": 20, "gw": 3, "gh": 1, "bg": PackedInt32Array([10, 11, 12]), "fg": PackedInt32Array([0, 5, 0]),
+		"sprites": [], "hud": -1, "reveal": true}
+	var ops: Array = DrmDrawLayout.ops(g, list)
+	t.eq("Dreams on: a mark on each listed cell, where it is on the screen", _reveals(ops), [[16, 0, false], [32, 0, true]])
+	t.ok("Dreams on: the foreground over a listed cell drawn see-through (%s)" % [_ghosts(ops)], _ghosts(ops).size() >= 1 and _ghosts(ops).all(func(gh: bool) -> bool: return gh))
+	list.reveal = false
+	ops = DrmDrawLayout.ops(g, list)
+	t.eq("Dreams off: no marks", _reveals(ops), [])
+	t.ok("Dreams off: the foreground drawn as the original (%s)" % [_ghosts(ops)], _ghosts(ops).size() >= 1 and _ghosts(ops).all(func(gh: bool) -> bool: return not gh))
+	list.reveal = true
+	list.map = 3
+	t.eq("Dreams on, another map: no marks", _reveals(DrmDrawLayout.ops(g, list)), [])
+	SecretsList._games.erase("kdreams")
 
 
 func _reveals(ops: Array) -> Array:

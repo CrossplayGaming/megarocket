@@ -80,8 +80,8 @@ func _go() -> void:
 	await _pause(0.5)
 	await _tap(KEY_C)
 	await _pause(0.6)
-	for i: int in range(10):
-		await _tap(KEY_DOWN)
+	for i: int in range(11):
+		await _tap(KEY_DOWN)    # Level select... (the twelfth row)
 	await _tap(KEY_ENTER)
 	await _pause(0.4)
 	await _tap(KEY_DOWN)

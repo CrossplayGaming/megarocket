@@ -1290,7 +1290,7 @@ func _capture_draw_list() -> void:
 		"xmin": originxmin >> 4, "xmax": (originxmax >> 4) + 320,
 		"map": mapon, "gx": gx, "gy": gy, "gw": gw, "gh": gh, "bg": bg, "fg": fg,
 		"sprites": sprites, "step": step, "hud": hud, "dyn": dyn,
-		"reveal": false, "hud_mid": false}
+		"reveal": cheat_revealSecrets, "hud_mid": false}    # the Reveal secrets cheat (the view's alone)
 
 
 ## Patching version-specific stuff (the EGA releases).

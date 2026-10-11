@@ -272,6 +272,10 @@
  "milestones": [
   {
    "date": "2026-10-10",
+   "text": "Keen Dreams now has every display option Keen 1-6 have (native resolution, smooth motion, the wide view), drawn from its own draw list with every picture proven identical to the original's, and the Reveal secrets cheat with its 20 secrets. With that, Keen Dreams matches Keen 1-6 in menus, controls, cheats and extras"
+  },
+  {
+   "date": "2026-10-10",
    "text": "The launcher answers the controller's buttons (A or Start plays, B goes back): Godot's own menu actions held no controller buttons. Keen Dreams' secrets list is written (20 secrets from the official solution text and the level data), ready for the Reveal secrets cheat once Dreams' new drawing lands"
   },
   {

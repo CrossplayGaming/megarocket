@@ -43,11 +43,15 @@ func _draw() -> void:
 	draw_texture_rect(_black, Rect2(Vector2.ZERO, size), false)
 	var dyn: Dictionary = _list.get("dyn", {})
 	var view: Vector2 = Vector2.ZERO
+	var revealed: Array = []
 	for op: Dictionary in layout:
 		var tex: Texture2D = null
 		match op.kind:
 			"view":
 				view = Vector2(op.x, op.y)
+				continue
+			"reveal":
+				revealed.append(op)
 				continue
 			"mask":
 				draw_texture_rect(_black, Rect2(Vector2(roundf(op.x), 0), Vector2(roundf(op.w), size.y)), false)
@@ -65,9 +69,9 @@ func _draw() -> void:
 			continue
 		var at: Vector2 = Vector2(roundf(op.x), roundf(op.y))
 		var to: Vector2 = Vector2(roundf(op.x + tex.get_width() * scale.x), roundf(op.y + tex.get_height() * scale.y))
-		draw_texture_rect(tex, Rect2(at, to - at), false)
+		draw_texture_rect(tex, Rect2(at, to - at), false, GHOST if op.get("ghost", false) else Color.WHITE)
 	_draw_overlay(view, scale)
-	_show_revealed([], overlay)
+	_show_revealed(revealed, overlay)
 
 
 ## The picture's top-left in world pixels (where the card's picture, and so a window copied from it, sits).

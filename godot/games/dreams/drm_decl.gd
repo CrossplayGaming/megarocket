@@ -519,6 +519,7 @@ var cheat_infiniteAmmo: bool = false    # read in ThrowPower
 var cheat_infiniteLives: bool = false    # read in HandleDeath
 var cheat_noClip: bool = false    # read in StateMachine
 var cheat_freezeEnemies: bool = false    # read in PlayLoop
+var cheat_revealSecrets: bool = false    # read in _capture_draw_list
 var tedlevel: bool = false
 var tedlevelnum: int = 0
 var DemoLoop: StringName = &""
