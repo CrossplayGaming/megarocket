@@ -299,7 +299,10 @@ func US_LoadMain(i: int, fromMenu: bool) -> bool:
 		ck_startingSavedGame = 1
 		e.used = true
 		in_Paused = true
-		in_PausedMessage = "GAME LOADED"
+		# (omnispeak's GAME LOADED, for a player; the original's window reads PAUSED: "GAME LOADED" is in
+		# none of the three programs, keen4 and keen5 scr_end, SCR-01)
+		if options != null:
+			in_PausedMessage = "GAME LOADED"
 		CK_Cross_LogMessage(CK_LOG_MSG_NORMAL, "US_LoadMain: Loaded savegame %d\n" % i)
 		return true
 
@@ -2001,6 +2004,12 @@ func USL_EndCards() -> void:
 	# FIXME: Cyan should be drawn, but this results in a cyan background
 	# for longer than expected (possibly due to legal of EGA features)
 	# VL_ClearScreen(3); // Draw Cyan
+	# SCR-01: the original clears video memory itself here (VW_ClearVideo(3), KEEN4E.EXE 1A89:256A),
+	# which DOSBox shows black from the next refresh until the game draws again (keen4 scr_game: 3
+	# refreshes before a new game's level box, 15-17 before the play comes back); the port showed the
+	# card on until then
+	if costs.has("clearvideo"):
+		VL_ClearVideo()
 	VL_ClearScreen(0)    # For now we draw black
 	CA_DownLevel()
 	CA_LoadAllSounds()

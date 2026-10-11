@@ -107,3 +107,27 @@ quits.
   port, solid in the original (the wrist-watch picture redrawn at x 74 by USL_DialogSetup).
 - In the port, Up on Keen 4's NEW GAME does not wrap to QUIT (seen while designing `scr_quit`; the
   original's wrap is not recorded yet: SCR-02).
+
+## Keen 4-6 (SCR-01G, 2026-10-11)
+
+- **Keys against the cursors.** The control panel's cursor blinks every 35 tics (0.5 s) from each key, so menu
+  keys go 1.75 s apart (between two blinks; 1.5 or 2.0 s lands on one and either side may draw the other
+  phase). A typed line's cursor blinks every 36 tics from the line's start and typing does not reset it:
+  letters go 72 tics (1.027 s) apart, the first 0.8 s after the line opens. An ending's page waits with its
+  arrow; a key while the page is still being drawn does not count (IN_ClearKeysDown after the drawing), so each
+  key goes 0.5 s after its page is drawn (the port's times: `keen4/scr_end`).
+- **Cutting the intro short.** Keen 4 and 5: Space at 3 s, Space on the title at 5 s opens the panel. Keen 6
+  (the user's v1.0) opens the panel at once on the first key where v1.4 shows the title (J-19), so Keen 6
+  cases wait for the title (Escape at 33 s).
+- **The DOS clock** the port starts with is `GALAXY_CLOCK_US` (screen_case.py), fitted on Paddle War's serves.
+- **Saved games** for the endings and game over: `python tools/galaxy_case_save.py keen4 keen5` (the port's own
+  save, its score raised; never committed). Keen 6 v1.0 takes no save of the port's (its header's code offset
+  differs from v1.4's), so Keen 6's ending is reached from a new game.
+- **Masks used** (each says why in the case): the world map's one animated tile in view (Keen 4's water, Keen 5's
+  rocket flame) from the level's start, because the frame it is held in under a window follows the port's
+  timing of the panel's exit and the level load (not fitted: TIME-G); level 1's play around the Game Over!
+  window and before Keen 5's galaxy explodes (the creatures' random numbers, REPLAY-G). `settled: 5` in the
+  cases that load a game: the Loading box is up 4 refreshes in the port, 2-3 partly copied in the original.
+- **Not comparable with the user's Keen 6 v1.0** (v1.4's rules, J-19): CONFIGURE and OPTIONS (other items),
+  the creature question (v1.0 never asks it: the code is there, nothing calls it), the ending's pages (grey,
+  dark text), the debug keys (A+2 does nothing), so no game over by F10+Z.

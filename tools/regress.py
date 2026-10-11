@@ -142,7 +142,9 @@ def scr01v():
 
 
 def scr01g():
-    """Keen 4-6's screen cases (SCR-01G)."""
+    """Keen 4-6's screen cases (SCR-01G): the cards, Paddle War, the help screens, a game (map, status window,
+    save, END GAME, high scores), the endings, game over, the quit screen. The endings and game over load saved
+    games kept outside the project (python tools/galaxy_case_save.py rebuilds them)."""
     return _screen_cases(("keen4", "keen5", "keen6"))
 
 

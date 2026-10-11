@@ -1,0 +1,30 @@
+{
+ "seconds": 58.75,
+ "keyfeed": true,
+ "args": "/NOCOPY",
+ "held": [
+  [33.0, "esc", 0.2],
+  [34.75, "enter", 0.2],
+  [36.5, "enter", 0.2],
+  [40.0, "enter", 0.3],
+  [42.5, "space", 0.2],
+  [44.5, "esc", 0.2],
+  [46.25, "e", 0.2],
+  [48.0, "enter", 0.2],
+  [49.75, "y", 0.2]
+ ],
+ "screens": [
+  [0, "id logo and the terminator credits"],
+  [27.5, "title"],
+  [33.0, "main card"],
+  [34.75, "NEW GAME card"],
+  [36.5, "the game starts: the level box, the world map"],
+  [40.0, "the status window"],
+  [42.5, "the world map again"],
+  [44.5, "main card in a game (RETURN TO GAME)"],
+  [46.25, "main card, END GAME"],
+  [48.0, "REALLY END CURRENT GAME?"],
+  [49.75, "the high scores"]
+ ],
+ "note": "SCR-01G (Keen 6): a game, from the title as the intro ends (Escape at 33 s: a key that cuts the intro short opens the panel at once in the user's v1.0, the title first in v1.4, J-19). NEW GAME, BEGIN NORMAL GAME: the level box and the world map (/NOCOPY: v1.0 never asks the creature question (its code is in KEEN6C.EXE but nothing calls it); v1.4, which the port plays, asks at a new game; v1.0 ignores the switch); Enter for the status window and a key to close it; Escape for the panel in a game, END GAME, its question, Y: the high scores. Menu keys 1.75 s apart (between two blinks of the cursor). Times are seconds after the EGA mode set (KEYFEED.COM types the keys in DOS)."
+}

@@ -1,0 +1,42 @@
+{
+ "seconds": 62.1,
+ "keyfeed": true,
+ "args": "/NOCOPY",
+ "held": [
+  [33.0, "esc", 0.2],
+  [34.75, "enter", 0.2],
+  [36.5, "enter", 0.2],
+  [39.5, "esc", 0.2],
+  [41.25, "s", 0.2],
+  [43.0, "enter", 0.2],
+  [44.75, "enter", 0.2],
+  [45.55, "k", 0.2],
+  [46.58, "e", 0.2],
+  [47.6, "enter", 0.2],
+  [49.35, "esc", 0.2],
+  [51.1, "l", 0.2],
+  [52.85, "enter", 0.2],
+  [54.6, "esc", 0.2],
+  [56.35, "r", 0.2],
+  [58.1, "enter", 0.2]
+ ],
+ "screens": [
+  [0, "id logo and the terminator credits"],
+  [27.5, "title"],
+  [33.0, "main card"],
+  [34.75, "NEW GAME card"],
+  [36.5, "the game starts: the level box, the world map"],
+  [39.5, "main card in a game (RETURN TO GAME)"],
+  [41.25, "main card, SAVE GAME"],
+  [43.0, "SAVE GAME card"],
+  [44.75, "slot 1: typing a name"],
+  [47.6, "Saving, then the SAVE GAME card with the name"],
+  [49.35, "main card, SAVE GAME again"],
+  [51.1, "main card, LOAD GAME"],
+  [52.85, "LOAD GAME card (the game saved)"],
+  [54.6, "main card, LOAD GAME again"],
+  [56.35, "main card, RETURN TO GAME"],
+  [58.1, "the world map again"]
+ ],
+ "note": "SCR-01G (Keen 6): saving a game, from the title as the intro ends (Escape at 33 s: a key that cuts the intro short opens the panel at once in the user's v1.0, the title first in v1.4, J-19). NEW GAME, BEGIN NORMAL GAME (/NOCOPY: v1.0 never asks the creature question (its code is in KEEN6C.EXE but nothing calls it); v1.4, which the port plays, asks at a new game; v1.0 ignores the switch); Escape for the panel in a game: SAVE GAME into the first slot, a name typed (K, E) and Enter, the Saving box; LOAD GAME's card with the saved game; RETURN TO GAME. Menu keys 1.75 s apart, letters 72 tics apart (between two blinks of each cursor). The port's save is kept for scr_end (screen_case.py port ... --keep). Times are seconds after the EGA mode set (KEYFEED.COM types the keys in DOS)."
+}

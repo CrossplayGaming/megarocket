@@ -515,7 +515,9 @@ func CK4_ShowCouncilMessage() -> void:
 		US_CPrint(CK_STRING("ck4_str_councilThanks"))
 
 	VH_UpdateScreen()
-	# VL_WaitVBL(60);
+	# SCR-01: the waits omnispeak leaves out, and the third IN_ClearKeysDown, are in Keen 4's own code
+	# (KEEN4E.EXE 0F00:0495): a key pressed while a window waits does not count
+	VL_DelayTics(60)    # VL_WaitVBL(60);
 	IN_ClearKeysDown()
 	IN_WaitButton()
 	US_CenterWindow(26, 8)
@@ -524,12 +526,13 @@ func CK4_ShowCouncilMessage() -> void:
 	US_SetPrintY(US_GetPrintY() + 12)
 	US_CPrint(CK_STRINGELEMENT("ck4_str_councilMessage", ck_gameState.ck4_membersRescued))
 	VH_UpdateScreen()
-	# VW_WaitVBL(30);
+	VL_DelayTics(30)    # VW_WaitVBL(30);
 	IN_ClearKeysDown()
 	IN_WaitButton()
 	VHB_DrawBitmap(US_GetWindowX() + US_GetWindowW(), US_GetWindowY(), CK_CHUNKNUM("PIC_KEENTALK2"))
 	VH_UpdateScreen()
-	# VW_WaitVBL(30);
+	VL_DelayTics(30)    # VW_WaitVBL(30);
+	IN_ClearKeysDown()
 	IN_WaitButton()
 	ck_gameState.ck4_membersRescued = s16(ck_gameState.ck4_membersRescued + 1)
 	CA_DownLevel()

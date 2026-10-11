@@ -783,6 +783,9 @@ func CK_SaveGame(fp: FS_File) -> bool:
 	for i: int in range(3):
 		var buf: PackedInt64Array = PackedInt64Array([0])    # the length word, then buf + 2
 		cmplen = u16(CAL_RLEWCompress(CA_mapPlanes[i], CA_TilePtrAtPos(0, 0, i), bufsize, buf, 0xABCD))
+		# SCR-01: the original's compression takes time a word at a time, while the Saving box is up
+		# (keen4 and keen5 scr_game: 3 and 4 refreshes for maps of 4026 and 5928 words a plane)
+		cost_n("rlewword", bufsize / 2)
 
 		# Write the size of the compressed level
 		buf[0] = cmplen
@@ -1974,6 +1977,11 @@ func HelpScreens() -> void:
 
 func help_endgame() -> void:
 	# Set up
+	# SCR-01: the original clears video memory itself (VW_ClearVideo(4), KEEN4E.EXE 0900:0C84), which DOSBox
+	# shows black from the next refresh until the first page (keen4 scr_end); the port showed the last
+	# picture on until then
+	if costs.has("clearvideo"):
+		VL_ClearVideo()
 	VL_ClearScreen(4)
 	# RF_Reset();
 	CA_UpLevel()
@@ -2037,9 +2045,18 @@ func help_endgame() -> void:
 		ca_graphChunks[CK_CHUNKNUM("TEXT_END")] = null
 	ca_graphChunks[CK_CHUNKNUM("PIC_ARROWBRIGHT")] = null
 	ca_graphChunks[CK_CHUNKNUM("PIC_ARROWDIM")] = null
-	# CA_DownLevel();
+	# SCR-01: as the original (KEEN4E.EXE 0900:0DA0): the cache level the start raised goes down again, and
+	# video memory is cleared (black in DOSBox until the high scores; the port showed the page half
+	# cleared, keen5 scr_end)
+	CA_DownLevel()
 	IN_ClearKeysDown()
-	VL_ClearScreen(4)
+	if costs.has("clearvideo"):
+		# (VW_ClearVideo(4) leaves video memory black under DOSBox, as USL_EndCards' does: the port's screen
+		# too, or the next present shows it red for a few refreshes)
+		VL_ClearVideo()
+		VL_ClearScreen(0)
+	else:
+		VL_ClearScreen(4)
 	# RF_Reset();
 	# CA_SetGrPurge();
 

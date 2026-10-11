@@ -166,13 +166,14 @@ func cost(name: String) -> void:
 ## before its box; clearing the EGA page per byte; a 16x16 tile and a masked one
 ## rendered; RF_NewPosition beside its tiles; a song started and its bytes
 ## expanded (the black before a level fades in follows the song's size); the
-## story crawl's tables, rows and pixels; the title picture; VW_ClearVideo. A
+## story crawl's tables, rows and pixels; the title picture; VW_ClearVideo; a
+## saved game's compression per map word (SCR-01: the Saving box's time). A
 ## test's own values take precedence.
 func timing_defaults() -> Dictionary:
 	return {"grbyte": 5100, "grexp": 245, "sprchunk": 140000, "sprbyte": 56, "levelload": 74900000,
 		"clearbyte": 1200, "tile16": 20000, "tile16m": 20000, "repos": 8000000, "musicload": 7000000,
 		"audiobyte": 2900, "swrow": 210000, "swpixel": 2600, "swtables": 27000000, "swstart": 17000000,
-		"picbyte": 100, "clearvideo": 51000000}
+		"picbyte": 100, "clearvideo": 51000000, "rlewword": 4000}
 
 
 ## costs[name] for each of n things (bytes, chunks).
