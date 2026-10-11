@@ -1,7 +1,7 @@
 # Copyright (C) 2026 the Megarocket contributors. GPL v2 or later. See LICENSE.md.
 class_name GalaxySounds
 extends RefCounted
-## AUDIO-06 (J-08; the user, 2026-10-10): Keen 4 and 5's AdLib effects in Keen 1-3, in place of the PC
+## AUDIO-06 (J-07; the user, 2026-10-10): Keen 4 and 5's AdLib effects in Keen 1-3, in place of the PC
 ## speaker, from the player's own Keen 4 and 5 (nothing of theirs ships with Megarocket). The table is
 ## Megarocket 1.0's (each Keen 1-3 sound to the Galaxy sound that fits), written by the sounds' names with a
 ## second choice from the other game, so either Keen 4 or Keen 5 alone is enough (Keen 6 is never needed).

@@ -4,6 +4,8 @@ extends SceneTree
 ## own data, and in Keen 5's alone (Keen 4 missing: each sound's second choice); an effect's writes are the
 ## instrument then a note a tick (140 Hz); played through the chip it sounds. In Keen 1 in the host with
 ## the setting on, a jump starts its Keen 4 effect and the speaker is silent; with it off, no effects.
+## Headless, the same keys with the host's hook and without: the state hash equal at every frame, and each
+## hook call made as the speaker's sequencer starts that very sound (the effect's frame is the speaker's).
 ##
 ## Options: --game_data=<folder>
 
@@ -23,12 +25,64 @@ func _wait(cond: Callable, seconds: float) -> bool:
 	return cond.call()
 
 
+## Keen 1 headless from its intro with `keys` (HARN-05a's runner); with `hook` the host's sound hook is set
+## and each call is checked against the speaker's sequencer at that moment. {hashes, calls, in_step}.
+func _headless(root: String, keys: String, seconds: float, hook: bool, plant: bool = false) -> Dictionary:
+	var data: VortData = VortData.new()
+	data.load_game(root.path_join("keen1"), "CK1")
+	var vm: DosMachine = DosMachine.new()
+	var g: VortKeen1 = VortKeen1.new()
+	g.vm = vm
+	g.data = data
+	g.save_dir = OS.get_temp_dir().path_join("mr_audio06_%d" % Time.get_ticks_usec())
+	for spec: String in keys.split(",", false):
+		var parts: PackedStringArray = spec.split(":")
+		vm.add_key_after("intro", float(parts[0]), int(parts[1]), float(parts[2]) if parts.size() > 2 else 0.1)
+	var hashes: PackedStringArray = PackedStringArray()
+	var calls: Array = [0, 0]    # hook calls, of them made as the sequencer started that sound
+	if hook:
+		g.shell_sound_hook = func(playnum: int) -> void:
+			calls[0] += 1
+			if g.SndPtr == (playnum << 16):
+				calls[1] += 1
+			if plant:
+				g.RndT()    # the planted fault: a hook that touches the game
+	vm.on_display = func() -> void:
+		if vm.card.video_mode == EgaCard.MODE_EGA:
+			hashes.append(g.state_hash())
+	vm.time_limit = DosMachine.seconds_to_units(seconds)
+	vm.on_limit = func() -> void: g.exited = true
+	g.main()
+	vm.int8 = Callable()
+	vm.int9 = Callable()
+	vm.on_display = Callable()
+	vm.on_limit = Callable()
+	g.shell_sound_hook = Callable()
+	g.vm = null
+	return {"hashes": hashes, "calls": calls[0], "in_step": calls[1]}
+
+
 func _go() -> void:
 	var root_dir: String = T.options().get("game_data", "")
 	if root_dir == "":
 		t.blocked("no --game_data folder given")
 		t.finish(self)
 		return
+	# headless: the hook changes nothing in the game, and fires as the speaker's sound starts
+	var keys: String = "1.0:28:0.2,3.0:28:0.2,6.0:77:1.5,7.8:80:0.35,8.5:29:0.2,9.5:29:0.2,10.5:56:0.2,11.0:77:3.0,12.0:29:0.3,13.0:57:0.2,14.0:29:0.2"
+	var off: Dictionary = _headless(root_dir, keys, 18.0, false)
+	var on: Dictionary = _headless(root_dir, keys, 18.0, true)
+	var first_diff: int = -1
+	for i: int in range(mini(off.hashes.size(), on.hashes.size())):
+		if off.hashes[i] != on.hashes[i]:
+			first_diff = i
+			break
+	t.ok("headless, the same keys with the hook and without: the state hash equal at every frame (%d frames; first difference %d)" % [on.hashes.size(), first_diff],
+		on.hashes.size() > 500 and on.hashes.size() == off.hashes.size() and first_diff < 0)
+	t.ok("each hook call made as the speaker's sequencer starts that sound (%d of %d)" % [on.in_step, on.calls], on.calls > 2 and on.in_step == on.calls)
+	var bad: Dictionary = _headless(root_dir, keys, 18.0, true, true)
+	t.ok("a planted hook that draws a random number is caught", bad.hashes != off.hashes)
+	print("  headless: %d frames, %d sounds started, the hash equal at every frame" % [on.hashes.size(), on.calls])
 	var both: GalaxySounds = GalaxySounds.new()
 	both.load({"keen4": root_dir.path_join("keen4"), "keen5": root_dir.path_join("keen5")})
 	var missing: Array = []
