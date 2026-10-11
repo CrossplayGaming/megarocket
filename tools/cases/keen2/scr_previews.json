@@ -100,28 +100,6 @@
   },
   {
    "rect": [
-    96,
-    104,
-    104,
-    112
-   ],
-   "from": 19.0,
-   "to": 20.64,
-   "reason": "the main menu's spinning cursor on the row an Enter chooses, from a second before the key (it spins: its three pictures come on both machines) to the black after it: the original reads the Enter up to three refreshes before or after the port (from the first key on their menu loops run that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the cursor stops in another of its three pictures for the fade-out. Keen 1's cases have their keys moved off those edges (tools/steady_keys.py) instead"
-  },
-  {
-   "rect": [
-    96,
-    112,
-    104,
-    120
-   ],
-   "from": 30.0,
-   "to": 31.64,
-   "reason": "the main menu's spinning cursor on the row an Enter chooses, from a second before the key (it spins: its three pictures come on both machines) to the black after it: the original reads the Enter up to three refreshes before or after the port (from the first key on their menu loops run that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the cursor stops in another of its three pictures for the fade-out. Keen 1's cases have their keys moved off those edges (tools/steady_keys.py) instead"
-  },
-  {
-   "rect": [
     97,
     145,
     127,
@@ -273,6 +251,28 @@
    "from": 20.64,
    "to": 27.47,
    "reason": "the title's animated tiles below the previews' text window, which stand still while it is up; the original reads a key up to three refreshes before or after the port (from the first key on the two machines' refreshes and loop passes fall that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the tiles meet another phase about one time in three. Only the tiles that animate (measured on scr_attract), from and to the black between two screens (where masked and unmasked pictures are alike) or a moment they animate; while they animate they are compared (scr_attract, the screens between)"
+  },
+  {
+   "rect": [
+    96,
+    56,
+    104,
+    120
+   ],
+   "from": 15.6,
+   "to": 20.64,
+   "reason": "the main menu's spinning cursor while the menu is moved through and an Enter chooses: the original reads each arrow and Enter up to three refreshes before or after the port (from the first key on their menu loops run that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the cursor reaches a row, and stops for the fade-out, in another of its three pictures (or after another pass). The cursor is compared in scr_menu, scr_continue, scr_map, scr_hiscore and scr_gameover; Keen 1's About and Previews have their keys moved off those edges (tools/steady_keys.py) instead; the original reads a key up to three refreshes before or after the port (from the first key on the two machines' refreshes and loop passes fall that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the tiles meet another phase about one time in three. Only the tiles that animate (measured on scr_attract), from and to the black between two screens (where masked and unmasked pictures are alike) or a moment they animate; while they animate they are compared (scr_attract, the screens between)"
+  },
+  {
+   "rect": [
+    96,
+    56,
+    104,
+    120
+   ],
+   "from": 27.47,
+   "to": 31.64,
+   "reason": "the main menu's spinning cursor while the menu is moved through and an Enter chooses: the original reads each arrow and Enter up to three refreshes before or after the port (from the first key on their menu loops run that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the cursor reaches a row, and stops for the fade-out, in another of its three pictures (or after another pass). The cursor is compared in scr_menu, scr_continue, scr_map, scr_hiscore and scr_gameover; Keen 1's About and Previews have their keys moved off those edges (tools/steady_keys.py) instead; the original reads a key up to three refreshes before or after the port (from the first key on the two machines' refreshes and loop passes fall that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the tiles meet another phase about one time in three. Only the tiles that animate (measured on scr_attract), from and to the black between two screens (where masked and unmasked pictures are alike) or a moment they animate; while they animate they are compared (scr_attract, the screens between)"
   }
  ],
  "port": {

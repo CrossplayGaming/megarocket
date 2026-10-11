@@ -62,7 +62,7 @@ def steady(game, case, reach=24, start_from=0.0, say=print):
 
     def pictures(trial, slot, t0, t1):
         spec = dict(base, held=trial, may_exit=True)
-        out = sc.work_dir(game, case, f"steady{slot}") / "port"
+        out = sc.work_dir(game, case, sc.checkout_tag(f"steady{slot}")) / "port"
         code, folder, _ = sc.run_port(game, case, out, say=lambda s: None, spec=spec, seconds=round(t1 + 0.6, 3))
         if folder is None:
             return None
