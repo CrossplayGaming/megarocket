@@ -1,10 +1,10 @@
 # Copyright (C) 2026 the Megarocket contributors. GPL v2 or later. See LICENSE.md.
 extends SceneTree
 ## MENU-08: Keen 1-3's main menus in the modern order (Keen 1 in the host, real time). The title menu: New
-## Game, Load Game, Options..., Cheats..., High Scores, Extras..., Quit; Extras its own list (Story, About
-## ID..., Ordering Info, Previews!, Restart Demo, Back), Escape back. In a game Escape is the pause menu:
-## Resume, New Game, Load Game, Save Game, Options..., Cheats..., High Scores and Extras... (greyed: from the
-## title), Quit; Resume back to play; New Game asks, goes by the title and starts a new game at once; Load
+## Game, Load Game, Options..., Cheats..., High Scores, Extras..., Quit; Extras its own list (Help, Story,
+## About ID..., Ordering Info, Previews!, Restart Demo, Back: SCR-03's Help first), Escape back. In a game
+## Escape is the pause menu: Resume, New Game, Load Game, Save Game, Options..., Cheats..., High Scores
+## (greyed: from the title), Extras... (its Help works in a game), Quit; Resume back to play; New Game asks, goes by the title and starts a new game at once; Load
 ## Game asks, goes by the title and opens its Continue Game window. Pictures to --shots.
 ##
 ## Options: --game_data=<folder> [--shots=<folder>]
@@ -88,7 +88,7 @@ func _go() -> void:
 	await _pause(1.0)
 	await _shot("m08_extras")
 	t.ok("Extras is its own list (%s)" % [labels.call(g._menu_rows())], g._menu_page == "extras"
-		and labels.call(g._menu_rows()) == ["Story", "About ID...", "Ordering Info", "Previews!", "Restart Demo", "Back"])
+		and labels.call(g._menu_rows()) == ["Help", "Story", "About ID...", "Ordering Info", "Previews!", "Restart Demo", "Back"])
 	await _tap(KEY_ESCAPE)
 	t.ok("Escape: back to the main list", await _wait(func() -> bool: return g._menu_page == "main", 3.0))
 	await _pause(1.0)
@@ -103,7 +103,7 @@ func _go() -> void:
 	await _shot("m08_pause")
 	var pause: Array = g._options_rows("pause")
 	t.eq("the pause menu's rows", labels.call(pause), ["Resume", "New Game", "Load Game", "Save Game", "Options...", "Cheats...", "High Scores", "Extras...", "Quit"])
-	t.ok("High Scores and Extras greyed there", not pause[6].get("enabled", true) and not pause[7].get("enabled", true))
+	t.ok("High Scores greyed there, Extras open (SCR-03: its Help)", not pause[6].get("enabled", true) and pause[7].get("enabled", true))
 	await _tap(KEY_ENTER)    # Resume
 	t.ok("Resume: back in play", await _wait(func() -> bool: return not g.shell_menu_open and host.controls_live(), 3.0))
 	await _pause(0.5)

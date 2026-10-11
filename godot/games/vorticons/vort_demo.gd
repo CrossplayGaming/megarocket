@@ -1044,7 +1044,8 @@ const OPTIONS_ROW: int = mm_HighScores + 1
 
 ## MENU-08 (the user, 2026-10-10): with a player at the controls the title menu is every game's main menu
 ## (OptionsModel.main_rows: New Game, Load Game, Options, Cheats, High Scores, Extras, Quit), drawn and
-## moved as the original's; Extras is its own list (Story, About ID, Ordering Info, Previews, Restart Demo).
+## moved as the original's; Extras is its own list (Help, Story, About ID, Ordering Info, Previews, Restart
+## Demo: SCR-03 put Help first, the F1 pages a pad can't reach otherwise).
 ## The pause menu's New Game and Load Game come here through the title (shell_menu_go).
 var _menu_page: String = "main"
 var shell_menu_go: String = ""
@@ -1062,7 +1063,7 @@ func _shell_skip_scores() -> bool:
 
 
 func _menu_rows() -> Array:
-	return options.page("extras") if _menu_page == "extras" else options.main_rows(false)
+	return _extras_rows(false) if _menu_page == "extras" else options.main_rows(false)
 
 
 func _modern_menu_loop() -> bool:
@@ -1090,10 +1091,12 @@ func _modern_menu_loop() -> bool:
 		while not exited:
 			shell_menu_page = "title:" + _menu_page    # (HARN-09's probe)
 			shell_menu_row = menupos
-			for i: int in range(6):
+			# SCR-03: the controls read at each of the caret's 13 refreshes (the original's menu reads them on
+			# 6, then waits 7: a pad's button pressed and let go in those 7 was never seen); keys as before
+			for i: int in range(13):
 				WaitVBL(1)
 				ctrl = ControlPlayer(1)
-				if ctrl.dir != nodir:
+				if ctrl.dir != nodir or ctrl.button1 or ctrl.button2:
 					break
 			DrawChar(sx, sy * 8, anim + 9)
 			anim = (anim + 1) % 3
@@ -1109,8 +1112,6 @@ func _modern_menu_loop() -> bool:
 					WaitVBL(1)
 				delay = 20
 				ClearKeys()
-			else:
-				WaitVBL(7)
 			var c: int = NoBiosKey(1) & 0xFF
 			if c == 27:
 				NoBiosKey(0)
@@ -1153,6 +1154,8 @@ func _modern_menu_loop() -> bool:
 				_menu_page = "extras"
 			"quit":
 				AskQuit()
+			"help":
+				ShowHelpText()    # SCR-03: F1's pages, over the title as F1 shows them
 			"story":
 				ShowStoryText()
 			"about_id":
