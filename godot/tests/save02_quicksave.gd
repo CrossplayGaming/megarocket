@@ -4,7 +4,7 @@ extends SceneTree
 ## (omnispeak's QUICKSAVE_ENABLED, 1.0's keys). In level 1 (/TEDLEVEL) with a player's settings: F5, the
 ## confirmation answered Y, the pause message closed; Keen walks right; F9, Y. Checks: the quick slot (the
 ## sixth) holds a game named QuickSave; after the quickload Keen is back where he was when it was saved
-## (not where he walked to). With QUICKSAVE ASKS off, the same without the questions. In Classic F5 is the
+## (not where he walked to), the box after it reading PAUSED (J-53). With QUICKSAVE ASKS off, the same without the questions. In Classic F5 is the
 ## original's: the save card opens, nothing quicksaved.
 ##
 ## Options: --game_data=<folder>
@@ -76,6 +76,8 @@ func _game(root: String, game: String, mode: String) -> void:
 					st.walked_x = g.ck_keenObj.posX
 				if now > st.t0 + 9.5 and not st.has("after_x"):
 					st.after_x = g.ck_keenObj.posX
+				if now > st.t0 + 6.0 and g.in_Paused and not st.has("loaded_box"):
+					st.loaded_box = g.in_PausedMessage
 				if vm.marks.has("menu"):
 					st.menu = true
 	vm.time_limit = DosMachine.seconds_to_units(30.0)
@@ -89,6 +91,8 @@ func _game(root: String, game: String, mode: String) -> void:
 			not (g.us_saveFiles[5] as PackedByteArray).is_empty() and slot != null and slot.name == "QuickSave")
 		t.ok("%s: Keen walked away (%s -> %s) and F9 brought him back (%s)" % [game, st.get("saved_x", "?"), st.get("walked_x", "?"), st.get("after_x", "?")],
 			st.has("saved_x") and st.has("walked_x") and st.has("after_x") and st.walked_x != st.saved_x and st.after_x == st.saved_x)
+		# J-53: after a load the box reads PAUSED, as the original's (omnispeak's GAME LOADED is in none of them)
+		t.eq("%s: the box after the quickload" % game, st.get("loaded_box", "none"), "PAUSED")
 	else:
 		t.ok("%s, Classic: F5 is the original's (the save card opened: %s), nothing quicksaved" % [game, st.get("menu", false)],
 			st.get("menu", false) and (g.us_saveFiles[5] as PackedByteArray).is_empty())

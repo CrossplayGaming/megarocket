@@ -108,8 +108,10 @@ func _init() -> void:
 			if str(item.get("caption")) != "":
 				jump_card.append([str(item.get("caption")), (int(item.get("state")) & GalMenu.US_IS_Disabled) != 0])
 	t.ok("the run kept going (quit '%s')" % g.quit_message, g.quit_message == "time limit")
-	t.ok("CONFIGURE: CONTROLS where KEYBOARD and the joysticks were (%s)" % [configure],
-		configure.has("CONTROLS") and configure.find("TOUCH") == configure.find("CONTROLS") + 1 and not configure.has("KEYBOARD") and not configure.any(func(c: String) -> bool: return c.begins_with("USE JOYSTICK")))
+	# (the original's items: USE KEYBOARD, USE JOYSTICK #1 / #2 and USE GRAVIS GAMEPAD (ON)/(OFF), SCR-01; J-54: TOUCH after CONTROLS)
+	t.ok("CONFIGURE: CONTROLS where USE KEYBOARD, the joysticks and the gamepad were, TOUCH after it (%s)" % [configure],
+		configure.has("CONTROLS") and configure.find("TOUCH") == configure.find("CONTROLS") + 1 and not configure.any(func(c: String) -> bool:
+			return c.contains("KEYBOARD") or c.begins_with("USE JOYSTICK") or c.contains("GAMEPAD")))
 	t.ok("OPTIONS has no TWO-BUTTON FIRING (%s)" % [options_rows], not options_rows.any(func(c: String) -> bool: return c.begins_with("TWO-BUTTON")))
 	t.eq("CONTROLS' items", controls, ["KEYBOARD", "CONTROLLER", "FIRE BUTTON (JUMP + POGO)", "RESET TO DEFAULTS"])
 	t.ok("KEYBOARD lists each action and its keys (%s)" % [keyboard],

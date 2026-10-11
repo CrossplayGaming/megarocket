@@ -3,7 +3,9 @@ extends SceneTree
 ## SCR-05 (J-04, 2026-10-06: Keen 6's creature question answered for the player by default; a toggle
 ## shows it, and then any answer passes): Keen 6 in the host, real time, by the controller alone with
 ## real controller events. With the default settings NEW GAME, BEGIN NORMAL GAME goes straight onto the
-## world map, no question asked. Then CREATURE QUESTION turned on (as Classic does): QUIT's END GAME, its
+## world map, no question asked. Then CREATURE QUESTION turned on (as Classic does): Start opens the menu, B
+## and then Start on the main card go back to the game (J-49); NEW GAME from the menu in the game, YOU'RE IN A
+## GAME answered with A: the map again, no question (J-43, as the original); QUIT's END GAME, its
 ## REALLY END CURRENT GAME? answered yes with A; from the title NEW GAME again, the creature question shown
 ## and a wrong answer typed with the d-pad (Z), A: the game starts all the same. The model: off by
 ## default, Classic on, Enhanced off.
@@ -120,10 +122,41 @@ func _go() -> void:
 	host.options.step("creature_question", 1)
 	t.ok("CREATURE QUESTION on", bool(host.options.get_value("creature_question")))
 	await _button(JOY_BUTTON_START)
-	t.ok("Start in play opens the menu", await _wait(func() -> bool: return not g.command_confirmed and not host.controls_live(), 10.0))
+	var in_menu: Callable = func() -> bool: return not g.command_confirmed and not host.controls_live()
+	var in_play: Callable = func() -> bool: return g.game_in_progress != 0 and host.controls_live()
+	t.ok("Start in play opens the menu", await _wait(in_menu, 10.0))
 	await _pause(1.0)
-	# (a new game chosen in a game goes on in the game's loop, which asked at its start: the original asks
-	# only for a game begun from the title, so this one is ended first)
+	# J-49: in a game the pad's B or Start on the main card goes back to the game (the keyboard's Escape
+	# asks REALLY QUIT? as the original's: menu08_galaxy_pad)
+	await _button(JOY_BUTTON_B)
+	t.ok("B on the main card in a game: back to the game (J-49)", await _wait(in_play, 10.0))
+	await _pause(1.0)
+	await _button(JOY_BUTTON_START)
+	t.ok("Start opens the menu again", await _wait(in_menu, 10.0))
+	await _pause(1.0)
+	await _button(JOY_BUTTON_START)
+	t.ok("Start on the main card in a game: back to the game (J-49)", await _wait(in_play, 10.0))
+	await _pause(1.0)
+	# J-43: a new game chosen in a game goes on in the game's loop, which asked at its start: no question
+	# (the original asks only for a game begun from the title)
+	await _button(JOY_BUTTON_START)
+	t.ok("Start opens the menu a third time", await _wait(in_menu, 10.0))
+	await _pause(1.0)
+	await _new_game()
+	t.ok("YOU'RE IN A GAME asks", await _wait(func() -> bool: return g.shell_menu_keys, 5.0))
+	await _pause(0.5)
+	await _button(JOY_BUTTON_A)
+	var asked_in_game: Array = [false]
+	await _wait(func() -> bool:
+		asked_in_game[0] = asked_in_game[0] or g.shell_text_entry
+		return false, 6.0)
+	t.ok("a new game from the menu in a game: no creature question (J-43)",
+		not asked_in_game[0] and not g.ck6_creatureQuestionDone and await _wait(_on_map, 20.0))
+	await _pause(1.0)
+	await _button(JOY_BUTTON_START)
+	t.ok("Start opens the menu once more", await _wait(in_menu, 10.0))
+	await _pause(1.0)
+	# (so the game is ended first, and the next one begun from the title)
 	await _select("QUIT")
 	await _button(JOY_BUTTON_A)
 	await _pause(1.0)

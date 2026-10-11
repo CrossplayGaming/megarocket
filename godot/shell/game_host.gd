@@ -779,6 +779,7 @@ func _pad(b: Variant, down: bool) -> void:
 		code = int(PAD_MENU.get(b, 0))
 	if code != 0:
 		_pad_sent[b] = code
+		_pad_escape(code == 0x01)
 		send_key(code, true)
 
 
@@ -792,6 +793,7 @@ func _touch_key(code: int, down: bool) -> void:
 		return
 	var sent: int = int(TOUCH_TYPING.get(code, code)) if text_entry() else code
 	_touch_sent[code] = sent
+	_pad_escape(false)    # (J-49: the on-screen keys are keys)
 	send_key(sent, true)
 
 
@@ -1060,5 +1062,14 @@ func _input(event: InputEvent) -> void:
 	var code: int = SCANCODES.get(k.keycode, 0)
 	if code == 0:
 		return
+	if k.pressed:
+		_pad_escape(false)
 	send_key(code, k.pressed)
 	get_viewport().set_input_as_handled()
+
+
+## J-49: tells a game that reads it (Keen 4-6's main card) whether the Escape on its way came from the pad's B
+## or Start (true) or from a key (false): the pad's goes back to the game there, the keyboard's asks to quit.
+func _pad_escape(from_pad: bool) -> void:
+	if engine != null and "shell_pad_escape" in engine:
+		engine.set("shell_pad_escape", from_pad)

@@ -320,6 +320,8 @@ func CK4_ScanInfoLayer() -> void:
 # Dialog Functions
 # These are right after ScanInfoLayer in DOS exe
 func CK4_ShowPrincessMessage() -> void:
+	# (SCR-01: the VW_WaitVBL waits omnispeak leaves out are in Keen 4's own code
+	# (KEEN4E.EXE image 0xEFE8, 0xF059, 0xF08C): a key pressed while a window is still waiting does not count)
 	SD_WaitSoundDone()
 	StopMusic()
 	CA_UpLevel()
@@ -344,7 +346,7 @@ func CK4_ShowPrincessMessage() -> void:
 
 	VH_UpdateScreen()
 	SD_PlaySound(CK_SOUNDNUM("SOUND_FOOTAPPEAR"))
-	# VW_WaitVBL(60);
+	VL_DelayTics(60)    # VW_WaitVBL(60);
 	IN_ClearKeysDown()
 	IN_WaitButton()
 	US_CenterWindow(26, 8)
@@ -358,7 +360,7 @@ func CK4_ShowPrincessMessage() -> void:
 		US_CPrint(CK_STRING("ck4_str_lindsayThanks2"))
 
 	VH_UpdateScreen()
-	# VW_WaitVBL(30);
+	VL_DelayTics(30)    # VW_WaitVBL(30);
 
 	IN_ClearKeysDown()
 	IN_WaitButton()
@@ -366,7 +368,7 @@ func CK4_ShowPrincessMessage() -> void:
 	VHB_DrawBitmap(US_GetWindowW() + US_GetWindowX(), US_GetWindowY(), CK_CHUNKNUM("PIC_KEENTALK2"))
 	VH_UpdateScreen()
 
-	# VW_WaitVBL(30);
+	VL_DelayTics(30)    # VW_WaitVBL(30);
 
 	IN_ClearKeysDown()
 	IN_WaitButton()
@@ -381,6 +383,8 @@ func CK4_ShowPrincessMessage() -> void:
 
 
 func CK4_ShowJanitorMessage() -> void:
+	# (SCR-01: the VW_WaitVBL waits omnispeak leaves out are in Keen 4's own code
+	# (KEEN4E.EXE image 0xF171, 0xF1E2, 0xF255, 0xF2C6, 0xF32A): a key pressed while a window is still waiting does not count)
 	SD_WaitSoundDone()
 	CA_UpLevel()
 	CA_MarkGrChunk(CK_CHUNKNUM("PIC_ORACLE"))
@@ -398,7 +402,7 @@ func CK4_ShowJanitorMessage() -> void:
 	US_SetWindowX(US_GetWindowX() + 0x30)
 	US_CPrint(CK_STRING("ck4_str_janitor1"))
 	VH_UpdateScreen()
-	# VW_WaitVBL(60);
+	VL_DelayTics(60)    # VW_WaitVBL(60);
 	IN_ClearKeysDown()
 	IN_WaitButton()
 
@@ -409,7 +413,7 @@ func CK4_ShowJanitorMessage() -> void:
 	US_SetWindowX(US_GetWindowX() + 0x30)
 	US_CPrint(CK_STRING("ck4_str_janitor2"))
 	VH_UpdateScreen()
-	# VW_WaitVBL(60);
+	VL_DelayTics(60)    # VW_WaitVBL(60);
 	IN_ClearKeysDown()
 	IN_WaitButton()
 
@@ -419,7 +423,7 @@ func CK4_ShowJanitorMessage() -> void:
 	US_SetPrintY(US_GetPrintY() + 12)
 	US_CPrint(CK_STRING("ck4_str_janitor3"))
 	VH_UpdateScreen()
-	# VW_WaitVBL(60);
+	VL_DelayTics(60)    # VW_WaitVBL(60);
 	IN_ClearKeysDown()
 	IN_WaitButton()
 
@@ -430,7 +434,7 @@ func CK4_ShowJanitorMessage() -> void:
 	US_SetWindowX(US_GetWindowX() + 0x30)
 	US_CPrint(CK_STRING("ck4_str_janitor4"))
 	VH_UpdateScreen()
-	# VW_WaitVBL(60);
+	VL_DelayTics(60)    # VW_WaitVBL(60);
 	IN_ClearKeysDown()
 	IN_WaitButton()
 
@@ -439,7 +443,7 @@ func CK4_ShowJanitorMessage() -> void:
 	VHB_DrawBitmap(US_GetWindowX() + US_GetWindowW() - 0x28, US_GetWindowY() + 0x18, CK_CHUNKNUM("PIC_KEENMAD"))
 	VH_UpdateScreen()
 
-	# VW_WaitVBL(30);
+	VL_DelayTics(30)    # VW_WaitVBL(30);
 	IN_ClearKeysDown()
 	IN_WaitButton()
 
@@ -449,6 +453,8 @@ func CK4_ShowJanitorMessage() -> void:
 
 
 func CK4_ShowCantSwimMessage() -> void:
+	# (SCR-01: the VW_WaitVBL waits omnispeak leaves out are in Keen 4's own code
+	# (KEEN4E.EXE image 0xF3B9): a key pressed while a window is still waiting does not count)
 	SD_WaitSoundDone()
 	CA_UpLevel()
 	CA_CacheGrChunk(CK_CHUNKNUM("PIC_KEENTALK1"))
@@ -458,13 +464,15 @@ func CK4_ShowCantSwimMessage() -> void:
 	US_SetPrintY(US_GetPrintY() + 6)
 	US_CPrint(CK_STRING("ck4_str_cantSwim"))
 	VH_UpdateScreen()
-	# VL_WaitVBL(30);
+	VL_DelayTics(30)    # VL_WaitVBL(30);
 	IN_ClearKeysDown()
 	IN_WaitButton()
 	CA_DownLevel()
 
 
 func CK4_ShowWetsuitMessage() -> void:
+	# (SCR-01: the VW_WaitVBL waits omnispeak leaves out are in Keen 4's own code
+	# (KEEN4E.EXE image 0xF449, 0xF47C): a key pressed while a window is still waiting does not count)
 	SD_WaitSoundDone()
 	CA_UpLevel()
 	CA_MarkGrChunk(CK_CHUNKNUM("PIC_KEENTALK1"))
@@ -476,14 +484,14 @@ func CK4_ShowWetsuitMessage() -> void:
 	US_SetPrintY(US_GetPrintY() + 12)
 	US_CPrint(CK_STRING("ck4_str_gotWetsuit"))
 	VH_UpdateScreen()
-	# VL_WaitVBL(30);
+	VL_DelayTics(30)    # VL_WaitVBL(30);
 	IN_ClearKeysDown()
 	IN_WaitButton()
 
 	VHB_DrawBitmap(US_GetWindowX() + US_GetWindowW(), US_GetWindowY(), CK_CHUNKNUM("PIC_KEENTALK2"))
 	VH_UpdateScreen()
 
-	# VL_WaitVBL(30);
+	VL_DelayTics(30)    # VL_WaitVBL(30);
 	IN_ClearKeysDown()
 	IN_WaitButton()
 

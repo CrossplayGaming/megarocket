@@ -299,10 +299,8 @@ func US_LoadMain(i: int, fromMenu: bool) -> bool:
 		ck_startingSavedGame = 1
 		e.used = true
 		in_Paused = true
-		# (omnispeak's GAME LOADED, for a player; the original's window reads PAUSED: "GAME LOADED" is in
-		# none of the three programs, keen4 and keen5 scr_end, SCR-01)
-		if options != null:
-			in_PausedMessage = "GAME LOADED"
+		# (the window reads PAUSED, as the original's: omnispeak's GAME LOADED is in none of the three
+		# programs, keen4 and keen5 scr_end, SCR-01; with a player too, J-53)
 		CK_Cross_LogMessage(CK_LOG_MSG_NORMAL, "US_LoadMain: Loaded savegame %d\n" % i)
 		return true
 
@@ -1828,6 +1826,11 @@ func USL_DownLevel(card: US_Card) -> void:
 
 func USL_UpLevel() -> void:
 	if us_cardStackIndex == 0:
+		# J-49 (a player at the controls): with a game in progress, the pad's B or Start on the main card goes
+		# back to the game, as in Keen 1-3 and Dreams; the keyboard's Escape asks REALLY QUIT? as the original's
+		if options != null and shell_pad_escape and game_in_progress != 0:
+			USL_ConfirmComm(US_Comm_ReturnToGame)
+			return
 		USL_ConfirmComm(US_Comm_Quit)
 		return
 
@@ -2204,6 +2207,8 @@ func US_RunCards() -> void:
 ## The shell's Options rows (an OptionsModel) while a player is at the controls; null in headless runs
 ## and the oracle comparisons, which see the original cards.
 var options: Object = null
+## J-49: the host's word that the last Escape came from the pad (B or Start), not the keyboard.
+var shell_pad_escape: bool = false
 var _shell_cards_built: bool = false
 ## A row's toggle card -> [the row's key, its item]
 var _shell_toggles: Dictionary = {}
