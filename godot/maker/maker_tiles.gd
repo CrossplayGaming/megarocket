@@ -47,6 +47,23 @@ func texture(plane: int, tile: int) -> Texture2D:
 				if not raw.is_empty():
 					var m: Dictionary = GalData.unplane_masked(raw, 0, 2, 16)
 					img = {"w": 16, "h": 16, "pixels": m.pixels, "mask": m.mask}
+	var tex: Texture2D = _texture(img, false)
+	_cache[key] = tex
+	return tex
+
+
+## V15-02: a marker's sprite (MakerParts.marker_sprite: the game's own picture of the creature, item or
+## platform, or Keen); null for a marker the game never draws.
+func marker_texture(value: int) -> Texture2D:
+	var key: int = -1 - value
+	if not _cache.has(key):
+		_cache[key] = _texture(_parts.marker_sprite(value), engine == KeenLevel.VORTICONS)
+	return _cache[key]
+
+
+## An image {w, h, pixels, mask} as a texture: the mask's clear parts clear (Keen 1-3's sprites keep 1
+## where they are drawn, the others' masks 1 where the background shows).
+func _texture(img: Dictionary, mask_drawn: bool) -> Texture2D:
 	var tex: Texture2D = null
 	if not img.is_empty():
 		var w: int = int(img.w)
@@ -60,7 +77,6 @@ func texture(plane: int, tile: int) -> Texture2D:
 			rgba[k * 4] = c.r8
 			rgba[k * 4 + 1] = c.g8
 			rgba[k * 4 + 2] = c.b8
-			rgba[k * 4 + 3] = 0 if (not mask.is_empty() and mask[k] != 0) else 255
+			rgba[k * 4 + 3] = 0 if (not mask.is_empty() and (mask[k] != 0) != mask_drawn) else 255
 		tex = ImageTexture.create_from_image(Image.create_from_data(w, h, false, Image.FORMAT_RGBA8, rgba))
-	_cache[key] = tex
 	return tex

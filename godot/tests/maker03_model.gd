@@ -104,6 +104,112 @@ func _game(root: String, game: String) -> void:
 	# the tile-use tables
 	_uses(m, game)
 	_rules(m, game)
+	_brush(m, game)
+	_share(m, root, game)
+	if m.engine == KeenLevel.GALAXY:
+		_links(m, game)
+
+
+## Keen 4-6's links: every switch, gem holder and door of the game's own levels that names a cell in the
+## info plane is read as a link to a cell inside its level, and those of switches and gem holders land on
+## something (a tile in the foreground or a marker); the link tool sets one; the harder difficulties'
+## creatures are named.
+func _links(m: MakerModel, game: String) -> void:
+	var p: MakerParts = m.parts
+	var links: int = 0
+	var landed: int = 0
+	var bad: Array = []
+	for e: Array in m.level_list():
+		var l: KeenLevel = m.original(int(e[0]))
+		for y: int in range(l.height):
+			for x: int in range(l.width):
+				var to: Vector2i = p.link_target(l, x, y)
+				if to.x < 0:
+					continue
+				links += 1
+				if l.get_word(1, to.x, to.y) != 0 or l.get_word(2, to.x, to.y) != 0 or l.get_word(1, to.x, to.y + 1) != 0:
+					landed += 1
+				elif p.props(l.get_word(1, x, y)).use != 2 and bad.size() < 3:
+					bad.append("level %d (%d,%d) -> %s" % [e[0], x, y, to])
+	t.ok("%s: %d links read from the levels, %d land on something (nothing at: %s)" % [game, links, landed, bad], links >= 20 and landed * 10 >= links * 9)
+	m.new_level("Links")
+	var sw: int = -1
+	for v: int in range(1, p.count[1]):
+		if p.props(v).use == 15:
+			sw = v
+			break
+	m.paint(1, 10, 20, sw)
+	m.end_stroke()
+	t.ok("%s: the link tool joins a switch (tile %d) to a cell (%s)" % [game, sw, p.link_target(m.level, 10, 20)],
+		sw > 0 and m.link(Vector2i(10, 20), Vector2i(30, 12)) and p.link_target(m.level, 10, 20) == Vector2i(30, 12)
+		and m.level.get_word(2, 10, 20) == (30 << 8 | 12))
+	t.ok("%s: a plain tile does not link" % game, not m.link(Vector2i(11, 20), Vector2i(30, 12)))
+	var hard: int = (p.VARIANTS[game] as Dictionary).keys()[0]
+	t.ok("%s: a harder difficulty's creature named (%d: %s)" % [game, hard, p.marker_name(hard)], p.marker_name(hard).contains("Hard")
+		and not p.marker_sprite(hard).is_empty())
+
+
+## V15-04's sharing: only a cleared level; a remix as its changes only (no planes, a small file) that
+## opens on another copy of the game equal to the sender's; a different game level refused; a new level
+## whole, equal too.
+func _share(m: MakerModel, root: String, game: String) -> void:
+	m.remix(1)
+	m.begin_stroke()
+	for x: int in range(4, 7):
+		m.paint(0, x, 4, (m.level.get_word(0, x, 4) + 3) % 100)
+	m.end_stroke()
+	t.ok("%s: an uncleared level is not shared (%s)" % [game, m.error if m.share_text() == "" else "SHARED"], m.share_text() == "" and m.error.contains("Finish"))
+	m.cleared_hash = m.fingerprint()
+	var text: String = m.share_text()
+	var doc: Dictionary = JSON.parse_string(text) if text != "" else {}
+	t.ok("%s: a remix shared as its 3 changes only, no planes (%d bytes)" % [game, text.length()],
+		doc.get("kind", "") == "changes" and int(doc.get("count", 0)) == 3 and not doc.has("planes") and text.length() < 1000)
+	var r: MakerModel = MakerModel.new()
+	r.open(game, root.path_join(game), "", false)
+	t.ok("%s: it opens on another copy of the game equal to the sender's (%s)" % [game, r.error], r.open_shared(text) and r.level.plane_difference(m.level) == ""
+		and r.number == 1 and r.doc_name == m.doc_name)
+	doc["base"] = "0" + str(doc.base).substr(1)
+	t.ok("%s: made from another release (its level differs): refused (%s)" % [game, r.error], not r.open_shared(JSON.stringify(doc)) and r.error.contains("another release"))
+	m.new_level("Shared new")
+	m.paint(MakerModel.START_PLANE[m.engine], 9, 9, {"keen1": 1, "keen4": 22, "kdreams": 41}[game])
+	m.cleared_hash = m.fingerprint()
+	var whole: String = m.share_text()
+	t.ok("%s: a new level shared whole opens equal" % game, whole.contains("\"whole\"") and r.open_shared(whole) and r.level.plane_difference(m.level) == "")
+
+
+## V15-04's ground brush: a block brushed in the air gets the game's own top edge, corners and fill (by
+## the shapes its levels use), as one undo step; a cell taken out re-shapes the ones round it.
+func _brush(m: MakerModel, game: String) -> void:
+	m.new_level("Brush")
+	var p: MakerParts = m.parts
+	var tp: int = p.tile_plane()
+	var known: int = 0
+	for b: int in p.brush:
+		known += 1 if b >= 0 else 0
+	t.ok("%s: the brush learned %d of 16 shapes from the levels (top %d, fill %d)" % [game, known, p.brush_tile(14), p.brush_tile(15)],
+		known >= 8 and p.brush_tile(14) != p.brush_tile(15))
+	var before: KeenLevel = m.level.copy()
+	m.begin_stroke()
+	for y: int in range(8, 11):
+		for x: int in range(20, 25):
+			m.brush_at(x, y, true)
+	m.end_stroke()
+	var l: KeenLevel = m.level
+	var all_ground: bool = true
+	for y: int in range(8, 11):
+		for x: int in range(20, 25):
+			all_ground = all_ground and p.is_ground(l.get_word(tp, x, y))
+	t.ok("%s: a 5x3 block brushed: all ground, the top edge %d (want %d), the top-left corner %d (want %d), the middle %d (want %d)" % [game,
+		p.brush_key(l, 22, 8), p.brush_tile(14), p.brush_key(l, 20, 8), p.brush_tile(6), p.brush_key(l, 22, 9), p.brush_tile(15)],
+		all_ground and p.brush_key(l, 22, 8) == p.brush_tile(14) and p.brush_key(l, 20, 8) == p.brush_tile(6) and p.brush_key(l, 22, 9) == p.brush_tile(15))
+	m.begin_stroke()
+	m.brush_at(22, 8, false)
+	m.end_stroke()
+	t.ok("%s: a cell taken out: the one below it becomes a top edge (%d, want %d)" % [game, p.brush_key(l, 22, 9), p.brush_tile(14)],
+		not p.is_ground(l.get_word(tp, 22, 8)) and p.brush_key(l, 22, 9) == p.brush_tile(14))
+	m.undo()
+	m.undo()
+	t.ok("%s: two undos take the brushing away" % game, before.plane_difference(l) == "")
 
 
 ## V15-04's rules: refused at once with a reason, the object meter, a door with no key or gem said.
@@ -215,5 +321,22 @@ func _uses(m: MakerModel, game: String) -> void:
 			if not ok:
 				wrong.append("%s %d %s" % [c.name, v, pr])
 	t.ok("%s: every tile's kind agrees with its properties (%d wrong: %s)" % [game, wrong.size(), wrong.slice(0, 3)], wrong.is_empty())
+	# V15-02: every marker the palette names that the game draws shows the game's own sprite
+	var drawn: int = 0
+	var unseen: Array = []
+	for c: Dictionary in p.categories:
+		for v: int in (c.names as Dictionary):
+			var want_sprite: bool = MakerParts.SPRITES.get(game, {}).has(v) or (m.engine == KeenLevel.GALAXY and v >= 57 and v <= 68) \
+				or (m.engine == KeenLevel.DREAMS and v >= 21 and v <= 32)
+			if not want_sprite:
+				continue
+			var img: Dictionary = p.marker_sprite(v)
+			if img.is_empty() or int(img.w) <= 0 or (img.pixels as PackedByteArray).size() != int(img.w) * int(img.h):
+				unseen.append(v)
+			else:
+				drawn += 1
+	var keen: Dictionary = p.marker_sprite(MakerModel.START_MARKERS[m.engine][0])
+	t.ok("%s: %d markers drawn with the game's own sprites, Keen's start too (%s; missing %s)" % [game, drawn,
+		"%dx%d" % [keen.get("w", 0), keen.get("h", 0)], unseen], drawn >= 6 and unseen.is_empty() and int(keen.get("h", 0)) >= 24)
 	var named: Array = {"keen1": [1, "Yorp"], "keen4": [22, "Poison slug"], "kdreams": [41, "Broccolash"]}[game]
 	t.eq("%s: a creature named on the marker plane" % game, p.marker_name(named[0]), named[1])

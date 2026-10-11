@@ -24,7 +24,7 @@ signal closed
 
 const GAMES: Array = [["keen1", "Keen 1"], ["keen2", "Keen 2"], ["keen3", "Keen 3"], ["keen4", "Keen 4"],
 	["keen5", "Keen 5"], ["keen6", "Keen 6"], ["kdreams", "Keen Dreams"]]
-const TOOL_NAMES: Dictionary = {"paint": "Paint", "pick": "Pick", "erase": "Erase", "rect": "Fill box", "start": "Keen start"}
+const TOOL_NAMES: Dictionary = {"paint": "Paint", "brush": "Ground brush", "pick": "Pick", "erase": "Erase", "rect": "Fill box", "link": "Link", "start": "Keen start"}
 ## The cursor's repeat while a direction is held: first step, then every
 const REPEAT_FIRST: float = 0.28
 const REPEAT_EVERY: float = 0.06
@@ -68,6 +68,8 @@ var _a_down: bool = false
 var _b_down: bool = false
 var _trig: Dictionary = {}
 var _played_from: String = ""
+var _from_start: bool = false
+var _played: Object = null
 var _rename_edit: LineEdit = null
 ## A refusal's reason, shown first on the status line for a few seconds
 var _notice: String = ""
@@ -242,6 +244,7 @@ func show_library(focus_path: String = "") -> void:
 	_page_box.add_child(row)
 	var new_b: Button = _button(row, "New level", new_level, "NewLevel")
 	_button(row, "Remix a level", show_remix, "Remix")
+	_button(row, "Bring in shared levels", bring_in, "BringIn")
 	_button(row, "Other game", func() -> void:
 		_return_focus = game
 		show_games(), "OtherGame")
@@ -251,7 +254,7 @@ func show_library(focus_path: String = "") -> void:
 	var saved: Array = MakerLibrary.list(game)
 	for e: Dictionary in saved:
 		var when: String = Time.get_datetime_string_from_unix_time(int(e.modified) + _tz(), true).substr(0, 16)
-		var b: Button = _button(list, "%s    %s    %s" % [e.name, when, "remix of level %s" % str(e.origin).substr(6) if str(e.origin).begins_with("remix") else "new"],
+		var b: Button = _button(list, "%s    %s    %s%s" % [e.name, when, "remix of level %s" % str(e.origin).substr(6) if str(e.origin).begins_with("remix") else "new", "    cleared" if e.cleared else ""],
 			_on_level_button.bind(str(e.path)), "Level_%s" % str(e.path).get_file().get_basename())
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.set_meta("path", e.path)
@@ -278,7 +281,57 @@ func _on_level_button(path: String) -> void:
 			name = e.name
 	ask(name, [["Edit", func() -> void: edit_saved(path)], ["Play", func() -> void: play_saved(path)],
 		["Rename", func() -> void: rename_box(path, name)], ["Duplicate", func() -> void: _duplicate(path)],
+		["Share", func() -> void: share(path)],
 		["Delete", func() -> void: _confirm_delete(path, name)], ["Cancel", func() -> void: pass]], "")
+
+
+## V15-04: a cleared level written as a file to share (MakerModel.share_text: a remix as its changes
+## only) into the shared folder, which the status line names.
+func share(path: String) -> String:
+	if not model.load_doc(path):
+		status.text = "Can't share it: " + model.error
+		return ""
+	var text: String = model.share_text()
+	if text == "":
+		show_library(path)
+		status.text = "Not shared: " + model.error
+		return ""
+	DirAccess.make_dir_recursive_absolute(MakerLibrary.shared_dir())
+	var to: String = MakerLibrary.shared_dir().path_join("%s_%s.keenlevel" % [game, model.doc_name.validate_filename().replace(" ", "_")])
+	var f: FileAccess = FileAccess.open(to, FileAccess.WRITE)
+	if f == null:
+		status.text = "Not shared: can't write " + to
+		return ""
+	f.store_string(text)
+	f.close()
+	show_library(path)
+	status.text = "Shared as %s (%d bytes): send that file; the other player puts it in %s and presses Bring in shared levels." % [to, text.length(), MakerLibrary.inbox_dir()]
+	return to
+
+
+## V15-04: the shared level files for this game in the inbox brought into the library (each opened against
+## the player's own copy of the game, saved as a new level; the file then marked brought in).
+func bring_in() -> int:
+	var dir: String = MakerLibrary.inbox_dir()
+	DirAccess.make_dir_recursive_absolute(dir)
+	var n: int = 0
+	var refused: PackedStringArray = PackedStringArray()
+	for f: String in DirAccess.get_files_at(dir):
+		if f.get_extension() != "keenlevel":
+			continue
+		var text: String = FileAccess.get_file_as_string(dir.path_join(f))
+		var doc: Variant = JSON.parse_string(text)
+		if not (doc is Dictionary) or str((doc as Dictionary).get("game", "")) != game:
+			continue
+		if model.open_shared(text) and model.save_doc():
+			DirAccess.rename_absolute(dir.path_join(f), dir.path_join(f + ".brought_in"))
+			n += 1
+		else:
+			refused.append("%s: %s" % [f, model.error])
+	show_library()
+	status.text = ("Brought in %d shared level%s. " % [n, "" if n == 1 else "s"] if n > 0 else "No shared %s levels in %s. " % [_title(game), dir]) \
+		+ (" ".join(refused) if not refused.is_empty() else "")
+	return n
 
 
 func _duplicate(path: String) -> void:
@@ -439,7 +492,7 @@ func _category(d: int) -> void:
 func _on_part(plane: int, value: int) -> void:
 	view.plane = plane
 	view.value = value
-	if view.tool in ["pick", "erase", "start"]:
+	if view.tool in ["pick", "erase", "start", "brush", "link"]:
 		set_tool("paint")
 	view.queue_redraw()
 	_refresh()
@@ -482,10 +535,13 @@ func _refresh() -> void:
 		var mv: int = model.level.get_word(model.parts.marker_plane(), view.cursor.x, view.cursor.y)
 		var tv: int = model.level.get_word(model.parts.tile_plane(), view.cursor.x, view.cursor.y)
 		under = model.parts.marker_name(mv) if mv != 0 and model.parts.marker_name(mv) != "" else model.parts.use_of(model.parts.tile_plane(), tv)
+		var to: Vector2i = model.parts.link_target(model.level, view.cursor.x, view.cursor.y)
+		if to.x >= 0:
+			under += ", works on %d,%d" % [to.x, to.y]
 	var notice: String = _notice + "   " if Time.get_ticks_msec() < _notice_until else ""
-	status.text = notice + "%s (%s)   %dx%d   objects %d/%d   %s   cursor %d,%d %s   Keen starts %s%s" % [model.doc_name, _title(game), model.level.width,
-		model.level.height, model.objects(), MakerModel.OBJECT_LIMIT[model.engine], TOOL_NAMES[view.tool] + (" - pick the other corner" if view.anchor.x >= 0 else ""),
-		view.cursor.x, view.cursor.y, under, "at %d,%d" % [s.x, s.y] if s.x >= 0 else "nowhere yet", "   not saved" if model.dirty else ""]
+	status.text = notice + "%s (%s)   %dx%d   objects %d/%d   %s   cursor %d,%d %s   Keen starts %s%s%s" % [model.doc_name, _title(game), model.level.width,
+		model.level.height, model.objects(), MakerModel.OBJECT_LIMIT[model.engine], TOOL_NAMES[view.tool] + ((" - pick what it works on" if view.tool == "link" else " - pick the other corner") if view.anchor.x >= 0 else ""),
+		view.cursor.x, view.cursor.y, under, "at %d,%d" % [s.x, s.y] if s.x >= 0 else "nowhere yet", "   cleared" if model.is_cleared() else "   not cleared yet", "   not saved" if model.dirty else ""]
 
 
 func save() -> bool:
@@ -669,6 +725,8 @@ func _play(at: Vector2i, checked: bool = false) -> void:
 		return
 	_body.visible = false
 	model.trail = PackedVector2Array()
+	_from_start = at.x < 0 or not model.level.in_bounds(at.x, at.y)
+	_played = host.engine    # kept: the host lets its engine go before it says the game finished
 	host.finished.connect(_on_played)
 
 
@@ -729,6 +787,10 @@ func _record_trail() -> void:
 
 
 func _on_played(_message: String) -> void:
+	var won: bool = model.note_play(_played, _from_start)
+	_played = null
+	if won and _from_start and model.path != "" and not model.dirty:
+		model.save_doc()    # the clear kept with the level (nothing else changed since the play)
 	host.queue_free()
 	host = null
 	_body.visible = true
@@ -736,7 +798,7 @@ func _on_played(_message: String) -> void:
 		view.grab_focus()
 		view.queue_redraw()
 		_refresh()
-		status.text = "Back from playing: Keen's run is the trail. " + status.text
+		status.text = ("Cleared! You finished it from Keen's start. " if won and _from_start else ("Finished from the cursor (a clear counts from Keen's start). " if won else "Back from playing: Keen's run is the trail. ")) + status.text
 	else:
 		show_library(_played_from)
 		status.text = "Back from playing."
@@ -747,7 +809,7 @@ func _on_played(_message: String) -> void:
 
 func _erase_at_cursor(drag: bool) -> void:
 	var t: String = view.tool
-	view.tool = "erase"
+	view.tool = "unbrush" if t == "brush" else "erase"
 	view.act_at(view.cursor, drag)
 	view.tool = t
 

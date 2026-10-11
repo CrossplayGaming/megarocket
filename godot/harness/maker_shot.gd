@@ -2,7 +2,7 @@
 extends SceneTree
 ## Keen Maker, for review: its screens in a window, saved as PNGs (outside the repository: they hold the
 ## game's tiles): the game picker; a game's library; a new level in the editor with a row of ground and a
-## creature placed; the whole level zoomed out; the menu; Keen 1 and Keen Dreams' editors; a remix.
+## creature placed, a block of ground brushed; the whole level zoomed out; the menu; Keen 1 and Keen Dreams' editors; a remix.
 ##
 ##   godot --path godot --script res://harness/maker_shot.gd -- --game_data=<folder> --out=<png>
 ##         [--game=keen4] [--size=1600x900]
@@ -41,6 +41,10 @@ func _editor(m: MakerScreen, game: String, name: String) -> void:
 	# a ledge of the palette's first ground part over Keen, and the first creature to his right
 	m.palette.show_category(0)
 	m.model.fill_rect(m.palette.part()[0], s + Vector2i(3, -4), s + Vector2i(9, -4), m.palette.part()[1])
+	# a block of ground with the ground brush (its edges chosen as the game's levels have them)
+	for y: int in range(s.y - 9, s.y - 6):
+		for x: int in range(s.x + 10, s.x + 17):
+			m.model.brush_at(x, y, true)
 	for i: int in range(m.model.parts.categories.size()):
 		if m.model.parts.categories[i].name == MakerParts.ENEMIES:
 			m.palette.show_category(i)
@@ -74,7 +78,7 @@ func _run() -> void:
 	await _editor(m, "keen1", "keen1")
 	await _editor(m, "kdreams", "kdreams")
 	m.open_game(game)
-	m.remix(1)
+	m.remix(int(_opts.get("remix", "1")))
 	await _frames(10)
 	_shot("remix")
 	quit(0)

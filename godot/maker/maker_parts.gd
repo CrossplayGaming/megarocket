@@ -71,6 +71,61 @@ const INFO_PARTS: Dictionary = {
 		EXIT: {33: "Exit door"}},
 }
 
+## V15-02: the sprite each marker shows in the maker, the one its creature, item or platform first shows in
+## the game (each engine's spawn code: Keen 1-3's shapenum, Keen 4-6's first action's left chunk, Dreams'
+## first state's left shape), by its name in the engine's own tables (VortNamesN.sprites(), GFXCHUNK's
+## SPR_ numbers, DrmDecl's chunk constants). The pictures come from the player's files when drawn. A marker
+## with none (the dart guns, ice cannons and turrets, which the game never draws) keeps its named box.
+const SPRITES: Dictionary = {
+	"keen1": {1: "YORPSTAND1SPR", 2: "GARGSTAND1SPR", 3: "VORTSTAND1SPR", 4: "CANSTAND1SPR", 5: "TANKSTAND1SPR", 10: "CHAINSPR"},
+	"keen2": {1: "GRUNTSTAND1SPR", 2: "YOUTHLEFT1SPR", 3: "ELITELEFT1SPR", 4: "SCRUBL1SPR", 5: "GUARDSTAND1SPR", 6: "PLATFORM1SPR", 7: "SPARK1SPR"},
+	"keen3": {1: "GRUNTSTAND1SPR", 2: "YOUTHLEFT1SPR", 3: "WOMANL1SPR", 4: "MEEPL1SPR", 5: "NINJAL1SPR", 6: "FOOBL1SPR", 7: "BALLSPR",
+		8: "JACK1SPR", 9: "PLATFORM1SPR", 10: "PLATFORM1SPR", 11: "GRUNTSTAND1SPR", 12: "SPARK1SPR"},
+	"keen4": {4: "SPR_MEMBERSHUFFLEL1", 5: "SPR_BERKEFLOATL1", 6: "SPR_LINDSEY1", 7: "SPR_WORMOUTHHINT", 8: "SPR_SKYPESTL1",
+		9: "SPR_CLOUDSTERSLEEP", 10: "SPR_FOOT", 12: "SPR_BOUNDERFACE1", 13: "SPR_EGG", 14: "SPR_LICKLEAPL3", 15: "SPR_DOPEFISHL1",
+		16: "SPR_SCHOOLFISHL1", 17: "SPR_SPRITEFACE", 18: "SPR_EATERSTAND1", 19: "SPR_MIMROCKSIT", 20: "SPR_ARACHNUT1",
+		21: "SPR_MADMUSHROOML1", 22: "SPR_SLUGL1", 27: "SPR_PLATFORM", 28: "SPR_PLATFORM", 29: "SPR_PLATFORM", 30: "SPR_PLATFORM",
+		32: "SPR_PLATFORM", 35: "SPR_SCUBAGEAR", 42: "SPR_KEENSWIML1", 69: "SPR_MINE", 77: "SPR_EGGBIRDWALKL1"},
+	"keen5": {4: "SPR_SPARKYL1", 7: "SPR_SHIKADIMINE", 10: "SPR_SLICESTAR", 13: "SPR_ROBOREDL", 16: "SPR_SPIROGRABD", 19: "SPR_SLICESTAR",
+		22: "SPR_SLICESTAR", 27: "SPR_PURPLEPLAT1", 28: "SPR_PURPLEPLAT1", 29: "SPR_PURPLEPLAT1", 30: "SPR_PURPLEPLAT1", 32: "SPR_PLATFORM",
+		33: "SPR_PLATFORM", 36: "SPR_PURPLEPLAT1", 37: "SPR_PURPLEPLAT1", 38: "SPR_PURPLEPLAT1", 39: "SPR_PURPLEPLAT1", 40: "SPR_PLATFORM",
+		42: "SPR_AMPTONWALKL1", 71: "SPR_VOLTEFACE1", 74: "SPR_SHELLEYL1", 77: "SPR_SPINDRED1", 88: "SPR_MASTER1", 99: "SPR_SHIKADI1",
+		102: "SPR_PETRUNL1", 105: "SPR_SPHEREFUL1", 124: "SPR_KORATHWALKL1", 70: "SPR_SECURITYCARD_1"},
+	"keen6": {4: "SPR_BLOOGWALKL1", 7: "SPR_RBLOOGLETWALKL1", 18: "SPR_FLEEXWALKL1", 27: "SPR_PLATFORM", 28: "SPR_PLATFORM",
+		29: "SPR_PLATFORM", 30: "SPR_PLATFORM", 32: "SPR_PLATFORM", 33: "SPR_PLATFORM", 36: "SPR_PLATFORM", 37: "SPR_PLATFORM",
+		38: "SPR_PLATFORM", 39: "SPR_PLATFORM", 40: "SPR_PLATFORM", 41: "SPR_BOBBAL2", 47: "SPR_NOSPIKESTAND", 50: "SPR_GIKWALKL1",
+		70: "SPR_ORBATRIXL1", 73: "SPR_BIPSHIPL", 76: "SPR_FLECTWALKL1", 79: "SPR_BLORB1", 82: "SPR_CEILICKTONGUE1",
+		85: "SPR_BLOOGUARDWALKL1", 88: "SPR_MAPGRABBITERSLEEP1", 99: "SPR_HOOK", 100: "SPR_SANDWICH", 101: "SPR_PASSCARD",
+		102: "SPR_BABOBBAL2", 105: "SPR_ROCKET"},
+	"kdreams": {33: "DOORSPR", 41: "BROCCOLASHRUNL1SPR", 42: "TOMATOOTHL1SPR", 43: "CARROTRUNL1SPR", 45: "ASPARAGUSRUNL1SPR",
+		46: "GRAPEONVINESPR", 47: "TATERTROOPWALKL1SPR", 48: "CANTCARTL1SPR", 49: "FRENCHYRUNL1SPR", 50: "MELONLIPSL1SPR",
+		57: "SQUASHERWALKL1SPR", 58: "APELWALKL1SPR", 59: "PEAPODRUNL1SPR", 60: "PEABRAINWALKL1SPR", 61: "BOOBUSWALKL1SPR"},
+}
+## The info plane's other creatures: the ones Keen 4-6 add on the harder difficulties (each engine's
+## ScanInfoLayer: a number that spawns on Normal and Hard, another on Hard only, falling through to the
+## always-there one): value -> [that one, "N" or "H"]
+const VARIANTS: Dictionary = {
+	"keen4": {43: [22, "N"], 44: [22, "H"], 45: [8, "N"], 46: [8, "H"], 47: [14, "N"], 48: [14, "H"], 49: [5, "N"], 50: [5, "H"],
+		51: [7, "N"], 52: [7, "H"], 73: [20, "N"], 74: [20, "H"], 78: [77, "H"], 87: [15, "N"], 88: [15, "H"], 23: [17, "N"], 24: [17, "H"],
+		79: [53, "N"], 83: [53, "H"], 80: [54, "N"], 84: [54, "H"], 81: [55, "N"], 85: [55, "H"], 82: [56, "N"], 86: [56, "H"]},
+	"keen5": {5: [4, "N"], 6: [4, "H"], 8: [7, "N"], 9: [7, "H"], 11: [10, "N"], 12: [10, "H"], 14: [13, "N"], 15: [13, "H"],
+		17: [16, "N"], 18: [16, "H"], 20: [19, "N"], 21: [19, "H"], 23: [22, "N"], 24: [22, "H"], 43: [42, "N"], 44: [42, "H"],
+		49: [45, "N"], 50: [46, "N"], 51: [47, "N"], 52: [48, "N"], 53: [45, "H"], 54: [46, "H"], 55: [47, "H"], 56: [48, "H"],
+		72: [71, "N"], 73: [71, "H"], 75: [74, "N"], 76: [74, "H"], 78: [77, "N"], 79: [77, "H"], 89: [88, "N"], 90: [88, "H"],
+		100: [99, "N"], 101: [99, "H"], 103: [102, "N"], 104: [102, "H"], 106: [105, "N"], 107: [105, "H"]},
+	"keen6": {5: [4, "N"], 6: [4, "H"], 19: [18, "N"], 20: [18, "H"], 42: [41, "N"], 43: [41, "H"], 48: [47, "N"], 49: [47, "H"],
+		51: [50, "N"], 52: [50, "H"], 71: [70, "N"], 72: [70, "H"], 74: [73, "N"], 75: [73, "H"], 77: [76, "N"], 78: [76, "H"],
+		80: [79, "N"], 81: [79, "H"], 83: [82, "N"], 84: [82, "H"], 86: [85, "N"], 87: [85, "H"], 103: [102, "N"], 104: [102, "H"]},
+}
+## Keen 4-6's linking tiles (their foreground's misc): a door (2), the switches (5, 6, 15), the gem
+## holders (7-10) and a teleporter (20) find what they work on in the info plane at their own cell, as
+## (x << 8) | y (CK_KeenPressSwitchThink, CK_KeenPlaceGem, the door code)
+const LINKING: Array = [2, 5, 6, 7, 8, 9, 10, 15, 20]
+
+## Keen himself, on the start marker
+const KEEN_SPRITE: Dictionary = {"keen1": "KEENWALKR1SPR", "keen2": "KEENWALKR1SPR", "keen3": "KEENWALKR1SPR",
+	"keen4": "SPR_KEENSTANDR", "keen5": "SPR_KEENSTANDR", "keen6": "SPR_KEENSTANDR", "kdreams": "KEENSTANDRSPR"}
+
 var game_id: String = ""
 var engine: String = ""
 var error: String = ""
@@ -252,11 +307,124 @@ func _build() -> void:
 			marks[v] = c
 		var key: String = c + "@info" if by.has(c) else c
 		by[key] = {"name": c, "plane": mp, "values": values, "names": names}
+	for v: int in VARIANTS.get(game_id, {}):
+		marks[v] = marks.get(VARIANTS[game_id][v][0], ENEMIES)
 	_use[mp] = marks
 	for c: String in ORDER:
 		for key: String in [c, c + "@info"]:
 			if by.has(key):
 				categories.append(by[key])
+
+
+## V15-04's ground brush: for each way a ground cell can have ground beside it (a bit each for above,
+## right, below and left: 0-15), the tile the game's own levels use most for it (the top edge, the
+## corners, the sides, the fill). Learned from the player's levels when the game is opened; -1 where no
+## level has that shape. Keen 4-6 and Dreams draw much of their ground in the background behind solid
+## foreground tiles (Dreams' are often blank), so there a brush piece is the pair: background << 16 |
+## foreground (brush_key).
+var brush: PackedInt32Array = PackedInt32Array()
+
+
+## Whether a tile is ground for the brush.
+func is_ground(tile: int) -> bool:
+	return use_of(tile_plane(), tile) == GROUND
+
+
+## The brush's shape of the cell (x, y) in `l`: bit 1 ground above, 2 right, 4 below, 8 left (outside
+## the level counts as ground, as the levels' frames are).
+func shape_at(l: KeenLevel, x: int, y: int) -> int:
+	var tp: int = tile_plane()
+	var bits: int = 0
+	var k: int = 0
+	for d: Vector2i in [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]:
+		var nx: int = x + d.x
+		var ny: int = y + d.y
+		if not l.in_bounds(nx, ny) or is_ground(l.get_word(tp, nx, ny)):
+			bits |= 1 << k
+		k += 1
+	return bits
+
+
+## Learns the brush from `levels` (the level being made's own slot first, so its pieces are of one
+## tileset), each shape no level of them has taken from `fallback` (the game's other levels).
+func learn_brush(levels: Array, fallback: Array = []) -> void:
+	_learn(levels)
+	if fallback.is_empty() or not brush.has(-1):
+		return
+	var own: PackedInt32Array = brush
+	_learn(fallback)
+	for i: int in range(16):
+		if own[i] >= 0:
+			brush[i] = own[i]
+
+
+func _learn(levels: Array) -> void:
+	var tp: int = tile_plane()
+	var counts: Array = []
+	for i: int in range(16):
+		counts.append({})
+	# the pieces of the levels' outer ring are left out (Keen 4-6's EDGE OF MAP and the like fill the
+	# borders; they are not ground anyone builds with)
+	var ring: Dictionary = {}
+	for l: KeenLevel in levels:
+		if l == null:
+			continue
+		for y: int in range(l.height):
+			for x: int in [0, l.width - 1]:
+				ring[brush_key(l, x, y)] = true
+		for x: int in range(l.width):
+			for y: int in [0, l.height - 1]:
+				ring[brush_key(l, x, y)] = true
+	for l: KeenLevel in levels:
+		if l == null:
+			continue
+		for y: int in range(l.height):
+			for x: int in range(l.width):
+				if is_ground(l.get_word(tp, x, y)):
+					var c: Dictionary = counts[shape_at(l, x, y)]
+					var k: int = brush_key(l, x, y)
+					if not ring.has(k):
+						c[k] = int(c.get(k, 0)) + 1
+	# an edge is not the fill: where a shape's most used piece is the fill's (Dreams fills its solid parts
+	# with one dark pair, edges too), its most used other piece
+	brush = PackedInt32Array()
+	var fill: int = _most(counts[15], -1)
+	for i: int in range(16):
+		var c: Dictionary = (counts[i] as Dictionary).duplicate()
+		if i != 15 and c.size() > 1:
+			c.erase(fill)
+		brush.append(_most(c, -1))
+
+
+## A cell's brush piece: Keen 1-3 its tile; the others background << 16 | foreground.
+func brush_key(l: KeenLevel, x: int, y: int) -> int:
+	if engine == KeenLevel.VORTICONS:
+		return l.get_word(0, x, y)
+	return (l.get_word(0, x, y) << 16) | l.get_word(1, x, y)
+
+
+## The piece the brush puts in a cell of shape `bits` (the nearest shape the levels have, by the most bits
+## in common, where they lack this one).
+func brush_tile(bits: int) -> int:
+	if brush.size() == 16 and brush[bits] >= 0:
+		return brush[bits]
+	var best: int = -1
+	var score: int = -1
+	for i: int in range(brush.size()):
+		if brush[i] >= 0:
+			var same: int = 4 - _bits(i ^ bits)
+			if same > score:
+				best = brush[i]
+				score = same
+	return best
+
+
+static func _bits(v: int) -> int:
+	var n: int = 0
+	while v != 0:
+		n += v & 1
+		v >>= 1
+	return n
 
 
 ## Moves tiles (the ground a new level is made of) to the front of their category, so the palette
@@ -275,8 +443,74 @@ func put_first(values: Array) -> void:
 		c.values = vals
 
 
+## The marker's sprite as an image {w, h, pixels, mask} from the player's files; empty for none.
+## Keen 4-6's items (57-68) are CK_SpawnItem's chunks; Dreams' (21-32) its bonusshape table.
+func marker_sprite(value: int) -> Dictionary:
+	var name: String = ""
+	if value in MakerModel.START_MARKERS[engine]:
+		name = KEEN_SPRITE.get(game_id, "")
+	elif engine == KeenLevel.GALAXY and value >= 57 and value <= 68:
+		name = GalAct.CK_ItemSpriteChunks[value - 57]
+	else:
+		var base: Array = VARIANTS.get(game_id, {}).get(value, [])
+		name = SPRITES.get(game_id, {}).get(base[0] if not base.is_empty() else value, "")
+	var bonus: bool = engine == KeenLevel.DREAMS and value >= 21 and value <= 32
+	if name == "" and not bonus:
+		return {}
+	match engine:
+		KeenLevel.VORTICONS:
+			var names: Dictionary = (VortNames1 if game_id == "keen1" else (VortNames2 if game_id == "keen2" else VortNames3)).sprites()
+			var i: int = int(names.get(name, -1))
+			return vort.sprites[i] if i >= 0 and i < vort.sprites.size() else {}
+		KeenLevel.GALAXY:
+			if _gal_images == null:
+				_gal_images = GalImages.new(gal)
+			return _gal_images.sprite(int(gal.chunk_names.ints.get(name, -1)))
+		KeenLevel.DREAMS:
+			var chunk: int = int(DreamsGame.bonusshape[value - 21]) if bonus else int((DrmDecl as Script).get_script_constant_map().get(name, -1))
+			var i: int = chunk - DreamsData.STARTSPRITES
+			return dreams.sprite(i) if i >= 0 and i < dreams.sprite_table.size() else {}
+	return {}
+
+
+var _gal_images: GalImages = null
+
+
+## A harder difficulty's creature: "N" (Normal and Hard) or "H" (Hard only); "" for others.
+func variant(value: int) -> String:
+	var v: Array = VARIANTS.get(game_id, {}).get(value, [])
+	return v[1] if not v.is_empty() else ""
+
+
+## Keen 4-6: the cell a linking tile at (x, y) works on (a switch's platform or bridge, a gem holder's
+## door, a door's or teleporter's exit), from the info plane; (-1, -1) for none.
+func link_target(l: KeenLevel, x: int, y: int) -> Vector2i:
+	if engine != KeenLevel.GALAXY or not is_linking(l.get_word(1, x, y)):
+		return Vector2i(-1, -1)
+	var v: int = l.get_word(2, x, y)
+	if v == 0 or v in MakerModel.START_MARKERS[engine] or marker_name(v) != "":
+		return Vector2i(-1, -1)
+	var at: Vector2i = Vector2i(v >> 8, v & 0xFF)
+	return at if l.in_bounds(at.x, at.y) else Vector2i(-1, -1)
+
+
+## Whether a foreground tile links to another cell (Keen 4-6).
+func is_linking(tile: int) -> bool:
+	if engine != KeenLevel.GALAXY or tile <= 0:
+		return false
+	if not _linking.has(tile):
+		_linking[tile] = props(tile).use in LINKING
+	return _linking[tile]
+
+
+var _linking: Dictionary = {}
+
+
 ## The name of a marker value on the marker plane ("" if the palette has none for it).
 func marker_name(value: int) -> String:
+	var v: Array = VARIANTS.get(game_id, {}).get(value, [])
+	if not v.is_empty():
+		return "%s (%s)" % [marker_name(v[0]), "Normal and Hard" if v[1] == "N" else "Hard only"]
 	for c: Dictionary in categories:
 		if c.plane == marker_plane() and c.names.has(value):
 			return c.names[value]

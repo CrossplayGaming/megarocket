@@ -142,8 +142,8 @@ func _go() -> void:
 	t.eq("B erases it", m.model.level.get_word(part[0], c.x, c.y), 0 if m.model.engine != KeenLevel.VORTICONS or part[0] != 0 else int(m.model.tile_defaults.background))
 	await _button(JOY_BUTTON_A)
 	await _button(JOY_BUTTON_X)
-	t.eq("X: the next tool", v.tool, "pick")
-	for i: int in range(4):
+	t.eq("X: the next tool", v.tool, "brush")
+	for i: int in range(6):
 		await _button(JOY_BUTTON_X)
 	t.eq("X round to paint again", v.tool, "paint")
 	# the keyboard: arrows, Enter, Ctrl+Z
@@ -186,6 +186,7 @@ func _go() -> void:
 	# a rule refused at once with its reason: Keen's start picked up and painted elsewhere
 	v.set_cursor(m.model.start_at())
 	await _button(JOY_BUTTON_X)
+	await _button(JOY_BUTTON_X)
 	await _button(JOY_BUTTON_A)
 	await _button(JOY_BUTTON_DPAD_RIGHT)
 	await _button(JOY_BUTTON_A)
@@ -213,6 +214,11 @@ func _go() -> void:
 	t.eq("duplicated: two levels", MakerLibrary.list("keen1").size(), 2)
 	m._on_level_button(str(saved[0].path))
 	await _frames(2)
+	t.ok("the d-pad reaches Share", await _press_until(JOY_BUTTON_DPAD_DOWN, "Ask_Share", 8))
+	await _button(JOY_BUTTON_A)
+	t.ok("Share on a level not yet cleared says to finish it first (%s)" % m.status.text, m.status.text.contains("Finish it from Keen's start"))
+	m._on_level_button(str(saved[0].path))
+	await _frames(2)
 	await _press_until(JOY_BUTTON_DPAD_DOWN, "Ask_Rename", 6)
 	await _button(JOY_BUTTON_A)
 	t.ok("Rename: the name box (%s)" % _owner(), _owner() == "Name")
@@ -236,6 +242,22 @@ func _go() -> void:
 	await _button(JOY_BUTTON_DPAD_DOWN)
 	await _button(JOY_BUTTON_A)
 	t.eq("Delete, then Delete: one level left", MakerLibrary.list("keen1").size(), 1)
+	# a level shared by someone else, in the inbox, brought in by the button
+	var other: MakerModel = MakerModel.new()
+	other.open("keen1", root_dir.path_join("keen1"))
+	other.new_level("From a friend")
+	other.cleared_hash = other.fingerprint()
+	DirAccess.make_dir_recursive_absolute(MakerLibrary.inbox_dir())
+	var fa: FileAccess = FileAccess.open(MakerLibrary.inbox_dir().path_join("friend.keenlevel"), FileAccess.WRITE)
+	fa.store_string(other.share_text())
+	fa.close()
+	(m._page_box.find_child("NewLevel", true, false) as Control).grab_focus()
+	await _frames(2)
+	t.ok("the d-pad reaches Bring in shared levels", await _press_until(JOY_BUTTON_DPAD_RIGHT, "BringIn", 3))
+	await _button(JOY_BUTTON_A)
+	var brought: Array = MakerLibrary.list("keen1").map(func(e: Dictionary) -> String: return e.name)
+	t.ok("A brings the shared level into the library (%s; %s)" % [brought, m.status.text.substr(0, 40)], brought.size() == 2 and brought.has("From a friend")
+		and FileAccess.file_exists(MakerLibrary.inbox_dir().path_join("friend.keenlevel.brought_in")))
 	# play from the library
 	var left: String = "Level_" + str(MakerLibrary.list("keen1")[0].path).get_file().get_basename()
 	await _press_until(JOY_BUTTON_DPAD_DOWN, left, 4)

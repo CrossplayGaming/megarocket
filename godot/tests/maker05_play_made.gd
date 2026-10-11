@@ -51,10 +51,38 @@ func _go() -> void:
 	if d.open("kdreams", root_dir.path_join("kdreams")):
 		d.remix(1)
 		await _play(d, "kdreams remix of level 1 from its start", Vector2i(-1, -1), d.start_at().x)
+	# V15-04's clear check: a Keen 1 level whose exit is where Keen starts, played from the start in the
+	# host, finishes; the level is then cleared, and no longer once a cell is changed; finished from the
+	# cursor it is not
+	var c: MakerModel = MakerModel.new()
+	if c.open("keen1", root_dir.path_join("keen1")):
+		c.new_level("Clear")
+		var exit: int = -1
+		for cat: Dictionary in c.parts.categories:
+			if cat.name == MakerParts.EXIT:
+				exit = int(cat.values[0])
+		var s: Vector2i = c.start_at()
+		for y: int in range(s.y, s.y + 2):
+			for x: int in range(s.x, s.x + 3):
+				c.paint(0, x, y, exit)
+		c.end_stroke()
+		t.ok("keen1 clear: not cleared before it is played", not c.is_cleared())
+		var won: Array = [false]
+		await _play(c, "keen1 clear check", Vector2i(-1, -1), s.x, func(e: Object) -> void: won[0] = c.note_play(e, true))
+		t.ok("keen1 clear: the game ended with the level finished, and the level is cleared (%s)" % won[0], won[0] and c.is_cleared())
+		c.paint(0, s.x + 8, s.y, exit)
+		c.end_stroke()
+		t.ok("keen1 clear: a cell changed, it is not cleared any more", not c.is_cleared())
+		c.undo()
+		t.ok("keen1 clear: changed back, it is again", c.is_cleared())
+		c.note_play(null, true)
+		c.cleared_hash = ""
+		await _play(c, "keen1 finished from the cursor", s, s.x, func(e: Object) -> void: won[0] = c.note_play(e, false))
+		t.ok("keen1 clear: finished from the cursor does not clear it (%s)" % won[0], won[0] and not c.is_cleared())
 	t.finish(self)
 
 
-func _play(m: MakerModel, label: String, at: Vector2i, column: int) -> void:
+func _play(m: MakerModel, label: String, at: Vector2i, column: int, ended: Callable = Callable()) -> void:
 	var req: Dictionary = m.play_request(label, at)
 	if not t.ok("%s: the play request (%s)" % [label, m.error], not req.is_empty()):
 		return
@@ -73,10 +101,20 @@ func _play(m: MakerModel, label: String, at: Vector2i, column: int) -> void:
 			got[0] = keen_column(host.engine, m.number)
 			return got[0] != null, 60.0)
 		t.ok("%s: straight into level %d, Keen set down in column %d (%s)" % [label, m.number, column, got[0]], seen and got[0] == column)
-		var until: int = Time.get_ticks_msec() + 3000
-		await _wait(func() -> bool: return Time.get_ticks_msec() >= until or host.thread == null, 10.0)
-		t.ok("%s: still on the level a while later (%s)" % [label, keen_column(host.engine, m.number) if host.engine != null else "ended"],
-			host.thread != null and keen_column(host.engine, m.number) != null)
+		if ended.is_valid():
+			# the level is meant to end: wait for the game to finish, then ask how (the engine kept: the
+			# host lets it go as it finishes)
+			var engine: Object = host.engine
+			await _wait(func() -> bool:
+				if host.paused:
+					host.set_paused(false)
+				return host.thread == null, 60.0)
+			ended.call(engine)
+		else:
+			var until: int = Time.get_ticks_msec() + 3000
+			await _wait(func() -> bool: return Time.get_ticks_msec() >= until or host.thread == null, 10.0)
+			t.ok("%s: still on the level a while later (%s)" % [label, keen_column(host.engine, m.number) if host.engine != null else "ended"],
+				host.thread != null and keen_column(host.engine, m.number) != null)
 		host.stop()
 		await _wait(func() -> bool: return host.thread == null, 20.0)
 	host.queue_free()

@@ -49,6 +49,9 @@ var origin: String = ""
 var path: String = ""
 ## Keen's last test run: his positions in cells (MakerScreen keeps it while he plays)
 var trail: PackedVector2Array = PackedVector2Array()
+## V15-04's clear check: the level's fingerprint when the player last finished it from Keen's start
+## ("" never); it holds only while the level is unchanged since
+var cleared_hash: String = ""
 ## Undo: lists of changes, each [plane, x, y, before, after]; a stroke is one entry
 var _undo: Array = []
 var _redo: Array = []
@@ -75,6 +78,7 @@ func open(id: String, dir: String, ver: String = "", parts_too: bool = true) -> 
 	levels = {}
 	maps = null
 	parts = null
+	_all_levels = []
 	level = null
 	number = -1
 	_reset()
@@ -105,11 +109,54 @@ func open(id: String, dir: String, ver: String = "", parts_too: bool = true) -> 
 		if original(NEW_SLOT) != null:
 			tile_defaults = parts.defaults(original(NEW_SLOT))
 			parts.put_first([tile_defaults.top, tile_defaults.fill])
+		for entry: Array in level_list():
+			_all_levels.append(original(int(entry[0])))
 	error = ""
 	return true
 
 
+## The game's levels, for the ground brush's shapes the slot's own level lacks
+var _all_levels: Array = []
+
+
+## The level's fingerprint (its size and planes).
+func fingerprint(l: KeenLevel = null) -> String:
+	var target: KeenLevel = l if l != null else level
+	if target == null:
+		return ""
+	var h: HashingContext = HashingContext.new()
+	h.start(HashingContext.HASH_SHA256)
+	h.update(("%d %d %d" % [number, target.width, target.height]).to_ascii_buffer())
+	for words: PackedInt32Array in target.planes:
+		h.update(LevelCodec.words_to_bytes(words))
+	return h.finish().hex_encode()
+
+
+## Whether the player has finished the level as it is now, from Keen's start (V15-04's clear check).
+func is_cleared() -> bool:
+	return cleared_hash != "" and cleared_hash == fingerprint()
+
+
+## After a play: whether the game ended with the level finished (Keen 1-3's LevelDone ex_completed,
+## Keen 4-6's levelState LS_LevelComplete, Dreams' playstate levelcomplete). Played from Keen's start,
+## a finish clears the level as it is.
+func note_play(engine_obj: Object, from_start: bool) -> bool:
+	var won: bool = false
+	if engine_obj is GalGame:
+		won = int((engine_obj as GalGame).ck_gameState.levelState) == GalCK.LS_LevelComplete
+	elif engine_obj is DreamsGame:
+		won = int((engine_obj as DreamsGame).playstate) == DrmDecl.levelcomplete
+	elif engine_obj != null and engine_obj.get("LevelDone") != null:
+		won = int(engine_obj.get("LevelDone")) == 1    # ex_completed
+	if won and from_start:
+		cleared_hash = fingerprint()
+	return won
+
+
 func _reset() -> void:
+	cleared_hash = ""
+	if parts != null and original(number) != null:
+		parts.learn_brush([original(number)], _all_levels)
 	_undo = []
 	_redo = []
 	_stroke = []
@@ -218,6 +265,7 @@ func load_doc(file: String) -> bool:
 	path = file
 	_reset()
 	trail = got.trail
+	cleared_hash = str(got.meta.get("cleared", ""))
 	return true
 
 
@@ -229,11 +277,108 @@ func save_doc() -> bool:
 	end_stroke()
 	var lib: MakerLibrary = MakerLibrary.new()
 	var to: String = path if path != "" else MakerLibrary.new_path(game_id)
-	if not lib.save(to, level, {"game": game_id, "name": doc_name, "slot": number, "origin": origin}, trail):
+	if not lib.save(to, level, {"game": game_id, "name": doc_name, "slot": number, "origin": origin, "cleared": cleared_hash}, trail):
 		error = lib.error
 		return false
 	path = to
 	dirty = false
+	return true
+
+
+## V15-04: the level as a file to share (.keenlevel, JSON): a remix as its changes only (each cell that
+## differs from the game's own level, with that level's fingerprint so the receiver's copy is checked to
+## be the same), applied to the receiver's own game, so no level data of the game leaves the sender; a
+## new level whole (all of it the player's). Only a cleared level is shared. "" with `error`.
+func share_text() -> String:
+	if level == null:
+		error = "no level"
+		return ""
+	if not is_cleared():
+		error = "Finish it from Keen's start first (the clear check), then share it."
+		return ""
+	var doc: Dictionary = {"megarocket_share": 1, "game": game_id, "name": doc_name, "slot": number, "origin": origin,
+		"width": level.width, "height": level.height}
+	var base: KeenLevel = original(number) if origin.begins_with("remix") else null
+	if base != null and base.width == level.width and base.height == level.height:
+		var changes: PackedInt32Array = PackedInt32Array()
+		for p: int in range(level.planes.size()):
+			for i: int in range(level.width * level.height):
+				if level.planes[p][i] != base.planes[p][i]:
+					changes.append_array(PackedInt32Array([p, i, level.planes[p][i]]))
+		doc["kind"] = "changes"
+		doc["base"] = fingerprint(base)
+		doc["changes"] = Marshalls.raw_to_base64(changes.to_byte_array().compress(FileAccess.COMPRESSION_DEFLATE))
+		doc["count"] = changes.size() / 3
+	else:
+		doc["kind"] = "whole"
+		doc["fields"] = level.fields
+		var planes: Array = []
+		for words: PackedInt32Array in level.planes:
+			planes.append(Marshalls.raw_to_base64(LevelCodec.words_to_bytes(words).compress(FileAccess.COMPRESSION_DEFLATE)))
+		doc["planes"] = planes
+	return JSON.stringify(doc)
+
+
+## Opens a shared level (share_text's) as the level being made, unsaved. False with `error`: another
+## game's, or a remix whose game level differs here (another release).
+func open_shared(text: String) -> bool:
+	var v: Variant = JSON.parse_string(text)
+	var doc: Dictionary = v if v is Dictionary else {}
+	if int(doc.get("megarocket_share", 0)) != 1:
+		error = "That is not a shared Keen Maker level."
+		return false
+	if str(doc.get("game", "")) != game_id:
+		error = "That level is for %s." % str(doc.get("game", "another game"))
+		return false
+	var n: int = int(doc.get("slot", NEW_SLOT))
+	var w: int = int(doc.get("width", 0))
+	var h: int = int(doc.get("height", 0))
+	var l: KeenLevel = null
+	if doc.get("kind", "") == "changes":
+		var base: KeenLevel = original(n)
+		var was: int = number
+		number = n    # (the fingerprint holds the slot)
+		var same: bool = base != null and fingerprint(base) == str(doc.get("base", ""))
+		number = was
+		if not same or base.width != w or base.height != h:
+			error = "That remix was made from another release of the game: its level %d differs here." % n
+			return false
+		l = base.copy()
+		var raw: PackedByteArray = Marshalls.base64_to_raw(str(doc.get("changes", ""))).decompress(int(doc.get("count", 0)) * 12, FileAccess.COMPRESSION_DEFLATE)
+		var changes: PackedInt32Array = raw.to_int32_array()
+		if changes.size() != int(doc.get("count", -1)) * 3:
+			error = "The shared level's changes are damaged."
+			return false
+		for k: int in range(0, changes.size(), 3):
+			if changes[k] < 0 or changes[k] >= l.planes.size() or changes[k + 1] < 0 or changes[k + 1] >= w * h:
+				error = "The shared level's changes are damaged."
+				return false
+			l.set_word(changes[k], changes[k + 1] % w, changes[k + 1] / w, changes[k + 2])
+	else:
+		var base: KeenLevel = original(n)
+		l = KeenLevel.create(engine, w, h, base.name if base != null else "")
+		var planes: Array = doc.get("planes", [])
+		if w <= 0 or h <= 0 or planes.size() != l.planes.size():
+			error = "The shared level is damaged."
+			return false
+		for p: int in range(planes.size()):
+			var raw: PackedByteArray = Marshalls.base64_to_raw(str(planes[p])).decompress(w * h * 2, FileAccess.COMPRESSION_DEFLATE)
+			if raw.size() != w * h * 2:
+				error = "The shared level is damaged."
+				return false
+			l.planes[p] = LevelCodec.bytes_to_words(raw)
+		var fields: Variant = doc.get("fields", {})
+		if fields is Dictionary:
+			for k: String in fields:
+				l.fields[k] = int(fields[k])
+	l.number = n
+	level = l
+	number = n
+	doc_name = str(doc.get("name", "Shared level"))
+	origin = str(doc.get("origin", "new"))
+	path = ""
+	_reset()
+	dirty = true
 	return true
 
 
@@ -336,6 +481,51 @@ func end_stroke() -> void:
 		_undo.append(_stroke)
 		_redo = []
 		_stroke = []
+
+
+## Keen 4-6: the linking tile at `from` (a switch, gem holder or door) set to work on `to` (the info
+## plane's (x << 8) | y at its cell), one undo step. False where it can't.
+func link(from: Vector2i, to: Vector2i) -> bool:
+	if level == null or engine != KeenLevel.GALAXY or not level.in_bounds(from.x, from.y) or not level.in_bounds(to.x, to.y) \
+			or not parts.is_linking(level.get_word(1, from.x, from.y)):
+		return false
+	begin_stroke()
+	paint(2, from.x, from.y, (to.x << 8) | to.y)
+	end_stroke()
+	return true
+
+
+## V15-04's ground brush: ground put in (on) or taken out of (off: the erased cell left empty) the cell
+## at (x, y), and it and the cells round it given the edge, corner or fill piece their shape takes in the
+## game's own levels (MakerParts.brush). Part of the current stroke.
+func brush_at(x: int, y: int, on: bool) -> bool:
+	if level == null or parts == null or not level.in_bounds(x, y):
+		return false
+	var tp: int = parts.tile_plane()
+	if on and not parts.is_ground(level.get_word(tp, x, y)):
+		_put_piece(x, y, parts.brush_tile(parts.shape_at(level, x, y)))
+	elif not on and parts.is_ground(level.get_word(tp, x, y)):
+		paint(0, x, y, int(tile_defaults.get("background", 0)))
+		if engine != KeenLevel.VORTICONS:
+			paint(1, x, y, 0)
+	for dy: int in range(-1, 2):
+		for dx: int in range(-1, 2):
+			var cx: int = x + dx
+			var cy: int = y + dy
+			if level.in_bounds(cx, cy) and parts.is_ground(level.get_word(tp, cx, cy)):
+				_put_piece(cx, cy, parts.brush_tile(parts.shape_at(level, cx, cy)))
+	return true
+
+
+## A brush piece into a cell (MakerParts.brush_key's form).
+func _put_piece(x: int, y: int, key: int) -> void:
+	if key < 0:
+		return
+	if engine == KeenLevel.VORTICONS:
+		paint(0, x, y, key)
+	else:
+		paint(0, x, y, key >> 16)
+		paint(1, x, y, key & 0xFFFF)
 
 
 ## Keen's start at (x, y) in `l` (the level being made if null): every start marker cleared, one placed
