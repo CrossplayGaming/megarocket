@@ -1088,6 +1088,8 @@ func _modern_menu_loop() -> bool:
 		var ctrl: Dictionary = {"dir": nodir, "button1": false, "button2": false}
 		var back: bool = false
 		while not exited:
+			shell_menu_page = "title:" + _menu_page    # (HARN-09's probe)
+			shell_menu_row = menupos
 			for i: int in range(6):
 				WaitVBL(1)
 				ctrl = ControlPlayer(1)
@@ -1124,6 +1126,7 @@ func _modern_menu_loop() -> bool:
 			if ctrl.button2:
 				back = true
 				break
+		shell_menu_page = ""
 		ClearKeys()
 		WaitVBL(8)
 		var key: String = "exit" if back else str(rows[mini(menupos, maxpos)].key)

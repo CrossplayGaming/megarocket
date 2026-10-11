@@ -31,6 +31,9 @@ var frames_made: int = 0
 var error: String = ""
 ## Where the player's settings are read from (AUDIO-06's volumes; a test gives its own).
 var settings_path: String = Settings.PATH
+## SAVE-06: where each game keeps the player's saved games, high scores and its own settings (<this>/<game>;
+## HARN-09's walk gives its own, so a walk never writes the player's).
+var saves_root: String = "user://saves"
 
 var _mutex: Mutex = Mutex.new()
 var _keys: Array = []                 # [scancode, down] waiting for the engine thread
@@ -212,7 +215,7 @@ func start(found: Dictionary) -> bool:
 			if _play_level >= 0:
 				var n: int = _play_level
 				g.after_startup = func() -> void: g.shell_play_level(n)
-			g.save_dir = ProjectSettings.globalize_path("user://saves").path_join(game_id)
+			g.save_dir = ProjectSettings.globalize_path(saves_root).path_join(game_id)
 			DirAccess.make_dir_recursive_absolute(g.save_dir)
 			g.apply_dosbox_timing()
 			engine = g
@@ -234,7 +237,7 @@ func start(found: Dictionary) -> bool:
 			# SAVE-06: the settings, high scores and saved games, kept between sessions as Keen 1-3's are
 			# (a level played in place from the maker keeps none)
 			if _play_level < 0:
-				g.user_dir = ProjectSettings.globalize_path("user://saves").path_join(game_id)
+				g.user_dir = ProjectSettings.globalize_path(saves_root).path_join(game_id)
 				g.load_user_files()
 			g.us_randomSeed = Time.get_ticks_usec() & 0xFF    # the original's time(0) (A11: set from outside)
 			vm.set_cycles(20000)
@@ -256,7 +259,7 @@ func start(found: Dictionary) -> bool:
 			_dreams_costs(dg, "kdreams193" if dd.version == "e193" else "kdreams")
 			if dd.version == "e193":
 				dg.us_files["KDREAMS.CMP"] = dd._read("KDREAMS.CMP")    # v1.93's title archive, from the game
-			dg.user_dir = ProjectSettings.globalize_path("user://saves").path_join(game_id)
+			dg.user_dir = ProjectSettings.globalize_path(saves_root).path_join(game_id)
 			dg.load_user_files()
 			if _play_level >= 0:
 				dg.kl_warp = _play_level    # straight into the level (HARN-23's way), left when it ends

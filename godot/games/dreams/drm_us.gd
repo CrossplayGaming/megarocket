@@ -1226,6 +1226,7 @@ func USL_DrawItem(hiti: int, hitn: int) -> void:
 ## Handles a hit on a UserItem. If there's a custom routine, it will be called. If it returns
 ## true, then don't do anything more. If it returns false, then use the standard behaviour.
 func USL_DoHit(hiti: int, hitn: int) -> void:
+	shell_menu_page = ""    # (HARN-09's probe: the hit's own screen until the panel waits again)
 	var handled: bool
 	var ip: UserItem = TheItems[hiti][hitn]
 	if ip.custom != &"":
@@ -2297,6 +2298,12 @@ func USL_CtlCButtonCustom(call_: int, i: int, n: int) -> bool:
 ## The shell's Options rows (an OptionsModel) while a player is at the controls; null in headless runs and
 ## the recordings, which see the original panel.
 var options: Object = null
+## HARN-09: what the control panel shows while it waits for a press: "panel" with the item under the cursor
+## (its list * 100 + its number; -1 none), or one of the shell's lists by its page with the row chosen; ""
+## otherwise (a hit's own screen, a prompt, or no panel). Read by the path walker only; nothing in the game
+## reads them.
+var shell_menu_page: String = ""
+var shell_menu_row: int = 0
 
 ## The list's place: the panel's lower box (the keycaps' box), and its rows' height.
 const SHELL_LIST_X: int = CtlPanel3X + 8
@@ -2331,6 +2338,8 @@ func _shell_page_list(start: String) -> void:
 		VW_UpdateScreen()
 		var act: int = 0    # -1 up, 1 down, 2 choose, 3 back, 4 left, 5 right
 		while not quitting and act == 0:
+			shell_menu_page = page    # (HARN-09's probe)
+			shell_menu_row = pos
 			BE_ST_ShortSleep()
 			IN_ReadControl(0, info)
 			var scan: int = LastScan
@@ -2351,6 +2360,7 @@ func _shell_page_list(start: String) -> void:
 			if act != 0 and not _keydown(sc_UpArrow) and not _keydown(sc_DownArrow) and not _keydown(sc_LeftArrow) and not _keydown(sc_RightArrow):
 				device = "pad"
 			was = [info.button0, info.button1, info.yaxis, info.xaxis]
+		shell_menu_page = ""
 		was = [true, true, info.yaxis, info.xaxis]
 		said = ""
 		if act == -1 or act == 1:
@@ -2906,6 +2916,8 @@ func US_ControlPanel() -> void:
 		inrect = hit[0] != 0
 		i = hit[1]
 		n = hit[2]
+		shell_menu_page = "panel"    # (HARN-09's probe)
+		shell_menu_row = i * 100 + n if inrect else -1
 
 		if FlushHelp:
 			lasti = u16(-2)
@@ -3009,6 +3021,7 @@ func US_ControlPanel() -> void:
 			USL_ShowHelp("Press F1 for Help")
 			fontcolor = F_BLACK
 
+	shell_menu_page = ""
 	US_ShutCursor()
 
 	USL_TearDownCtlPanel()
