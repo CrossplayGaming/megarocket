@@ -28,6 +28,8 @@ signal packs_wanted
 
 ## The animation's pace: a frame every this many seconds (the games' walk cycles are near it)
 const FRAME_TIME: float = 0.12
+## A grid tile's size in the launcher's pixels
+const TILE: Vector2i = Vector2i(66, 60)
 
 var settings: Settings = null
 var found: Dictionary = {}
@@ -90,7 +92,10 @@ func open(s: Settings, found_games: Dictionary, game_titles: Dictionary, first: 
 	settings = s
 	found = found_games
 	titles = game_titles
-	pixel = maxi(px, 1)
+	# the chooser's scale (no more than a step for every 300 pixels of height), so a 1080-line window shows
+	# five columns of pictures and not two
+	pixel = mini(maxi(px, 1), FolderChooser.scale_for(get_viewport_rect().size)) if is_inside_tree() else maxi(px, 1)
+	theme = MegaTheme.build(pixel)
 	_build()
 	_show_game(first if found.has(first) else (found.keys()[0] if not found.is_empty() else ""))
 	first_button.grab_focus()
@@ -125,7 +130,7 @@ func _build() -> void:
 	cat_scroll.name = "CategoryScroll"
 	cat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	cat_scroll.follow_focus = true
-	cat_scroll.custom_minimum_size.x = 96 * s
+	cat_scroll.custom_minimum_size.x = 88 * s
 	mid.add_child(cat_scroll)
 	cat_box = VBoxContainer.new()
 	cat_box.name = "Categories"
@@ -143,7 +148,12 @@ func _build() -> void:
 	grid.add_theme_constant_override("h_separation", 2 * s)
 	grid.add_theme_constant_override("v_separation", 2 * s)
 	grid_scroll.add_child(grid)
-	mid.add_child(_build_inspector())
+	var ins_scroll: ScrollContainer = ScrollContainer.new()    # (a short window scrolls it, the page stays inside)
+	ins_scroll.name = "InspectorScroll"
+	ins_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	ins_scroll.follow_focus = true
+	ins_scroll.add_child(_build_inspector())
+	mid.add_child(ins_scroll)
 	# what happened, and the page's own buttons
 	message = Label.new()
 	message.name = "Message"
@@ -174,7 +184,7 @@ func _build_inspector() -> Control:
 	var s: int = pixel
 	var box: VBoxContainer = VBoxContainer.new()
 	box.name = "Inspector"
-	box.custom_minimum_size.x = 168 * s
+	box.custom_minimum_size.x = 160 * s
 	box.add_theme_constant_override("separation", 2 * s)
 	name_label = Label.new()
 	name_label.name = "AssetName"
@@ -193,7 +203,7 @@ func _build_inspector() -> Control:
 		tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		tr.custom_minimum_size = Vector2(52, 56) * s
+		tr.custom_minimum_size = Vector2(48, 56) * s
 		v.add_child(tr)
 		var l: Label = Label.new()
 		l.text = cap
@@ -331,7 +341,7 @@ func _tile(nm: String) -> Button:
 	var s: int = pixel
 	var b: Button = Button.new()
 	b.name = nm
-	b.custom_minimum_size = Vector2(68, 60) * s
+	b.custom_minimum_size = Vector2(TILE.x, TILE.y) * s
 	b.tooltip_text = nm
 	var v: VBoxContainer = VBoxContainer.new()
 	v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -391,8 +401,8 @@ func _fill_tile(nm: String) -> void:
 func _fit_columns() -> void:
 	if grid == null:
 		return
-	var w: float = grid_scroll.size.x - 12.0 * pixel    # (room for the scroll bar)
-	grid.columns = maxi(1, int((w + 2 * pixel) / ((68 + 2) * pixel)))
+	var w: float = grid_scroll.size.x - grid_scroll.get_v_scroll_bar().get_combined_minimum_size().x - 2 * pixel
+	grid.columns = maxi(1, int((w + 2 * pixel) / ((TILE.x + 2) * pixel)))
 	if category >= 0 and cat_box.has_node("Cat%d" % category):
 		var cat: NodePath = cat_box.get_node("Cat%d" % category).get_path()
 		for k: int in range(grid.get_child_count()):

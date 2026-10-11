@@ -19,7 +19,10 @@ extends SceneTree
 ##   info; Bring in a pack... brings the ZIP, then the folder, back in as new packs, switched on, the same
 ##   files byte for byte;
 ## - B goes back to the launcher (the focus on Asset Studio); the Studio's Asset packs button shows the
-##   packs page, My pack listed there; B back to the launcher.
+##   packs page, My pack listed there, which shares a pack (its row's Share...) and brings one in too; B
+##   back to the launcher;
+## - at 1280x720 and 1920x1080 the page's buttons and lines inside the window, their words whole, five
+##   columns of pictures or more.
 ##
 ## Options: --game_data=<folder>
 
@@ -101,6 +104,7 @@ func _go() -> void:
 		t.finish(self)
 		return
 	var st: AssetStudio = page.studio
+	_check_layout(page, "1280x720")
 	await _categories(st, page)
 	await _grid(st, page, plain, found)
 	l.queue_free()
@@ -336,8 +340,62 @@ func _grid(st: AssetStudio, page: StudioPage, plain: GalData, found: Dictionary)
 			listed.append((c as CheckButton).text)
 	t.ok("the Studio's Asset packs button shows the packs page, My pack listed (%s)" % ", ".join(listed),
 		l.studio_page == null and l.packs_page != null and listed.has(AssetStudio.MY_PACK) and listed.has("My pack 2"))
+	if l.packs_page != null:
+		var row: Node = null
+		for c: Node in l.packs_page.find_children("On", "CheckButton", true, false):
+			if (c as CheckButton).text == AssetStudio.MY_PACK:
+				row = c.get_parent()
+		var share2: String = Settings.user_dir().path_join("studio_work/shared2")
+		DirAccess.make_dir_recursive_absolute(share2)
+		if row != null:
+			(row.get_node("Share") as Button).grab_focus()
+			await _frames(2)
+			await _pad(JOY_BUTTON_A)
+			if l.folder_chooser != null:
+				l.folder_chooser.open_and_focus(share2)
+				await _frames(2)
+				await _pad(JOY_BUTTON_START)
+		t.ok("the packs page shares a pack too (its row's Share..., the chooser, Start)", l.folder_chooser == null
+			and FileAccess.file_exists(share2.path_join("keen4 My pack.zip")))
+		l.packs_page.find_child("Bring", true, false).grab_focus()
+		await _frames(2)
+		await _pad(JOY_BUTTON_A)
+		if l.folder_chooser != null:
+			l.folder_chooser.open_and_focus(share2)
+			await _frames(2)
+			await _pad(JOY_BUTTON_DPAD_DOWN)
+			await _pad(JOY_BUTTON_A)
+		t.ok("and brings one in (Bring in a pack..., its ZIP): \"My pack 4\" listed and on", _same("My pack 4", AssetPacks.pack_pictures("keen4", AssetStudio.MY_PACK))
+			and _is_on("My pack 4") and l.packs_page.find_children("On", "CheckButton", true, false).any(func(c: Node) -> bool: return (c as CheckButton).text == "My pack 4"))
 	await _pad(JOY_BUTTON_B)
 	t.ok("B from there goes back to the launcher (%s)" % _owner(), l.packs_page == null and l._page.visible and _owner() == "Packs")
+	# a larger window
+	root.size = Vector2i(1920, 1080)
+	await _frames(4)
+	l.show_studio()
+	await _frames(4)
+	if l.studio_page != null:
+		_check_layout(l.studio_page, "1920x1080")
+		l.close_studio()
+
+
+## The page inside the window: its own buttons, the inspector's and the lines under the grid on screen
+## with their words whole, and five columns of pictures.
+func _check_layout(page: StudioPage, tag: String) -> void:
+	var win: Rect2 = Rect2(Vector2.ZERO, Vector2(root.size))
+	var bad: PackedStringArray = []
+	for c: Control in [page.back_button, page.packs_button, page.share_button, page.bring_button, page.replace_button,
+			page.template_button, page.revert_button, page.message, page.find_child("Hints", true, false), page.title_label]:
+		if not win.encloses(c.get_global_rect()):
+			bad.append("%s outside" % c.name)
+		if c is Button:
+			var b: Button = c
+			var st: StyleBox = b.get_theme_stylebox("normal")
+			var w: float = b.get_theme_font("font").get_string_size(b.text, HORIZONTAL_ALIGNMENT_LEFT, -1, b.get_theme_font_size("font_size")).x
+			if w + st.get_margin(SIDE_LEFT) + st.get_margin(SIDE_RIGHT) > b.size.x + 0.5:
+				bad.append("%s cut" % b.name)
+	t.ok("%s: the page's buttons and lines inside the window, their words whole %s" % [tag, bad], bad.is_empty())
+	t.ok("%s: five columns of pictures or more (%d)" % [tag, page.grid.columns], page.grid.columns >= 5)
 
 
 ## A pack holds the same pictures as My pack's `own`, byte for byte.
