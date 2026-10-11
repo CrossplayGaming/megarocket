@@ -87,7 +87,7 @@ func _game(root: String, game: String, levels: Array, seconds: float, out: Strin
 	g.draw_capture = true
 	g.wide_tiles = wide
 	var renderer: VortDrawRenderer = VortDrawRenderer.new()
-	var r: Dictionary = {"compared": 0, "match": 0, "differ": 0, "skipped": 0, "saved": 0}
+	var r: Dictionary = {"compared": 0, "match": 0, "differ": 0, "skipped": 0, "saved": 0, "rendered": 0, "render_differ": 0}
 	# the layout at 1x against the card's picture, windows over the play, pages set aside: one copy for
 	# the tests and the session runners
 	var lc: ListCompare = ListCompare.new(r, out, game + "_layout")
