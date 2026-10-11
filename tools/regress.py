@@ -1550,6 +1550,19 @@ def shell15():
     return code
 
 
+def shell16():
+    """The launcher's folder chooser (SHELL-16), Megarocket's own framed box in place of Godot's file
+    dialog: opened, a made folder tree walked by keys, real controller events and the mouse, cancelled,
+    the games found named, a folder added (saved and scanned), the export's choosers; at 1280x720 and
+    1920x1080 no text cut off and ten rows of folders in view."""
+    import gdtest
+    code, out = gdtest.run("shell16_folder_chooser", [], timeout=400.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+            print("  " + line.strip())
+    return code
+
+
 def scr05g():
     """Keen 4-6 by the controller alone (SCR-05, SCR-03, MENU-02), real controller events to the host: the d-pad's
     letters (PadTextEntry) on their own; Keen 4's EXTRAS HELP walked by the pad, a game saved as KEEN typed with
@@ -1985,6 +1998,7 @@ CHECKS = {
     "MENU-08": (menu08, "fast"),
     "AUDIO-06": (audio06, "fast"),
     "SHELL-15": (shell15, "fast"),
+    "SHELL-16": (shell16, "fast"),
     "SCR-05G": (scr05g, "fast"),
     "SCR-05D": (scr05d, "fast"),
     "SHELL-04": (shell04, "fast"),
