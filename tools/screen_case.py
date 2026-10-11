@@ -87,6 +87,10 @@ PRE_SECONDS = 12        # the recording's seconds before the game's start-up is 
 TEXT_SETTLED = 10       # refreshes a text picture stays up to count (the original's start screens are drawn
                         # in steps up 6-8 refreshes each as its hardware checks finish; the cursor blinks
                         # every 16)
+GALAXY_CLOCK_US = 42000  # SCR-01G: the DOS clock as Keen 4-6 start in a key-fed recording (the runner sets
+                        # 00:00:00 just before; DOS then loads the program): US_InitRndT(true) takes its
+                        # hundredths, and Paddle War's serves follow them. keen4/5/6 scr_paddle agree point for
+                        # point from 30000 to 54925 microseconds on all three, at 0 only to the second point
 
 
 # ------------------------------------------------------------------ cases
@@ -190,7 +194,7 @@ def run_port(game, case, out, say=print, keep=None):
     elif engine == "galaxy":
         test, folder = "simg_boot", Path(out)
         args += [f"--game={game}", f"--args={spec['args']}"]
-        extra.setdefault("clock", 0)        # the runner's 00:00:00 (galaxy_case's DOS_CLOCK_AT_START_US)
+        extra.setdefault("clock", GALAXY_CLOCK_US)
     else:
         import dreams_case
         test, folder = "drm_boot", Path(out) / game

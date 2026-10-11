@@ -1408,6 +1408,10 @@ var help_topic: int = 0
 var help_full_page: int = 0
 ## The chunks for each of the topics (HAS_HELPSCREEN).
 const help_chunks: PackedStringArray = ["TEXT_HELPMENU", "TEXT_CONTROLS", "TEXT_STORY", "TEXT_ORDER", "TEXT_ABOUTID"]
+## SCR-01: Keen 4's own table (KEEN4E.EXE image 0x2F586) reads chunks 4739, 4741, 4740, 4745, 4742: THE GAME
+## opens 4741, the controls (omnispeak's GFXCHUNK.CK4 names 4740 TEXT_CONTROLS and 4741 TEXT_STORY the other
+## way round, and gave THE GAME the story; keen4 scr_help1). Keen 5's table is omnispeak's order.
+const help_chunks_ck4: PackedStringArray = ["TEXT_HELPMENU", "TEXT_STORY", "TEXT_CONTROLS", "TEXT_ORDER", "TEXT_ABOUTID"]
 
 
 static func _game_int_array(n: int) -> PackedInt32Array:
@@ -1924,7 +1928,7 @@ func HelpScreens() -> void:
 			return
 
 		# Cache the chunk with the topic
-		n = s16(CK_LookupChunk(help_chunks[n]))
+		n = s16(CK_LookupChunk((help_chunks_ck4 if ck_currentEpisode_ep == EP_CK4 else help_chunks)[n]))
 		CA_CacheGrChunk(n)
 
 		# Set up the help ptr and initialise the parser

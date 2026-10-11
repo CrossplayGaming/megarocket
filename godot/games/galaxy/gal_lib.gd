@@ -1674,16 +1674,18 @@ func VH_DrawTile16M(x: int, y: int, tile: int) -> void:
 	VL_MaskedBlitToScreen(c, 0, x, y, 16, 16)
 
 
+## SCR-01: pictures go on a byte (id's VW_DrawPic and VW_DrawMPic take x in bytes; omnispeak draws at the
+## pixel): Paddle War's title, given x 130, lands at 128 in the original (keen4 scr_cards).
 func VH_DrawBitmap(x: int, y: int, chunk: int) -> void:
 	var bitmapNumber: int = chunk - int(ca_gfxInfoE.offBitmaps)
 	var dimensions: Dictionary = VH_GetBitmapTableEntry(bitmapNumber)
-	VL_UnmaskedToScreen(CA_GetGrChunk(chunk, 0, "Bitmap", true), 0, x, y, dimensions.width * 8, dimensions.height)
+	VL_UnmaskedToScreen(CA_GetGrChunk(chunk, 0, "Bitmap", true), 0, x & ~7, y, dimensions.width * 8, dimensions.height)
 
 
 func VH_DrawMaskedBitmap(x: int, y: int, chunk: int) -> void:
 	var bitmapNumber: int = chunk - int(ca_gfxInfoE.offMasked)
 	var dim: Dictionary = VH_GetMaskedBitmapTableEntry(bitmapNumber)
-	VL_MaskedBlitToScreen(CA_GetGrChunk(chunk, 0, "MaskedBitmap", true), 0, x, y, dim.width * 8, dim.height)
+	VL_MaskedBlitToScreen(CA_GetGrChunk(chunk, 0, "MaskedBitmap", true), 0, x & ~7, y, dim.width * 8, dim.height)
 
 
 func VH_DrawSprite(x: int, y: int, chunk: int) -> void:
@@ -1783,18 +1785,24 @@ func VHB_DrawTile16M(x: int, y: int, tile: int) -> void:
 		VH_DrawTile8M(x, y, tile)
 
 
+## SCR-01: on a byte, as id's VWB_DrawPic draws it (x /= SCREENXDIV), as VHB_DrawMaskedBitmap below.
 func VHB_DrawBitmap(x: int, y: int, chunk: int) -> void:
 	var bitmapNumber: int = chunk - int(ca_gfxInfoE.offBitmaps)
 	x += VL_GetScrollX() & 8
+	x &= ~7
 	y += VL_GetScrollY()
 	var dimensions: Dictionary = VH_GetBitmapTableEntry(bitmapNumber)
 	if VH_MarkUpdateBlock(x, y, x + dimensions.width * 8, y + dimensions.height):
 		VL_UnmaskedToScreen(CA_GetGrChunk(chunk, 0, "Bitmap", true), 0, x, y, dimensions.width * 8, dimensions.height)
 
 
+## SCR-01: on a byte, as id's VWB_DrawMPic draws it (x /= SCREENXDIV; omnispeak draws at the pixel): the
+## control panel's dialogs give x 74, and the wrist-watch screen's mask lands at 72 in the original, the
+## card's right edge left solid (keen4 scr_quit).
 func VHB_DrawMaskedBitmap(x: int, y: int, chunk: int) -> void:
 	var bitmapNumber: int = chunk - int(ca_gfxInfoE.offMasked)
 	x += VL_GetScrollX() & 8
+	x &= ~7
 	y += VL_GetScrollY()
 	var dim: Dictionary = VH_GetMaskedBitmapTableEntry(bitmapNumber)
 	if VH_MarkUpdateBlock(x, y, x + dim.width * 8, y + dim.height):
