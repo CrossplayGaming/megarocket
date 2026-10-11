@@ -47,6 +47,8 @@ func _init() -> void:
 	t.ok("on the title the cheat rows were greyed and choosing GOD MODE did nothing (%s)" % [res.get("title", {})],
 		res.get("title", {}).get("disabled", false) and not res.get("title", {}).get("god", true))
 	t.ok("LEVEL SELECT's third level was entered from the world map (level %s)" % res.get("warped", "none"), res.get("warped", 0) == 3)
+	t.ok("LEVEL SELECT lists levels only, not the high scores' map (%d: %s)" % [res.get("levels", []).size(), res.get("levels", [])],
+		res.get("levels", []).size() > 10 and not res.get("levels", []).any(func(n: String) -> bool: return n.contains("HIGH SCORE")))
 	t.ok("ORIGINAL CODES lists the originals' codes (%s)" % [res.get("codes", [])],
 		res.get("codes", []) == CheatsModel.CODES.galaxy.map(func(c: Array) -> String: return c[0]))
 	t.ok("the original's B+A+T still works in the game (%s)" % [res.get("bat", {})],
@@ -140,6 +142,19 @@ func _walk(root: String, game: String, out: String, model: OptionsModel) -> Dict
 	var gal: Object = g
 	var seen: Array = [false]
 	var writer: FrameWriter = _frames(vm, out, func() -> void:
+		# LEVEL SELECT's captions, every card of it (the high scores' backdrop map is not a level)
+		if not r.has("levels") and gal.get("ck_us_cheatsMenu") != null:
+			var names: Array = []
+			var lc: Object = gal.call(&"_shell_level_cards")
+			while lc != null:
+				var nxt: Object = null
+				for it: Object in lc.get("items"):
+					if str(it.get("caption")) == "MORE LEVELS":
+						nxt = it.get("subMenu")
+					elif str(it.get("caption")) != "":
+						names.append(str(it.get("caption")))
+				lc = nxt
+			r["levels"] = names
 		# on the title, once the CHEATS card is up and GOD MODE was chosen: its rows' state
 		var card: Object = gal.get("ck_us_cheatsMenu")
 		if card != null and gal.get("us_currentCard") == card and not seen[0] and gal.game_in_progress == 0 \

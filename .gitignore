@@ -4,6 +4,7 @@ godot/bin/*.TMP
 oracle_runs/
 scratch/
 tools/__pycache__/
+tools/config.local.json
 tools/_duke_*
 __pycache__/
 

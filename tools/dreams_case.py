@@ -138,6 +138,11 @@ def run_feed(game, held, out, seconds, extra=(), clock=None, case=None, pre=None
     return p.returncode, p.stdout + p.stderr
 
 
+# the port runs this much past a case's "seconds": the start-up ahead of the recording's first picture
+# and the recording's own tail (v1.00 level15's recording runs to 62 s of a 37.2 s case)
+PORT_MARGIN = 26
+
+
 def run_port(game, case, keys, out, seconds=None, extra=(), start=None, clock=None, tc_adds=None):
     """drm_boot for the one release, frames to `out` (its release folder inside)."""
     spec = json.loads((CASES / game / f"{case}.json").read_text(encoding="utf-8"))
@@ -148,7 +153,7 @@ def run_port(game, case, keys, out, seconds=None, extra=(), start=None, clock=No
         if costs and not any(str(x).startswith("--costs=") for x in extra):
             extra = (f"--costs={costs}", *extra)
         # (the runner sets the DOS clock: no "port's own seed" here, -1 is the case's)
-        return run_feed(game, keys, out, seconds or spec["seconds"] + 12, extra,
+        return run_feed(game, keys, out, seconds or spec["seconds"] + PORT_MARGIN, extra,
                         None if clock is None or clock < 0 else clock, case)
     start = case_start(game, case) if start is None else start
     tc_adds = case_tc_adds(game, case) if tc_adds is None else tc_adds
@@ -157,7 +162,7 @@ def run_port(game, case, keys, out, seconds=None, extra=(), start=None, clock=No
     clock = case_clock(game, case) if clock is None else clock
     spec = json.loads((CASES / game / f"{case}.json").read_text(encoding="utf-8"))
     # the port's start-up (text screen, keys, mode set) runs ahead of the recording's first picture
-    secs = seconds or spec["seconds"] + 12
+    secs = seconds or spec["seconds"] + PORT_MARGIN
     keyarg = ",".join(f"{t + start:.4f}:{SCANCODES[k]}:{h}" for t, k, h in keys)
     shutil.rmtree(out, ignore_errors=True)
     p = subprocess.run([sys.executable, "tools/gdtest.py", "drm_boot", "--", f"--only={game}", f"--seconds={secs}",

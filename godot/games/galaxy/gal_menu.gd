@@ -2344,6 +2344,8 @@ func _shell_level_cards() -> US_Card:
 	# the warp range, as far as the game names its levels (Keen 5's names stop short of its range)
 	var names: PackedStringArray = CK_VAR_GetStringArray("ck_str_levelNames")
 	for n: int in range(CK_INT("ck_minWarpLevel", 1), mini(CK_INT("ck_maxWarpLevel", 18), names.size() - 1) + 1):
+		if n == CK_INT("CK_highScoreLevel", -1):
+			continue    # the high scores' backdrop (Keen 5 and 6), not a level
 		var item: US_CardItem = _shell_row_item("level:%d" % n, "warp")
 		item.caption = names[n].replace("
 ", " ").to_upper().left(24)

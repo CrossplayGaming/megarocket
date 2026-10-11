@@ -678,6 +678,20 @@ def simd01f():
     return code
 
 
+def simd01g():
+    """Keen Dreams' story reader in the host, v1.93 and v1.00: Extras' Read Story & Game Tips shows the
+    formatted story, PgDn another page, Escape the panel again with the game running."""
+    import gdtest
+    worst = 0
+    for folder in ("kdreams193", "kdreams"):
+        code, out = gdtest.run("simd01g_story", [f"--folder={folder}"], timeout=300.0, quiet=True)
+        for line in out.splitlines():
+            if "FAIL" in line or "checks" in line or "ERROR" in line:
+                print("  %s: %s" % (folder, line.strip()))
+        worst = max(worst, code)
+    return worst
+
+
 def simg01a():
     """The Galaxy library layer draws what the data says: every tile, bitmap, sprite (all
     shifts) and a font string read back from the surface as GalData decodes them; VL_Present
@@ -932,8 +946,9 @@ def cheat01():
     import gdtest
     code = max(cheat_read_points("godot/games/galaxy"), cheat_read_points("godot/games/vorticons"),
                cheat_read_points("godot/games/dreams"))
-    for test, mark in (("cheat01_galaxy", "objects"), ("cheat01_vorticons", "keen1:"), ("cheat01_dreams", "creatures")):
-        code2, out = gdtest.run(test, [], timeout=600.0, quiet=True)
+    for test, mark, args in (("cheat01_galaxy", "objects", []), ("cheat01_vorticons", "keen1:", []),
+                             ("cheat01_dreams", "creatures", []), ("cheat01_dreams", "creatures", ["--folder=kdreams"])):
+        code2, out = gdtest.run(test, args, timeout=600.0, quiet=True)
         code = max(code, code2)
         for line in out.splitlines():
             if "FAIL" in line or "checks" in line or "ERROR" in line or mark in line:
@@ -1517,6 +1532,7 @@ CHECKS = {
     "SIM-D-01d": (simd01d, "fast"),
     "SIM-D-01e": (simd01e, "fast"),
     "SIM-D-01f": (simd01f, "slow"),
+    "SIM-D-01g": (simd01g, "fast"),
     "TIME-G4": (timeg4, "slow"),
     "TIME-G5": (timeg5, "slow"),
     "TIME-G6": (timeg6, "slow"),

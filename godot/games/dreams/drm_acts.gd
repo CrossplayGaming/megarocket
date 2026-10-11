@@ -2524,10 +2524,13 @@ func shell_cheat_fire(key: String) -> String:
 	return ""
 
 
-## Level select's list (CHEAT-04): the sixteen levels by their names (the original names some by number).
+## Level select's list (CHEAT-04): the release's levels by their names (the original names some by
+## number). v1.00 lacks maps 6, 8, 11 and 13: its warp there quits to DOS, so they are not offered.
 func shell_levels() -> Array:
 	var out: Array = []
 	for n: int in range(1, 17):
+		if data != null and not data.has_map(n):
+			continue
 		out.append([n, levelnames[n] if n < levelnames.size() and levelnames[n] != "" else "Level %d" % n])
 	return out
 

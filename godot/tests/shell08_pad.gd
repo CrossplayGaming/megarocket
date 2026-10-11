@@ -59,13 +59,13 @@ func _go() -> void:
 		return
 	await _wait(func() -> bool: return host.frames_shown >= 30, 60.0)
 	var g: VortActs = host.engine
-	# play with pad 0: hold A (jump, Ctrl)
+	# pad 0 before play (the intro): A is Enter (CTRL-02's menu map)
 	var a: InputEventJoypadButton = InputEventJoypadButton.new()
 	a.device = 0
 	a.button_index = JOY_BUTTON_A
 	a.pressed = true
 	host._input(a)
-	var held: bool = await _wait(func() -> bool: return g.keydown.size() > 0x1D and g.keydown[0x1D] != 0, 3.0)
+	var held: bool = await _wait(func() -> bool: return g.keydown.size() > 0x1C and g.keydown[0x1C] != 0, 3.0)
 	t.ok("the pad's A reaches the game (pad %d)" % host.pad_device, held and host.pad_device == 0)
 	# another pad going away changes nothing
 	Input.joy_connection_changed.emit(1, false)
@@ -75,7 +75,7 @@ func _go() -> void:
 	var stopped: bool = await _clock_stopped(host)
 	t.ok("the pad unplugged: paused, the clock stops", host.paused and host.pad_paused and stopped)
 	t.ok("the prompt says so", host._paused_label != null and host._paused_label.visible and host._paused_label.text == GameHost.PAD_GONE_TEXT)
-	t.ok("its held button is let go in the game", g.keydown[0x1D] == 0)
+	t.ok("its held button is let go in the game", g.keydown[0x1C] == 0)
 	# focus coming back does not resume a pad pause
 	host._notification(Node.NOTIFICATION_APPLICATION_FOCUS_IN)
 	t.ok("focus back alone does not resume it", host.paused)

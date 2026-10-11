@@ -96,7 +96,7 @@ def session_score(g, c, costs):
     tag = hashlib.md5(f"{g}{c}{arg}".encode()).hexdigest()[:10]
     out = WORK / f"cald_{g}_{c}_{tag}"
     spec = json.loads((dreams_case.CASES / g / f"{c}.json").read_text(encoding="utf-8"))
-    dreams_case.run_feed(g, spec["held"], out, spec["seconds"] + 12, extra=(f"--costs={arg}",) if arg else (), case=c)
+    dreams_case.run_feed(g, spec["held"], out, spec["seconds"] + dreams_case.PORT_MARGIN, extra=(f"--costs={arg}",) if arg else (), case=c)
     oracle = Path(common.config()["oracle_runs"]) / f"{g}_{c}_a"
     try:
         port = timing_score.pictures(frames.Sequence(out / g), False)

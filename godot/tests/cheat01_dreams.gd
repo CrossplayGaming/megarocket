@@ -104,6 +104,11 @@ func _go() -> void:
 	var cheat_rows: Array = rows.filter(func(r: Dictionary) -> bool: return str(r.key).begins_with("cheat:") and r.key != "cheat:codes")
 	t.ok("with no game every cheat row is greyed (%d rows)" % cheat_rows.size(), cheat_rows.size() == 12
 		and cheat_rows.all(func(r: Dictionary) -> bool: return not r.get("enabled", true)))
+	# Level select's list: the release's own levels (v1.00 lacks maps 6, 8, 11 and 13; its warp there quits)
+	var listed: Array = g.call(&"shell_levels").map(func(l: Array) -> int: return int(l[0]))
+	var missing: Array = [6, 8, 11, 13] if folder == "kdreams" else []
+	t.ok("Level select lists the release's %d levels (%s)" % [16 - missing.size(), listed], listed.size() == 16 - missing.size()
+		and missing.all(func(n: int) -> bool: return not listed.has(n)))
 	await _tap(KEY_ENTER)    # God mode: a word why
 	await _pause(0.4)
 	t.ok("God mode chosen there: nothing changes", not bool(g.get("godmode")))

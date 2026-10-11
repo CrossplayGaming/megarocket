@@ -20,6 +20,11 @@ NAMES = {PASS: "PASS", FAIL: "FAIL", COULD_NOT_RUN: "COULD-NOT-RUN"}
 
 def config():
     cfg = json.loads((ROOT / "tools" / "config.json").read_text(encoding="utf-8"))
+    # a machine's own overrides (not in git): a worktree points "game_data" and "godot" at the main
+    # checkout's absolute paths instead of linking them in
+    local = ROOT / "tools" / "config.local.json"
+    if local.exists():
+        cfg.update(json.loads(local.read_text(encoding="utf-8")))
     cfg["game_data"] = ROOT / cfg["game_data"]
     cfg["oracle_runs"] = Path(cfg["oracle_runs"])
     cfg["dosbox"] = Path(cfg["dosbox"])
