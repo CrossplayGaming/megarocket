@@ -143,7 +143,7 @@ static func between(eng: Object, a: Dictionary, b: Dictionary, alpha: float, sca
 	var step: Array = b.get("step", [])
 	for s: Array in b.sprites:
 		var slot: int = int(s[5])
-		if slot != hud and was.has(slot) and not step.has(slot):
+		if slot != hud and was.has(slot) and not step.has(slot) and _same_sprite(was[slot], s):
 			var p: Array = was[slot]
 			if absf(float(int(s[6]) - int(p[6])) / 16.0) <= JUMP and absf(float(int(s[7]) - int(p[7])) / 16.0) <= JUMP:
 				var m: Array = s.duplicate()
@@ -154,6 +154,12 @@ static func between(eng: Object, a: Dictionary, b: Dictionary, alpha: float, sca
 		sprites.append(s)
 	mid["sprites"] = sprites
 	return ops(eng, mid, scale, false, view_w)
+
+
+## REND-03: the same sprite in two lists: its entry not handed out again in between (a list made before the
+## entries were numbered compares by slot alone).
+static func _same_sprite(p: Array, s: Array) -> bool:
+	return p.size() < 9 or s.size() < 9 or int(p[8]) == int(s[8])
 
 
 ## The ops drawn at 1x on a 320x200 picture (palette indices), with the original's rules: a background

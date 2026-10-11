@@ -75,7 +75,7 @@ func _init() -> void:
 		if wide > 0:
 			t.ok("%s: REND-04, at %d pixels every image shifted alike, the HUD kept on the screen, the map's tiles over all of it (%d of %d)" % [game, 320 + 16 * wide, r.get("shifted", 0), r.compared],
 				r.compared > 300 and r.get("shifted", 0) == r.compared)
-		print("    smooth motion: %d pairs, %d right, %d sprites slid, %d stepped" % [r.get("smooth_pairs", 0), r.get("smooth", 0), r.get("slid", 0), r.get("stepped", 0)])
+		print("    smooth motion: %d pairs, %d right, %d sprites slid, %d stepped, %d new in a reused entry" % [r.get("smooth_pairs", 0), r.get("smooth", 0), r.get("slid", 0), r.get("stepped", 0), r.get("reused", 0)])
 		t.ok("%s: REND-03 between two refreshes: at 1 the newest picture, at a half each followed sprite midway (%d of %d)" % [game, r.get("smooth", 0), r.get("smooth_pairs", 0)],
 			r.get("smooth_pairs", 0) > 100 and r.get("smooth", 0) == r.get("smooth_pairs", 0) and r.get("slid", 0) > 100)
 	t.finish(self)
@@ -209,6 +209,8 @@ func _demo(root: String, game: String, n: int, out: String, r: Dictionary, wide:
 				var expect: Vector2 = Vector2(float(s[6]), float(s[7])) / 16.0
 				if list.get("step", []).has(int(s[5])):
 					r.stepped = r.get("stepped", 0) + 1
+				elif was.has(int(s[5])) and int(was[int(s[5])][8]) != int(s[8]):
+					r.reused = r.get("reused", 0) + 1    # its entry handed out again: a new sprite, drawn where it is
 				elif was.has(int(s[5])):
 					var p: Vector2 = Vector2(float(was[int(s[5])][6]), float(was[int(s[5])][7])) / 16.0
 					if absf(expect.x - p.x) <= GalDrawLayout.JUMP and absf(expect.y - p.y) <= GalDrawLayout.JUMP:

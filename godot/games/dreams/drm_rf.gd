@@ -86,6 +86,7 @@ class spritelisttype:
 	var ux: int = 0
 	var uy: int = 0
 	var px: int = 0
+	var gen: int = 0    # REND-03: draw_gen when the record was handed out
 
 
 class eraseblocktype:
@@ -940,6 +941,8 @@ func RF_PlaceSprite_EGA(user: Object, globalx: int, globaly: int, spritenumber: 
 		sprite = spritefreeptr
 		spritefreeptr = spritefreeptr.nextsprite
 		linknewspot = true
+		draw_gen += 1
+		sprite.gen = draw_gen
 
 	if linknewspot:
 		next = prioritystart[priority]    # stick it in new spot
@@ -1260,7 +1263,7 @@ func _capture_draw_list() -> void:
 		var s: spritelisttype = prioritystart[priority]
 		while s != null:
 			if s.draw == spritedraw:    # (maskdraw draws nothing)
-				sprites.append([s.px, s.screeny, s.grseg, false, priority, s.index, s.ux, s.uy])
+				sprites.append([s.px, s.screeny, s.grseg, false, priority, s.index, s.ux, s.uy, s.gen])
 			s = s.nextsprite
 	# REND-03: the records of the objects that stepped (drawn where they are, not slid)
 	var step: Array = []

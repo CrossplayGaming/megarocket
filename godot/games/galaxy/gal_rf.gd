@@ -78,6 +78,7 @@ class RF_SpriteDrawEntry:
 	var ux: int = 0
 	var uy: int = 0
 	var px: int = 0
+	var gen: int = 0    # REND-03: draw_gen when the entry was handed out
 	var prev_owner: Variant = null    # RF_SpriteDrawEntry, or the layer index (int)
 	var next: RF_SpriteDrawEntry = null
 
@@ -825,6 +826,8 @@ func RF_AddSpriteDraw(drawEntry: RF_SpriteDrawEntry, unitX: int, unitY: int, chu
 		sde = rf_freeSpriteTableEntry
 		rf_freeSpriteTableEntry = rf_freeSpriteTableEntry.next
 		rf_numSpriteDraws += 1
+		draw_gen += 1
+		sde.gen = draw_gen
 	else:
 		Quit("RF_AddSpriteDraw: No free spots in spritearray")
 		return drawEntry
@@ -984,7 +987,7 @@ func _capture_draw_list(func_name: StringName) -> void:
 	for z: int in range(RF_NUM_SPRITE_Z_LAYERS):
 		var sde: RF_SpriteDrawEntry = rf_firstSpriteTableEntry[z]
 		while sde != null:
-			sprites.append([sde.px, sde.y, sde.chunk, sde.maskOnly, z, sde.index, sde.ux, sde.uy])
+			sprites.append([sde.px, sde.y, sde.chunk, sde.maskOnly, z, sde.index, sde.ux, sde.uy, sde.gen])
 			sde = sde.next
 	# REND-03: the entries of the objects that stepped (drawn where they are, not slid)
 	var step: Array = []

@@ -212,7 +212,9 @@ func _game(root: String, game: String, levels: Array, seconds: float, out: Strin
 				var w: Array = list.world[k]
 				var expect: Vector2 = Vector2(float(w[0]), float(w[1])) / pg
 				var o: int = int(w[3])
-				if o >= 0 and was.has(o):
+				if o >= 0 and was.has(o) and int(was[o][5]) != int(w[5]):
+					r.reused = r.get("reused", 0) + 1    # its slot handed out again: a new object, drawn where it is
+				elif o >= 0 and was.has(o):
 					var p: Vector2 = Vector2(float(was[o][0]), float(was[o][1])) / pg
 					if absf(expect.x - p.x) <= VortDrawLayout.JUMP and absf(expect.y - p.y) <= VortDrawLayout.JUMP:
 						expect = (expect + p) / 2.0

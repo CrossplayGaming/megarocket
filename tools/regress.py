@@ -527,12 +527,14 @@ def rend04g():
 
 
 def rend03():
-    """REND-03: native resolution and smooth motion leave the game alone: Keen 1's level sessions run with
-    the draw lists kept (sprites' owners, the grid's margin, the capture time) and still match the
-    recordings refresh for refresh."""
+    """REND-03: native resolution and smooth motion leave the game alone: Keen 1, 2 and 3's level sessions
+    run with the draw lists kept (sprites' owners and their slots' numbers, the grid's margin, the capture
+    time) and still match the recordings refresh for refresh."""
     from concurrent.futures import ThreadPoolExecutor
+    cases = ([("keen1", c) for c in REPLAY_V1_LEVELS] + [("keen2", c) for c in REPLAY_V2_LEVELS]
+             + [("keen3", c) for c in REPLAY_V3_LEVELS])
     with ThreadPoolExecutor(max_workers=8) as pool:
-        results = list(pool.map(lambda case: _timing_case("keen1", case, 120, ("--draw_capture=1",)), REPLAY_V1_LEVELS))
+        results = list(pool.map(lambda gc: _timing_case(gc[0], gc[1], 120, ("--draw_capture=1",)), cases))
     return common.COULD_NOT_RUN if common.COULD_NOT_RUN in results else max(results)
 
 

@@ -768,6 +768,10 @@ var draw_capture: bool = false
 ## once as its time runs out, with its next picture: most of Dreams' creatures): smooth motion draws
 ## them where they are, not slid. Presentation only; emptied every refresh.
 var draw_stepped: Dictionary = {}
+## REND-03: a number for each sprite record handed out from the free list, so smooth motion never slides a
+## new sprite from the place of the one whose record it took (the free list is last in, first out: an
+## object removed and another placed in one refresh share a record). Presentation only.
+var draw_gen: int = 0
 var draw_list: Dictionary = {}
 var draw_list_prev: Dictionary = {}
 ## A refresh's list waiting for its present (set by RF_Refresh_EGA just before VW_SetScreen_EGA)

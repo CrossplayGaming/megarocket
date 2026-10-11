@@ -503,6 +503,11 @@ func RF_Refresh() -> void:
 var trace_sprites: int = 0    # tests: sprites still to print
 
 
+## REND-03: the owner's slot number (0 for the callers' own owners and none).
+func _draw_gen_of(owner: int) -> int:
+	return draw_gen[owner] if owner >= 0 and owner < draw_gen.size() else 0
+
+
 func RF_PlaceSprite(x: int, y: int, shapenum: int) -> bool:
 	if trace_frames and trace_sprites > 0:
 		trace_sprites -= 1
@@ -513,7 +518,7 @@ func RF_PlaceSprite(x: int, y: int, shapenum: int) -> bool:
 	if draw_capture and wide_tiles > 0:
 		# REND-04: the wide view shows past the page's edges: every sprite placed is kept for it, marked
 		# when the page itself takes it too (below)
-		sprite_world.append([x, y, shapenum, draw_owner, false])
+		sprite_world.append([x, y, shapenum, draw_owner, false, _draw_gen_of(draw_owner)])
 		kept = true
 	if px < -32 or py < -32 or px > 336 or py > 199:
 		return false
@@ -559,7 +564,7 @@ func RF_PlaceSprite(x: int, y: int, shapenum: int) -> bool:
 	if kept:
 		sprite_world.back()[4] = true
 	elif draw_capture:
-		sprite_world.append([x, y, shapenum, draw_owner, true])    # REND-02: where it is, not where the 1x page puts it
+		sprite_world.append([x, y, shapenum, draw_owner, true, _draw_gen_of(draw_owner)])    # REND-02: where it is, not where the 1x page puts it
 	spritesshown += 1
 	return true
 

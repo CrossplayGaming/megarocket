@@ -146,7 +146,7 @@ static func between(eng: Object, a: Dictionary, b: Dictionary, alpha: float, sca
 	var world: Array = []
 	for w: Array in b.world:
 		var o: int = int(w[3]) if w.size() > 3 else -1
-		if o >= 0 and was.has(o):
+		if o >= 0 and was.has(o) and (w.size() < 6 or was[o].size() < 6 or int(w[5]) == int(was[o][5])):
 			var p: Array = was[o]
 			if absf(float(int(w[0]) - int(p[0])) / pg) <= JUMP and absf(float(int(w[1]) - int(p[1])) / pg) <= JUMP:
 				world.append([lerpf(float(p[0]), float(w[0]), alpha), lerpf(float(p[1]), float(w[1]), alpha), w[2], o])

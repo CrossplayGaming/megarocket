@@ -95,6 +95,9 @@ func FindFreeObj() -> Obj:
 	if i >= MAXOBJECTS:
 		i = MAXOBJECTS - 1    # the original corrupts memory here
 	var ob: Obj = objlist[i]
+	if draw_gen.size() <= i:
+		draw_gen.resize(MAXOBJECTS)
+	draw_gen[i] += 1    # REND-03 (presentation only)
 	ob.clear()
 	ob.think = &"BadThink"
 	ob.contact = &"BadContact"
@@ -1341,7 +1344,7 @@ const QUICK_KEEP: PackedStringArray = ["options", "fixes", "shell_playing", "she
 	"SNDstarted", "KBDstarted", "soundmode", "SPKactive", "intcount", "SndPtr", "SndPriority", "pausesndptr", "pausepriority",
 	"pauseintcount", "dontplay", "highscores", "showIntro", "demobuffer", "demoptr", "indemo", "videocard", "drawseg",
 	"screenseg", "screenofs", "screenpan", "screenstart", "EGApage", "oldtiles", "oldtiles2", "draw_capture", "draw_list",
-	"draw_list_prev", "sprite_world", "wide_tiles", "draw_owner", "draw_overlaid", "draw_overlay_rect", "draw_forced",
+	"draw_list_prev", "sprite_world", "wide_tiles", "draw_owner", "draw_gen", "draw_overlaid", "draw_overlay_rect", "draw_forced",
 	"canSave", "forcemenu", "helptextPtr", "storytxtPtr", "endtextPtr", "previewsPtr", "textdataPtr", "textLineOffsets",
 	"line_offsets", "_quick", "_quick_restore"]
 ## The quicksave: {"level": n, "state": the variables}; empty: none yet (read from save_dir on first use)

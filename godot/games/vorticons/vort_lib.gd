@@ -1088,9 +1088,9 @@ func VidRefresh() -> void:
 var draw_capture: bool = false
 var draw_list: Dictionary = {}
 var draw_list_prev: Dictionary = {}
-## The sprites placed this refresh, [x, y, shape, owner, on the page] in world units (RF_PlaceSprite's
-## own arguments, who placed it: an object's slot, or a number of the caller's, -1 for none; and whether
-## the original's page took it, which the wide view's extra sprites don't).
+## The sprites placed this refresh, [x, y, shape, owner, on the page, gen] in world units (RF_PlaceSprite's
+## own arguments, who placed it: an object's slot, or a number of the caller's, -1 for none; whether
+## the original's page took it, which the wide view's extra sprites don't; and the slot's draw_gen).
 var sprite_world: Array = []
 ## REND-04: the wide view's extra tiles each side of the original's 20 (the host sets it from the
 ## window's shape; 0 in Classic, headless and the oracle runs: the original exactly). Read where
@@ -1101,6 +1101,9 @@ var wide_tiles: int = 0
 ## REND-03: set around a placement by its caller, so smooth motion can follow one thing from refresh
 ## to refresh. The level's objects are their slots; the others are named here.
 var draw_owner: int = -1
+## REND-03: a number per object slot, raised each time FindFreeObj hands the slot out, so smooth motion
+## never slides a new object from the place of the one whose slot it took. Presentation only.
+var draw_gen: PackedInt32Array = PackedInt32Array()
 const OWNER_MESSIE: int = 1000
 const OWNER_HALO: int = 1001
 ## Per page: something drawn on it outside the lists (DrawChar's windows and text) and not yet

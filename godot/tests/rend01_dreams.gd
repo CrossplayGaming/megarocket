@@ -91,9 +91,10 @@ func _init() -> void:
 		if wide > 0:
 			t.ok("%s: REND-04D, at %d pixels every image shifted alike, the score box kept on the screen, the map's tiles over all of it (%d of %d)" % [folder, 320 + 16 * wide, r.get("shifted", 0), r.compared],
 				r.compared > 300 and r.get("shifted", 0) == r.compared)
-		print("    smooth motion: %d pairs, %d right, %d sprites slid, %d stepped" % [r.get("smooth_pairs", 0), r.get("smooth", 0), r.get("slid", 0), r.get("stepped", 0)])
-		t.ok("%s: REND-03D between two refreshes: at 1 the newest picture, at a half each followed sprite midway, the creatures' steps not slid (%d of %d; %d stepped)" % [folder, r.get("smooth", 0), r.get("smooth_pairs", 0), r.get("stepped", 0)],
-			r.get("smooth_pairs", 0) > 100 and r.get("smooth", 0) == r.get("smooth_pairs", 0) and r.get("slid", 0) > 100 and r.get("stepped", 0) > 0)
+		print("    smooth motion: %d pairs, %d right, %d sprites slid, %d stepped, %d new in a reused record" % [r.get("smooth_pairs", 0), r.get("smooth", 0), r.get("slid", 0), r.get("stepped", 0), r.get("reused", 0)])
+		t.ok("%s: REND-03D between two refreshes: at 1 the newest picture, at a half each followed sprite midway, the creatures' steps not slid, a new sprite in a reused record drawn where it is (%d of %d; %d stepped, %d new)" % [folder, r.get("smooth", 0), r.get("smooth_pairs", 0), r.get("stepped", 0), r.get("reused", 0)],
+			r.get("smooth_pairs", 0) > 100 and r.get("smooth", 0) == r.get("smooth_pairs", 0) and r.get("slid", 0) > 100 and r.get("stepped", 0) > 0
+			and r.get("reused", 0) > 0)
 	if ran == 0:
 		t.blocked("no Keen Dreams release under " + root)
 	t.finish(self)
@@ -296,6 +297,8 @@ func _smooth_check(g: Object, d: DreamsData, before: Dictionary, list: Dictionar
 		var expect: Vector2 = Vector2(float(s[6]), float(s[7])) / 16.0
 		if list.get("step", []).has(int(s[5])):
 			r.stepped = r.get("stepped", 0) + 1
+		elif was.has(int(s[5])) and int(was[int(s[5])][8]) != int(s[8]):
+			r.reused = r.get("reused", 0) + 1    # its entry handed out again: a new sprite, drawn where it is
 		elif was.has(int(s[5])):
 			var p: Vector2 = Vector2(float(was[int(s[5])][6]), float(was[int(s[5])][7])) / 16.0
 			if absf(expect.x - p.x) <= DrmDrawLayout.JUMP and absf(expect.y - p.y) <= DrmDrawLayout.JUMP:
