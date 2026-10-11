@@ -226,6 +226,21 @@ def case_program(game, case):
     return program(schedule(spec["held"]))
 
 
+# SCR-01: the DOS memory KEYFEED.COM keeps under the runner's DOSBox (Staging 0.83) besides its resident block,
+# in paragraphs: its copy of the environment (COMSPEC, PATH, BLASTER and its own name: 10) and the two blocks'
+# headers. Measured by listing DOS's memory blocks with and without it (docs/notes/DREAMS_MEMORY.md).
+DOS_EXTRA_PARAS = 12
+
+
+def dos_paragraphs(held):
+    """SCR-01: the paragraphs of DOS memory KEYFEED.COM holds for these keys (its resident block, which grows
+    with the schedule, its environment and their headers): the program loaded after it starts that much
+    higher and gets that much less (Keen Dreams v1.00's start screen shows its memory)."""
+    code = program(schedule(held))
+    tsr = code.rfind(bytes([0xB8, 0x00, 0x31, 0xCD, 0x21]))      # mov ax,3100h ; int 21h: stay resident
+    return struct.unpack_from("<H", code, tsr - 2)[0] + DOS_EXTRA_PARAS    # after mov dx,<paragraphs>
+
+
 if __name__ == "__main__":
     data = case_program(sys.argv[1], sys.argv[2])
     Path(sys.argv[3]).write_bytes(data)

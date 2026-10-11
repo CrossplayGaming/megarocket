@@ -206,6 +206,8 @@ def run_port(game, case, out, say=print, keep=None, more=None, spec=None, second
         # KEYFEED's start-up taps, the DOS clock and TIME-D's costs, as REPLAY-D's sessions run
         extra.setdefault("feed_pre", dreams_case.feed_pre(game, case_name(case)))
         extra.setdefault("clock", dreams_case.feed_clock(game, case_name(case)))
+        # KEYFEED.COM's DOS memory, which the program does not get (v1.00's start screen shows it)
+        extra.setdefault("tsr_paras", keyfeed.dos_paragraphs(spec["held"]))
         costs = dreams_case.calibrated_costs(game)
         if costs:
             extra.setdefault("costs", costs)

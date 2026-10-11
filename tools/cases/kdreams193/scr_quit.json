@@ -1,0 +1,23 @@
+{
+ "seconds": 24,
+ "keyfeed": true,
+ "held": [
+  [4.0, "space", 0.2],
+  [6.0, "f6", 0.15],
+  [8.0, "down", 0.15],
+  [10.0, "right", 0.15],
+  [12.0, "q", 0.15],
+  [14.0, "enter", 0.15]
+ ],
+ "may_exit": true,
+ "screens": [
+  [0, "title"],
+  [4.0, "control panel"],
+  [6.0, "F6: Load / Save / Quit, the save slots (Empty; not in a game)"],
+  [8.0, "Down: the cursor on a Load button"],
+  [10.0, "Right: on a Save button"],
+  [12.0, "Q: Exit to DOS (Really Exit to DOS)"],
+  [14.0, "Enter: Now Exiting to DOS..."]
+ ],
+ "note": "SCR-01D (Keen Dreams v1.93): the control panel's disk card out of a game: F6 shows the six save slots, all Empty, Load and Save disabled; the cursor moved over them (their help); Q the Exit to DOS card, Enter on Really Exit to DOS: Now Exiting to DOS..., the program quits (DOS's prompt follows, not compared)."
+}

@@ -95,6 +95,15 @@ def measured_start(game, case, out):
 # steps from 0.045 to 0.075 s; the outcome swings with it, which frame a key or the mode set falls in),
 # with the costs of dreams_costs.json: fit it again when they change.
 FEED_PRE = {"kdreams": 0.05, "kdreams193": 0.045}
+# SCR-01: microseconds the original's start-up spends before SD_Startup (which stops the DOS clock: the random
+# table's seed is its hundredths then) that the port does not charge, so the seed's clock runs this much later
+# than feed_pre's. v1.93: one BIOS tick (the seed is the next tick's hundredths); found on King Boobus Tuber's
+# pauses at a wall (US_RndT; kdreams193 scr_gameover matched 54 of 68 pictures after its third load with the
+# clock at 0.045 s, all 68 from 0.070 to 0.100 s, 64 at 0.125 s: the tick starts between 0.045 and 0.070 s),
+# set in the middle of the tick (0.085 s), and confirmed on REPLAY-D's sessions: 2887 -> 3104 of v1.93's
+# pictures matched (level09 all 567, level12 174 -> 218, level14 166 -> 179, level15 173 -> 292), none
+# fewer. v1.00's seed is right as it is (REPLAY-D level10's squasher; SCR-01's v1.00 cases).
+START_LAG = {"kdreams193": 40000}
 COSTS = Path(__file__).resolve().parent.parent / "godot" / "data" / "dreams_costs.json"    # (the game's own copy: the host reads it)
 
 
@@ -107,9 +116,9 @@ def feed_pre(game, case=None):
 def feed_clock(game, case=None):
     """The DOS clock at the program's start, microseconds: the case's fitted "clock" (a random draw that
     decides a stop, with how it was found in "clock_note"), else the runner's 00:00:00 at KEYFEED's loading
-    plus feed_pre."""
+    plus feed_pre and the release's START_LAG."""
     spec = json.loads((CASES / game / f"{case}.json").read_text(encoding="utf-8")) if case else {}
-    return int(spec.get("clock", round(feed_pre(game, case) * 1e6)))
+    return int(spec.get("clock", round(feed_pre(game, case) * 1e6) + START_LAG.get(game, 0)))
 
 
 def calibrated_costs(game=None):
@@ -133,7 +142,7 @@ def run_feed(game, held, out, seconds, extra=(), clock=None, case=None, pre=None
     shutil.rmtree(out, ignore_errors=True)
     p = subprocess.run([sys.executable, "tools/gdtest.py", "drm_boot", "--", f"--only={game}", f"--seconds={seconds}",
                         f"--out={Path(out).as_posix()}", f"--feed_keys={arg}", f"--feed_pre={pre}", f"--clock={clock}",
-                        *extra],
+                        f"--tsr_paras={keyfeed.dos_paragraphs(held)}", *extra],
                        cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
     return p.returncode, p.stdout + p.stderr
 

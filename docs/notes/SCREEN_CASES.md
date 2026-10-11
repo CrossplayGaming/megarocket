@@ -223,3 +223,41 @@ the row below once the program has quit, is masked: row 23, columns 0-4). The sh
 - **Not comparable with the user's Keen 6 v1.0** (v1.4's rules, J-19): CONFIGURE and OPTIONS (other items),
   the creature question (v1.0 never asks it: the code is there, nothing calls it), the ending's pages (grey,
   dark text), the debug keys (A+2 does nothing), so no game over by F10+Z.
+
+## Keen Dreams' cases (SCR-01D, 2026-10-11)
+
+Nine cases a release, the same timetables for v1.00 and v1.93 except where noted: `scr_menu` (start screens,
+title, panel), `scr_attract` (no key: the title, v1.00's credits and copyright windows, the high scores),
+`scr_help` (F1, 2, 3: the three help texts paged, the help line's Press F1 for Help), `scr_options` (C, F3:
+keycaps redefined and refused; F2 and F7: sound and music), `scr_quit` (F6: the save slots out of a game; Q,
+Enter: Exit to DOS), `scr_game` (new game, status window, the debug keys' windows G I J S W, a level, the
+in-game panel), `scr_save` (save with a typed name, load it: PAUSED), `scr_gameover` (Boobus kills Keen four
+times: You didn't make it past, Try Again, Exit to Tuberia, Game Over!, the scores), `scr_ending` (v1.00: the
+fight, the five finale windows, a high score typed; v1.93: from a saved game, see below).
+
+- **Keys in play go in the middle of a frame.** A key within a few milliseconds of the moment a frame reads
+  input can land a frame apart in DOSBox (a v1.00 bomb thrown at 22.000 s did). Moving each key of a fight
+  by +-5 to 10 ms in the port and checking the run is unchanged finds the safe times (the scratch tool for it
+  moved one key at a time and compared every picture).
+- **The Enter that answers a death stays in LastScan** (the original's habit): the next death's box takes it
+  at once (Try Again). `scr_gameover` presses N in between.
+- **v1.93's ending starts from a saved game**, because v1.93's first frames in level 15 come a tic apart from
+  the original's (TIME-D's v1.93 loads), which moves King Boobus's walk and the bombs' hits by a frame. The
+  save is the port's own: run this timetable as a case in the port with
+  `--keep F:/KeenReworkWork/case_saves/scrd_kdreams193_ending` and copy SAVEGM0.KDR alone into
+  `F:/KeenReworkWork/case_saves/scrd_kdreams193_ending_save` (the case's overrides):
+
+      {"seconds": 46.6, "keyfeed": true, "held": [[4.0, "space", 0.2], [6.0, "enter", 0.2], [10.0, "f10", 0.8],
+       [10.3, "w", 0.15], [11.4, "1", 0.15], [11.8, "5", 0.15], [12.6, "enter", 0.15], [14.0, "f10", 0.8],
+       [14.3, "i", 0.15], [15.6, "n", 0.15], [17.0, "f10", 0.8], [17.3, "g", 0.15], [18.6, "n", 0.15],
+       [19.993, "alt", 0.143], [20.507, "alt", 0.143], [21.027, "alt", 0.143], [21.541, "alt", 0.143],
+       [22.054, "alt", 0.143], [22.568, "alt", 0.143], [23.082, "alt", 0.143], [23.595, "alt", 0.143],
+       [24.109, "alt", 0.143], [24.622, "alt", 0.143], [25.136, "alt", 0.143], [25.65, "alt", 0.143],
+       [26.163, "alt", 0.143], [26.677, "alt", 0.143], [30.6, "esc", 0.15], [32.5, "f6", 0.15],
+       [34.0, "right", 0.15], [35.5, "enter", 0.15], [37.0, "b", 0.1], [38.0, "enter", 0.15], [40.0, "esc", 0.15]]}
+
+- Found on the way (details: docs/notes/DREAMS_MEMORY.md): the original finds DOSBox's mouse driver and gets
+  435 KB (434 with a long KEYFEED.COM); DOSBox keeps the host's date, so v1.00's fifth finale window shows;
+  SaveGame's compression takes the original 4 refreshes (its Saving box); v1.93's random seed comes a BIOS
+  tick later than feed_pre puts it (dreams_case.py START_LAG); v1.00's warp to a missing map ends otherwise
+  than the port's.

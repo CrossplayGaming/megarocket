@@ -1,0 +1,17 @@
+{
+ "seconds": 40,
+ "keyfeed": true,
+ "held": [],
+ "least": 5,
+ "screens": [
+  [0, "title"],
+  [3.0, "credits window"],
+  [9.5, "copyright window"],
+  [15.3, "title, scrolled back"],
+  [18.3, "high scores"],
+  [26.3, "title again"],
+  [29.2, "credits window again"],
+  [35.7, "copyright window again"]
+ ],
+ "note": "SCR-01D (Keen Dreams v1.00): the attract loop with no key, once round and on: the title map, the credits and copyright windows as it scrolls, the high scores (the default table: no CONFIG.KDR beside the program), the title again."
+}
