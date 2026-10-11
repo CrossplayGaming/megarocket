@@ -10,8 +10,8 @@ extends DrmRF
 ## interrupt 9 (vm.int9), which reads port 60h. Busy loops run the machine to its next event
 ## (BE_ST_ShortSleep) and stop when the program quits. The 2015 release's paths, ReflectionHLE's
 ## alternative controllers and input binds, and the SoundBlaster, Sound Source and music code
-## (compiled out: REFKEEN_SD_ENABLE_*) are left out. No mouse driver and no joystick on the
-## machine: MousePresent and JoysPresent stay false. The program runs without parameters
+## (compiled out: REFKEEN_SD_ENABLE_*) are left out. DOSBox's mouse driver is on the machine
+## (MousePresent), never moved or clicked; no joystick: JoysPresent stays false. The program runs without parameters
 ## (id0_argc 1), so the parameter loops of IN_Startup and SD_Startup are not entered.
 
 
@@ -196,12 +196,12 @@ func INL_KeyService() -> void:
 	vm.out8(0x20, 0x20)
 
 
-## No mouse driver: no motion. Returns [x, y].
+## DOSBox's mouse driver, the mouse never moved: no motion. Returns [x, y].
 func INL_GetMouseDelta() -> PackedInt32Array:
 	return PackedInt32Array([0, 0])
 
 
-## No mouse driver: no buttons.
+## DOSBox's mouse driver, no button pressed.
 func INL_GetMouseButtons() -> int:
 	return 0
 
@@ -317,9 +317,11 @@ func INL_ShutKbd() -> void:
 	vm.int9 = Callable()
 
 
-## Detects the mouse: no mouse driver on the machine (INT 33h unset).
+## Detects the mouse: DOSBox's own driver answers INT 33h (getvect(MouseInt) is set, MReset returns
+## 0FFFFh), so the original finds a mouse under the oracle (SCR-01: v1.00's start screen ticks
+## "Mouse"). Nothing moves it or presses its buttons.
 func INL_StartMouse() -> bool:
-	return false
+	return true
 
 
 func INL_ShutMouse() -> void:

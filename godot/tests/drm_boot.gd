@@ -32,6 +32,8 @@ extends SceneTree
 ##          and saved games, read as the player's files)
 ##          --save=<folder> (HARN-06: the player's files kept there, as the program writes them)
 ##          --may_exit=1 (HARN-06: the program may quit before the time limit)
+##          --tsr_paras=<n> (SCR-01: DOS memory held by KEYFEED.COM, paragraphs, less for the program:
+##          tools/keyfeed.py dos_paragraphs; unset, none)
 ## Every text-mode refresh's 80x25 cells go to <out>/<folder>/text_frames.json (HARN-06: the text
 ## screens, held against the recording's by tools/screen_case.py).
 
@@ -87,6 +89,7 @@ func _run(dir: String, out: String, name: String, keys: Array, seconds: float, o
 	vm.vbl_period = int(opts.get("vbl_period", DOSBOX.vbl_period))
 	vm.timer_offset = int(opts.get("timer_offset", DOSBOX.timer_offset))
 	g.us_dosClockAtStart = int(opts.get("clock", "-1"))
+	g.dos_tsr_paras = int(opts.get("tsr_paras", "0"))
 	# HARN-23: the verify harness's trace (ReflectionHLE replays it: tools/dreams_trace.py)
 	g.kl_record = str(opts.get("kl_record", ""))
 	g.kl_warp = int(opts.get("kl_warp", "-1"))

@@ -1,0 +1,169 @@
+{
+ "seconds": 66.0,
+ "keyfeed": true,
+ "held": [
+  [
+   4.0,
+   "space",
+   0.2
+  ],
+  [
+   6.0,
+   "enter",
+   0.2
+  ],
+  [
+   10.0,
+   "f10",
+   0.8
+  ],
+  [
+   10.3,
+   "w",
+   0.15
+  ],
+  [
+   11.4,
+   "1",
+   0.15
+  ],
+  [
+   11.8,
+   "5",
+   0.15
+  ],
+  [
+   12.6,
+   "enter",
+   0.15
+  ],
+  [
+   21.5,
+   "down",
+   0.15
+  ],
+  [
+   22.3,
+   "up",
+   0.15
+  ],
+  [
+   23.0,
+   "enter",
+   0.15
+  ],
+  [
+   26.0,
+   "n",
+   0.15
+  ],
+  [
+   32.0,
+   "down",
+   0.15
+  ],
+  [
+   33.0,
+   "enter",
+   0.15
+  ],
+  [
+   36.0,
+   "f10",
+   0.8
+  ],
+  [
+   36.3,
+   "w",
+   0.15
+  ],
+  [
+   37.4,
+   "1",
+   0.15
+  ],
+  [
+   37.8,
+   "5",
+   0.15
+  ],
+  [
+   38.6,
+   "enter",
+   0.15
+  ],
+  [
+   49.0,
+   "enter",
+   0.15
+  ],
+  [
+   60.0,
+   "n",
+   0.15
+  ]
+ ],
+ "screens": [
+  [
+   0,
+   "title"
+  ],
+  [
+   4.0,
+   "control panel"
+  ],
+  [
+   6.0,
+   "a new game, the Land of Tuberia"
+  ],
+  [
+   10.0,
+   "F10+W 15: Boobus' Chamber, King Boobus Tuber kills Keen: You didn't make it past"
+  ],
+  [
+   21.5,
+   "Down: Exit to Tuberia marked (the blinking bar)"
+  ],
+  [
+   22.3,
+   "Up: Try Again marked"
+  ],
+  [
+   23.0,
+   "Enter: Try Again, the level again"
+  ],
+  [
+   26.0,
+   "N (Enter no longer the last key)"
+  ],
+  [
+   31.0,
+   "killed again: the box"
+  ],
+  [
+   32.0,
+   "Down: Exit to Tuberia"
+  ],
+  [
+   33.0,
+   "Enter: the map"
+  ],
+  [
+   36.0,
+   "F10+W 15: killed a third time"
+  ],
+  [
+   49.0,
+   "Enter: Try Again, killed with no life left"
+  ],
+  [
+   58.0,
+   "Game Over!"
+  ],
+  [
+   60.0,
+   "N: the high scores (no new entry: 0 points), the title"
+  ]
+ ],
+ "note": "SCR-01D (Keen Dreams v1.00): losing the game: a new game, the debug warp to level 15, where King Boobus Tuber walks into Keen standing still; the box You didn't make it past (its blinking bar moved with Down and Up), Try Again; N, so that the next box does not take the Enter still in LastScan (the original's own habit); killed again: Exit to Tuberia; the warp again, killed: Try Again, the last life lost: Game Over!, N, the high scores with no new entry (0 points), the title."
+}

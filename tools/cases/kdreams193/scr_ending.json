@@ -1,0 +1,32 @@
+{
+ "seconds": 36,
+ "keyfeed": true,
+ "overrides": "F:/KeenReworkWork/case_saves/scrd_kdreams193_ending_save",
+ "held": [
+  [4.0, "space", 0.2],
+  [6.0, "f6", 0.15],
+  [8.0, "enter", 0.15],
+  [11.0, "n", 0.15],
+  [15.5, "n", 0.15],
+  [18.5, "n", 0.15],
+  [21.5, "n", 0.15],
+  [24.5, "k", 0.1],
+  [25.0, "e", 0.1],
+  [25.5, "e", 0.1],
+  [26.0, "n", 0.1],
+  [27.5, "enter", 0.15]
+ ],
+ "screens": [
+  [0, "title"],
+  [4.0, "control panel"],
+  [6.0, "F6: the save slots, slot 1 'b'"],
+  [8.0, "Enter: Loading 'b', Boobus' Chamber, PAUSED"],
+  [11.0, "N: King Boobus Tuber's last explosions, the finale's first window"],
+  [15.5, "N: the finale's window 2"],
+  [18.5, "N: the finale's window 3 (THE END)"],
+  [21.5, "N: the high scores, the new entry's name to type"],
+  [24.5, "the name typed"],
+  [27.5, "Enter: the high scores, the title"]
+ ],
+ "note": "SCR-01D (Keen Dreams v1.93): the ending, from a saved game: the port's own run of the fight (tools/cases/kdreams193 has no copy: a saved game holds the level's map planes) saved it as King Boobus Tuber's last explosions fade, in F:/KeenReworkWork/case_saves/scrd_kdreams193_ending_save (how: docs/notes/SCREEN_CASES.md). F6 and Enter load it (PAUSED, as every load), N: the explosions end, the finale's three windows each answered with N, the high score's name typed (keen), Enter: the high scores, the title. (The fight itself is play: v1.93's first frames in level 15 come a tic apart from the original's, TIME-D, so it is not compared here; v1.00's ending case includes it.)"
+}

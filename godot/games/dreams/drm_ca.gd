@@ -35,13 +35,45 @@ var mmrover: MMBlock = null
 var mmblocks_by_key: Dictionary = {}    # key -> MMBlock
 
 
-## The DOS memory the original's manager gets, in paragraphs: the near heap (what is left of the
-## data segment) and the far heap (DOS's free memory above the program). PROVISIONAL: to be read
-## from the original's own memory display (DebugMemory, MM_ShowMemory) under DOSBox, as Keen 4's
-## was (HARN-18); the start-up and level loads only depend on the order of what is allocated
-## until then.
+## DOSBox's shell (the oracle's, Staging 0.83) loads a program with its PSP at this segment, the
+## program's copy of the environment in the 10 paragraphs below it, and gives it all memory up to
+## MEM_TOP (PSP:[2]): DOS's memory blocks listed by a probe program run in its place (SCR-01,
+## docs/notes/DREAMS_MEMORY.md).
+const DOS_FIRST_PSP: int = 0x193
+const MEM_TOP: int = 0x9FFF
+## Paragraphs of DOS memory held by programs left resident before the game: KEYFEED.COM in the
+## key-fed runs (tools/keyfeed.py dos_paragraphs), which the runners give (drm_boot --tsr_paras);
+## 0 on the player's machine. The program's PSP moves up by as many.
+var dos_tsr_paras: int = 0
+## Each release's data segment as its Borland start-up code (C0) sets it up: DGROUP's paragraph in
+## the load image (C0's `mov dx,DGROUP`) and the end of its uninitialised data (`add di,offset
+## edata@`), where the near heap starts.
+const DGROUP: Dictionary = {100: [0x2238, 0xEA86], 193: [0x23A8, 0xE9CE]}
+
+
+## The DOS memory the original's manager gets (SCR-01: the start screen's memory figures; MM-01's
+## model for Dreams): {"near": [segment, paragraphs], "far": [segment, paragraphs], "nearheap",
+## "farheap": bytes}, as MM_Startup computes them from what Borland's library leaves it, which the
+## original's own code fixes (docs/notes/DREAMS_MEMORY.md):
+## - C0 grows DGROUP to 64K with the stack at its top (_heaplen 0), and the far heap starts above it;
+## - before main, the stdio start-up gives stdin a 512-byte buffer from the near heap (setvbuf; stdout,
+##   a terminal, is unbuffered): a block of 516 bytes with malloc's header, so the near heap's top is
+##   edata + 516 when MM_Startup runs;
+## - coreleft() is (SP - top - 0x220) rounded down to 16, SP 0xFFC0 at its call (setargv's copy of
+##   "C:\KDREAMS.EXE" and argv, main's and InitGame's frames, MM_Startup's own);
+## - malloc's block starts 4 bytes above the top; farmalloc's at offset 4 of the far heap's first
+##   paragraph, and farcoreleft() is the far heap less one paragraph.
 func mm_layout() -> Dictionary:
-	return {"near": [0x2a00, 0x200], "far": [0x3200, 0x6c00]}
+	var ver: int = 100 if current_gamever_int == 100 else 193
+	var dgroup: int = DOS_FIRST_PSP + dos_tsr_paras + 0x10 + int(DGROUP[ver][0])
+	var top: int = int(DGROUP[ver][1]) + 516
+	var near_start: int = top + 4
+	var near_len: int = ((0xFFC0 - top - 0x220) & 0xFFF0) - (16 - (near_start & 15)) - SAVENEARHEAP
+	var far_base: int = dgroup + 0x1000
+	var far_len: int = (MEM_TOP - far_base - 1) * 16 - 12 - SAVEFARHEAP
+	@warning_ignore("integer_division")
+	return {"near": [dgroup + (near_start + 15) / 16, near_len / 16], "far": [far_base + 1, far_len / 16],
+		"nearheap": near_len, "farheap": far_len}
 
 
 func MM_Startup() -> void:
@@ -56,7 +88,7 @@ func MM_Startup() -> void:
 	mmhead.length = lay.near[0]
 	mmhead.attributes = MM_LOCKBIT
 	var endfree: int = lay.near[0] + lay.near[1]
-	mminfo.nearheap = lay.near[1] * 16
+	mminfo.nearheap = lay.nearheap
 	# locked block of unusable near heap memory (the stack), from the end of the near heap to
 	# the start of the far heap
 	var b: MMBlock = MMBlock.new()
@@ -65,7 +97,7 @@ func MM_Startup() -> void:
 	b.attributes = MM_LOCKBIT
 	mmhead.next = b
 	endfree = lay.far[0] + lay.far[1]
-	mminfo.farheap = lay.far[1] * 16
+	mminfo.farheap = lay.farheap
 	mminfo.mainmem = mminfo.nearheap + mminfo.farheap
 	mminfo.XMSmem = 0
 	mminfo.EMSmem = 0

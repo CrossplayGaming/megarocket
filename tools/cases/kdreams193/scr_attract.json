@@ -1,0 +1,14 @@
+{
+ "seconds": 30,
+ "keyfeed": true,
+ "held": [],
+ "least": 2,
+ "screens": [
+  [0, "title"],
+  [7.6, "high scores"],
+  [13.6, "title again"],
+  [20.6, "high scores again"],
+  [26.6, "title, third time"]
+ ],
+ "note": "SCR-01D (Keen Dreams v1.93): the attract loop with no key, twice round: the title picture (TITLESCR.LBM, drawn twice: 4 s and 3 s), the high scores (the default table: no KDREAMS.CFG beside the program), the title again."
+}

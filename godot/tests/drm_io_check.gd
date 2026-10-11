@@ -72,8 +72,9 @@ func _timer(g: DreamsGame, vm: DosMachine) -> void:
 func _keys(g: DreamsGame, vm: DosMachine) -> void:
 	g.IN_Startup()
 	g.IN_Default(false, g.ctrl_Keyboard1)
-	t.ok("IN_Startup: keyboard interrupt in, no mouse or joysticks",
-		vm.int9.is_valid() and not g.MousePresent and not g.JoysPresent[0] and not g.JoysPresent[1])
+	# (SCR-01: DOSBox's mouse driver answers, as v1.00's start screen shows under the oracle)
+	t.ok("IN_Startup: keyboard interrupt in, DOSBox's mouse driver found, no joysticks",
+		vm.int9.is_valid() and g.MousePresent and not g.JoysPresent[0] and not g.JoysPresent[1])
 	var info: DrmDecl.CursorInfo = DrmDecl.CursorInfo.new()
 	var s: float = vm.seconds()
 	vm.add_key(s + 0.05, g.sc_RightArrow, 0.2)

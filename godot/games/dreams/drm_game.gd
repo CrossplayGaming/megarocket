@@ -2221,7 +2221,8 @@ func GameFinale() -> void:
 		return
 
 	# getdate(&d): the machine has no calendar (no wall clock, A8); any date after 29 July 1991,
-	# as every date the game has run on since, shows the last screen
+	# as every date the game has run on since, shows the last screen. The oracle's too: DOSBox
+	# Staging 0.83 keeps the host's date whatever the runner's autoexec sets (SCR-01, scr_ending)
 	if true:
 		# screen 5 of finale (6 lines)
 		US_CenterWindow(30, 21)
@@ -2755,34 +2756,63 @@ func CA_FarRead(handle: BE_FILE_T, dest: PackedByteArray, length: int) -> bool:
 	return got == length
 
 
+## SCR-01: the instructions the original's CA_RLEWCompress runs on each of its paths, counted from
+## the program (v1.00 and v1.93 compile it alike), Borland's huge-pointer helpers included (a
+## pointer step: the call's 5 instructions and PIA's 23; a pointer compare: the call's 5, PCMP's 16
+## and the jump). SaveGame compresses the map's three planes with it: under DOSBox its "Saving" box
+## stays up that long.
+const RLEW_INS_START: int = 5 + 28      # a run's first word: loaded, then the source stepped
+const RLEW_INS_MATCH: int = 4           # the next word loaded and compared with the run's
+const RLEW_INS_BOUND: int = 5 + 16 + 1  # source < end, after a word that matched
+const RLEW_INS_NEXT: int = 1 + 28       # count++ and the source stepped again
+const RLEW_INS_TAG: int = 2 + 92 + 1    # a long run (or the tag itself): tag, count and value written
+const RLEW_INS_PLAIN: int = 34          # each word of a short run written as it is
+const RLEW_INS_END: int = 5 + 16 + 1    # source < end at the bottom of the loop
+
+
 ## id_ca.c: RLEW-compresses `length` bytes of words from `source` into `dest` (grown as written);
-## returns the compressed length in bytes.
+## returns the compressed length in bytes. The original's time for it is charged (RLEW_INS_*).
 func CA_RLEWCompress(source: PackedInt32Array, length: int, dest: PackedInt32Array, rlewtag: int) -> int:
 	var src: int = 0
 	@warning_ignore("integer_division")
 	var end: int = (length + 1) / 2
 	var out: PackedInt32Array = PackedInt32Array()
+	var ins: int = 0
 
 	# compress it
 	while true:
 		var count: int = 1
 		var value: int = source[src] if src < source.size() else 0
 		src += 1
-		while src < end and (source[src] if src < source.size() else 0) == value:
+		ins += RLEW_INS_START
+		# while (*source == value && source<end): the word is read before the bound is tested
+		while true:
+			ins += RLEW_INS_MATCH
+			if (source[src] if src < source.size() else 0) != value:
+				break
+			ins += RLEW_INS_BOUND
+			if src >= end:
+				break
 			count += 1
 			src += 1
+			ins += RLEW_INS_NEXT
 		if count > 3 or value == rlewtag:
 			# send a tag / count / value string
 			out.append(rlewtag)
 			out.append(count & 0xFFFF)
 			out.append(value)
+			ins += RLEW_INS_TAG + (3 if count <= 3 else 0)
 		else:
 			# send word without compressing
 			for i: int in range(count):
 				out.append(value)
+			ins += 5 + 4 + RLEW_INS_PLAIN * count
+		ins += RLEW_INS_END
 		if src >= end:
 			break
+		ins += 1    # (the jump back)
 
+	vm.instructions(ins)
 	dest.resize(out.size())
 	for i: int in range(out.size()):
 		dest[i] = out[i]
