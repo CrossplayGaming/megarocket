@@ -1,0 +1,227 @@
+{
+ "seconds": 52,
+ "keyfeed": true,
+ "held": [
+  [
+   16.0,
+   "enter",
+   0.2
+  ],
+  [
+   18.0,
+   "f1",
+   0.15
+  ],
+  [
+   20.0,
+   "pgdn",
+   0.15
+  ],
+  [
+   22.0,
+   "down",
+   0.15
+  ],
+  [
+   24.0,
+   "esc",
+   0.15
+  ],
+  [
+   26.0,
+   "f2",
+   0.15
+  ],
+  [
+   28.0,
+   "y",
+   0.15
+  ],
+  [
+   30.0,
+   "f3",
+   0.15
+  ],
+  [
+   32.0,
+   "8",
+   0.15
+  ],
+  [
+   34.0,
+   "ctrl",
+   0.15
+  ],
+  [
+   36.0,
+   "esc",
+   0.15
+  ],
+  [
+   38.0,
+   "f4",
+   0.15
+  ],
+  [
+   40.0,
+   "esc",
+   0.15
+  ],
+  [
+   42.0,
+   "f5",
+   0.15
+  ],
+  [
+   44.0,
+   "space",
+   0.15
+  ],
+  [
+   46.0,
+   "esc",
+   0.15
+  ],
+  [
+   48.0,
+   "n",
+   0.15
+  ]
+ ],
+ "screens": [
+  [
+   0,
+   "one moment and the intro"
+  ],
+  [
+   13.9,
+   "title"
+  ],
+  [
+   16.0,
+   "main menu"
+  ],
+  [
+   18.0,
+   "F1: the help text"
+  ],
+  [
+   20.0,
+   "help, a page down"
+  ],
+  [
+   22.0,
+   "help, a line down"
+  ],
+  [
+   24.0,
+   "main menu again"
+  ],
+  [
+   26.0,
+   "F2: Sound (Y/N)?"
+  ],
+  [
+   28.0,
+   "main menu again (2)"
+  ],
+  [
+   30.0,
+   "F3: Keyboard Commands"
+  ],
+  [
+   32.0,
+   "F3: Press the new key"
+  ],
+  [
+   34.0,
+   "F3: button1 set again (Ctrl)"
+  ],
+  [
+   36.0,
+   "main menu again (3)"
+  ],
+  [
+   38.0,
+   "F4: Joystick Configuration"
+  ],
+  [
+   40.0,
+   "main menu again (4)"
+  ],
+  [
+   42.0,
+   "F5: SAVE only on the World Map"
+  ],
+  [
+   44.0,
+   "main menu again (5)"
+  ],
+  [
+   46.0,
+   "Escape: Quit (Y/N)?"
+  ],
+  [
+   48.0,
+   "main menu again (6)"
+  ]
+ ],
+ "masks": [
+  {
+   "rect": [
+    0,
+    0,
+    320,
+    200
+   ],
+   "from": 13.1,
+   "to": 13.9,
+   "reason": "the intro's last pictures: the stars twinkle a step apart from the original's under DOSBox Staging 0.83; the DOSBox 0.80 recordings of the original (keen1_boot_a/_b, keen1_title_a, keen3_title_a) show the port's pictures, and TIME-V1 holds the intro to the refresh (as keen1/scr_menu.json)"
+  },
+  {
+   "rect": [
+    197,
+    131,
+    284,
+    144
+   ],
+   "from": 15.6,
+   "reason": "the title's animated tiles while they stand still (under the main menu and its windows, and in the fades): they stop at the phase the clock has when the title is last drawn; the original reads a key up to three refreshes before or after the port (from the first key on the two machines' refreshes and loop passes fall that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the tiles meet another phase about one time in three. Only the tiles that animate (measured on scr_attract), from and to the black between two screens (where masked and unmasked pictures are alike) or a moment they animate; while they animate they are compared (scr_attract, the screens between)"
+  },
+  {
+   "rect": [
+    256,
+    177,
+    267,
+    190
+   ],
+   "from": 15.6,
+   "reason": "the title's animated tiles while they stand still (under the main menu and its windows, and in the fades): they stop at the phase the clock has when the title is last drawn; the original reads a key up to three refreshes before or after the port (from the first key on the two machines' refreshes and loop passes fall that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the tiles meet another phase about one time in three. Only the tiles that animate (measured on scr_attract), from and to the black between two screens (where masked and unmasked pictures are alike) or a moment they animate; while they animate they are compared (scr_attract, the screens between)"
+  },
+  {
+   "rect": [
+    48,
+    192,
+    80,
+    200
+   ],
+   "from": 15.6,
+   "reason": "the title's animated tiles while they stand still (under the main menu and its windows, and in the fades): they stop at the phase the clock has when the title is last drawn; the original reads a key up to three refreshes before or after the port (from the first key on the two machines' refreshes and loop passes fall that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the tiles meet another phase about one time in three. Only the tiles that animate (measured on scr_attract), from and to the black between two screens (where masked and unmasked pictures are alike) or a moment they animate; while they animate they are compared (scr_attract, the screens between)"
+  },
+  {
+   "rect": [
+    193,
+    192,
+    238,
+    200
+   ],
+   "from": 15.6,
+   "reason": "the title's animated tiles while they stand still (under the main menu and its windows, and in the fades): they stop at the phase the clock has when the title is last drawn; the original reads a key up to three refreshes before or after the port (from the first key on the two machines' refreshes and loop passes fall that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the tiles meet another phase about one time in three. Only the tiles that animate (measured on scr_attract), from and to the black between two screens (where masked and unmasked pictures are alike) or a moment they animate; while they animate they are compared (scr_attract, the screens between)"
+  }
+ ],
+ "port": {
+  "costs": "loadgraphics=425614175",
+  "dos_ticks": 23
+ },
+ "note": "SCR-01V: the F-keys on the main menu: F1 help (PgDn, Down, Escape), F2 Sound (Y/N)? Y, F3 Keyboard Commands (8, Ctrl, Escape), F4 joystick (Escape), F5 (not on the World Map; Space), Escape Quit (Y/N)? N."
+}
