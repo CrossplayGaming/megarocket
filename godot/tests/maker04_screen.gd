@@ -200,10 +200,20 @@ func _go() -> void:
 	await _button(JOY_BUTTON_A)
 	var saved: Array = MakerLibrary.list("keen1")
 	t.ok("A saves it into the library (%s)" % [saved], saved.size() == 1 and not m.model.dirty and m.dialog == null)
+	# the level's settings: the slot it plays as
+	await _button(JOY_BUTTON_START)
+	t.ok("the d-pad reaches Level settings", await _press_until(JOY_BUTTON_DPAD_DOWN, "Ask_Level_settings", 12))
+	await _button(JOY_BUTTON_A)
+	t.ok("Level settings: the level slots, level 1 focused (%s)" % _owner(), m.page == "slots" and await _wait(func() -> bool: return _owner() == "Slot_1", 2.0))
+	await _button(JOY_BUTTON_DPAD_DOWN)
+	await _button(JOY_BUTTON_A)
+	t.ok("the next slot chosen: back in the editor, playing as level 2, not yet saved", m.page == "editor" and m.model.number == 2 and m.model.dirty)
 	await _key(KEY_ESCAPE)
 	t.ok("Escape opens the menu too", m.dialog != null)
 	t.ok("the d-pad reaches Back to your levels", await _press_until(JOY_BUTTON_DPAD_DOWN, "Ask_Back_to_your_levels", 12))
 	await _button(JOY_BUTTON_A)
+	t.ok("leaving saved it without asking (slot %s in the library)" % [MakerLibrary.list("keen1")[0].slot], m.dialog == null and not m.model.dirty
+		and int(MakerLibrary.list("keen1")[0].slot) == 2)
 	var row: String = "Level_" + str(saved[0].path).get_file().get_basename() if not saved.is_empty() else "?"
 	t.ok("back in the library, the level's row focused (%s)" % _owner(), m.page == "library" and await _wait(func() -> bool: return _owner() == row, 2.0))
 	# the row: duplicate, rename by the d-pad, delete asked first
@@ -251,13 +261,27 @@ func _go() -> void:
 	var fa: FileAccess = FileAccess.open(MakerLibrary.inbox_dir().path_join("friend.keenlevel"), FileAccess.WRITE)
 	fa.store_string(other.share_text())
 	fa.close()
-	(m._page_box.find_child("NewLevel", true, false) as Control).grab_focus()
+	for round: int in range(2):
+		(m._page_box.find_child("NewLevel", true, false) as Control).grab_focus()
+		await _frames(2)
+		await _press_until(JOY_BUTTON_DPAD_RIGHT, "BringIn", 3)
+		await _button(JOY_BUTTON_A)
+		t.ok("Bring in shared levels opens the launcher's folder chooser at the inbox (%s)" % (m.chooser.current if m.chooser != null else "none"),
+			m.chooser != null and m.chooser.current.replace("\\", "/").to_lower().trim_suffix("/") == MakerLibrary.inbox_dir().replace("\\", "/").to_lower().trim_suffix("/"))
+		await _button(JOY_BUTTON_START)
+		var brought: Array = MakerLibrary.list("keen1").map(func(e: Dictionary) -> String: return e.name)
+		t.ok("Start chooses the folder: its shared level brought in, once only (round %d: %s; %s)" % [round + 1, brought, m.status.text.substr(0, 40)],
+			m.chooser == null and brought.size() == 2 and brought.has("From a friend"))
+	# Share on a cleared level: the folder chooser, then the file written in the folder chosen
+	other.doc_name = "Cleared one"
+	other.save_doc()
 	await _frames(2)
-	t.ok("the d-pad reaches Bring in shared levels", await _press_until(JOY_BUTTON_DPAD_RIGHT, "BringIn", 3))
-	await _button(JOY_BUTTON_A)
-	var brought: Array = MakerLibrary.list("keen1").map(func(e: Dictionary) -> String: return e.name)
-	t.ok("A brings the shared level into the library (%s; %s)" % [brought, m.status.text.substr(0, 40)], brought.size() == 2 and brought.has("From a friend")
-		and FileAccess.file_exists(MakerLibrary.inbox_dir().path_join("friend.keenlevel.brought_in")))
+	m.share(other.path)
+	await _frames(3)
+	t.ok("Share on a cleared level opens the folder chooser (%s)" % (m.chooser.title_text if m.chooser != null else "none"), m.chooser != null)
+	await _button(JOY_BUTTON_START)
+	var shared: String = MakerLibrary.shared_dir().path_join("keen1_Cleared_one.keenlevel")
+	t.ok("Start chooses the folder: the level's file written there (%s)" % m.status.text.substr(0, 60), m.chooser == null and FileAccess.file_exists(shared))
 	# play from the library
 	var left: String = "Level_" + str(MakerLibrary.list("keen1")[0].path).get_file().get_basename()
 	await _press_until(JOY_BUTTON_DPAD_DOWN, left, 4)

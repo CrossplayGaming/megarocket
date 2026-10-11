@@ -285,6 +285,45 @@ func _on_level_button(path: String) -> void:
 		["Delete", func() -> void: _confirm_delete(path, name)], ["Cancel", func() -> void: pass]], "")
 
 
+## Where sharing last wrote, and bringing in last read (the chooser starts there)
+var share_dir: String = MakerLibrary.shared_dir()
+var inbox_dir: String = MakerLibrary.inbox_dir()
+## The launcher's folder chooser while it is up (SHELL-16's, only called)
+var chooser: FolderChooser = null
+
+
+## The launcher's folder chooser over the maker: `then` gets the folder chosen.
+func open_chooser(title: String, accept: String, note: String, start: String, then: Callable) -> void:
+	close_chooser()
+	DirAccess.make_dir_recursive_absolute(start)
+	var fc: FolderChooser = FolderChooser.new()
+	fc.name = "Chooser"
+	fc.title_text = title
+	fc.accept_text = accept
+	fc.note_text = note
+	fc.look_for_games = false
+	fc.start_dir = start
+	fc.canceled.connect(close_chooser)
+	fc.chosen.connect(func(dir: String) -> void:
+		close_chooser()
+		then.call(dir))
+	_dialog_return = get_viewport().gui_get_focus_owner()
+	_page_box.focus_behavior_recursive = Control.FOCUS_BEHAVIOR_DISABLED
+	chooser = fc
+	add_child(fc)
+
+
+func close_chooser() -> void:
+	if chooser == null:
+		return
+	chooser.queue_free()
+	chooser = null
+	_page_box.focus_behavior_recursive = Control.FOCUS_BEHAVIOR_INHERITED
+	if _dialog_return != null and is_instance_valid(_dialog_return) and _dialog_return.is_inside_tree():
+		_dialog_return.grab_focus()
+	_dialog_return = null
+
+
 ## V15-04: a cleared level written as a file to share (MakerModel.share_text: a remix as its changes
 ## only) into the shared folder, which the status line names.
 func share(path: String) -> String:
@@ -296,24 +335,39 @@ func share(path: String) -> String:
 		show_library(path)
 		status.text = "Not shared: " + model.error
 		return ""
-	DirAccess.make_dir_recursive_absolute(MakerLibrary.shared_dir())
-	var to: String = MakerLibrary.shared_dir().path_join("%s_%s.keenlevel" % [game, model.doc_name.validate_filename().replace(" ", "_")])
-	var f: FileAccess = FileAccess.open(to, FileAccess.WRITE)
-	if f == null:
-		status.text = "Not shared: can't write " + to
-		return ""
-	f.store_string(text)
-	f.close()
-	show_library(path)
-	status.text = "Shared as %s (%d bytes): send that file; the other player puts it in %s and presses Bring in shared levels." % [to, text.length(), MakerLibrary.inbox_dir()]
-	return to
+	var file: String = "%s_%s.keenlevel" % [game, model.doc_name.validate_filename().replace(" ", "_")]
+	# where it goes: the launcher's folder chooser
+	open_chooser("Where should the shared level go?", "Save it here", "It is saved as " + file, share_dir, func(dir: String) -> void:
+		share_dir = dir
+		var to: String = dir.path_join(file)
+		var f: FileAccess = FileAccess.open(to, FileAccess.WRITE)
+		if f == null:
+			status.text = "Not shared: can't write " + to
+			return
+		f.store_string(text)
+		f.close()
+		status.text = "Shared as %s (%d bytes): send that file; the other player chooses its folder with Bring in shared levels." % [to, text.length()])
+	return file
 
 
 ## V15-04: the shared level files for this game in the inbox brought into the library (each opened against
 ## the player's own copy of the game, saved as a new level; the file then marked brought in).
-func bring_in() -> int:
-	var dir: String = MakerLibrary.inbox_dir()
-	DirAccess.make_dir_recursive_absolute(dir)
+func bring_in() -> void:
+	open_chooser("Choose the folder with the shared levels", "Bring them in", "Every %s level file (.keenlevel) in the folder comes in." % _title(game),
+		inbox_dir, func(dir: String) -> void:
+			inbox_dir = dir
+			bring_in_from(dir))
+
+
+## Every shared level file for this game in `dir` brought into the library (a level already there, the
+## same name and cells, is not brought in twice); the number brought in.
+func bring_in_from(dir: String) -> int:
+	var have: Dictionary = {}
+	var check: MakerModel = MakerModel.new()
+	check.open(game, model.folder, model.version, false)
+	for e: Dictionary in MakerLibrary.list(game):
+		if check.load_doc(str(e.path)):
+			have[check.doc_name + check.fingerprint()] = true
 	var n: int = 0
 	var refused: PackedStringArray = PackedStringArray()
 	for f: String in DirAccess.get_files_at(dir):
@@ -323,11 +377,11 @@ func bring_in() -> int:
 		var doc: Variant = JSON.parse_string(text)
 		if not (doc is Dictionary) or str((doc as Dictionary).get("game", "")) != game:
 			continue
-		if model.open_shared(text) and model.save_doc():
-			DirAccess.rename_absolute(dir.path_join(f), dir.path_join(f + ".brought_in"))
-			n += 1
-		else:
+		if not model.open_shared(text):
 			refused.append("%s: %s" % [f, model.error])
+		elif not have.has(model.doc_name + model.fingerprint()) and model.save_doc():
+			have[model.doc_name + model.fingerprint()] = true
+			n += 1
 	show_library()
 	status.text = ("Brought in %d shared level%s. " % [n, "" if n == 1 else "s"] if n > 0 else "No shared %s levels in %s. " % [_title(game), dir]) \
 		+ (" ".join(refused) if not refused.is_empty() else "")
@@ -559,18 +613,40 @@ func open_menu() -> void:
 	ask("%s" % model.doc_name, [["Back to editing", func() -> void: pass], ["Play from Keen's start", play_start],
 		["Play from the cursor", play_here], ["Save", save], ["Rename", func() -> void: rename_box("", model.doc_name)],
 		["Undo", func() -> void: _did(model.undo())], ["Redo", func() -> void: _did(model.redo())],
-		["Whole level", toggle_whole], ["Back to your levels", leave_editor]], "")
+		["Whole level", toggle_whole], ["Level settings", show_slots], ["Back to your levels", leave_editor]], "")
 
 
 ## Leaves the editor for the library, asking first when there are unsaved changes.
+## Leaves the editor for the library, saving first (the user, 2026-10-11: no question; undo works while
+## the level is open).
 func leave_editor() -> void:
-	if not model.dirty:
-		show_library(model.path)
+	if model.dirty and not save():
 		return
-	ask("Save \"%s\" before leaving?" % model.doc_name, [["Save", func() -> void:
-		if save():
-			show_library(model.path)], ["Don't save", func() -> void: show_library(model.path)],
-		["Keep editing", func() -> void: pass]], "")
+	show_library(model.path)
+
+
+## The level's settings: which of the game's level slots it plays as (its music and that level's own
+## behaviour come with it); back to the editor.
+func show_slots() -> void:
+	_clear_page()
+	page = "slots"
+	_heading("\"%s\" plays as which of %s's levels? (its music and that level's ways come with it)" % [model.doc_name, _title(game)])
+	var list: VBoxContainer = _scroll_list()
+	var focus: Button = null
+	for e: Array in model.slot_choices():
+		var n: int = int(e[0])
+		var b: Button = _button(list, ("%d  %s" % [n, e[1]] if model.engine != KeenLevel.VORTICONS else str(e[1])) + ("   (now)" if n == model.number else ""),
+			func() -> void:
+				model.set_slot(n)
+				show_editor()
+				status.text = "Plays as level %d now." % n, "Slot_%d" % n)
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		if n == model.number or focus == null:
+			focus = b if n == model.number or focus == null else focus
+	_button(list, "Back", show_editor, "Back").alignment = HORIZONTAL_ALIGNMENT_LEFT
+	status.text = "Now level %d." % model.number
+	hints.text = "Move: arrows / d-pad   Choose: Enter / A   Back: Esc / B"
+	_focus(list.find_child("Slot_%d" % model.number, false, false) as Control if list.find_child("Slot_%d" % model.number, false, false) != null else focus)
 
 
 # ------------------------------------------------------------------ dialogs
@@ -826,12 +902,16 @@ func leave() -> void:
 func back() -> void:
 	if host != null:
 		return
-	if dialog != null:
+	if chooser != null:
+		close_chooser()
+	elif dialog != null:
 		close_dialog()
 	elif page == "editor":
 		open_menu()
 	elif page == "remix":
 		show_library()
+	elif page == "slots":
+		show_editor()
 	elif page == "library":
 		_return_focus = game
 		show_games()
