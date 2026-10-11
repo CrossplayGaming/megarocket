@@ -288,6 +288,16 @@ var controls_read_vbl: int = -1000000
 ## -2 none yet) and the game never sees it.
 var controls_capture: String = ""
 var controls_captured: int = -2
+## SCR-06: the seconds the capture's countdown shows (0 none; for the tests: nothing reads it).
+var controls_capture_left: int = 0
+## SCR-04/05: the question a player's list or name entry is waiting on ("" none; for the tests), and the
+## row the list's caret is on (HARN-09's walker reads it; nothing in the game does).
+var shell_asking: String = ""
+var shell_asking_row: int = 0
+## SCR-08: how many times the map or a level was loaded, and the "Keens Left" window shown (for HARN-09's
+## mash walk: a confirm mashed must load a new game's map once, and skip no window; nothing reads them).
+var shell_level_loads: int = 0
+var shell_level_boxes: int = 0
 
 
 func shell_held(action: String) -> bool:
@@ -1312,6 +1322,8 @@ func PrintC(text: String) -> void:
 
 ## A line of text typed at the cursor; 1 on Enter, 0 on Escape.
 func Input(max_len: int) -> Array:
+	if get(&"options") != null:
+		return _shell_input(max_len)    # SCR-05: with a player at the controls, by the d-pad too
 	var out: PackedByteArray = PackedByteArray()
 	var k: int = 0
 	while true:
@@ -1331,6 +1343,81 @@ func Input(max_len: int) -> Array:
 		if k == 27 or k == 13:
 			break
 	return [1 if k == 13 else 0, out.get_string_from_ascii()]
+
+
+## SCR-05: the letters the d-pad turns through, in order.
+const SHELL_LETTERS: String = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .-!?"
+
+
+## SCR-05: Input with a player at the controls: typing is the original's, and the arrows (the pad's d-pad
+## and stick) spell too. Up and down turn the letter under the cursor through SHELL_LETTERS (from A up, or
+## from the end down), shown greyed until it is kept; right keeps it and moves on (a space when none is
+## shown); left drops the letter shown, else takes back the last one as Backspace does; Enter (the pad's A)
+## keeps the letter shown and ends; Escape (B) ends as the original's Escape, with what was kept.
+func _shell_input(max_len: int) -> Array:
+	var out: PackedByteArray = PackedByteArray()
+	var n: int = SHELL_LETTERS.length()
+	var pick: int = -1    # the letter shown at the cursor, not kept yet (SHELL_LETTERS' index), -1 none
+	var k: int = 0
+	shell_asking = "name"
+	while true:
+		var got: int = _shell_get(SHELL_LETTERS.unicode_at(pick) if pick >= 0 else -1)
+		k = got & 0xFF
+		if exited:
+			break
+		var scan: int = (got >> 8) & 0x7F
+		if k == 1 and (scan == KEY_UP or scan == KEY_DOWN):
+			if out.size() < max_len:
+				if scan == KEY_UP:
+					pick = (pick + 1) % n
+				else:
+					pick = n - 1 if pick < 0 else (pick + n - 1) % n
+			continue
+		if k == 1 and scan == KEY_RIGHT:
+			if out.size() < max_len:
+				var c: int = SHELL_LETTERS.unicode_at(pick) if pick >= 0 else 32
+				out.append(c)
+				DrawChar(sx, sy * 8, c)
+				sx += 1
+			pick = -1
+			continue
+		if k == 1 and scan == KEY_LEFT:
+			if pick >= 0:
+				pick = -1
+				continue
+			k = 8    # as Backspace
+		if k == 13 and pick >= 0 and out.size() < max_len:
+			out.append(SHELL_LETTERS.unicode_at(pick))
+			DrawChar(sx, sy * 8, out[out.size() - 1])
+			sx += 1
+		pick = -1
+		# the original's from here
+		if k >= 97 and k <= 122:
+			k -= 32
+		if (k == 127 or k == 8) and out.size() > 0:
+			out.resize(out.size() - 1)
+			DrawChar(sx, sy * 8, BLANKCHAR)
+			sx -= 1
+		if k >= 32 and k <= 122 and out.size() < max_len:
+			out.append(k)
+			DrawChar(sx, sy * 8, k)
+			sx += 1
+		if k == 27 or k == 13:
+			break
+	shell_asking = ""
+	return [1 if k == 13 else 0, out.get_string_from_ascii()]
+
+
+## SCR-05: Get for _shell_input: with a letter shown (`shown` >= 0) it stands at the cursor greyed (the
+## font's later half) in place of the flashing cursor; then the same wait and the key taken.
+func _shell_get(shown: int) -> int:
+	if shown < 0:
+		return Get()
+	DrawChar(sx, sy * 8, (shown + 0x80) & 0xFF)
+	while NoBiosKey(1) == 0 and not exited:
+		WaitVBL(1)
+	DrawChar(sx, sy * 8, 32)
+	return NoBiosKey(0)
 
 
 # --------------------------------------------------------------- control file

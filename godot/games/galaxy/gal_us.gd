@@ -245,6 +245,13 @@ func US_LineInput(x: int, y: int, def: String, escok: bool, maxchars: int, maxwi
 	var done: bool = false
 	var result: bool = false
 	var lasttime: int = SD_GetTimeCount()
+	# SCR-05: with a player at the controls the d-pad types too (PadTextEntry), a letter going in where a
+	# typed one may
+	var pad: bool = get("options") != null    # (gal_menu.gd)
+	var fits: Callable = func(t: String) -> bool:
+		return t.length() < 128 - 1 and (maxchars == 0 or t.length() < maxchars) and \
+			(maxwidth == 0 or VH_MeasurePropString(t, US_GetPrintFont())[0] < maxwidth)
+	shell_text_entry = pad
 	IN_SetLastASCII(IN_KP_None)
 	IN_SetLastScan(IN_SC_None)
 	IN_StartTextInput("", "")
@@ -256,6 +263,13 @@ func US_LineInput(x: int, y: int, def: String, escok: bool, maxchars: int, maxwi
 		IN_SetLastScan(IN_SC_None)
 		var c: int = IN_GetLastASCII()
 		IN_SetLastASCII(IN_KP_None)
+		if pad and PadTextEntry.is_pad(sc):
+			var line: Array = PadTextEntry.press(s, cursor, sc, fits)
+			redraw = redraw or line[0] != s
+			s = line[0]
+			cursor = line[1]
+			c = 0
+			cursormoved = true
 		match sc:
 			IN_SC_LeftArrow:
 				if cursor != 0:
@@ -322,6 +336,7 @@ func US_LineInput(x: int, y: int, def: String, escok: bool, maxchars: int, maxwi
 		if cursorvis:
 			USL_XORICursor(x, y, s, cursor)
 		VH_UpdateScreen()
+	shell_text_entry = false
 	if cursorvis:
 		USL_XORICursor(x, y, s, cursor)
 	if not result:

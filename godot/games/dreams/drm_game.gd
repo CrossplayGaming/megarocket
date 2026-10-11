@@ -1094,22 +1094,28 @@ func _quick_confirm(question: String) -> bool:
 	IN_ClearKeysDown()
 	var info: CursorInfo = CursorInfo.new()
 	var was: Array = [true, true]
+	# SCR-03: the pad is the menus' keys while it asks (A Enter, B Escape), whatever its buttons are bound to
+	shell_menu_keys = true
+	var yes: bool = false
 	while not quitting:
 		BE_ST_ShortSleep()
 		var scan: int = LastScan
 		if scan == sc_Y or scan == sc_Return:
 			IN_ClearKeysDown()
-			return true
+			yes = true
+			break
 		if scan == sc_N or scan == sc_Escape:
 			IN_ClearKeysDown()
-			return false
+			break
 		IN_ReadControl(0, info)
 		if info.button0 and not was[0]:
-			return true
+			yes = true
+			break
 		if info.button1 and not was[1]:
-			return false
+			break
 		was = [info.button0, info.button1]
-	return false
+	shell_menu_keys = false
+	return yes
 
 
 ## A word in the panel's window until a key or button.
@@ -1414,6 +1420,7 @@ func SetupGameLevel(loadnow: bool) -> void:
 	var orgx: int
 	var orgy: int
 
+	shell_level_loads += 1    # (SCR-08's count)
 	bombspresent = false
 
 	# load the level header and three map planes

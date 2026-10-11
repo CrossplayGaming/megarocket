@@ -780,6 +780,14 @@ func US_LineInput(x: int, y: int, buf: PackedByteArray, def: Variant, escok: boo
 	LastASCII = key_None
 	LastScan = sc_None
 
+	# SCR-05: with a player at the controls the d-pad types too (PadTextEntry), a letter going in where a
+	# typed one may
+	var pad: bool = options != null
+	var fits: Callable = func(t: String) -> bool:
+		return (t.length() < MaxString - 1) and ((not maxchars) or (t.length() < maxchars)) \
+			and ((not maxwidth) or (_measure(t, -1)[0] < maxwidth))
+	shell_text_entry = pad
+
 	while not done and not quitting:
 		if cursorvis:
 			USL_XORICursor(x, y, s, cursor)
@@ -790,6 +798,14 @@ func US_LineInput(x: int, y: int, buf: PackedByteArray, def: Variant, escok: boo
 		LastScan = sc_None
 		var ch: int = LastASCII
 		LastASCII = key_None
+
+		if pad and PadTextEntry.is_pad(sc):
+			var line: Array = PadTextEntry.press(s, cursor, sc, fits)
+			redraw = redraw or line[0] != s
+			s = line[0]
+			cursor = line[1]
+			ch = key_None
+			cursormoved = true
 
 		match sc:
 			sc_LeftArrow:
@@ -876,6 +892,7 @@ func US_LineInput(x: int, y: int, buf: PackedByteArray, def: Variant, escok: boo
 
 		VW_UpdateScreen()
 
+	shell_text_entry = false
 	if cursorvis:
 		USL_XORICursor(x, y, s, cursor)
 	if not result:
@@ -1226,6 +1243,7 @@ func USL_DrawItem(hiti: int, hitn: int) -> void:
 ## Handles a hit on a UserItem. If there's a custom routine, it will be called. If it returns
 ## true, then don't do anything more. If it returns false, then use the standard behaviour.
 func USL_DoHit(hiti: int, hitn: int) -> void:
+	shell_menu_page = ""    # (HARN-09's probe: the hit's own screen until the panel waits again)
 	var handled: bool
 	var ip: UserItem = TheItems[hiti][hitn]
 	if ip.custom != &"":
@@ -2297,6 +2315,12 @@ func USL_CtlCButtonCustom(call_: int, i: int, n: int) -> bool:
 ## The shell's Options rows (an OptionsModel) while a player is at the controls; null in headless runs and
 ## the recordings, which see the original panel.
 var options: Object = null
+## HARN-09: what the control panel shows while it waits for a press: "panel" with the item under the cursor
+## (its list * 100 + its number; -1 none), or one of the shell's lists by its page with the row chosen; ""
+## otherwise (a hit's own screen, a prompt, or no panel). Read by the path walker only; nothing in the game
+## reads them.
+var shell_menu_page: String = ""
+var shell_menu_row: int = 0
 
 ## The list's place: the panel's lower box (the keycaps' box), and its rows' height.
 const SHELL_LIST_X: int = CtlPanel3X + 8
@@ -2331,6 +2355,8 @@ func _shell_page_list(start: String) -> void:
 		VW_UpdateScreen()
 		var act: int = 0    # -1 up, 1 down, 2 choose, 3 back, 4 left, 5 right
 		while not quitting and act == 0:
+			shell_menu_page = page    # (HARN-09's probe)
+			shell_menu_row = pos
 			BE_ST_ShortSleep()
 			IN_ReadControl(0, info)
 			var scan: int = LastScan
@@ -2351,6 +2377,7 @@ func _shell_page_list(start: String) -> void:
 			if act != 0 and not _keydown(sc_UpArrow) and not _keydown(sc_DownArrow) and not _keydown(sc_LeftArrow) and not _keydown(sc_RightArrow):
 				device = "pad"
 			was = [info.button0, info.button1, info.yaxis, info.xaxis]
+		shell_menu_page = ""
 		was = [true, true, info.yaxis, info.xaxis]
 		said = ""
 		if act == -1 or act == 1:
@@ -2403,12 +2430,27 @@ func _shell_page_list(start: String) -> void:
 			page = back[0]
 			pos = back[1]
 		elif key == "reset_controls":
-			USL_ShowHelp("Reset Every Control? Press Y")
+			# Y resets, another key backs out; SCR-03: the pad answers as it chooses in the list, its choosing
+			# button (Jump's, A) pressed anew resets and its going-back one (Throw's, B) backs out (its own
+			# codes are no key)
+			USL_ShowHelp("Reset Every Control? A Resets, B Backs Out" if device == "pad" else "Reset Every Control? Press Y")
 			VW_UpdateScreen()
 			IN_ClearKeysDown()
-			while not quitting and LastScan == sc_None:
+			var yes: bool = false
+			var held: Array = [true, true]
+			while not quitting:
 				BE_ST_ShortSleep()
-			if LastScan == sc_Y:
+				IN_ReadControl(0, info)
+				if LastScan != sc_None and LastScan < 0x62:
+					yes = LastScan == sc_Y
+					break
+				if info.button0 and not held[0]:
+					yes = true
+					break
+				if info.button1 and not held[1]:
+					break
+				held = [info.button0, info.button1]
+			if yes:
 				options.reset_controls()
 				said = "The Controls Are Reset"
 			IN_ClearKeysDown()
@@ -2540,12 +2582,14 @@ func _shell_capture(device: String, action: String, slot: int) -> String:
 			break
 		if left != shown:
 			shown = left
+			controls_capture_left = left
 			fontcolor = F_SECONDCOLOR
 			USL_ShowHelp("%s (%s Cancels) %d" % [prompt, cancel, left])
 			fontcolor = F_BLACK
 			VW_UpdateScreen()
 		BE_ST_ShortSleep()
 	controls_capture = ""
+	controls_capture_left = 0
 	var code: int = controls_captured
 	controls_captured = -2
 	IN_ClearKeysDown()
@@ -2587,6 +2631,12 @@ func _shell_panel_setup() -> void:
 			[24, "Cheat", "cheats", "Cheats (Only During a Game)", sc_C]]:
 		var item: UserItem = _ui(CtlPanelKC2R(e[0], 0), uii_KeyCap, CTL_KEYCAPPIC, CTL_KEYCAPCURPIC, e[3], e[4], ui_Normal,
 			&"USL_CtlShellKeyCustom", e[1])
+		if e[0] < 24:
+			# SCR-03: the caps stand 48 pixels apart and the picture is 56 wide, so each cap but the last is the
+			# 48 up to the next where the cursor finds it and the arrows go from: USL_FindRect moves only to an
+			# item starting past the end of the one the cursor is on, and the d-pad skipped Video and Game.
+			# The cap is drawn as before (USL_CtlShellKeyCustom: its label centred on the whole picture)
+			item.r.lr.x = item.r.ul.x + 48
 		keys.append(item)
 	keys.append(_ui_end())
 	CtlPanels2[3] = keys
@@ -2602,8 +2652,17 @@ func _shell_panel_setup() -> void:
 var _shell_pages: Array = []
 
 
-## An Options keycap chosen: its page as a list in the box.
+## An Options keycap chosen: its page as a list in the box. Drawn as USL_DrawItem draws a keycap, the label
+## centred on the picture's 56 pixels whatever the cap's rectangle (SCR-03: the first four are 48 wide).
 func USL_CtlShellKeyCustom(call_: int, i: int, n: int) -> bool:
+	if call_ == uic_Draw:
+		var ip: UserItem = TheItems[i][n]
+		VWB_DrawPic(ip.r.ul.x, ip.r.ul.y, ip.picdown if (ip.sel & ui_Selected) else ip.picup)
+		if not (ip.sel & ui_Selected) and ip.text != null:
+			USL_PrintInCenter(ip.text, _us_rect(ip.r.ul.x, ip.r.ul.y, ip.r.ul.x + 56, ip.r.lr.y))
+		if ip.sel & ui_Disabled:
+			VWB_DrawMPic(ip.r.ul.x, ip.r.ul.y, CTL_LITTLEMASKPICM)
+		return true
 	if call_ != uic_Hit:
 		return false
 	TheItems[i + 1] = null
@@ -2906,6 +2965,8 @@ func US_ControlPanel() -> void:
 		inrect = hit[0] != 0
 		i = hit[1]
 		n = hit[2]
+		shell_menu_page = "panel"    # (HARN-09's probe)
+		shell_menu_row = i * 100 + n if inrect else -1
 
 		if FlushHelp:
 			lasti = u16(-2)
@@ -3009,6 +3070,7 @@ func US_ControlPanel() -> void:
 			USL_ShowHelp("Press F1 for Help")
 			fontcolor = F_BLACK
 
+	shell_menu_page = ""
 	US_ShutCursor()
 
 	USL_TearDownCtlPanel()

@@ -17,6 +17,8 @@ extends Control
 ## refresh at most, and never runs fast to make up the rest.
 ## SHELL-08: if the pad being played with is unplugged, the game pauses the
 ## same way and says so; plugging it back in, or any key, goes on.
+## SHELL-04: Back and Start held together on a pad for three seconds give the
+## pad's buttons back their defaults, whatever the game is doing.
 
 signal finished(message: String)
 
@@ -31,6 +33,9 @@ var frames_made: int = 0
 var error: String = ""
 ## Where the player's settings are read from (AUDIO-06's volumes; a test gives its own).
 var settings_path: String = Settings.PATH
+## SAVE-06: where the games keep the player's saved games, high scores and their own settings, a folder
+## each (<this>/<game>; a test gives its own, so HARN-09's walk never writes the player's).
+var saves_dir: String = ProjectSettings.globalize_path("user://saves")
 
 var _mutex: Mutex = Mutex.new()
 var _keys: Array = []                 # [scancode, down] waiting for the engine thread
@@ -125,6 +130,22 @@ var galaxy_sounds: GalaxySounds = null
 var _sound_names: PackedStringArray = PackedStringArray()
 var _music_level: int = -1    # the track playing (its level; 0 the world map, -1 none)
 var _pad_sent: Dictionary = {}
+## SCR-05: the on-screen d-pad's arrows -> the pad's d-pad codes, sent instead while a line is typed; and what
+## each of the overlay's keys held down sent (its release lets go of the same code).
+const TOUCH_TYPING: Dictionary = {0x48: 0x6D, 0x50: 0x6E, 0x4B: 0x6F, 0x4D: 0x70}
+var _touch_sent: Dictionary = {}
+## SHELL-04: how long Back and Start are held together for the reset; each pad's of the two held
+## (device -> {button: true}); the pad holding both and since when (-1: none), and whether this hold has
+## reset already.
+const RESET_HOLD_USEC: int = 3000000
+const RESET_TEXT: String = "Controller buttons back to their defaults"
+var _chord_held: Dictionary = {}
+var _chord_device: int = -1
+var _chord_since: int = -1
+var _chord_done: bool = false
+## A short word on screen (the reset's), and the time it goes.
+var _message: Label = null
+var _message_until: int = 0
 
 const GALAXY_META: Dictionary = {"keen4": "keen4", "keen5": "keen5", "keen6": "keen6e14"}
 
@@ -212,7 +233,7 @@ func start(found: Dictionary) -> bool:
 			if _play_level >= 0:
 				var n: int = _play_level
 				g.after_startup = func() -> void: g.shell_play_level(n)
-			g.save_dir = ProjectSettings.globalize_path("user://saves").path_join(game_id)
+			g.save_dir = saves_dir.path_join(game_id)
 			DirAccess.make_dir_recursive_absolute(g.save_dir)
 			g.apply_dosbox_timing()
 			engine = g
@@ -234,7 +255,7 @@ func start(found: Dictionary) -> bool:
 			# SAVE-06: the settings, high scores and saved games, kept between sessions as Keen 1-3's are
 			# (a level played in place from the maker keeps none)
 			if _play_level < 0:
-				g.user_dir = ProjectSettings.globalize_path("user://saves").path_join(game_id)
+				g.user_dir = saves_dir.path_join(game_id)
 				g.load_user_files()
 			g.us_randomSeed = Time.get_ticks_usec() & 0xFF    # the original's time(0) (A11: set from outside)
 			vm.set_cycles(20000)
@@ -256,7 +277,7 @@ func start(found: Dictionary) -> bool:
 			_dreams_costs(dg, "kdreams193" if dd.version == "e193" else "kdreams")
 			if dd.version == "e193":
 				dg.us_files["KDREAMS.CMP"] = dd._read("KDREAMS.CMP")    # v1.93's title archive, from the game
-			dg.user_dir = ProjectSettings.globalize_path("user://saves").path_join(game_id)
+			dg.user_dir = saves_dir.path_join(game_id)
 			dg.load_user_files()
 			if _play_level >= 0:
 				dg.kl_warp = _play_level    # straight into the level (HARN-23's way), left when it ends
@@ -265,7 +286,7 @@ func start(found: Dictionary) -> bool:
 			error = ShellMessages.not_ready(_short_title(found))
 			return false
 	overlay = TouchOverlay.new(game_id)
-	overlay.send = send_key
+	overlay.send = _touch_key
 	add_child(overlay)
 	_update_overlay()
 	vm.on_display = _on_display
@@ -433,6 +454,9 @@ func set_paused(on: bool) -> void:
 		for code: int in _held.keys():
 			send_key(code, false)
 		_pad_sent.clear()
+		_chord_held.clear()
+		_chord_device = -1
+		_chord_since = -1
 	_mutex.lock()
 	paused = on
 	_mutex.unlock()
@@ -691,14 +715,28 @@ func _caught(event: InputEvent, device: String) -> int:
 
 
 ## CTRL-02: whether the game is reading its play controls (the last few refreshes): the pad is then the
-## player's bindings, otherwise the menus' keys.
+## player's bindings, otherwise the menus' keys. SCR-03: a question or screen of the menus that reads the
+## controls as it waits (a yes/no dialog, the help, Keen 4-6's Paddle War) asks for the menus' keys anyway
+## (the engine's shell_menu_keys), so the pad's A is Enter there whatever its buttons are bound to.
 func controls_live() -> bool:
-	return engine != null and vm != null and "controls_read_vbl" in engine and vm.vbl_count - int(engine.get("controls_read_vbl")) <= 6
+	if engine == null or vm == null or not "controls_read_vbl" in engine:
+		return false
+	if "shell_menu_keys" in engine and bool(engine.get("shell_menu_keys")):
+		return false
+	return vm.vbl_count - int(engine.get("controls_read_vbl")) <= 6
+
+
+## SCR-05: a line is being typed in the game's own line input (the engine's shell_text_entry, set only with
+## a player at the controls): the d-pad and the stick are sent as the pad's own codes, which the line takes
+## as letters (PadTextEntry), the buttons as the menus' keys.
+func text_entry() -> bool:
+	return engine != null and "shell_text_entry" in engine and bool(engine.get("shell_text_entry"))
 
 
 ## A pad button (or a trigger, as ControlsModel.PAD_LT / PAD_RT) pressed or let go. Its press sends one code
 ## and its release lets go of that same code: the quicksave or quickload key (SAVE-02, while quicksave is
-## on), Escape for Start, the button's own code in play, the menus' key otherwise.
+## on), Escape for Start, the button's own code in play, the menus' key otherwise; while a line is typed
+## (SCR-05) the d-pad's own codes and the menus' keys.
 func _pad(b: Variant, down: bool) -> void:
 	if not down:
 		if _pad_sent.has(b):
@@ -709,7 +747,16 @@ func _pad(b: Variant, down: bool) -> void:
 		return
 	var code: int = 0
 	var quick: bool = options != null and bool(options.get_value("quicksave"))
-	if b is int and quick and controls != null and controls.buttons("quicksave").has(b):
+	if text_entry():
+		if b is String:
+			code = int(ControlsModel.PAD_MOVE[b])
+		elif b is int and b == JOY_BUTTON_START:
+			code = 0x01
+		elif b is int and int(b) >= JOY_BUTTON_DPAD_UP and int(b) <= JOY_BUTTON_DPAD_RIGHT:
+			code = int(ControlsModel.PAD_CODES[b])
+		else:
+			code = int(PAD_MENU.get(b, 0))
+	elif b is int and quick and controls != null and controls.buttons("quicksave").has(b):
 		code = 0x41 if engine is VortScreens else (0x42 if engine is DreamsGame else 0x3F)    # Keen 1-3's F7, Dreams' F8, Keen 4-6's F5
 	elif b is int and quick and controls != null and controls.buttons("quickload").has(b):
 		code = 0x43    # F9
@@ -726,6 +773,19 @@ func _pad(b: Variant, down: bool) -> void:
 		send_key(code, true)
 
 
+## A key of the on-screen controls pressed or let go (AND-03): sent as it is, but while a line is typed
+## (SCR-05) the d-pad's arrows go as the pad's d-pad codes, so a touch screen spells a name as the pad does
+## (PadTextEntry); its release lets go of the code its press sent.
+func _touch_key(code: int, down: bool) -> void:
+	if not down:
+		send_key(int(_touch_sent.get(code, code)), false)
+		_touch_sent.erase(code)
+		return
+	var sent: int = int(TOUCH_TYPING.get(code, code)) if text_entry() else code
+	_touch_sent[code] = sent
+	send_key(sent, true)
+
+
 ## The overlay shows on a touch screen while no pad is in use; hiding it lets
 ## go of whatever its fingers held.
 func _update_overlay() -> void:
@@ -738,8 +798,68 @@ func _update_overlay() -> void:
 	overlay.visible = show
 
 
+## SHELL-04: a pad's Back or Start pressed or let go. True for the second of the two going down on the
+## same pad: the hold has begun (timed in _process), and the press goes no further.
+func _chord(jb: InputEventJoypadButton) -> bool:
+	if jb.button_index != JOY_BUTTON_BACK and jb.button_index != JOY_BUTTON_START:
+		return false
+	var held: Dictionary = _chord_held.get(jb.device, {})
+	_chord_held[jb.device] = held
+	var other: int = JOY_BUTTON_START if jb.button_index == JOY_BUTTON_BACK else JOY_BUTTON_BACK
+	if not jb.pressed:
+		held.erase(jb.button_index)
+		if jb.device == _chord_device:
+			_chord_device = -1
+			_chord_since = -1
+		return false
+	if held.has(jb.button_index):
+		return false
+	held[jb.button_index] = true
+	if not held.has(other):
+		return false
+	_chord_device = jb.device
+	_chord_since = Time.get_ticks_usec()
+	_chord_done = false
+	return true
+
+
+## SHELL-04: the pad's buttons back to their defaults (saved), the game reading them at once, and said on
+## screen: the way back for a player whose buttons no longer reach the game (Jump cleared, say).
+func reset_pad_buttons() -> void:
+	if controls == null:
+		return
+	controls.reset("pad")
+	apply_setting("controls")
+	show_message(RESET_TEXT)
+
+
+## A short word over the game for a few seconds (the pad's reset).
+func show_message(text: String) -> void:
+	if _message == null:
+		_message = Label.new()
+		_message.name = "Message"
+		_message.add_theme_font_size_override("font_size", 24)
+		_message.add_theme_color_override("font_outline_color", Color.BLACK)
+		_message.add_theme_constant_override("outline_size", 6)
+		_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_message.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+		_message.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		_message.offset_top = -64.0
+		_message.offset_bottom = -24.0
+		add_child(_message)
+	_message.text = text
+	_message.visible = true
+	_message_until = Time.get_ticks_msec() + 3000
+	ShellMessages.note(text)
+
+
 func _process(_delta: float) -> void:
 	_update_overlay()
+	if _chord_since >= 0 and not _chord_done and Time.get_ticks_usec() - _chord_since >= RESET_HOLD_USEC:
+		_chord_done = true
+		reset_pad_buttons()
+	if _message != null and _message.visible and Time.get_ticks_msec() >= _message_until:
+		_message.visible = false
 	_mutex.lock()
 	var fresh: bool = _frame_new
 	var idx: PackedByteArray = _frame_indices
@@ -889,6 +1009,9 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventJoypadButton or event is InputEventJoypadMotion:
 		pad_device = event.device
+	# SHELL-04: Back and Start, watched whatever else takes them; the second of the two down is kept from
+	# the game (the first did its own thing already)
+	var chord_second: bool = event is InputEventJoypadButton and _chord(event)
 	if engine != null and "controls_capture" in engine and str(engine.get("controls_capture")) != "":
 		var caught: int = _caught(event, str(engine.get("controls_capture")))
 		if caught != -2:
@@ -897,7 +1020,8 @@ func _input(event: InputEvent) -> void:
 			return
 	if event is InputEventJoypadButton:
 		var jb: InputEventJoypadButton = event
-		_pad(jb.button_index, jb.pressed)
+		if not chord_second:
+			_pad(jb.button_index, jb.pressed)
 		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventJoypadMotion:

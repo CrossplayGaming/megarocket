@@ -1143,6 +1143,7 @@ func LevelLoop(currentlevel: int) -> int:
 	ankhtime = 0
 	if trace_frames:
 		print("TRACE load_begin t=%.6f" % (float(vm.now) / float(DosMachine.PIT_HZ * DosMachine.UNIT)))
+	shell_level_loads += 1    # (SCR-08's count)
 	LoadLevel(currentlevel)
 	if trace_frames:
 		print("TRACE load_end t=%.6f" % (float(vm.now) / float(DosMachine.PIT_HZ * DosMachine.UNIT)))
@@ -1347,7 +1348,7 @@ const QUICK_KEEP: PackedStringArray = ["options", "fixes", "shell_playing", "she
 	"draw_list_prev", "sprite_world", "wide_tiles", "draw_owner", "draw_gen", "draw_overlaid", "draw_overlay_rect", "draw_forced",
 	"draw_user_left",
 	"canSave", "forcemenu", "helptextPtr", "storytxtPtr", "endtextPtr", "previewsPtr", "textdataPtr", "textLineOffsets",
-	"line_offsets", "_quick", "_quick_restore"]
+	"line_offsets", "_quick", "_quick_restore", "shell_level_loads", "shell_level_boxes"]
 ## The quicksave: {"level": n, "state": the variables}; empty: none yet (read from save_dir on first use)
 var _quick: Dictionary = {}
 ## A quickload waiting for its level

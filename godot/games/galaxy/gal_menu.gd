@@ -1070,8 +1070,15 @@ func CK_PaddleWar(msg: int, _item: US_CardItem) -> bool:
 	# Draw a line below the playing area
 	VH_HLine(77, 231, 143, us_menu_foregroundColour)
 
+	# SCR-03 (a player at the controls): the pad is the menus' keys in the game, the d-pad the arrows it
+	# reads and B Escape, as on every card
+	var menu_keys: bool = shell_menu_keys
+	if options != null:
+		shell_menu_keys = true
+
 	# Play the game
 	USL_PlayPaddleWar()
+	shell_menu_keys = menu_keys
 	return true
 
 
@@ -1126,7 +1133,8 @@ func CK6_CreatureQuestion() -> bool:
 	if ck6_creatureQuestionDone:
 		return true
 
-	# the shell's CREATURE QUESTION row turned off (a player at the controls; OPTIONS, Keen 6)
+	# the shell's CREATURE QUESTION row off (a player at the controls; OPTIONS, Keen 6): answered for the
+	# player, as J-04 decided by default (Classic asks)
 	if options != null and options.get_value("creature_question") == false:
 		return true
 
@@ -1185,7 +1193,8 @@ func CK6_CreatureQuestion() -> bool:
 		var buf: String = typed[1]
 		correct = true
 		# In the disassembly, a loop which appears to do a  case-insensitve strcmp
-		if CK_Cross_strcasecmp(buf, creature.name) != 0:
+		# (SCR-05, J-04 and the blueprint: shown to a player at the controls, any answer passes)
+		if options == null and CK_Cross_strcasecmp(buf, creature.name) != 0:
 			VH_Bar(0, 0, 320, 200, 8)
 			US_CenterWindow(35, 5)
 			US_SetPrintY(US_GetPrintY() + 11)
@@ -1550,13 +1559,31 @@ func USL_CtlDialog(s1: String, s2: String, s3: String, min_w: int = 0) -> int:
 
 	VH_UpdateScreen()
 
+	# SCR-03 (a player at the controls): the pad is the menus' keys while the dialog waits, whatever its
+	# buttons are bound to, and Enter (the pad's A) answers yes as Y does; an Enter still held from choosing
+	# the item is no answer (its typematic repeats are not): it is let go first
+	var menu_keys: bool = shell_menu_keys
+	var enter_held: bool = false
+	if options != null:
+		shell_menu_keys = true
+		enter_held = IN_GetKeyState(IN_SC_Enter)
+
 	# Wait for button1 or a key to be pressed
 	IN_ClearKeysDown()
+	if enter_held:
+		in_keyStates[IN_SC_Enter] = 1    # (held still: its release is watched for)
 	while true:    # do { ... } while (k == IN_SC_None)
 		k = IN_SC_None
 		VL_Yield()    # Keep CPU usage low
 		IN_PumpEvents()
 		IN_ReadControls(0, state)
+		if enter_held:
+			# (a repeat of the held Enter is no answer, nor one the machine sent just before its release:
+			# both can come in one pump, which SCR-05G's held A showed in about half its runs)
+			if IN_GetLastScan() == IN_SC_Enter:
+				IN_SetLastScan(IN_SC_None)
+			if not IN_GetKeyState(IN_SC_Enter):
+				enter_held = false
 		if state.jump:
 			k = IN_SC_Y
 		elif state.pogo:
@@ -1575,12 +1602,13 @@ func USL_CtlDialog(s1: String, s2: String, s3: String, min_w: int = 0) -> int:
 		VL_Present()
 		if not (state.jump or state.pogo) or quitting:
 			break
+	shell_menu_keys = menu_keys
 	IN_ClearKeysDown()
 
 	US_DrawCards()
 
 	# Return true or false based on the user's choice
-	if k == IN_SC_Y:
+	if k == IN_SC_Y or (options != null and k == IN_SC_Enter):
 		return 1
 	else:
 		return 0
@@ -2169,6 +2197,13 @@ func CK_US_ShellCards() -> void:
 	display_items.append(_us_item_end())
 	ck_us_displayMenu = _us_card(8, 0, "TEXT:DISPLAY", 0, display_items, &"", 0, 0, 0)
 	ck_us_configureMenuItems.insert(2, _us_item(US_ITEM_Submenu, 0, IN_SC_D, "DISPLAY", US_Comm_None, ck_us_displayMenu))
+	# SCR-03: the model's Sound page, EFFECTS VOLUME under the SOUND card's choices and MUSIC VOLUME under the
+	# MUSIC card's (chosen, each moves on a step, round from the top to 0: the cards have no left and right)
+	for r: Dictionary in options.page("sound"):
+		if r.key == "effects_volume":
+			ck_us_soundMenuItems.insert(ck_us_soundMenuItems.size() - 1, _shell_row_item(r.key, "option"))
+		elif r.key == "music_volume":
+			ck_us_musicMenuItems.insert(ck_us_musicMenuItems.size() - 1, _shell_row_item(r.key, "option"))
 	# FIX-01: FIXES after OPTIONS, when the game has any
 	var fix_items: Array = []
 	for r: Dictionary in options.page("fixes"):
@@ -2219,7 +2254,8 @@ var ck_us_cheatsMenu: US_Card = null
 
 ## MENU-08 (the user, 2026-10-10: every game's main menu in one order, each in its own style): MAIN reads
 ## RESUME (RETURN TO DEMO on the title), NEW GAME, LOAD GAME, SAVE GAME, OPTIONS (CONFIGURE's card), CHEATS,
-## HIGH SCORES, EXTRAS (PADDLE WAR), QUIT (END GAME, QUIT: the original's two); nine, as before.
+## HIGH SCORES, EXTRAS (HELP in Keen 4 and 5, PADDLE WAR), QUIT (END GAME, QUIT: the original's two); nine,
+## as before.
 func _shell_main_card() -> void:
 	var resume: US_CardItem = ck_us_mainOriginal[4]
 	var configure: US_CardItem = ck_us_mainOriginal[3]
@@ -2229,8 +2265,15 @@ func _shell_main_card() -> void:
 	var scores: US_CardItem = _shell_row_item("high_scores", "scores")
 	scores.caption = "HIGH SCORES"
 	scores.shortcutKey = IN_SC_H
+	var extra_items: Array = [ck_us_mainOriginal[6], _us_item_end()]
+	if ck_currentEpisode_ep != EP_CK6:
+		# SCR-03: HELP, the original's help screens as F1 opens them (Keen 6 has none), for a pad has no F1
+		var help: US_CardItem = _shell_row_item("help", "help")
+		help.caption = "HELP"
+		help.shortcutKey = IN_SC_H
+		extra_items.insert(0, help)
 	var extras: US_CardItem = _us_item(US_ITEM_Submenu, 0, IN_SC_X, "EXTRAS", US_Comm_None,
-		_us_card(8, 0, "TEXT:EXTRAS", 0, [ck_us_mainOriginal[6], _us_item_end()], &"", 0, 0, 0))
+		_us_card(8, 0, "TEXT:EXTRAS", 0, extra_items, &"", 0, 0, 0))
 	var quit: US_CardItem = _us_item(US_ITEM_Submenu, 0, IN_SC_Q, "QUIT", US_Comm_None,
 		_us_card(8, 0, "TEXT:QUIT", 0, [ck_us_mainOriginal[5], ck_us_mainOriginal[7], _us_item_end()], &"", 0, 0, 0))
 	var order: Array = [resume, ck_us_mainOriginal[0], ck_us_mainOriginal[1], ck_us_mainOriginal[2], configure] + cheats + [scores, extras, quit, _us_item_end()]
@@ -2314,6 +2357,7 @@ func _shell_capture(device: String, action: String, slot: int) -> String:
 			break
 		if left != shown:
 			shown = left
+			controls_capture_left = left
 			VHB_Bar(x + 1, line_y + 2, window_w - 1, sh, us_menu_backgroundColour)
 			var s2: String = "%s  %d" % [cancel, left]
 			US_SetPrintColour(us_menu_foregroundColour)
@@ -2323,6 +2367,7 @@ func _shell_capture(device: String, action: String, slot: int) -> String:
 		IN_PumpEvents()
 		VL_Present()
 	controls_capture = ""
+	controls_capture_left = 0
 	var code: int = controls_captured
 	controls_captured = -2
 	IN_ClearKeysDown()
@@ -2380,7 +2425,7 @@ func CK_US_ShellCaptions() -> void:
 	if options == null:
 		return
 	var rows: Dictionary = {}
-	for page_name: String in ["options", "gameplay", "display", "fixes", "controls", "keys", "pad"]:
+	for page_name: String in ["options", "gameplay", "display", "sound", "fixes", "controls", "keys", "pad"]:
 		for r: Dictionary in options.page(page_name):
 			rows[r.key] = r
 	for item: US_CardItem in _shell_bind_items:
@@ -2394,7 +2439,7 @@ func CK_US_ShellCaptions() -> void:
 		var key: String = _shell_toggles[card][0]
 		var kind: String = _shell_toggles[card][2]
 		var item: US_CardItem = _shell_toggles[card][1]
-		if kind == "info" or kind == "reset" or kind == "clear" or kind == "scores":
+		if kind == "info" or kind == "reset" or kind == "clear" or kind == "scores" or kind == "help":
 			continue
 		if kind == "capture":
 			# ADD SECOND only while the action has one key or button (CHANGE always)
@@ -2448,6 +2493,10 @@ func CK_US_ShellRowProc(msg: int, _item: US_CardItem) -> bool:
 			us_currentCommand = US_Comm_ReturnToGame
 			command_confirmed = true
 			return true
+		"help":
+			# SCR-03: the help screens, as the menu's F1 shows them; the cards drawn again after
+			HelpScreens()
+			return true
 		"capture":
 			var cp: PackedStringArray = key.split(":")
 			said = _shell_capture(cp[1], cp[2], int(cp[3]))
@@ -2467,7 +2516,7 @@ func CK_US_ShellRowProc(msg: int, _item: US_CardItem) -> bool:
 				USL_CtlDialog("THE CONTROLS ARE RESET", "Press any key", "")
 			return true
 		"option":
-			options.step(key, 1)
+			options.cycle(key)
 		"cheat":
 			CheatsModel.toggle(self, key)
 		"once":

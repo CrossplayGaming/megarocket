@@ -218,17 +218,29 @@ func SaveMenu() -> void:
 		Ack()
 		return
 	while save == 0 and not exited:
-		ExpWin(20, 3)
-		Print("Which game position\n")
-		Print("do you want to save?\n")
-		Print("    1-9 or ESC:")
-		while true:
-			c = Get() & 0xFF
-			if c == CHAR_ESCAPE or (c >= 49 and c <= 57) or exited:
-				break
+		if options != null:
+			# SCR-04: with a player at the controls the nine positions as a list (the digits still choose)
+			c = _shell_slot_pick("Which game position\ndo you want to save?\n    1-9 or ESC:", 20, false)
+		else:
+			ExpWin(20, 3)
+			Print("Which game position\n")
+			Print("do you want to save?\n")
+			Print("    1-9 or ESC:")
+			while true:
+				c = Get() & 0xFF
+				if c == CHAR_ESCAPE or (c >= 49 and c <= 57) or exited:
+					break
 		if c == CHAR_ESCAPE or exited:
 			return
 		if FileAccess.file_exists(_saved_path(c)):
+			if options != null:
+				# SCR-04: Yes / No, on No; Escape leaves the menu as the original's does, No asks again
+				var k: int = _shell_pick("That game position\nalready exists!\nOverwrite it?:", 20, ["Yes", "No"], "YN", 1)
+				if k < 0 or exited:
+					return
+				if k == 0:
+					save += 1
+				continue
 			ExpWin(20, 3)
 			Print("That game position\n")
 			Print("already exists!\n")
@@ -263,16 +275,20 @@ func SaveMenu() -> void:
 func RestoreMenu() -> bool:
 	DrawChar(sx, sy * 8, 32)   # erase cursor from Main Menu
 	while not exited:
-		ExpWin(25, 2)
-		oldx = sx
-		oldy = sy
-		Print("  Continue Which Game?\n")
-		Print("       1-9 or ESC:")
 		var c: int = 0
-		while true:
-			c = Get() & 0xFF
-			if (c >= 49 and c <= 57) or c == CHAR_ESCAPE or exited:
-				break
+		if options != null:
+			# SCR-04: with a player at the controls the nine games as a list (the digits still choose)
+			c = _shell_slot_pick("  Continue Which Game?\n       1-9 or ESC:", 25, true)
+		else:
+			ExpWin(25, 2)
+			oldx = sx
+			oldy = sy
+			Print("  Continue Which Game?\n")
+			Print("       1-9 or ESC:")
+			while true:
+				c = Get() & 0xFF
+				if (c >= 49 and c <= 57) or c == CHAR_ESCAPE or exited:
+					break
 		if c == CHAR_ESCAPE or exited:
 			return false
 		var path: String = _saved_path(c)
@@ -292,6 +308,42 @@ func RestoreMenu() -> bool:
 			Print("with this verion of CK:")
 			Get()
 	return false
+
+
+## SCR-04: the nine positions as a list under the original's question (F5's and Continue Which Game?),
+## each marked with what it holds: a saved game its score, an empty one "Empty" (greyed for a load, which
+## then says it hasn't been saved, as the original does). The caret starts on the first empty position
+## for a save, the newest game for a load. Returns the digit chosen ('1'..'9') or Escape, as Get() did.
+func _shell_slot_pick(question: String, width: int, loading: bool) -> int:
+	var rows: Array = _shell_slot_rows()
+	var grey: Array = []
+	var start: int = -1
+	var newest: int = -1
+	for i: int in range(rows.size()):
+		var path: String = _saved_path(49 + i)
+		if not FileAccess.file_exists(path):
+			if loading:
+				grey.append(i)
+			elif start < 0:
+				start = i
+		elif loading and (start < 0 or FileAccess.get_modified_time(path) > newest):
+			start = i
+			newest = FileAccess.get_modified_time(path)
+	var k: int = _shell_pick(question, width, rows, "123456789", maxi(start, 0), grey)
+	return CHAR_ESCAPE if k < 0 else 49 + k
+
+
+## The positions' rows: "1  Score 1200", "2  Empty"; a file of another size "Unreadable".
+func _shell_slot_rows() -> Array:
+	var rows: Array = []
+	for n: int in range(1, 10):
+		var path: String = _saved_path(48 + n)
+		var what: String = "Empty"
+		if FileAccess.file_exists(path):
+			var st: VortMain.GameState = VortMain.GameState.new()
+			what = "Score %d" % st.score if st.from_bytes(FileAccess.get_file_as_bytes(path)) else "Unreadable"
+		rows.append("%d  %s" % [n, what])
+	return rows
 
 
 # ----------------------------------------------------------- help, story
@@ -995,6 +1047,12 @@ func UpdateObjHitbox(ob: Obj) -> void:
 
 ## The Options window is open (for the tests: the game reads its controls there too).
 var shell_menu_open: bool = false
+## The page the Options window or the title menu ("title:main", "title:extras") shows and the row its
+## cursor is on, while it waits for a press; "" otherwise (a prompt over it, or neither open). For the
+## tests only (SCR-03's routes to a page, F4's and the pad's; HARN-09's path walker); nothing in the
+## game reads them.
+var shell_menu_page: String = ""
+var shell_menu_row: int = 0
 ## The Options window's size: every page in one window of this size, so going from page to page
 ## leaves nothing of the last behind.
 const OPTIONS_W: int = 30    # the longest row: a fix's title and its value
@@ -1028,6 +1086,8 @@ func OptionsMenu(start: String = "options") -> void:
 		_options_release()
 		_options_desc(rows, pos, wx, wy)
 		while not exited:
+			shell_menu_page = page_name    # (HARN-09's probe)
+			shell_menu_row = pos
 			DrawChar(wx + 1, (wy + pos) * 8, anim + 9)
 			var ctrl: Dictionary = {"dir": nodir, "button1": false, "button2": false}
 			var c: int = 0
@@ -1060,7 +1120,7 @@ func OptionsMenu(start: String = "options") -> void:
 				if not str(row.key).begins_with("cheat:") and not row.get("enabled", true):
 					act = "say:" + str(row.get("why", "Not now"))
 					break
-				act = _options_cheat(row) if str(row.key).begins_with("cheat:") else options.activate(row.key)
+				act = _options_cheat(row) if str(row.key).begins_with("cheat:") else _options_activate(str(row.key))
 				if act == "":
 					rows = _options_rows(page_name)
 					_options_draw(rows, wx, wy)
@@ -1070,6 +1130,7 @@ func OptionsMenu(start: String = "options") -> void:
 			elif c == CHAR_ESCAPE or ctrl.button2:
 				act = "action:exit"
 				break
+		shell_menu_page = ""
 		DrawChar(wx + 1, (wy + pos) * 8, _options_blank(rows, pos))
 		if act.begins_with("page:"):
 			stack.append([page_name, pos])
@@ -1079,10 +1140,8 @@ func OptionsMenu(start: String = "options") -> void:
 			break    # Level select chose a level, or Resume: back to the game at once
 		elif act == "action:new_game" or act == "action:load_game":
 			# MENU-08: this game left (asked first) for the title, where the menu starts the new one or
-			# opens Load Game at once
-			ExpWin(24, 1)
-			Print("Leave this game (Y/N)?")
-			if _toupper(Get() & 0xFF) == 89:
+			# opens Load Game at once. SCR-04: asked as a list a pad can answer (Y and N still answer), on No
+			if _shell_pick("Leave this game (Y/N)?", 24, ["Yes", "No"], "YN", 1) == 0:
 				set(&"shell_menu_go", "new" if act == "action:new_game" else "load")
 				set(&"forcemenu", true)
 				resetgame = true
@@ -1103,11 +1162,19 @@ func OptionsMenu(start: String = "options") -> void:
 			page_name = back[0]
 			pos = back[1]
 		elif act == "action:quit_game":
-			ExpWin(17, 1)
-			Print("Quit game (Y/N)?")
-			if _toupper(Get() & 0xFF) == 89:
+			if _shell_pick("Quit game (Y/N)?", 17, ["Yes", "No"], "YN", 1) == 0:    # (SCR-04)
 				Quit("")
 				return
+			ExpWin(OPTIONS_W, OPTIONS_H)
+		elif act == "action:help":
+			# SCR-03: the original's F1 pages from Extras' Help row (a pad has no F1), with the buttons let go
+			# first (the press that chose it would close them), then the game's picture painted again under
+			# the window
+			_options_release()
+			ShowHelpText()
+			RF_ForceRefresh()
+			RF_Refresh()
+			RF_Refresh()
 			ExpWin(OPTIONS_W, OPTIONS_H)
 		elif act.begins_with("action:capture:") or act.begins_with("action:clear:"):
 			# CTRL-03: a key or button caught (or the action cleared), said, and back to the list
@@ -1126,9 +1193,7 @@ func OptionsMenu(start: String = "options") -> void:
 			pos = back[1]
 			ExpWin(OPTIONS_W, OPTIONS_H)
 		elif act == "action:reset_controls":
-			ExpWin(28, 1)
-			Print("Reset every control (Y/N)?")
-			if _toupper(Get() & 0xFF) == 89:
+			if _shell_pick("Reset every control (Y/N)?", 28, ["Yes", "No"], "YN", 1) == 0:    # (SCR-04)
 				options.reset_controls()
 				ExpWin(22, 1)
 				Print("The controls are reset")
@@ -1143,6 +1208,7 @@ func OptionsMenu(start: String = "options") -> void:
 			ExpWin(OPTIONS_W, OPTIONS_H)
 	ClearKeys()
 	shell_menu_open = false
+	shell_menu_page = ""
 
 
 ## CTRL-03: catches a key or button for an action: the prompt, Esc to cancel and a five-second countdown in
@@ -1165,11 +1231,13 @@ func _options_capture(device: String, action: String, slot: int) -> String:
 			break
 		if left != shown:
 			shown = left
+			controls_capture_left = left
 			sx = wx
 			sy = wy + 1
 			Print(("Esc cancels" if device == "keys" else "Start cancels").rpad(w - 2) + str(left).lpad(2))
 		WaitVBL(1)
 	controls_capture = ""
+	controls_capture_left = 0
 	var code: int = controls_captured
 	controls_captured = -2
 	ClearKeys()
@@ -1239,13 +1307,16 @@ func _options_rows(page_name: String) -> Array:
 	if page_name == "codes":
 		return _options_code_rows()
 	if page_name == "pause":
-		# MENU-08: the pause menu; High Scores and Extras live on the title's map, so not here
+		# MENU-08: the pause menu; High Scores lives on the title's map, so not here (nor Extras' screens
+		# but Help: _extras_rows)
 		var pause: Array = options.main_rows(true)
 		for r: Dictionary in pause:
-			if r.key in ["high_scores", "extras"]:
+			if r.key == "high_scores":
 				r["enabled"] = false
 				r["why"] = "From the title screen"
 		return pause
+	if page_name == "extras":
+		return _extras_rows(true)
 	if page_name != "cheats":
 		return options.page(page_name)
 	var rows: Array = []
@@ -1260,6 +1331,23 @@ func _options_rows(page_name: String) -> Array:
 		rows.append({"key": "cheat:codes", "label": "Original codes...", "kind": "page"})
 	rows.append({"key": "exit", "label": "Back", "kind": "action"})
 	return rows
+
+
+## MENU-08's Extras with Help first (SCR-03: the original's F1 pages, which a pad can't reach by F1). In a
+## game (the pause menu) only Help and Back can be chosen: the rest are the title's screens.
+func _extras_rows(in_game: bool) -> Array:
+	var rows: Array = [{"key": "help", "label": "Help", "kind": "action", "value": ""}]
+	for r: Dictionary in options.page("extras"):
+		if in_game and r.key != "exit":
+			r["enabled"] = false
+			r["why"] = "From the title screen"
+		rows.append(r)
+	return rows
+
+
+## A row chosen: what the model says to do, or (Help, this engine's own row) the help pages.
+func _options_activate(key: String) -> String:
+	return "action:help" if key == "help" else options.activate(key)
 
 
 ## CHEAT-05: the originals' codes, each with what holding it does as the line under it.

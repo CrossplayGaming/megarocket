@@ -976,6 +976,7 @@ func CK_BeginFadeDrawing() -> void:
 
 
 func CK_LoadLevel(doCache: bool, silent: bool) -> void:
+	shell_level_loads += 1    # (SCR-08's count)
 	if IN_DemoGetMode() != IN_Demo_Off:
 		# If we're recording or playing back a demo, the game needs to be
 		# deterministic. Seed the RNG at 0 and set difficulty to normal.
@@ -1025,6 +1026,7 @@ var ck_cacheBoxChunkCounter: int = 0    # static
 
 
 func CK_BeginCacheBox(title: String, numChunks: int) -> void:
+	shell_level_boxes += 1    # (SCR-08's count)
 	# Vanilla keen checks if > 2kb free here; not necessary for omnispeak
 	ck_cacheCountdownNum = 0
 
@@ -1905,6 +1907,12 @@ func HelpScreens() -> void:
 	if ck_currentEpisode_ep == EP_CK5:
 		StartMusic(19)
 
+	# SCR-03 (a player at the controls): the pad is the menus' keys in the help, though its menu reads the
+	# controls as it waits: the d-pad moves, A chooses, B leaves
+	var menu_keys: bool = shell_menu_keys
+	if get("options") != null:    # (gal_menu.gd)
+		shell_menu_keys = true
+
 	while true:
 		if quitting:
 			return
@@ -1921,6 +1929,7 @@ func HelpScreens() -> void:
 			# RF_Reset();
 			if ck_currentEpisode_ep == EP_CK5:
 				StopMusic()
+			shell_menu_keys = menu_keys
 			return
 
 		# Cache the chunk with the topic

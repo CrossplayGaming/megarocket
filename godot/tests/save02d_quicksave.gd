@@ -52,6 +52,9 @@ func _go() -> void:
 	var cfg: String = OS.get_temp_dir().path_join("mr_save02d_%d.cfg" % Time.get_ticks_usec())
 	host = GameHost.new()
 	host.settings_path = cfg
+	# (the game's files in a folder of the test's own: not the player's, nor another run's at the same time)
+	var saves: String = cfg.get_basename()
+	host.saves_dir = saves
 	host.speed = 1.0
 	root.add_child(host)
 	# (--folder=kdreams: v1.00; the registered run is v1.93)
@@ -141,5 +144,9 @@ func _go() -> void:
 	await _wait(func() -> bool: return host.thread == null, 10.0)
 	host.queue_free()
 	DirAccess.remove_absolute(cfg)
-	DirAccess.remove_absolute(quick_file)
+	if DirAccess.dir_exists_absolute(saves.path_join("kdreams")):
+		for name: String in DirAccess.get_files_at(saves.path_join("kdreams")):
+			DirAccess.remove_absolute(saves.path_join("kdreams").path_join(name))
+		DirAccess.remove_absolute(saves.path_join("kdreams"))
+	DirAccess.remove_absolute(saves)
 	t.finish(self)

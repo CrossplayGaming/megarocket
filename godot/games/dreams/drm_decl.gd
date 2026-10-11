@@ -465,6 +465,18 @@ var controls_read_vbl: int = -1000000
 ## -2 none yet) and the game never sees it.
 var controls_capture: String = ""
 var controls_captured: int = -2
+## SCR-06: the seconds the capture's countdown shows (0 none; for the tests: nothing reads it).
+var controls_capture_left: int = 0
+## SCR-08: how many times a level (the map too) was set up, and its "Loading" box drawn (for HARN-09's mash
+## walk: a confirm mashed must load a new game once, and skip no box; nothing reads them).
+var shell_level_loads: int = 0
+var shell_level_boxes: int = 0
+## SCR-03 (a player at the controls only): a question that reads the controls while it waits (the
+## quicksave's) asks the host for the menus' keys anyway (the pad's A Enter, B Escape, whatever its buttons
+## are bound to); SCR-05: a line being typed (US_LineInput) asks for the d-pad's own codes, its letters
+## (PadTextEntry).
+var shell_menu_keys: bool = false
+var shell_text_entry: bool = false
 
 
 func shell_held(action: String) -> bool:

@@ -1427,6 +1427,101 @@ def menu08():
     return worst
 
 
+WALK_GAMES = "keen1,keen2,keen3,keen4,keen5,keen6,kdreams,kdreams193"
+
+
+def _walk_out(name):
+    """The walks' evidence folder (outside the repository: the notes name the games' own levels)."""
+    out = common.config()["oracle_runs"].parent / name
+    out.mkdir(parents=True, exist_ok=True)
+    return out
+
+
+def harn09():
+    """The path walker (HARN-09, SCR-03's check): the real program from the launcher, every game driven by
+    one device alone, the pad's, the keyboard's and the touch screen's (three walks at once): every Options
+    row and the originals' functions, the bindings (SCR-06), then back to the launcher. Each function a
+    device cannot complete is a failure, named with where the walk got stuck; the evidence is
+    harn09_<device>/harn09_walk.json under the work folder (godot/tests/harn09_walk.gd)."""
+    from concurrent.futures import ThreadPoolExecutor
+    import gdtest
+
+    def walk(device):
+        out = _walk_out("harn09_" + device)
+        code, text = gdtest.run("harn09_walk", ["--games=" + WALK_GAMES, "--device=" + device, "--out=" + str(out)],
+                                timeout=5400.0, quiet=True)
+        lines = [line.strip() for line in text.splitlines()
+                 if line.startswith("WALK") or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line]
+        return code, lines
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        results = list(pool.map(walk, ("pad", "keys", "touch")))
+    for code, lines in results:
+        for line in lines:
+            print("  " + line)
+    return max(code for code, _ in results)
+
+
+def scr08():
+    """Mashing (SCR-08, HARN-09's mash walk): every game from the launcher, the pad's B, A and Start pressed
+    at seeded random gaps of 15 to 50 ms through the title, a new game, a level's way in, a death and its way
+    back, a level's end and the menus over the play: each loads the map or the level once, Keen 1-3's Keens
+    Left, Keen 4-6's level box and Dreams' Loading box still come, and every game quits back to the
+    launcher (one walk per engine at once; evidence harn09_mash_<engine>/harn09_mash.json)."""
+    from concurrent.futures import ThreadPoolExecutor
+    import gdtest
+
+    def walk(part):
+        name, games = part
+        out = _walk_out("harn09_mash_" + name)
+        code, text = gdtest.run("harn09_walk", ["--games=" + games, "--mash=1", "--out=" + str(out)],
+                                timeout=3600.0, quiet=True)
+        lines = [line.strip() for line in text.splitlines()
+                 if line.startswith("WALK") or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line]
+        return code, lines
+
+    parts = (("vorticons", "keen1,keen2,keen3"), ("galaxy", "keen4,keen5,keen6"), ("dreams", "kdreams,kdreams193"))
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        results = list(pool.map(walk, parts))
+    for code, lines in results:
+        for line in lines:
+            print("  " + line)
+    return max(code for code, _ in results)
+
+
+def scr04():
+    """Keen 1-3's letter and digit questions answered by a pad (SCR-04): the pad's buttons fed through the host
+    in Keen 1 answer the title's Quit, F2's Sound, Save Game's nine positions and Overwrite, Leave this game and
+    Continue Which Game, Reset every control and (D)os or (T)itle; the files saved and loaded checked; Extras'
+    Help on the title and in a game; F4's Controller page and the pad's way to it; each question still
+    answered by its letter or digit key; headless, the original's prompts. Keen 2 and 3: a save and load by
+    the pad, and Quit to the title."""
+    import gdtest
+    worst = 0
+    for extra in ([], ["--game=keen2", "--smoke=1"], ["--game=keen3", "--smoke=1"]):
+        code, out = gdtest.run("scr04_vorticons", extra, timeout=900.0, quiet=True)
+        for line in out.splitlines():
+            if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+                print("  %s: %s" % ((extra or ["--game=keen1"])[0][7:], line.strip()))
+        worst = max(worst, code)
+    return worst
+
+
+def scr05v():
+    """Keen 1-3's high-score names by the d-pad (SCR-05's Vorticons part): KEEN spelled by the pad and read
+    back from SCORES.CKn in each game; in Keen 1 also typing unchanged and B ending as the original's Escape;
+    headless, the original's Input."""
+    import gdtest
+    worst = 0
+    for game in ("keen1", "keen2", "keen3"):
+        code, out = gdtest.run("scr05v_names", ["--game=" + game], timeout=600.0, quiet=True)
+        for line in out.splitlines():
+            if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+                print("  %s: %s" % (game, line.strip()))
+        worst = max(worst, code)
+    return worst
+
+
 def audio06():
     """Keen 4-6's AdLib effects in Keen 1-3 (AUDIO-06): every table sound from Keen 4 and 5, and from Keen 5
     alone; an effect's writes and its sound through the chip; in Keen 1 a jump's effect, the speaker silent."""
@@ -1444,6 +1539,49 @@ def shell15():
     take the pad, a second controller too."""
     import gdtest
     code, out = gdtest.run("shell15_launcher_pad", [], timeout=400.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+            print("  " + line.strip())
+    return code
+
+
+def scr05g():
+    """Keen 4-6 by the controller alone (SCR-05, SCR-03, MENU-02), real controller events to the host: the d-pad's
+    letters (PadTextEntry) on their own; Keen 4's EXTRAS HELP walked by the pad, a game saved as KEEN typed with
+    the d-pad (read back from the file), a high score's name KEEN by the d-pad (read back from CONFIG.CK4),
+    REALLY QUIT? answered with A after Jump's buttons were cleared (the A held to open it no answer); Keen 6's
+    creature question (J-04): not asked by default, and when shown a wrong answer passes."""
+    import gdtest
+    worst = 0
+    for test, extra in (("scr05_pad_text", []), ("scr05_galaxy_pad", ["--game=keen4"]), ("scr05_keen6_creature", [])):
+        code, out = gdtest.run(test, extra, timeout=900.0, quiet=True)
+        for line in out.splitlines():
+            if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+                print("  %s: %s" % (test, line.strip()))
+        worst = max(worst, code)
+    return worst
+
+
+def scr05d():
+    """Keen Dreams by the controller alone (SCR-05, SCR-03), real controller events to the host: the panel's
+    cursor moved with the d-pad; the help text read and left, Reset to defaults answered with A, a game begun,
+    saved as KEEN typed with the d-pad (read back from the file), a high score's name KEEN by the d-pad (read
+    back from KDREAMS.CFG)."""
+    import gdtest
+    code, out = gdtest.run("scr05_dreams_pad", [], timeout=900.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+            print("  " + line.strip())
+    return code
+
+
+def shell04():
+    """The two-button reset (SHELL-04), real controller events to Keen 4 in the host: Back and Start held three
+    seconds give the controller's buttons back their defaults (the game's controls and the settings file), in
+    the menu and in play, said on screen; held one second, nothing; the second button down never reaches the
+    game."""
+    import gdtest
+    code, out = gdtest.run("shell04_reset_chord", [], timeout=600.0, quiet=True)
     for line in out.splitlines():
         if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
             print("  " + line.strip())
@@ -1842,12 +1980,17 @@ CHECKS = {
     "MENU-08": (menu08, "fast"),
     "AUDIO-06": (audio06, "fast"),
     "SHELL-15": (shell15, "fast"),
+    "SCR-05G": (scr05g, "fast"),
+    "SCR-05D": (scr05d, "fast"),
+    "SHELL-04": (shell04, "fast"),
     "SECRET-01": (secret01, "fast"),
     "SECRET-01D": (secret01d, "fast"),
     "SECRET-02": (secret02, "fast"),
     "AND-02a": (and02a, "fast"),
     "SHELL-10b": (shell10b, "fast"),
     "AND-03a": (and03a, "fast"),
+    "SCR-04": (scr04, "fast"),
+    "SCR-05V": (scr05v, "fast"),
     "HOST-01": (host01, "slow"),
     "SHELL-02": (shell02, "slow"),
     "SIM-G-01d": (simg01d, "slow"),
@@ -1877,6 +2020,8 @@ CHECKS = {
     "SCR-01V": (scr01v, "slow"),
     "SCR-01G": (scr01g, "slow"),
     "SCR-01D": (scr01d, "slow"),
+    "HARN-09": (harn09, "slow"),
+    "SCR-08": (scr08, "slow"),
 }
 
 

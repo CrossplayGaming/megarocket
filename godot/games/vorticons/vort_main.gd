@@ -675,6 +675,20 @@ func _rlew_instructions(raw: PackedByteArray) -> int:
 
 func AskQuit() -> void:
 	ClearKeys()
+	if get(&"options") != null:
+		# SCR-04: with a player at the controls, the same questions as lists a pad can answer (the letters
+		# still answer; Escape, the pad's B, answers nothing, as the original's Escape does). Yes / No on
+		# the title (on No), Dos / Title in a game (on Title: Dos leaves without the high scores)
+		if level == TITLEMAP:
+			if _shell_pick("Quit (Y/N)?", 12, ["Yes", "No"], "YN", 1) == 0:
+				Quit("")
+		else:
+			match _shell_pick("Quit to (D)os or\n(T)itle:", 20, ["Dos", "Title"], "DT", 1):
+				0:
+					Quit("")
+				1:
+					resetgame = true
+		return
 	if level == TITLEMAP:
 		ExpWin(12, 1)
 		Print("Quit (Y/N)?")
@@ -694,6 +708,66 @@ func AskQuit() -> void:
 
 static func _toupper(c: int) -> int:
 	return c - 32 if c >= 97 and c <= 122 else c
+
+
+## SCR-04: a question the original answers with a letter or a digit, answered from a list while a player is
+## at the controls (a pad has no letters): the original's question, then a row for each answer, in one
+## ExpWin with the caret at the row, as the Options window has it. Up and down (the d-pad, the stick, the
+## arrows) move; Enter or Space (the pad's A or X) choose the row; an answer's own key (`keys`, a character
+## a row, upper case: what the original asked for) chooses it at once; Escape (the pad's B or Start)
+## chooses nothing, as the original's Escape. The caret starts on `start`; `grey` rows are drawn greyed
+## (still chosen). Returns the row chosen, or -1. Only the keys' path: the pad in a game's menus is the
+## arrows, Enter, Escape and Space (the host's), whatever the player's bindings.
+func _shell_pick(question: String, width: int, rows: Array, keys: String, start: int = 0, grey: Array = []) -> int:
+	var lines: int = question.count("\n") + 1
+	var w: int = width
+	for r: Variant in rows:
+		w = maxi(w, str(r).length() + 4)
+	ExpWin(w, lines + rows.size())
+	var wx: int = sx
+	var wy: int = sy + lines    # the first row
+	Print(question)
+	for i: int in range(rows.size()):
+		sx = wx
+		sy = wy + i
+		var line: String = ("   " + str(rows[i])).rpad(w).left(w)    # the caret in the second column
+		if grey.has(i):
+			PrintGrey(line)
+		else:
+			Print(line)
+	var pos: int = clampi(start, 0, rows.size() - 1)
+	var anim: int = 0
+	var chosen: int = -1
+	shell_asking = question
+	while not exited:
+		shell_asking_row = pos
+		DrawChar(wx + 1, (wy + pos) * 8, anim + 9)
+		var k: int = 0
+		for i: int in range(6):
+			WaitVBL(1)
+			k = NoBiosKey(1)
+			if k != 0 or exited:
+				break
+		anim = (anim + 1) % 3
+		if k == 0:
+			continue
+		NoBiosKey(0)
+		var scan: int = (k >> 8) & 0x7F
+		var c: int = _toupper(k & 0xFF)
+		if scan == KEY_UP or scan == KEY_DOWN:
+			DrawChar(wx + 1, (wy + pos) * 8, 0xA0 if grey.has(pos) else 32)
+			pos = (pos + (rows.size() - 1 if scan == KEY_UP else 1)) % rows.size()
+		elif c == CHAR_ENTER or c == 32:
+			chosen = pos
+			break
+		elif c == CHAR_ESCAPE:
+			break
+		elif c > 32 and keys.contains(char(c)):
+			chosen = keys.find(char(c))
+			break
+	DrawChar(wx + 1, (wy + pos) * 8, 0xA0 if grey.has(pos) else 32)
+	shell_asking = ""
+	return chosen
 
 
 func JoyButton() -> int:
@@ -752,13 +826,21 @@ func DoFkeys() -> bool:
 		KEY_F2:
 			PauseSound()
 			ClearKeys()
-			ExpWin(13, 1)
-			Print("Sound (Y/N)?")
-			var c: int = _toupper(Get() & 0xFF)
-			if c == 78:
-				soundmode = 0
-			elif c == 89:
-				soundmode = 1
+			if get(&"options") != null:
+				# SCR-04: Yes / No as a list, the caret on what the sound is now (Y and N still answer)
+				var k: int = _shell_pick("Sound (Y/N)?", 13, ["Yes", "No"], "YN", 0 if soundmode != 0 else 1)
+				if k == 1:
+					soundmode = 0
+				elif k == 0:
+					soundmode = 1
+			else:
+				ExpWin(13, 1)
+				Print("Sound (Y/N)?")
+				var c: int = _toupper(Get() & 0xFF)
+				if c == 78:
+					soundmode = 0
+				elif c == 89:
+					soundmode = 1
 			i += 1
 		KEY_F3:
 			PauseSound()
