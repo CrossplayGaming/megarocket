@@ -1326,8 +1326,11 @@ func _pick(row: int, asked: String) -> bool:
 
 ## A name (capitals) typed into a text field: the keys type it; the pad and touch use SCR-05's d-pad entry
 ## (Keen 1-3's Input, PadTextEntry in Keen 4-6 and Dreams: the first up shows A, each up the next letter,
-## right keeps it and goes on; the last is kept by accept, which the caller presses).
-func _type_text(text: String) -> void:
+## right keeps it and goes on; the last is kept by accept, which the caller presses). `erase`: the letters
+## the field shows already (a slot's old name), taken back first (Backspace; the d-pad's left).
+func _type_text(text: String, erase: int = 0) -> void:
+	for i: int in range(erase):
+		await _press("code:%d" % KEY_BACKSPACE if device == "keys" else "left", 3, 3)
 	for i: int in range(text.length()):
 		var c: String = text[i]
 		if device == "keys":
@@ -1833,7 +1836,7 @@ func _g_save() -> Dictionary:
 		return _res(true, false, "no name field")
 	await _refreshes(10)
 	var entry: Object = g.get("us_savefiles")[0]
-	await _type_text("KEEN")
+	await _type_text("KEEN", str(entry.get("name")).length() if bool(entry.get("used")) else 0)
 	await _press("accept")
 	var saved: bool = await _wait(func() -> bool: return bool(entry.get("used")) and str(g.get("footer_str")[2]) != "Type name", 6.0)
 	var name: String = str(entry.get("name"))
@@ -2252,7 +2255,7 @@ func _d_save() -> Dictionary:
 		return _res(true, false, "no name field")
 	await _refreshes(20)
 	var slot: Object = (_eng().get("Games") as Array)[0]
-	await _type_text("KEEN")
+	await _type_text("KEEN", (slot.get("name") as PackedByteArray).get_string_from_ascii().length() if bool(slot.get("present")) else 0)
 	await _press("accept")
 	var saved: bool = await _wait(func() -> bool: return bool(slot.get("present")) and _page() == "panel", 8.0)
 	var name: String = (slot.get("name") as PackedByteArray).get_string_from_ascii()
