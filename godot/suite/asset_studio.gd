@@ -134,18 +134,11 @@ static func sort_into(game_id: String, names: PackedStringArray) -> Array:
 					last[0] = p
 					(last[1] as Array).append(n)
 					continue
-			var joined: bool = false
-			for c: Array in creatures:    # a family met before (the Dopefish's left frames after its bubbles)
-				if String(c[0]).length() >= 4 and s.begins_with(String(c[0])):
-					(c[1] as Array).append(n)
-					joined = true
-					break
-			if not joined:
-				creatures.append([s, [n]])
+			creatures.append([s, [n]])
 	var out: Array = []
 	if not keen.is_empty():
 		out.append(["Keen", keen, "keen"])
-	var by_label: Dictionary = {}    # label -> [names]
+	var by_label: Dictionary = {}    # label -> [names] (a family met again: the Dopefish's left frames after its bubbles)
 	var labels: Array = []
 	for c: Array in creatures:
 		var label: String = _family_label(String(c[0]))
