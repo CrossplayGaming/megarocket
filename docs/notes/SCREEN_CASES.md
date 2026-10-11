@@ -243,21 +243,31 @@ fight, the five finale windows, a high score typed; v1.93: from a saved game, se
   at once (Try Again). `scr_gameover` presses N in between.
 - **v1.93's ending starts from a saved game**, because v1.93's first frames in level 15 come a tic apart from
   the original's (TIME-D's v1.93 loads), which moves King Boobus's walk and the bombs' hits by a frame. The
-  save is the port's own: run this timetable as a case in the port with
-  `--keep F:/KeenReworkWork/case_saves/scrd_kdreams193_ending` and copy SAVEGM0.KDR alone into
-  `F:/KeenReworkWork/case_saves/scrd_kdreams193_ending_save` (the case's overrides):
-
-      {"seconds": 46.6, "keyfeed": true, "held": [[4.0, "space", 0.2], [6.0, "enter", 0.2], [10.0, "f10", 0.8],
-       [10.3, "w", 0.15], [11.4, "1", 0.15], [11.8, "5", 0.15], [12.6, "enter", 0.15], [14.0, "f10", 0.8],
-       [14.3, "i", 0.15], [15.6, "n", 0.15], [17.0, "f10", 0.8], [17.3, "g", 0.15], [18.6, "n", 0.15],
-       [19.993, "alt", 0.143], [20.507, "alt", 0.143], [21.027, "alt", 0.143], [21.541, "alt", 0.143],
-       [22.054, "alt", 0.143], [22.568, "alt", 0.143], [23.082, "alt", 0.143], [23.595, "alt", 0.143],
-       [24.109, "alt", 0.143], [24.622, "alt", 0.143], [25.136, "alt", 0.143], [25.65, "alt", 0.143],
-       [26.163, "alt", 0.143], [26.677, "alt", 0.143], [30.6, "esc", 0.15], [32.5, "f6", 0.15],
-       [34.0, "right", 0.15], [35.5, "enter", 0.15], [37.0, "b", 0.1], [38.0, "enter", 0.15], [40.0, "esc", 0.15]]}
+  save is the port's own, in `F:/KeenReworkWork/case_saves/scrd_kdreams193_ending_save` (the case's overrides),
+  and the recording loaded that very file. `python tools/dreams_case_save.py` makes it again from scratch (SCR-01D
+  does when it is missing): the port plays the fight on a fixed timetable (TIMETABLE there: a new game, the warp
+  to 15, free items, god mode, bombs thrown, then Escape, F6, Right, Enter, b, Enter as the explosions fade) at
+  the timing the save was made with (pinned there, so later fits of dreams_costs.json do not move it), and keeps
+  the save only if it is byte for byte the recording's (its sha256). If the port comes to play the fight
+  otherwise, it says so and writes nothing: then the save and the recording must both be made anew.
 
 - Found on the way (details: docs/notes/DREAMS_MEMORY.md): the original finds DOSBox's mouse driver and gets
   435 KB (434 with a long KEYFEED.COM); DOSBox keeps the host's date, so v1.00's fifth finale window shows;
-  SaveGame's compression takes the original 4 refreshes (its Saving box); v1.93's random seed comes a BIOS
+  SaveGame's compression takes the original 4 refreshes (its Saving box: see below); v1.93's random seed comes a BIOS
   tick later than feed_pre puts it (dreams_case.py START_LAG); v1.00's warp to a missing map ends otherwise
   than the port's.
+- **The Saving box's first refresh (2026-10-11).** The port's showed the line-input cursor still on, and the
+  box itself only 3 refreshes against the original's 4. The code is ReflectionHLE's line for line (US_LineInput
+  wipes the cursor and updates the screen before the box is drawn); the difference is where in the refresh the
+  keys land. Measured on kdreams scr_save's tears (a letter drawn half in one refresh, the blinking cursor's
+  rows split): the port takes every key 181 scan lines (5.8 ms) earlier in the refresh than the original, so
+  its Enter lands at line 184 (row 73, after the cursor's rows 60-69, before the box's 81-119) where the
+  original's lands at about line 365 (below the box). DOSBox starts its refreshes over when a program sets a
+  video mode; the port's refreshes run on from its start, so their phase against KEYFEED's timetable (counted
+  from the mode set) is whatever the start-up made it. Restarting the port's refreshes at the mode set (the
+  phase measured: the retrace 139 lines after it) made the box exact (4 refreshes, the same picture) and put
+  the cursor's blinks on the original's lines once the timer's phase moved too (pitphase 4.5M -> 5.39M), but
+  REPLAY-D fell from 7182 to about 5600 pictures matched: the fitted costs and pitphase absorb the old phase
+  (and, it seems, the original's drawing time in play). Left for TIME-D's next fit; until then kdreams
+  scr_save masks the cursor's 10 pixels for 0.2 s at the Enter and holds every picture's time to half a
+  refresh plus 5% (stay 0.5), so a Saving box a refresh short fails.

@@ -34,5 +34,7 @@
   [29.0, "Enter: Loading `keen', the map again, PAUSED"],
   [33.0, "N: the map"]
  ],
+ "masks": [{"rect": [175, 60, 176, 70], "from": 24.4, "to": 24.6, "reason": "the line-input cursor after keen as Enter is taken: the port takes the key 181 scan lines (5.8 ms) earlier in the refresh than the original (DOSBox starts its refreshes over at the mode set, the port does not: TIME-D), so its cursor is wiped a refresh after the Saving box shows, the original's in the same refresh; masked so the box's own time is held exactly (stay 0.5: a 4-refresh picture a refresh short fails, one of 10 or more may be a refresh off)"}],
+ "stay": 0.5,
  "note": "SCR-01D (Keen Dreams v1.00): saving and loading: a new game; Escape for the panel in the game (at Exit to DOS), F6 for the save slots, Right to the first Save button, Enter, the name typed (k, e, e, p, Backspace, n: keen), Enter (Saving); Left to its Load button (the help line names it), Enter (Loading `keen'): the game is loaded and starts PAUSED (the original sets Paused after a load), N carries on."
 }

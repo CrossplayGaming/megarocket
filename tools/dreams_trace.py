@@ -31,7 +31,9 @@ BUILD = WORK / "refkeen_build"
 CMAKE = Path("C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/"
              "Microsoft/CMake/CMake/bin/cmake.exe")
 GAMEVER = {"kdreams193": "kdreamse193", "kdreams": "kdreamse100"}
-# v1.00's GAMEMAPS lacks these maps (its warp there quits to DOS, the port likewise: REPLAY-D)
+# v1.00's GAMEMAPS lacks these maps: the original's warp there loads a garbage map and quits later ("GetNewObj: No
+# free spots in objarray!"); the port ends the game at once with ReflectionHLE's CA_CacheMap message, shown by
+# Megarocket (J-52 keeps it), not a quit to DOS
 MISSING = {"kdreams": (6, 8, 11, 13)}
 
 # a direction held (left: the levels start at their right), with jump (ctrl) and throw (alt) every 3

@@ -152,7 +152,11 @@ def scr01g():
 def scr01d():
     """Keen Dreams' screen cases, v1.00 and v1.93 (SCR-01D): nine a release (the start screens and menu,
     the attract loop, the help texts, the options, the save slots and quitting, a game with the debug keys'
-    windows, saving and loading, losing the game, the ending), each held against its recording (run a)."""
+    windows, saving and loading, losing the game, the ending), each held against its recording (run a). v1.93's
+    ending loads a saved game kept outside the project: rebuilt first if it is missing (tools/dreams_case_save.py)."""
+    import dreams_case_save
+    if not dreams_case_save.present():
+        dreams_case_save.make(say=lambda line: print("  " + line))
     return _screen_cases(("kdreams", "kdreams193"))
 
 
@@ -2024,7 +2028,7 @@ CHECKS = {
     "HARN-06a": (harn06a, "slow"),
     "SCR-01V": (scr01v, "fast"),
     "SCR-01G": (scr01g, "slow"),
-    "SCR-01D": (scr01d, "fast"),
+    "SCR-01D": (scr01d, "slow"),
     "HARN-09": (harn09, "slow"),
     "SCR-08": (scr08, "slow"),
 }
