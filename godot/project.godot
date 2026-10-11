@@ -15,6 +15,10 @@ config/version="2.0.0-dev"
 run/main_scene="res://shell/main.tscn"
 config/quit_on_go_back=false
 config/features=PackedStringArray("4.7")
+boot_splash/show_image=false
+boot_splash/bg_color=Color(0.0196078, 0.0235294, 0.0901961, 1)
+config/icon="res://branding/icon_512.png"
+config/windows_native_icon="res://branding/icon.ico"
 
 [debug]
 
