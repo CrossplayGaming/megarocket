@@ -7,7 +7,7 @@ extends SceneTree
 ## Freeze enemies holds every creature still; Skip this level ends the level and marks it done. Pictures
 ## to --shots.
 ##
-## Options: --game_data=<folder> [--shots=<folder>]
+## Options: --game_data=<folder> [--folder=kdreams193|kdreams] [--shots=<folder>]
 
 var t: T = T.new()
 var host: GameHost = null
@@ -86,7 +86,9 @@ func _go() -> void:
 	host.settings_path = cfg
 	host.speed = 1.0
 	root.add_child(host)
-	host.start({"id": "kdreams", "title": "Keen Dreams", "version": "v1.93", "folder": root_dir.path_join("kdreams193")})
+	# (--folder=kdreams: v1.00; the registered run is v1.93)
+	var folder: String = T.options().get("folder", "kdreams193")
+	host.start({"id": "kdreams", "title": "Keen Dreams", "version": "v1.00" if folder == "kdreams" else "v1.93", "folder": root_dir.path_join(folder)})
 	var g: Object = host.engine
 	await _pause(2.0)
 	await _tap(KEY_ENTER)    # the text start screen

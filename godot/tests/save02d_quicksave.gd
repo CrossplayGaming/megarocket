@@ -6,7 +6,7 @@ extends SceneTree
 ## walk F9 and Y put Keen back where he was saved (the level started again from the saved state, the
 ## original's pause first); with Quicksave asks off, F8 saves at once; with quicksave off, F8 does nothing.
 ##
-## Options: --game_data=<folder>
+## Options: --game_data=<folder> [--folder=kdreams193|kdreams]
 
 var t: T = T.new()
 var host: GameHost = null
@@ -54,7 +54,9 @@ func _go() -> void:
 	host.settings_path = cfg
 	host.speed = 1.0
 	root.add_child(host)
-	host.start({"id": "kdreams", "title": "Keen Dreams", "version": "v1.93", "folder": root_dir.path_join("kdreams193")})
+	# (--folder=kdreams: v1.00; the registered run is v1.93)
+	var folder: String = T.options().get("folder", "kdreams193")
+	host.start({"id": "kdreams", "title": "Keen Dreams", "version": "v1.00" if folder == "kdreams" else "v1.93", "folder": root_dir.path_join(folder)})
 	var g: Object = host.engine
 	var rows: Array = host.options.page("gameplay").map(func(r: Dictionary) -> String: return r.label)
 	t.ok("the Gameplay page: Mode, then Quicksave F8/F9, Quicksave asks (%s)" % [rows], rows[0] == "Mode" and rows[1] == "Quicksave F8/F9" and rows[2] == "Quicksave asks")
