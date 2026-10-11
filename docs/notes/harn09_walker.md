@@ -103,5 +103,9 @@ a touch screen has no key or button to catch.
 - Keen Dreams: the Options icon's Video and Game keycaps could not be reached with the d-pad (the caps are 56
   pixels wide and 48 apart, and USL_FindRect moves only to an item starting past the end of the one the cursor is
   on). The first four caps' rectangles are the 48 pixels up to the next cap; the caps are drawn as before.
+- Keen 4-6's dialogs: an Enter repeat sent in the same pump as the held A's release was read as yes (SCR-05G's A
+  held on QUIT quit the game in 5 of 8 runs); dropped now (`gal_menu.gd` USL_CtlDialog).
+- Keen Dreams v1.00 and v1.93 share one saves folder (one tile, one game id): the walk takes a slot's old name
+  back before typing its own.
 - Touch: no way to type a name in Keen 4-6 or Dreams (their line input keeps the arrows' own meaning); the host
   now sends the on-screen d-pad as the pad's d-pad codes while a line is typed.
