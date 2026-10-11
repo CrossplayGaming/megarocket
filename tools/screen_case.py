@@ -18,6 +18,7 @@ A case is tools/cases/<game>/scr_<name>.json:
                                                (x0, y0, x1, y1, the last row and column not included; "from"
                                                and "to", seconds on each side's own clock, optional)
      "text_masks": [{"cells": [15, 60, 16, 70], "reason": "why"}],   text cells left out (row0, col0, row1, col1)
+     "sequences": [{"from": 65, "to": 81, "reason": "why"}],   S6's spans (optional)
      "args": "/TEDLEVEL 3",                    the program's command line (optional)
      "overrides": "tools/cases/keen1/saves/x", a folder of files put beside the original's program and in the
                                                port's save folder: saves from the port's own writers, config
@@ -29,27 +30,39 @@ A case is tools/cases/<game>/scr_<name>.json:
 
 The comparison (the Duke project's S1-S4, adapted). Each side's pictures, masks applied, cut at "seconds";
 pictures alike after masking run together. A picture is SETTLED when it stays up `settled` refreshes or
-more (default 4); the first and last are never settled (cut by the recording's start and end).
+more (default 4); the first never is (cut by the recording's start), the last only when it is up to the
+cut FINAL_SETTLED refreshes (a second) or more: the screen a case ends on (Keen 1's end text).
 
   S1  every settled picture of the port is a picture the original showed;
   S2  every settled picture of the original is one the port showed;
   S3  each side shows at least `least` different settled pictures (default: one per named screen);
   S4  a settled picture the original shows in one stretch (a screen that stays up, not an animation's
-      returning frame) is up about as long in all in the port: within `stay` refreshes (default 12) and 5%
-      (the case's "stay": null leaves it out);
-  S5  order: a picture that one side showed only after another was gone, the other shows after it too.
+      returning frame) is up about as long in the port. A screen a key ends (a key goes down or up while it
+      is up: the two machines read a key up to a few refreshes, or a loop's step, apart): its time in all
+      within `stay` refreshes (default 12) and 5%. A screen no key ends (a box up while the program works,
+      a timed screen): its longest stretch in the port within half its time, never under 2 refreshes, nor
+      over the first allowance (a box the original holds 4 refreshes: 2-6 in the port). The case's
+      "stay": null leaves S4 out;
+  S5  order: a picture that one side showed only after another was gone, the other shows after it too;
+  S6  in the case's "sequences" (a timed animation no key steers: the ordering screen's walker), every
+      picture of each side that starts in the span, however short, the same and in the same order.
 
-A failure is reported under the named screen it falls in, with the nearest picture of the other side
+A failure is reported under the named screen the picture is up longest in (a picture that comes a few
+milliseconds before a screen's named start is that screen's), with the nearest picture of the other side
 (its index, the box of the pixels that differ and their count) and a picture of the three (this, nearest,
 differences) under the work folder, F:/KeenReworkWork/port_runs/screen_<game>_<case>[_tag]/diff.
 
 Text-mode screens (Keen Dreams' start screens, a program's exit screen) are drawn by the shell in
-Megarocket's own font, so they are compared by their 80x25 cells: every cell the port says holds the same
-(character, attribute) looks the same in the recording, cells of different pairs look different, and each
-cell's colours are its attribute's (blinking cells shown or hidden, all alike; the hardware cursor is noted,
-not failed). Every settled text picture of the recording (TEXT_SETTLED) is one of the port's screens, in
-order, and the reverse; the recording's pictures before the first that is the port's, and after the last
-once the program has quit, are DOS's own (its prompt).
+Megarocket's own font, so they are compared by their 80x25 cells (J-38: identical when every cell holds the
+same character in the same colours). Each recorded cell is read as a character by its shape, learnt each run
+from the recordings of Keen 1-3's exit screens, whose characters the programs themselves name (glyphs(),
+GLYPH_SOURCES; DOSBox's font is never kept in the repository); a character those screens do not show must
+have one shape in all its cells, none a known character's. Each cell's colours are its attribute's
+(blinking cells all shown or all hidden). The hardware cursor, where the recording shows it, is where the
+port's runner puts it; once the program has quit, DOS's prompt (left out, cursor and all) is on the row below
+the port's exit cursor (the screen scrolled a row when that is the last). Every settled text picture of the
+recording (TEXT_SETTLED) is one of the port's screens, in order, and the reverse; the recording's pictures
+before the first that is the port's, and after the last once the program has quit, are DOS's own.
 
     python tools/screen_case.py list [game ...]
     python tools/screen_case.py port <game> <case> [--tag T] [--keep DIR]   the port alone: a sheet to design by
@@ -58,15 +71,17 @@ once the program has quit, are DOS's own (its prompt).
     python tools/screen_case.py pair <game> <case>                          run a against run b (HARN-06a)
     python tools/screen_case.py selftest <game> <case> [--tag T]            planted faults must be reported
 
-Cannot catch: a difference on a picture neither side keeps up `settled` refreshes; anything under a mask;
-in text screens, a character the port puts where the original has another if that character appears
-nowhere else on the screen (the shapes themselves are not compared).
+Cannot catch: a difference on a picture neither side keeps up `settled` refreshes (outside "sequences");
+anything under a mask; in text screens, a character the exit screens of Keen 1-3 do not show, put by the
+port where the original has another such character that appears nowhere else on the screen; the column of
+an exit screen's cursor (DOS starts its prompt at column 0 whatever it is); a cursor the original hides.
 """
 import argparse
 import hashlib
 import json
 import shutil
 import sys
+import threading
 from pathlib import Path
 
 import numpy as np
@@ -79,8 +94,13 @@ CASES = Path(__file__).parent / "cases"
 WORK = Path("F:/KeenReworkWork/port_runs")
 REFRESH_HZ = 70.086
 SETTLED = 4             # refreshes a picture stays up to count (harn01a's held pictures)
-STAY = 12               # S4: refreshes, plus STAY_SHARE of the original's time
+FINAL_SETTLED = 70      # refreshes (a second) the last picture must be up to the cut to count: a screen the case
+                        # ends on, not one that came a few refreshes before the cut on one side only
+STAY = 12               # S4: refreshes, plus STAY_SHARE of the original's time, at most;
 STAY_SHARE = 0.05
+STAY_PART = 0.5         # and at most this share of the original's time, but never under STAY_FLOOR refreshes
+STAY_FLOOR = 2          # (a box the original holds 4 refreshes may be up 2-6 in the port, not 1)
+KEY_LAG = 2 / REFRESH_HZ  # S4: a key this long or more after a picture came can be what ends it
 NEAR = 3.0              # seconds either side searched for the nearest picture of the other side
 PORT_EXTRA = 8.0        # seconds the port runs past "seconds" from its start (its start-up comes first)
 PRE_SECONDS = 12        # the recording's seconds before the game's start-up is done (oracle_run pre_seconds)
@@ -115,6 +135,10 @@ def load(game, case):
     spec.setdefault("least", max(1, len(spec["screens"])))
     spec.setdefault("stay", STAY)
     spec.setdefault("port", {})
+    spec.setdefault("sequences", [])
+    for q in spec["sequences"]:
+        if not q.get("reason"):
+            raise ValueError(f"{path.name}: a sequence without a reason")
     for m in spec["masks"]:
         m.setdefault("from", 0.0)
         m.setdefault("to", 1e9)
@@ -277,16 +301,38 @@ class View:
         self.refreshes = min(at, end)
 
     def settled(self, least):
-        """The settled entries' positions (first and last left out)."""
-        return [k for k in range(1, len(self.entries) - 1) if self.entries[k].reps >= least]
+        """The settled entries' positions: the first left out (cut by the recording's start), the last only
+        when it is up FINAL_SETTLED refreshes or more to the cut (a screen the case ends on: Keen 1's end text)."""
+        last = len(self.entries) - 1
+        out = [k for k in range(1, last) if self.entries[k].reps >= least]
+        if last >= 1 and self.entries[last].reps >= max(least, FINAL_SETTLED):
+            out.append(last)
+        return out
 
 
-def screen_of(spec, t):
+def screen_of(spec, t, reps=0):
+    """The named screen a picture shown from `t` for `reps` refreshes is filed under: the one it is up longest
+    in (a picture that comes a few milliseconds before a screen's named start is that screen's), or with no
+    `reps` the one `t` falls in."""
     name = "(before the first named screen)"
-    for start, n in spec["screens"]:
-        if t + 1e-9 >= start:
-            name = n
+    if reps <= 0 or not spec["screens"]:
+        for start, n in spec["screens"]:
+            if t + 1e-9 >= start:
+                name = n
+        return name
+    end = t + reps / REFRESH_HZ
+    starts = spec["screens"]
+    best = min(end, starts[0][0]) - t
+    for i, (start, n) in enumerate(starts):
+        stop = starts[i + 1][0] if i + 1 < len(starts) else float("inf")
+        overlap = min(end, stop) - max(t, start)
+        if overlap > best + 1e-9:
+            name, best = n, overlap
     return name
+
+
+def entry_screen(spec, e):
+    return screen_of(spec, e.at, e.reps)
 
 
 def _diff(a, b):
@@ -357,13 +403,13 @@ def compare(spec, port, orig, out_dir=None):
     for k in ps:
         if pd[k] not in oset:
             e = port.entries[k]
-            fails.append({"rule": "S1", "screen": screen_of(spec, e.at), "at": e.at,
+            fails.append({"rule": "S1", "screen": entry_screen(spec, e), "at": e.at,
                           "text": f"S1: the {where(port, k)}, is one the original never showed",
                           "detail": lambda k=k: explain(port, k, orig, f"S1_port{k}")})
     for k in os_:
         if od[k] not in pset:
             e = orig.entries[k]
-            fails.append({"rule": "S2", "screen": screen_of(spec, e.at), "at": e.at,
+            fails.append({"rule": "S2", "screen": entry_screen(spec, e), "at": e.at,
                           "text": f"S2: the {where(orig, k)}, never shows in the port",
                           "detail": lambda k=k: explain(orig, k, port, f"S2_original{k}")})
     for side, sett in ((port, ps), (orig, os_)):
@@ -372,26 +418,32 @@ def compare(spec, port, orig, out_dir=None):
             fails.append({"rule": "S3", "screen": "(the whole case)", "at": 0.0,
                           "text": f"S3: the {side.side} shows {distinct} different settled pictures; at least "
                                   f"{spec['least']} expected", "detail": None})
-    # S4: time on show in all, for the original's settled pictures that it shows in one stretch (a screen
-    # that stays up; not an animation's recurring frame, whose count of returns rests on timing, nor an
-    # empty screen: a load's)
+    # S4: time on show, for the original's settled pictures that it shows in one stretch (a screen that
+    # stays up; not an animation's recurring frame, whose count of returns rests on timing, nor an empty
+    # screen: a load's). A screen a key ends: the port's time in all; one no key ends: its longest stretch
     if spec["stay"] is not None:
-        ot, pt, stretches = {}, {}, {}
+        ot, pt, pmax, stretches = {}, {}, {}, {}
         for e in orig.entries:
             ot[e.digest] = ot.get(e.digest, 0) + e.reps
             stretches[e.digest] = stretches.get(e.digest, 0) + 1
         for e in port.entries:
             pt[e.digest] = pt.get(e.digest, 0) + e.reps
+            pmax[e.digest] = max(pmax.get(e.digest, 0), e.reps)
         ends = {od[0], od[-1], pd[0], pd[-1]}
         for k in os_:
             d = od[k]
             if stretches[d] > 1 or d in ends or d not in pt or _empty(orig.entries[k].frame()):
                 continue
-            if abs(ot[d] - pt[d]) > spec["stay"] + STAY_SHARE * ot[d]:
-                e = orig.entries[k]
-                fails.append({"rule": "S4", "screen": screen_of(spec, e.at), "at": e.at,
-                              "text": f"S4: the {where(orig, k)}, is up {ot[d]} refreshes in all in the original, "
-                                      f"{pt[d]} in the port", "detail": None})
+            e = orig.entries[k]
+            keyed = key_while(spec, e)
+            tol = stay_tolerance(spec, ot[d], keyed)
+            got = pt[d] if keyed else pmax[d]
+            if abs(ot[d] - got) > tol:
+                fails.append({"rule": "S4", "screen": entry_screen(spec, e), "at": e.at,
+                              "text": f"S4: the {where(orig, k)}, is up {ot[d]} refreshes in the original, "
+                                      + (f"{got} in all in the port (at most {tol:.1f} apart: a key ends it)" if keyed
+                                         else f"{got} at the longest in the port (at most {tol:.1f} apart: no key "
+                                              f"ends it)"), "detail": None})
     # S5: order. [first, last] position of each picture on each side; a pair one side shows strictly one
     # after the other must not come strictly the other way round on the other side
     def spans(entries):
@@ -410,13 +462,46 @@ def compare(spec, port, orig, out_dir=None):
             if so[x][1] < so[y][0] and sp[y][1] < sp[x][0]:
                 reported.add((x, y))
                 e = orig.entries[so[y][0]]
-                fails.append({"rule": "S5", "screen": screen_of(spec, e.at), "at": e.at,
+                fails.append({"rule": "S5", "screen": entry_screen(spec, e), "at": e.at,
                               "text": f"S5: the original shows its picture {so[x][0]} ({orig.entries[so[x][0]].at:.2f} s) "
                                       f"before its picture {so[y][0]} ({e.at:.2f} s); the port shows them the other way "
                                       f"round (its {sp[y][0]} at {port.entries[sp[y][0]].at:.2f} s, then its "
                                       f"{sp[x][0]} at {port.entries[sp[x][0]].at:.2f} s)", "detail": None})
+    # S6: in the case's "sequences" (a timed animation no key steers: the ordering screen's walker), every
+    # picture, however short, in the same order on both sides
+    for span in spec["sequences"]:
+        f0, f1 = span["from"], span["to"]
+        ko = [k for k, e in enumerate(orig.entries) if f0 <= e.at < f1]
+        kp = [k for k, e in enumerate(port.entries) if f0 <= e.at < f1]
+        a, b = [od[k] for k in ko], [pd[k] for k in kp]
+        if a != b:
+            n = next((i for i in range(min(len(a), len(b))) if a[i] != b[i]), min(len(a), len(b)))
+            at = orig.entries[ko[n]].at if n < len(ko) else f1
+            mine = f"its picture {ko[n]} at {at:.2f} s" if n < len(ko) else "nothing more"
+            there = f"its picture {kp[n]} at {port.entries[kp[n]].at:.2f} s" if n < len(kp) else "nothing more"
+            fails.append({"rule": "S6", "screen": screen_of(spec, at), "at": at,
+                          "text": f"S6: from {f0} to {f1} s, every picture in order: the original shows {len(a)}, "
+                                  f"the port {len(b)}; they part at number {n + 1}: the original shows {mine}, the "
+                                  f"port {there}", "detail": None})
     fails.sort(key=lambda f: f["at"])
     return fails
+
+
+def key_while(spec, e):
+    """Whether a key goes down or up while the entry is on show (on its side's clock), KEY_LAG or more after it
+    came: a screen a key ends, whose length follows where the key's read falls (the two machines read a key
+    up to a few refreshes, or a loop's step, apart). A picture a key brings comes within a refresh of it (the
+    Saving box Enter brings: its length is the program's work, not the key's read)."""
+    t0, t1 = e.at, e.at + e.reps / REFRESH_HZ
+    return any(t0 + KEY_LAG <= t < t1 for k in spec["held"] for t in (k[0], k[0] + k[2]))
+
+
+def stay_tolerance(spec, held, keyed=True):
+    """S4: how many refreshes the port's time on show may differ from the original's `held`: `stay` and a
+    share of it for a screen a key ends; for one no key ends (a box up while the program works, a timed
+    screen), at most STAY_PART of it, never under STAY_FLOOR."""
+    loose = spec["stay"] + STAY_SHARE * held
+    return loose if keyed else min(loose, max(STAY_FLOOR, STAY_PART * held))
 
 
 def report(spec, port, orig, fails, out_dir=None, every=False):
@@ -425,14 +510,14 @@ def report(spec, port, orig, fails, out_dir=None, every=False):
     least = spec["settled"]
     ps, os_ = port.settled(least), orig.settled(least)
     names = [n for _, n in spec["screens"]] or ["(the whole case)"]
-    if any(screen_of(spec, orig.entries[k].at) == "(before the first named screen)" for k in os_) and spec["screens"]:
+    if any(entry_screen(spec, orig.entries[k]) == "(before the first named screen)" for k in os_) and spec["screens"]:
         names = ["(before the first named screen)"] + names
     for name in names + (["(the whole case)"] if "(the whole case)" not in names else []):
         mine = [f for f in fails if f["screen"] == name]
         if name == "(the whole case)" and not mine and spec["screens"]:
             continue
-        no = len([k for k in os_ if screen_of(spec, orig.entries[k].at) == name or not spec["screens"]])
-        npt = len([k for k in ps if screen_of(spec, port.entries[k].at) == name or not spec["screens"]])
+        no = len([k for k in os_ if entry_screen(spec, orig.entries[k]) == name or not spec["screens"]])
+        npt = len([k for k in ps if entry_screen(spec, port.entries[k]) == name or not spec["screens"]])
         start = next((t for t, n in spec["screens"] if n == name), None)
         when = f" (from {start:.1f} s)" if start is not None else ""
         if not mine:
@@ -456,144 +541,216 @@ TEXT_PALETTE = [(0, 0, 0), (0, 0, 170), (0, 170, 0), (0, 170, 170), (170, 0, 0),
                 (255, 85, 255), (255, 255, 85), (255, 255, 255)]
 BLANK_CHARS = (0x00, 0x20, 0xFF)       # shapes with no foreground
 FULL_CHARS = (0xDB,)                  # the full block: no background
+# HARN-06 (J-38: a text screen is the original's when every cell holds the same character in the same colours).
+# The recorded cells are read as characters by their shapes, learnt from Keen 1-3's exit screens: each program
+# carries its screen (ENDSCRN: a 7-byte header, then 4000 bytes of characters and attributes; v1.31's offsets
+# in the LZEXE-unpacked program, as vort_data.gd's LINKED), and each scr_quit recording shows it once the
+# program has quit, so every character on it is named by the original's own bytes and drawn by DOSBox. The
+# shapes are learnt from the recordings each run, never kept in the repository. Program, offset, the row of
+# the cursor it leaves (KEENMAIN.C's Quit: gotoxy(1, 23)).
+GLYPH_SOURCES = {"keen1": ("KEEN1.EXE", 0x12080, 22), "keen2": ("KEEN2.EXE", 0x11780, 22),
+                 "keen3": ("KEEN3.EXE", 0x12AC0, 22)}
+CURSOR_LINES = (-3, -1)               # the hardware cursor: a cell's scan lines 13-14 of 16, 8 pixels wide, in
+                                      # its foreground colour (DOSBox's default), on and off every 16 refreshes
 
 
-def cell_class(c, a):
-    """What a (character, attribute) pair must look like: ("solid", colour) for a cell of one colour (a
-    blank, the full block, a character drawn in its background colour) or ("glyph", c, fg, bg), and whether
-    it blinks (attribute bit 7, the VGA's default blink mode: 8 background colours; a blinking cell is
-    shown or is its background alone)."""
-    fg, bg = a & 15, (a >> 4) & 7
-    blink = bool(a & 0x80)
-    if c in BLANK_CHARS or fg == bg:
-        return ("solid", bg), False
-    if c in FULL_CHARS and not blink:
-        return ("solid", fg), False
-    return ("glyph", c, fg, bg), blink
+class Glyphs:
+    """Character shapes (foreground pixels of a `size` cell) learnt from recordings: `shapes` (256, lines,
+    columns), `known` (256,), `by_shape` (a shape's bytes -> the characters it is), `notes`."""
+
+    def __init__(self, size=(16, 9)):
+        self.size = size
+        self.shapes = np.zeros((256,) + size, bool)
+        self.known = np.zeros(256, bool)
+        self.by_shape = {}
+        self.notes = []
+        self.learnt = 0
+
+    def add(self, c, shape):
+        self.known[c] = True
+        self.shapes[c] = shape
+        self.by_shape.setdefault(shape.tobytes(), []).append(c)
 
 
-def _cells(frame):
-    h, w = frame.shape[:2]
-    cw, ch = w // 80, h // 25
-    return frame.reshape(25, ch, 80, cw, 3).swapaxes(1, 2), ch
+_GLYPHS = {}
+_GLYPHS_LOCK = threading.Lock()
 
 
-def _colours(img):
-    return {tuple(int(v) for v in c) for c in np.unique(img.reshape(-1, 3), axis=0)}
+def glyphs():
+    """The shapes of the characters on Keen 1-3's exit screens, as their scr_quit recordings show them (built
+    once a run)."""
+    with _GLYPHS_LOCK:
+        if "table" not in _GLYPHS:
+            _GLYPHS["table"] = _learn_glyphs()
+        return _GLYPHS["table"]
 
 
-def text_problems(frame, cells, cursor, fonts=None, masked=frozenset(), cursors=None):
-    """How one recorded text picture fails to be the port's 80x25 screen `cells` (character, attribute
-    bytes), [] if it is. `cursor` (column, row): the port's cursor, left out, as are the `masked` cells
-    ((row, column): the case's text masks). `fonts`: class -> look, kept across the pictures matched so far
-    (the original's shapes never change). `cursors`: a set the recording's cursor is noted in, when it
-    shows on another cell ((row, column) in the recording, (row, column) in the port)."""
-    grid, ch = _cells(frame)
-    groups, blinkers = {}, {}
-    for r in range(25):
-        for col in range(80):
-            if (col, r) == tuple(cursor) or (r, col) in masked:
-                continue
-            k = 2 * (r * 80 + col)
-            cls, blink = cell_class(cells[k], cells[k + 1])
-            look = grid[r, col].tobytes()
-            (blinkers if blink else groups).setdefault(cls, {}).setdefault(look, []).append((r, col))
-    problems = []
-    # one look per pair (one cell may differ from its pair's look in the last three rows: a cursor)
-    majority = {}
-    odd = []
-    for cls, looks in groups.items():
-        best = max(looks, key=lambda lk: len(looks[lk]))
-        majority[cls] = best
-        for lk, where in looks.items():
-            if lk != best:
-                odd += [(cls, lk, w) for w in where]
-    if odd:
-        cls, lk, (r, col) = odd[0]
-        a = np.frombuffer(lk, np.uint8).reshape(ch, -1, 3)
-        b = np.frombuffer(majority[cls], np.uint8).reshape(ch, -1, 3)
-        rows = np.nonzero(np.any(a != b, axis=(1, 2)))[0]
-        if len(odd) == 1 and rows.min() >= ch - 3:
-            # the hardware cursor (its last scan lines, blinking): not a cell's character or colours
-            if cursors is not None:
-                cursors.add(((r, col), (cursor[1], cursor[0])))
-        else:
-            where = ", ".join(f"{w[0]}/{w[1]}" for _, _, w in odd[:8])
-            problems.append(f"{len(odd)} cells look unlike others the port gives the same pair (row/column {where}"
-                            f"{', ...' if len(odd) > 8 else ''}; the first holds {_pair_text(cls)} in the port)")
-    # different pairs look different
-    by_look = {}
-    for cls, lk in majority.items():
-        by_look.setdefault(lk, []).append(cls)
-    for lk, classes in by_look.items():
-        if len(classes) > 1:
-            where = groups[classes[0]][lk][0]
-            problems.append(f"pairs {_pair_text(classes[0])} and {_pair_text(classes[1])} look alike (row {where[0]} "
-                            f"column {where[1]})")
-            break
-    # each pair's colours are its attribute's
-    for cls, lk in majority.items():
-        img = np.frombuffer(lk, np.uint8).reshape(ch, -1, 3)
-        got = _colours(img)
-        want = _want_colours(cls)
-        if got != want:
-            where = groups[cls][lk][0]
-            problems.append(f"row {where[0]} column {where[1]} (pair {_pair_text(cls)}) shows colours "
-                            f"{sorted(got)}, its attribute's are {sorted(want)}")
-            break
-    # blinking pairs: one look each, all in the same phase (shown, or their background alone)
-    phases = set()
-    for cls, looks in blinkers.items():
-        if len(looks) > 1:
-            where = next(iter(looks.values()))[0]
-            problems.append(f"cells of the blinking pair {_pair_text(cls)} look unlike each other (row {where[0]} "
-                            f"column {where[1]})")
+def _learn_glyphs():
+    import unlzexe
+    votes, size, table = {}, None, None
+    notes = []
+    for game, (exe, off, row) in GLYPH_SOURCES.items():
+        folder = common.config()["oracle_runs"] / run_name(game, "scr_quit") / "text_frames"
+        path = common.game(game)["dir"] / exe
+        if not (folder / "frames.json").exists() or not path.exists():
+            notes.append(f"{game}: no scr_quit recording or no {exe}: not learnt from")
             continue
-        img = np.frombuffer(next(iter(looks)), np.uint8).reshape(ch, -1, 3)
-        got = _colours(img)
-        on = {TEXT_PALETTE[cls[2]]} if cls[1] in FULL_CHARS else _want_colours(cls)
-        if got == on:
-            phases.add("on")
-        elif got == {TEXT_PALETTE[cls[3]]}:
-            phases.add("off")
+        block = unlzexe.unpack(path.read_bytes())[off:off + 7 + 4000]
+        if len(block) < 4007 or block[0] != 0xFD:
+            notes.append(f"{exe}: no exit screen at {off:#x} (another version): not learnt from")
+            continue
+        cells = block[7:]
+        seq = frames.Sequence(folder)
+        last = max((i for i in range(len(seq)) if seq.repeats(i) >= TEXT_SETTLED), default=None)
+        if last is None:
+            notes.append(f"{game}: its scr_quit recording ends on no settled text picture: not learnt from")
+            continue
+        r = _read(seq.frame(last), cells)
+        if size is not None and r["size"] != size:
+            notes.append(f"{game}: its text pictures have cells of another size: not learnt from")
+            continue
+        size = r["size"]
+        glyph = (~r["blank"]) & (~r["full"]) & (~r["blink"])
+        glyph[row + 1, :] = False               # DOS's prompt, on the row below the exit cursor
+        if not r["colours_ok"][glyph].all():
+            notes.append(f"{game}: its recording's last text picture is not the program's exit screen: not learnt "
+                         f"from")
+            continue
+        for y, x in zip(*np.nonzero(glyph)):
+            votes.setdefault(int(r["chars"][y, x]), set()).add(r["shape"][y, x].tobytes())
+    table = Glyphs(size or (16, 9))
+    table.notes = notes
+    for c, shapes in sorted(votes.items()):
+        if len(shapes) == 1:
+            table.add(c, np.frombuffer(next(iter(shapes)), bool).reshape(table.size))
+            table.learnt += 1
         else:
-            where = next(iter(looks.values()))[0]
-            problems.append(f"row {where[0]} column {where[1]} (blinking pair {_pair_text(cls)}) shows colours "
-                            f"{sorted(got)}")
+            table.notes.append(f"character {c:02X}h shows {len(shapes)} shapes on the exit screens: not learnt")
+    for c in BLANK_CHARS:
+        table.add(c, np.zeros(table.size, bool))
+    for c in FULL_CHARS:
+        table.add(c, np.ones(table.size, bool))
+    return table
+
+
+def _read(frame, cells):
+    """A recorded text picture against 80x25 (character, attribute) cells: per cell (25, 80, ...) arrays."""
+    h, w = frame.shape[:2]
+    ch, cw = h // 25, w // 80
+    grid = frame[:25 * ch, :80 * cw].reshape(25, ch, 80, cw, 3).swapaxes(1, 2)
+    arr = np.frombuffer(bytes(cells), np.uint8)
+    chars, attrs = arr[0::2].reshape(25, 80), arr[1::2].reshape(25, 80)
+    fg, bg = attrs & 15, (attrs >> 4) & 7
+    pal = np.array(TEXT_PALETTE, np.uint8)
+    isfg = np.all(grid == pal[fg][:, :, None, None, :], axis=-1)
+    isbg = np.all(grid == pal[bg][:, :, None, None, :], axis=-1)
+    one = fg == bg
+    blank = np.isin(chars, BLANK_CHARS) | one
+    return {"size": (ch, cw), "chars": chars, "attrs": attrs, "blink": (attrs & 0x80) != 0, "blank": blank,
+            "full": np.isin(chars, FULL_CHARS) & ~blank, "shape": isfg & ~one[:, :, None, None],
+            "colours_ok": np.all(isfg | isbg, axis=(2, 3))}
+
+
+def _char_text(c):
+    return f"'{chr(c)}'" if 32 <= c < 127 else f"{c:02X}h"
+
+
+def text_problems(frame, cells, table, masked=frozenset(), fonts=None):
+    """How one recorded text picture fails to be the 80x25 screen `cells` (character, attribute bytes), cell by
+    cell (J-38): every cell's colours are its attribute's, and its shape is its character's as `table` knows
+    it (a character the table does not know: one shape for all its cells, none a known character's, and the
+    shape `fonts` holds from earlier screens). Blinking cells are all shown or all hidden. The cursor (its
+    two scan lines on one cell) is found, not failed here. The `masked` cells ((row, column)) are left out.
+    Returns (problems, the cursor's cells (row, column), the unknown characters' shapes {(char, attr): bytes},
+    how many cells are wrong)."""
+    r = _read(frame, cells)
+    ch, cw = r["size"]
+    if table is None or table.size != (ch, cw):
+        table = Glyphs((ch, cw))
+    chars, attrs, shape, blink = r["chars"], r["attrs"], r["shape"], r["blink"]
+    look = np.ones((25, 80), bool)
+    for y, x in masked:
+        look[y, x] = False
+    cur = np.zeros((ch, cw), bool)
+    cur[ch + CURSOR_LINES[0]:ch + CURSOR_LINES[1], :8] = True
+    known = (table.known[chars] | r["blank"] | r["full"])
+    expect = table.shapes[chars].copy()
+    expect[r["blank"]] = False
+    expect[r["full"]] = True
+    exact = np.all(shape == expect, axis=(2, 3))
+    cursor_on = np.all(shape == (expect | cur), axis=(2, 3)) & ~exact
+    hidden = ~np.any(shape, axis=(2, 3)) & np.any(expect, axis=(2, 3))
+    problems, seen, wrong = [], [], []
+    bad_colour = [(y, x) for y, x in zip(*np.nonzero(look & ~r["colours_ok"]))]
+    if bad_colour:
+        y, x = bad_colour[0]
+        a = int(attrs[y, x])
+        where = ", ".join(f"{p[0]}/{p[1]}" for p in bad_colour[:8])
+        problems.append(f"{len(bad_colour)} cells show other colours than the port's attributes (row/column {where}"
+                        f"{', ...' if len(bad_colour) > 8 else ''}; the first: the port's {_char_text(int(chars[y, x]))}"
+                        f" in colours {a & 15} on {(a >> 4) & 7})")
+    phases = set()
+    ok_colour = look & r["colours_ok"]
+    for y, x in zip(*np.nonzero(ok_colour & known)):
+        if exact[y, x]:
+            if blink[y, x] and np.any(expect[y, x]):
+                phases.add("shown")
+        elif cursor_on[y, x]:
+            seen.append((int(y), int(x)))
+        elif blink[y, x] and hidden[y, x]:
+            phases.add("hidden")
+        else:
+            wrong.append((int(y), int(x)))
+    # characters the table does not know: each one look for all its cells, none a known character's shape
+    groups = {}
+    for y, x in zip(*np.nonzero(ok_colour & ~known)):
+        if blink[y, x] and not np.any(shape[y, x]):
+            phases.add("hidden")
+            continue
+        if blink[y, x]:
+            phases.add("shown")
+        groups.setdefault((int(chars[y, x]), int(attrs[y, x]) & 0x7F), {}).setdefault(shape[y, x].tobytes(), []).append((int(y), int(x)))
+    looks = {}
+    for cls, by_look in groups.items():
+        best = max(by_look, key=lambda lk: len(by_look[lk]))
+        looks[cls] = best
+        for lk, where in by_look.items():
+            if lk == best:
+                if lk in table.by_shape:
+                    wrong += where
+                continue
+            on = np.frombuffer(best, bool).reshape(ch, cw) | cur
+            if on.tobytes() == lk and len(where) == 1:
+                seen += where
+            else:
+                wrong += where
+    by_best = {}
+    for cls, lk in looks.items():
+        by_best.setdefault(lk, []).append(cls)
+    alike = [v for v in by_best.values() if len({c for c, _ in v}) > 1]
+    if alike:
+        (c1, _), (c2, _) = alike[0][:2]
+        problems.append(f"the port's characters {_char_text(c1)} and {_char_text(c2)} look alike in the recording")
+    if wrong:
+        wrong.sort()
+        y, x = wrong[0]
+        read = table.by_shape.get(shape[y, x].tobytes())
+        shows = (f"the recording shows {_char_text(read[0])}" if read else
+                 "the recording shows no character the table knows")
+        where = ", ".join(f"{p[0]}/{p[1]}" for p in wrong[:8])
+        problems.append(f"{len(wrong)} cells hold other characters than the port's (row/column {where}"
+                        f"{', ...' if len(wrong) > 8 else ''}; the first: {shows}, the port "
+                        f"{_char_text(int(chars[y, x]))})")
     if len(phases) > 1:
         problems.append("blinking cells shown and hidden in the same picture")
+    if len(seen) > 1:
+        problems.append(f"the cursor's lines on {len(seen)} cells ({', '.join(f'{p[0]}/{p[1]}' for p in seen[:4])})")
     if fonts is not None and not problems:
-        for cls, lk in majority.items():
+        for cls, lk in looks.items():
             if cls in fonts and fonts[cls] != lk:
-                problems.append(f"pair {_pair_text(cls)} looks unlike it did on an earlier screen")
+                problems.append(f"the port's {_char_text(cls[0])} looks unlike it did on an earlier screen")
                 break
-    return problems
-
-
-def _want_colours(cls):
-    if cls[0] == "solid":
-        return {TEXT_PALETTE[cls[1]]}
-    return {TEXT_PALETTE[cls[2]], TEXT_PALETTE[cls[3]]}
-
-
-def _pair_text(cls):
-    if cls[0] == "solid":
-        return f"(one colour, {cls[1]})"
-    c = cls[1]
-    shown = chr(c) if 32 <= c < 127 else f"{c:02X}h"
-    return f"('{shown}', colours {cls[2]} on {cls[3]})"
-
-
-def _learn(fonts, frame, cells, cursor, masked):
-    grid, _ = _cells(frame)
-    for r in range(25):
-        for col in range(80):
-            if (col, r) == tuple(cursor) or (r, col) in masked:
-                continue
-            k = 2 * (r * 80 + col)
-            cls, blink = cell_class(cells[k], cells[k + 1])
-            if not blink:
-                fonts.setdefault(cls, grid[r, col].tobytes())
+    return problems, seen, looks, len(bad_colour) + len(wrong) + len(problems)
 
 
 def load_port_text(path):
@@ -630,39 +787,71 @@ def _quit_start(rec_seq):
     return next((i for i, st in enumerate(starts) if st >= first_raw), len(rec_seq))
 
 
-def compare_text(rec_seq, port_screens, masked=frozenset()):
+def after_quit(cells, cursor):
+    """The port's exit screen as DOS leaves it, and the row of DOS's prompt: COMMAND.COM starts a new line below
+    the cursor the program left (the screen scrolls up a row when that is the last) and writes its prompt
+    there, its cursor after it (that row is left out)."""
+    row = cursor[1] + 1
+    if row <= 24:
+        return bytes(cells), row
+    return bytes(cells[160:4000]) + bytes([0x20, 0x07]) * 80, 24
+
+
+def compare_text(rec_seq, port_screens, masked=frozenset(), table=None):
     """The text screens, as the EGA pictures' S1, S2 and order: (failures, notes). Every settled text
     picture of the recording (up TEXT_SETTLED refreshes or more) is one of the port's screens, in order;
-    every settled screen of the port is one the recording shows (for however long), in order. The
-    recording's settled pictures before the first that is one of the port's screens are DOS's own (its
+    every settled screen of the port is one the recording shows (for however long), in order. Cells are read
+    as characters (glyphs()); the cursor, where the recording shows it, is where the port has it, and once the
+    program has quit DOS's prompt is on the row below the port's exit cursor (its cells and cursor left out).
+    The recording's settled pictures before the first that is one of the port's screens are DOS's own (its
     prompt), and so are those after the last in a capture made after the program's EGA pictures (it quit)."""
-    fails, notes, cursors = [], [], set()
+    table = table if table is not None else glyphs()
+    fails, notes = [], []
     rec = [i for i in range(len(rec_seq)) if rec_seq.repeats(i) >= TEXT_SETTLED]
     port = [k for k, s in enumerate(port_screens) if s[0] >= TEXT_SETTLED]
     quit_from = _quit_start(rec_seq)
-    # once the program has quit, DOS's prompt takes the bottom row (an exit screen leaves it free)
-    after_quit = masked | {(24, c) for c in range(80)}
     memo = {}
+    cursors_seen = set()
 
     def problems(i, k, fonts=None):
+        if fonts is None and (i, k) in memo:
+            return memo[(i, k)]
         s = port_screens[k]
-        m = after_quit if quit_from is not None and i >= quit_from else masked
-        if fonts is not None:
-            return text_problems(rec_seq.frame(i), s[1], s[2], fonts, m)
-        if (i, k) not in memo:
-            memo[(i, k)] = text_problems(rec_seq.frame(i), s[1], s[2], None, m, cursors)
-        return memo[(i, k)]
+        cells, (cx, cy) = s[1], s[2]
+        gone = quit_from is not None and i >= quit_from
+        m = masked
+        if gone:
+            cells, prompt = after_quit(cells, (cx, cy))
+            m = masked | {(prompt, c) for c in range(80)}
+        probs, seen, looks, bad = text_problems(rec_seq.frame(i), cells, table, m, fonts)
+        before = len(probs)
+        if seen and gone:
+            # DOS's cursor stands after its prompt, on the row left out
+            y, x = seen[0]
+            probs.append(f"the recording's cursor (DOS's, after its prompt) is at row {y} column {x}; the port's exit "
+                         f"cursor (row {cy} column {cx}) puts DOS's prompt on row {prompt}")
+        elif seen and not probs:
+            y, x = seen[0]
+            if (y, x) != (cy, cx):
+                probs.append(f"the recording's cursor is at row {y} column {x}, the port's at row {cy} column {cx}")
+        out = (probs, looks, bad + len(probs) - before)
+        if fonts is None:
+            memo[(i, k)] = out
+            if not probs and seen:
+                cursors_seen.add(k)
+        return out
 
     # the recording's settled pictures, each one of the port's screens (any), in order
     fonts, p, hits = {}, 0, []
     for i in rec:
-        k = next((k for k in range(p, len(port_screens)) if not problems(i, k)), None)
-        if k is not None and problems(i, k, fonts):
-            k = None        # a shape unlike the same pair's on an earlier screen
+        k = next((k for k in range(p, len(port_screens)) if not problems(i, k)[0]), None)
+        if k is not None and problems(i, k, fonts)[0]:
+            k = None        # a shape unlike the same character's on an earlier screen
         hits.append(k)
         if k is not None:
             p = k
-            _learn(fonts, rec_seq.frame(i), port_screens[k][1], port_screens[k][2], masked)
+            for cls, lk in problems(i, k)[1].items():
+                fonts.setdefault(cls, lk)
     found = [n for n, k in enumerate(hits) if k is not None]
     dos_before = found[0] if found else len([i for i in rec if quit_from is None or i < quit_from])
     dos_after = 0
@@ -675,15 +864,17 @@ def compare_text(rec_seq, port_screens, masked=frozenset()):
                 fails.append(f"text: the recording's text picture {i} (up {rec_seq.repeats(i)} refreshes): the port "
                              f"shows no text screen")
                 continue
-            k, why = min(((k, problems(i, k)) for k in range(len(port_screens))), key=lambda x: len(x[1]))
+            k = min(range(len(port_screens)), key=lambda k: problems(i, k)[2])
+            why = problems(i, k)[0]
             fails.append(f"text: the recording's text picture {i} (up {rec_seq.repeats(i)} refreshes) is none of the "
                          f"port's screens; nearest, the port's screen {k}: {why[0] if why else 'out of order'}")
     # the port's settled screens, each shown by the recording (any picture), in order
     last = -1
     for k in port:
-        at = next((i for i in range(len(rec_seq)) if not problems(i, k)), None)
+        at = next((i for i in range(len(rec_seq)) if not problems(i, k)[0]), None)
         if at is None:
-            best = min(((i, problems(i, k)) for i in range(len(rec_seq))), key=lambda x: len(x[1]), default=None)
+            near = min(range(len(rec_seq)), key=lambda i: problems(i, k)[2], default=None)
+            best = (near, problems(near, k)[0]) if near is not None else None
             detail = f"; nearest, the recording's text picture {best[0]}: {best[1][0]}" if best and best[1] else ""
             fails.append(f"text: the port's screen {k} (up {port_screens[k][0]} refreshes) is in no recorded text "
                          f"picture{detail}")
@@ -692,14 +883,19 @@ def compare_text(rec_seq, port_screens, masked=frozenset()):
                          f"before the screen ahead of it (at {last})")
         else:
             last = at
+    unknown = sorted({c for k in port for c in port_screens[k][1][0::2] if not table.known[c]})
     notes.append(f"text screens: {len(port)} settled in the port, {len(rec)} settled pictures in the recording "
                  f"({dos_before} before the first of the port's screens, DOS's prompt or a start-up screen the port "
                  f"does not show, and {dos_after} after the program quit, left out)"
                  + (f"; {len(masked)} cells masked" if masked else "")
-                 + ("; after the program quit, DOS's prompt row (24) left out" if quit_from is not None else ""))
-    for (rr, rc), (pr, pc) in sorted(cursors):
-        notes.append(f"text: the original's cursor blinks at row {rr} column {rc}, the port's is at row {pr} "
-                     f"column {pc} (not a cell's character or colours: not failed)")
+                 + ("; after the program quit, DOS's prompt row (below the port's exit cursor) left out"
+                    if quit_from is not None else ""))
+    notes.append(f"text cells read by shape: {table.learnt} characters learnt from Keen 1-3's exit screens"
+                 + (f"; the port's {''.join(chr(c) if 32 <= c < 127 else '?' for c in unknown)} "
+                    f"({len(unknown)} not learnt) held by one shape each, none another's" if unknown else "")
+                 + (f"; the cursor seen where the port has it on {len(cursors_seen)} of the port's screens"
+                    if cursors_seen else "")
+                 + ("; " + "; ".join(table.notes) if table.notes else ""))
     return fails, notes
 
 
@@ -782,7 +978,7 @@ def preview(game, case, tag="", hold=0.5, step=1.0, no_run=False, keep=None):
           f"up {hold} s or more (masks applied):")
     for k, e in enumerate(port.entries):
         if e.reps >= hold * REFRESH_HZ:
-            print(f"  {e.at:7.2f} s  up {e.reps / REFRESH_HZ:5.2f} s  picture {k:4d}  [{screen_of(spec, e.at)}]")
+            print(f"  {e.at:7.2f} s  up {e.reps / REFRESH_HZ:5.2f} s  picture {k:4d}  [{entry_screen(spec, e)}]")
     tiles, t, k = [], 0.0, 0
     while t < spec["seconds"] and len(tiles) < 64:
         while k + 1 < len(port.entries) and port.entries[k + 1].at <= t:
@@ -848,8 +1044,11 @@ def pair(game, case, plant=True):
 
 
 def selftest(game, case, tag=""):
-    """The comparison must fail on planted faults: one settled picture of the port altered by a pixel, one
-    settled picture of the original left out of the port, and (with text screens) one cell's colour."""
+    """The comparison must fail on planted faults: one settled picture of the port altered by a pixel (and
+    the last, when the case ends on a screen held to the cut), one settled picture of the original left out
+    of the port, two swapped, a screen no key ends cut to one refresh (S4), two steps of a "sequences" span
+    swapped (S6), and with text screens one cell's colour, one character swapped for one shown nowhere else
+    on the screen and the cursor moved."""
     spec = load(game, case)
     orig, ofolder = oracle_view(game, case, spec)
     work = work_dir(game, case, tag)
@@ -863,6 +1062,16 @@ def selftest(game, case, tag=""):
     def fresh():
         return View(frames.Sequence(pframes), spec["masks"], spec["seconds"], "port")
 
+    def plant_pixel(port, k):
+        e = port.entries[k]
+        x, y = 160, 100
+        while any(m["rect"][0] <= x < m["rect"][2] and m["rect"][1] <= y < m["rect"][3] for m in e.masks):
+            y = (y + 37) % 200
+        e.plant = (x, y)
+        e.digest = hashlib.sha1(e.frame().tobytes()).hexdigest()
+        got = compare(spec, port, orig)
+        return any(f["rule"] == "S1" and f"picture {k} " in f["text"] for f in got)
+
     clean = compare(spec, fresh(), orig)
     print(f"  as recorded: {'PASS' if not clean else 'FAIL (' + clean[0]['text'] + ')'}")
     ok &= not clean
@@ -870,17 +1079,21 @@ def selftest(game, case, tag=""):
     port = fresh()
     ks = port.settled(spec["settled"])
     k = ks[len(ks) // 2]
-    e = port.entries[k]
-    x, y = 160, 100
-    while any(m["rect"][0] <= x < m["rect"][2] and m["rect"][1] <= y < m["rect"][3] for m in e.masks):
-        y = (y + 37) % 200
-    e.plant = (x, y)
-    e.digest = hashlib.sha1(e.frame().tobytes()).hexdigest()
-    got = compare(spec, port, orig)
-    hit = any(f["rule"] == "S1" and f"picture {k} " in f["text"] for f in got)
-    print(f"  planted: the port's picture {k} ({e.at:.2f} s) with one pixel changed: "
-          f"{'reported (' + screen_of(spec, e.at) + ')' if hit else 'MISSED'}")
+    hit = plant_pixel(port, k)
+    print(f"  planted: the port's picture {k} ({port.entries[k].at:.2f} s) with one pixel changed: "
+          f"{'reported (' + entry_screen(spec, port.entries[k]) + ')' if hit else 'MISSED'}")
     ok &= hit
+    # the same in the last picture, when the case ends on a screen held to the cut
+    port = fresh()
+    last = len(port.entries) - 1
+    if last in port.settled(spec["settled"]):
+        hit = plant_pixel(port, last)
+        print(f"  planted: the port's last picture {last} ({port.entries[last].at:.2f} s, up {port.entries[last].reps} "
+              f"refreshes to the cut) with one pixel changed: "
+              f"{'reported (' + entry_screen(spec, port.entries[last]) + ')' if hit else 'MISSED'}")
+        ok &= hit
+    else:
+        print("  (the case does not end on a screen held to the cut: the last picture's fault not planted)")
     # a settled picture of the original never shown by the port
     port = fresh()
     os_ = orig.settled(spec["settled"])
@@ -889,7 +1102,7 @@ def selftest(game, case, tag=""):
     got = compare(spec, port, orig)
     hit = any(f["rule"] == "S2" for f in got)
     print(f"  planted: the original's picture {os_[len(os_) // 2]} ({target.at:.2f} s) left out of the port: "
-          f"{'reported (' + screen_of(spec, target.at) + ')' if hit else 'MISSED'}")
+          f"{'reported (' + entry_screen(spec, target) + ')' if hit else 'MISSED'}")
     ok &= hit
     # two screens the port shows once each (and the original too), swapped in the port
     port = fresh()
@@ -908,28 +1121,92 @@ def selftest(game, case, tag=""):
         ok &= hit
     else:
         print("  (no two pictures shown once each to swap: the order fault not planted)")
+    # S4: a screen the original holds in one stretch, no key ending it, up one refresh in the port
+    port = fresh()
+    ends = {orig.entries[0].digest, orig.entries[-1].digest, port.entries[0].digest, port.entries[-1].digest}
+    shown = {e.digest for e in port.entries}
+    held = [k for k in os_ if counts.get(("original", orig.entries[k].digest)) == 1 and not key_while(spec, orig.entries[k])
+            and orig.entries[k].digest in shown and orig.entries[k].digest not in ends
+            and not _empty(orig.entries[k].frame())]
+    if spec["stay"] is not None and held:
+        k = min(held, key=lambda k: orig.entries[k].reps)
+        d = orig.entries[k].digest
+        for e in port.entries:
+            if e.digest == d:
+                e.reps = 1
+        got = compare(spec, port, orig)
+        hit = any(f["rule"] == "S4" for f in got)
+        print(f"  planted: the original's picture {k} ({orig.entries[k].at:.2f} s, up {orig.entries[k].reps} refreshes, "
+              f"no key ending it) up 1 refresh in the port: {'reported' if hit else 'MISSED'}")
+        ok &= hit
+    else:
+        print("  (no screen held without a key to shorten: the S4 fault not planted)")
+    # S6: two steps of a sequence swapped in the port
+    for span in spec["sequences"]:
+        port = fresh()
+        inside = [k for k, e in enumerate(port.entries) if span["from"] <= e.at < span["to"]]
+        pair_at = next((k for k in inside[1:-1] if port.entries[k].digest != port.entries[k + 1].digest
+                        and k + 1 in inside and port.entries[k - 1].digest != port.entries[k + 1].digest), None)
+        if pair_at is None:
+            continue
+        a, b = port.entries[pair_at], port.entries[pair_at + 1]
+        a.digest, b.digest = b.digest, a.digest
+        got = compare(spec, port, orig)
+        hit = any(f["rule"] == "S6" for f in got)
+        print(f"  planted: the port's steps {pair_at} and {pair_at + 1} ({a.at:.2f} s) swapped in the sequence from "
+              f"{span['from']} s: {'reported' if hit else 'MISSED'}")
+        ok &= hit
     ptext = pframes / "text_frames.json"
     rec_text = ofolder / "text_frames"
     if ptext.exists() and (rec_text / "frames.json").exists():
-        shown = load_port_text(ptext)
-        fails, _ = compare_text(frames.Sequence(rec_text), shown, text_masked(spec))
+        rec = frames.Sequence(rec_text)
+        fails, _ = compare_text(rec, load_port_text(ptext), text_masked(spec))
         print(f"  text screens as recorded: {'PASS' if not fails else 'FAIL (' + fails[0] + ')'}")
         ok &= not fails
-        settled = [s for s in shown if s[0] >= TEXT_SETTLED]
-        if settled:
+        table = glyphs()
+
+        def plant_text(what, change):
+            shown = load_port_text(ptext)
+            settled = [s for s in shown if s[0] >= TEXT_SETTLED]
+            if not settled:
+                return True
             s = settled[len(settled) // 2]
             old = s[1]
-            cells = bytearray(old)
-            # the first cell showing a character: its foreground one colour on
-            at = next(i for i in range(0, 4000, 2) if cell_class(cells[i], cells[i + 1])[0][0] == "glyph")
-            cells[at + 1] = (cells[at + 1] & 0xF0) | (((cells[at + 1] & 15) + 1) & 15)
+            cells, cursor, text = change(bytearray(old), s[2])
             for t in shown:
                 if t[1] == old:
-                    t[1] = bytes(cells)
-            fails, _ = compare_text(frames.Sequence(rec_text), shown, text_masked(spec))
-            print(f"  planted: one cell's colour changed in the port's text screen (row {at // 160}, column "
-                  f"{at % 160 // 2}): {'reported' if fails else 'MISSED'}")
-            ok &= bool(fails)
+                    t[1], t[2] = bytes(cells), cursor
+            fails, _ = compare_text(rec, shown, text_masked(spec))
+            print(f"  planted: {what} {text}: {'reported' if fails else 'MISSED'}")
+            return bool(fails)
+
+        def first_glyph(cells):
+            return next(i for i in range(0, 4000, 2) if cells[i] not in BLANK_CHARS + FULL_CHARS
+                        and (cells[i + 1] & 15) != ((cells[i + 1] >> 4) & 7) and not cells[i + 1] & 0x80
+                        and table.known[cells[i]])
+
+        def colour(cells, cursor):
+            at = first_glyph(cells)
+            cells[at + 1] = (cells[at + 1] & 0xF0) | (((cells[at + 1] & 15) + 1) & 15)
+            return cells, cursor, f"(row {at // 160}, column {at % 160 // 2})"
+
+        def character(cells, cursor):
+            # a character the screen shows nowhere, in place of one it shows (as 432 KB for 435 KB)
+            at = first_glyph(cells)
+            used = set(cells[0::2])
+            new = next(c for c in range(33, 256) if table.known[c] and c not in used and c not in FULL_CHARS)
+            was = cells[at]
+            cells[at] = new
+            return cells, cursor, (f"(row {at // 160}, column {at % 160 // 2}: {_char_text(was)} made "
+                                   f"{_char_text(new)}, shown nowhere else)")
+
+        def cursor_move(cells, cursor):
+            moved = (40, 10) if tuple(cursor) != (40, 10) else (20, 5)
+            return cells, moved, f"(from column {cursor[0]} row {cursor[1]} to column {moved[0]} row {moved[1]})"
+
+        ok &= plant_text("one cell's colour changed in the port's text screen", colour)
+        ok &= plant_text("one character changed in the port's text screen", character)
+        ok &= plant_text("the port's text cursor moved", cursor_move)
     print("PASS" if ok else "FAIL")
     return common.PASS if ok else common.FAIL
 

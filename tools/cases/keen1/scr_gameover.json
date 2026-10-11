@@ -136,7 +136,7 @@
     29
    ],
    "from": 33.27,
-   "to": 44.47,
+   "to": 33.47,
    "reason": "the high scores' animated border while it stands still (in the fades in and out); the original reads a key up to three refreshes before or after the port (from the first key on the two machines' refreshes and loop passes fall that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the tiles meet another phase about one time in three. Only the tiles that animate (measured on scr_attract), from and to the black between two screens (where masked and unmasked pictures are alike) or a moment they animate; while they animate they are compared (scr_attract, the screens between)"
   },
   {
@@ -147,7 +147,7 @@
     189
    ],
    "from": 33.27,
-   "to": 44.47,
+   "to": 33.47,
    "reason": "the high scores' animated border while it stands still (in the fades in and out); the original reads a key up to three refreshes before or after the port (from the first key on the two machines' refreshes and loop passes fall that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the tiles meet another phase about one time in three. Only the tiles that animate (measured on scr_attract), from and to the black between two screens (where masked and unmasked pictures are alike) or a moment they animate; while they animate they are compared (scr_attract, the screens between)"
   },
   {
@@ -158,7 +158,7 @@
     189
    ],
    "from": 33.27,
-   "to": 44.47,
+   "to": 33.47,
    "reason": "the high scores' animated border while it stands still (in the fades in and out); the original reads a key up to three refreshes before or after the port (from the first key on the two machines' refreshes and loop passes fall that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the tiles meet another phase about one time in three. Only the tiles that animate (measured on scr_attract), from and to the black between two screens (where masked and unmasked pictures are alike) or a moment they animate; while they animate they are compared (scr_attract, the screens between)"
   },
   {
@@ -169,6 +169,50 @@
     189
    ],
    "from": 33.27,
+   "to": 33.47,
+   "reason": "the high scores' animated border while it stands still (in the fades in and out); the original reads a key up to three refreshes before or after the port (from the first key on the two machines' refreshes and loop passes fall that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the tiles meet another phase about one time in three. Only the tiles that animate (measured on scr_attract), from and to the black between two screens (where masked and unmasked pictures are alike) or a moment they animate; while they animate they are compared (scr_attract, the screens between)"
+  },
+  {
+   "rect": [
+    18,
+    18,
+    302,
+    29
+   ],
+   "from": 43.92,
+   "to": 44.47,
+   "reason": "the high scores' animated border while it stands still (in the fades in and out); the original reads a key up to three refreshes before or after the port (from the first key on the two machines' refreshes and loop passes fall that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the tiles meet another phase about one time in three. Only the tiles that animate (measured on scr_attract), from and to the black between two screens (where masked and unmasked pictures are alike) or a moment they animate; while they animate they are compared (scr_attract, the screens between)"
+  },
+  {
+   "rect": [
+    18,
+    178,
+    302,
+    189
+   ],
+   "from": 43.92,
+   "to": 44.47,
+   "reason": "the high scores' animated border while it stands still (in the fades in and out); the original reads a key up to three refreshes before or after the port (from the first key on the two machines' refreshes and loop passes fall that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the tiles meet another phase about one time in three. Only the tiles that animate (measured on scr_attract), from and to the black between two screens (where masked and unmasked pictures are alike) or a moment they animate; while they animate they are compared (scr_attract, the screens between)"
+  },
+  {
+   "rect": [
+    18,
+    18,
+    30,
+    189
+   ],
+   "from": 43.92,
+   "to": 44.47,
+   "reason": "the high scores' animated border while it stands still (in the fades in and out); the original reads a key up to three refreshes before or after the port (from the first key on the two machines' refreshes and loop passes fall that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the tiles meet another phase about one time in three. Only the tiles that animate (measured on scr_attract), from and to the black between two screens (where masked and unmasked pictures are alike) or a moment they animate; while they animate they are compared (scr_attract, the screens between)"
+  },
+  {
+   "rect": [
+    290,
+    18,
+    302,
+    189
+   ],
+   "from": 43.92,
    "to": 44.47,
    "reason": "the high scores' animated border while it stands still (in the fades in and out); the original reads a key up to three refreshes before or after the port (from the first key on the two machines' refreshes and loop passes fall that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the tiles meet another phase about one time in three. Only the tiles that animate (measured on scr_attract), from and to the black between two screens (where masked and unmasked pictures are alike) or a moment they animate; while they animate they are compared (scr_attract, the screens between)"
   },

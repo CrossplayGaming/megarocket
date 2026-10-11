@@ -75,11 +75,7 @@
   ],
   [
    27.0,
-   "main menu again"
-  ],
-  [
-   30.0,
-   "main menu, Restart Demo"
+   "main menu again, Up to Restart Demo (the cursor masked)"
   ],
   [
    31.0,
@@ -294,7 +290,7 @@
    ],
    "from": 15.6,
    "to": 20.64,
-   "reason": "the main menu's spinning cursor while the menu is moved through and an Enter chooses: the original reads each arrow and Enter up to three refreshes before or after the port (from the first key on their menu loops run that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the cursor reaches a row, and stops for the fade-out, in another of its three pictures (or after another pass). The cursor is compared in scr_menu, scr_continue, scr_map, scr_hiscore and scr_gameover; Keen 1's About and Previews have their keys moved off those edges (tools/steady_keys.py) instead; the original reads a key up to three refreshes before or after the port (from the first key on the two machines' refreshes and loop passes fall that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the tiles meet another phase about one time in three. Only the tiles that animate (measured on scr_attract), from and to the black between two screens (where masked and unmasked pictures are alike) or a moment they animate; while they animate they are compared (scr_attract, the screens between)"
+   "reason": "the main menu's spinning cursor while the menu is moved through and an Enter chooses: from the first key on, the two machines read the arrows and Enter up to 7 refreshes apart (keen2 scr_previews: the original acts on the second Up, pressed at 19.0 s, at 19.11 s, the port at 19.01 s: the menu reads the arrows on six refreshes of every thirteen, and a key near the end of one such stretch is read in the next on the other machine), so the cursor reaches a row, and stops for the fade-out, in another of its three pictures, and the menu picture before the choice stays up a few refreshes longer on one side. The cursor is compared in scr_menu, scr_continue, scr_map, scr_hiscore and scr_gameover; Keen 1's About and Previews have their keys moved off those edges (tools/steady_keys.py) instead. From and to the black between two screens"
   },
   {
    "rect": [
@@ -305,7 +301,7 @@
    ],
    "from": 27.47,
    "to": 31.64,
-   "reason": "the main menu's spinning cursor while the menu is moved through and an Enter chooses: the original reads each arrow and Enter up to three refreshes before or after the port (from the first key on their menu loops run that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the cursor reaches a row, and stops for the fade-out, in another of its three pictures (or after another pass). The cursor is compared in scr_menu, scr_continue, scr_map, scr_hiscore and scr_gameover; Keen 1's About and Previews have their keys moved off those edges (tools/steady_keys.py) instead; the original reads a key up to three refreshes before or after the port (from the first key on the two machines' refreshes and loop passes fall that far apart: Keen 2's menu comes up three refreshes earlier in the original), so the tiles meet another phase about one time in three. Only the tiles that animate (measured on scr_attract), from and to the black between two screens (where masked and unmasked pictures are alike) or a moment they animate; while they animate they are compared (scr_attract, the screens between)"
+   "reason": "the main menu's spinning cursor while the menu is moved through and an Enter chooses: from the first key on, the two machines read the arrows and Enter up to 7 refreshes apart (keen2 scr_previews: the original acts on the second Up, pressed at 19.0 s, at 19.11 s, the port at 19.01 s: the menu reads the arrows on six refreshes of every thirteen, and a key near the end of one such stretch is read in the next on the other machine), so the cursor reaches a row, and stops for the fade-out, in another of its three pictures, and the menu picture before the choice stays up a few refreshes longer on one side. The cursor is compared in scr_menu, scr_continue, scr_map, scr_hiscore and scr_gameover; Keen 1's About and Previews have their keys moved off those edges (tools/steady_keys.py) instead. From and to the black between two screens"
   }
  ],
  "port": {

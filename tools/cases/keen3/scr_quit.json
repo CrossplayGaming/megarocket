@@ -107,16 +107,5 @@
   "costs": "loadgraphics=281436522"
  },
  "may_exit": true,
- "text_masks": [
-  {
-   "cells": [
-    23,
-    0,
-    24,
-    5
-   ],
-   "reason": "DOS's prompt (C:\\>) and its cursor, which DOS writes on the row below the one the program leaves the cursor on (gotoxy(1, 23)) once it has quit"
-  }
- ],
  "note": "SCR-01V: Escape on the main menu, Y: the program quits to DOS and its exit screen (text mode) is compared by its cells."
 }
