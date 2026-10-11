@@ -819,7 +819,7 @@ def _rend01r_screen(game, case, tag):
     frames_at = port / game if (port / game).is_dir() else port
     plain = screen_case.work_dir(game, case, tag + "_plain") / "port"
     pcode, pframes, _ = screen_case.run_port(game, case, plain, say=lambda _line: None)
-    note = lines[0] if lines else f"{game} {case}: no report"
+    note = next((line for line in lines if line.startswith(f"{game} ")), f"{game} {case}: no report")
     code, line = _left_alone(common.PASS, note, frames_at if (frames_at / "frames.json").exists() else None, pframes)
     return code, line, _lists(frames_at)
 
