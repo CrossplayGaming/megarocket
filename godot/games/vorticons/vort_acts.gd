@@ -1175,6 +1175,7 @@ func LevelLoop(currentlevel: int) -> int:
 	ox = GLOBAL_TO_TILE(originx)
 	oy = GLOBAL_TO_TILE(originy)
 	shell_in_level = true
+	shell_level = currentlevel    # AUDIO-06: the host's track for it
 	var traced_first: bool = false
 	while true:
 		RF_Clear()

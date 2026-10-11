@@ -43,6 +43,15 @@ func _go() -> void:
 		if five.sound_for(name).size() <= 23:
 			missing.append(name)
 	t.ok("Keen 5 alone: every table sound found from it (missing %s)" % [missing], five.available() and missing.is_empty())
+	# the tracks: every level of every game, from both and from Keen 5 alone (Keen 1 takes Keen 2's table)
+	var no_track: Array = []
+	for g: String in ["keen1", "keen2", "keen3"]:
+		for lv: int in range(17):
+			if both.music_for(g, lv).size() <= 6:
+				no_track.append("%s:%d" % [g, lv])
+			if five.music_for(g, lv).size() <= 6:
+				no_track.append("k5 alone %s:%d" % [g, lv])
+	t.ok("a track for every level of Keen 1-3, with both and with Keen 5 alone (missing %s)" % [no_track], no_track.is_empty())
 	var none: GalaxySounds = GalaxySounds.new()
 	none.load({})
 	t.ok("neither: not available", not none.available())
@@ -61,6 +70,13 @@ func _go() -> void:
 		for v: Vector2 in audio.render(int(0.3 * HostAudio.RATE)):
 			peak = maxf(peak, absf(v.x))
 		t.ok("played through the chip it sounds (peak %.3f)" % peak, peak > 0.01)
+		var mus: HostAudio = HostAudio.new()
+		mus.play_music(0.0, both.music_for("keen1", 0))
+		var mpeak: float = 0.0
+		for v: Vector2 in mus.render(int(2.0 * HostAudio.RATE)):
+			mpeak = maxf(mpeak, absf(v.x))
+		t.ok("Keen 1's world map track sounds (peak %.3f, %d writes)" % [mpeak, mus.writes_applied], mpeak > 0.01)
+		mus.close()
 	audio.close()
 
 	# Keen 1 in the host: a jump's effect, the speaker silent
@@ -74,7 +90,9 @@ func _go() -> void:
 	t.ok("the Sound page's row is there and usable", host.options.galaxy_available
 		and host.options.page("sound").any(func(r: Dictionary) -> bool: return r.key == "galaxy_sfx" and r.get("enabled", true)))
 	host.options.step("galaxy_sfx", 1)
+	host.options.step("galaxy_music", 1)
 	await _wait(func() -> bool: return host.controls_live(), 30.0)
+	t.ok("in level 1 its track plays (%d)" % host._music_level, await _wait(func() -> bool: return host._music_level == 1 and host.audio._mus_end > 6, 5.0))
 	var spk: Array = []
 	var before: int = host.audio.sfx.size()
 	var k: InputEventKey = InputEventKey.new()

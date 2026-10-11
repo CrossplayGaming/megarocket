@@ -36,6 +36,13 @@ var opl_fx: Object = null      # the effects' chip, only while the volumes diffe
 var sfx: Array = []
 var _sfx_next: int = 0
 var _sfx_ready: bool = false
+## AUDIO-06, the tracks: Keen 4-5's music under Keen 1-3, played as it goes (Galaxy's 560 Hz, looping); a
+## change waits for its time ([seconds, chunk] queued; an empty chunk: silence).
+var _mus: PackedByteArray = PackedByteArray()
+var _mus_pos: int = 0
+var _mus_end: int = 0
+var _mus_due: float = 0.0
+var _mus_queue: Array = []
 
 
 func _init() -> void:
@@ -106,6 +113,37 @@ func play_sfx(at: float, writes: Array) -> void:
 	_sfx_next = 0
 
 
+## AUDIO-06: a track from `at` (an empty chunk stops the music).
+func play_music(at: float, chunk: PackedByteArray) -> void:
+	_mus_queue.append([at, chunk])
+
+
+func _apply_music(to: float) -> void:
+	while not _mus_queue.is_empty() and float(_mus_queue[0][0]) <= to:
+		var q: Array = _mus_queue.pop_front()
+		for ch: int in range(1, 9):
+			_opl_write(0xB0 + ch, 0)    # the one before let go (channels 1-8: music's; 0 is the effects')
+		_mus = q[1]
+		_mus_pos = 2
+		_mus_end = mini(2 + (_mus.decode_u16(0) if _mus.size() >= 2 else 0), _mus.size())
+		_mus_due = float(q[0])
+		if not _sfx_ready:
+			_opl_write(0x01, 0x20)
+			_opl_write(0xBD, 0)
+			_sfx_ready = true
+	if _mus_end <= 6:
+		return
+	var guard: int = 0
+	while _mus_due <= to and guard < 100000:
+		guard += 1
+		if _mus_pos + 4 > _mus_end:
+			_mus_pos = 2    # round again, as Galaxy's
+		var delay: int = _mus.decode_u16(_mus_pos + 2)
+		_opl_write(_mus[_mus_pos], _mus[_mus_pos + 1])
+		_mus_pos += 4
+		_mus_due += float(delay) / GalaxySounds.MUSIC_RATE
+
+
 func _apply_sfx(to: float) -> void:
 	while _sfx_next < sfx.size() and float(sfx[_sfx_next][0]) <= to:
 		var e: Array = sfx[_sfx_next]
@@ -130,6 +168,7 @@ func skip_to(to: float) -> void:
 		else:
 			_spk_freq = PIT_HZ / float(e[2]) if e[2] > 0 else 0.0
 	_apply_sfx(to)
+	_apply_music(to)
 	t = maxf(t, to)
 
 
@@ -149,6 +188,8 @@ func render(n: int) -> PackedVector2Array:
 				_spk_freq = PIT_HZ / float(e[2]) if e[2] > 0 else 0.0
 		if _sfx_next < sfx.size():
 			_apply_sfx(t)
+		if _mus_end > 6 or not _mus_queue.is_empty():
+			_apply_music(t)
 		var s: float = 0.0
 		if opl != null:
 			if opl_fx == null:

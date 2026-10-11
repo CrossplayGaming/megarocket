@@ -122,6 +122,7 @@ var controls: ControlsModel = null
 var galaxy_folders: Dictionary = {}
 var galaxy_sounds: GalaxySounds = null
 var _sound_names: PackedStringArray = PackedStringArray()
+var _music_level: int = -1    # the track playing (its level; 0 the world map, -1 none)
 var _pad_sent: Dictionary = {}
 
 const GALAXY_META: Dictionary = {"keen4": "keen4", "keen5": "keen5", "keen6": "keen6e14"}
@@ -734,6 +735,17 @@ func _feed_audio(pending: Array, machine_t: float) -> void:
 		return
 	pending.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
 	var galaxy: bool = galaxy_sounds != null and galaxy_sounds.available() and options != null and bool(options.get_value("galaxy_sfx"))
+	# AUDIO-06, the tracks: the world map's or the level's, while the setting is on
+	if galaxy_sounds != null and galaxy_sounds.available() and options != null and engine is VortScreens:
+		var want: int = -1
+		if bool(options.get_value("galaxy_music")):
+			if bool(engine.get("shell_on_map")):
+				want = 0
+			elif bool(engine.get("shell_in_level")):
+				want = int(engine.get("shell_level"))
+		if want != _music_level:
+			_music_level = want
+			audio.play_music(machine_t, galaxy_sounds.music_for(game_id, want) if want >= 0 else PackedByteArray())
 	for e: Array in pending:
 		if e[1] == -1:
 			# AUDIO-06: with Keen 4-6's effects on, the speaker is silent (its sequencer runs on)

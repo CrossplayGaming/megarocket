@@ -51,6 +51,17 @@ const TABLE: Dictionary = {
 }
 ## The AdLib effects' service rate (Galaxy's: a sound byte a tick).
 const RATE: float = 140.0
+## AUDIO-06, the tracks (the user, 2026-10-10): Keen 1-3 had no music; Megarocket 1.0's choice per level
+## (index: the level, 0 the world map) from Keen 4 and 5's own tracks: Keen 1 (Mars) Keen 4's, Keen 2 (the
+## ship) Keen 5's, Keen 3 a Keen 5 round keeping "Mars, the Bringer of War" (k5 13) for Mortimer. Without
+## the game a table names, the other game's table plays (Keen 1 takes Keen 2's, Keen 2 and 3 Keen 1's).
+const MUSIC: Dictionary = {
+	"keen1": ["keen4", [0, 4, 3, 3, 2, 2, 4, 3, 1, 1, 1, 2, 2, 2, 2, 2, 2]],
+	"keen2": ["keen5", [11, 5, 7, 9, 10, 9, 10, 9, 10, 9, 10, 3, 13, 4, 12, 2, 6]],
+	"keen3": ["keen5", [8, 0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 0, 1, 2, 3, 6, 13]],
+}
+## Galaxy's music rate: the tracks' delays are in 1/560 s.
+const MUSIC_RATE: float = 560.0
 
 var _data: Dictionary = {}     # "keen4" / "keen5" -> GalData (its audio)
 var _cache: Dictionary = {}    # Keen 1-3 sound name -> the Galaxy sound's chunk
@@ -93,6 +104,21 @@ func sound_for(name: String) -> PackedByteArray:
 		out = PackedByteArray()
 	_cache[name] = out
 	return out
+
+
+## A level's track for a Keen 1-3 game (level 0: the world map), its chunk (u16 length, then reg, value,
+## u16 delay a write), or empty (none for it, or no Keen 4 or 5).
+func music_for(game: String, level: int) -> PackedByteArray:
+	var order: Array = [game, "keen2" if game == "keen1" else "keen1"]
+	for which: String in order:
+		var entry: Array = MUSIC.get(which, [])
+		if entry.is_empty() or not _data.has(entry[0]) or level < 0 or level >= (entry[1] as Array).size():
+			continue
+		var d: GalData = _data[entry[0]]
+		var chunk: PackedByteArray = d.audio_chunk(int(d.aud.startMusic) + int(entry[1][level]))
+		if chunk.size() > 6:
+			return chunk
+	return PackedByteArray()
 
 
 ## The register writes that play an effect from `t0` (seconds): [[seconds, register, value], ...].

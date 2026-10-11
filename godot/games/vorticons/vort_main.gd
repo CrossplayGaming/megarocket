@@ -410,6 +410,7 @@ func fix_on(key: String) -> bool:
 var shell_playing: bool = false
 ## A level in progress (not the world map): Skip this level works only there.
 var shell_in_level: bool = false
+var shell_level: int = 0    # AUDIO-06: the level being played (the host's Keen 4-5 track; nothing reads it)
 ## Level select's choice (CHEAT-04): the world map enters it next, done or not; 0 for none.
 var shell_warp: int = 0
 var LevelNumber: int = 0

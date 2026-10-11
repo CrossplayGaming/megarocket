@@ -87,6 +87,12 @@ func page(name: String) -> Array:
 				gr["why"] = "Needs Keen 4 or Keen 5"
 				gr["desc"] = "Keen 4 and 5's sound effects in place of the PC speaker's (from your own Keen 4 or 5)."
 				rows.append(gr)
+				var mr: Dictionary = _value("galaxy_music", "Keen 4-5 music", _on_off(get_value("galaxy_music")) if galaxy_available else "Off")
+				mr["enabled"] = galaxy_available
+				mr["why"] = "Needs Keen 4 or Keen 5"
+				mr["desc"] = "Keen 4 and 5's music, a track for each level (from your own Keen 4 or 5)."
+				rows.append(mr)
+				rows.append(_value("music_volume", "Music volume", "%d%%" % int(get_value("music_volume"))))
 			if engine == "galaxy":
 				rows.append(_value("music_volume", "Music volume", "%d%%" % int(get_value("music_volume"))))
 			rows.append(_row("exit", "Back", "action"))
@@ -226,7 +232,7 @@ func step(key: String, dir: int) -> void:
 			_put("fullscreen", not bool(get_value("fullscreen")))
 		"creature_question":
 			_put("creature_question", not bool(get_value("creature_question")))
-		"galaxy_sfx":
+		"galaxy_sfx", "galaxy_music":
 			if galaxy_available:
 				_put(key, not bool(get_value(key)))
 		"native_resolution", "smooth_motion", "wide_view", "one_button_fire", "two_button_fire", "quicksave", "quicksave_confirm":
