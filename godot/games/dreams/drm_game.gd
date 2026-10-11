@@ -980,6 +980,18 @@ func CheckKeys() -> void:
 		RF_ForceRefresh()
 		Paused = false
 
+	# SAVE-02 (the user, 2026-10-10: Dreams' parity): F8 quicksaves and F9 quickloads, Megarocket's keys
+	# (the original's F1-F7 open the panel); nothing with quicksave off or no player
+	if (LastScan == sc_F8 or LastScan == sc_F9) and shell_quicksave_on():
+		var quick: int = LastScan
+		IN_ClearKeysDown()
+		VW_FixRefreshBuffer()
+		shell_quick_key(quick)
+		IN_ClearKeysDown()
+		if not loadedgame:
+			RF_ForceRefresh()
+		lasttimecount = s32(SD_GetTimeCount())
+
 	# F1-F7/ESC to enter control panel
 	if (LastScan >= sc_F1 and LastScan <= sc_F7) or LastScan == sc_Escape:
 		VW_FixRefreshBuffer()
@@ -999,6 +1011,114 @@ func CheckKeys() -> void:
 	if Keyboard[sc_F10] and DebugKeys():
 		RF_ForceRefresh()
 		lasttimecount = s32(SD_GetTimeCount())
+
+
+# ---- SAVE-02: quicksave and quickload (the shell's, Enhanced)
+
+## The quicksave's file, beside the panel's SAVEGMn.KDR in the player's folder.
+const QUICK_FILE: String = "QUICKSAV.KDR"
+
+
+func shell_quicksave_on() -> bool:
+	return options != null and bool(options.get_value("quicksave"))
+
+
+## F8: the game saved through the original's own SaveGame (the state, the map, every object: anywhere in
+## a game, the map included, as the panel saves); F9: loaded through LoadGame, and the level starts again
+## from it as the panel's load does (loadedgame; a pause first, as then). Each asks first while the
+## Quicksave asks row is on.
+func shell_quick_key(scan: int) -> void:
+	if scan == sc_F8:
+		if not _quick_confirm("Quicksave? (Y/N)"):
+			return
+		US_CenterWindow(10, 3)
+		US_PrintCentered("Saving")
+		VW_UpdateScreen()
+		_quick_say("Game Quicksaved" if _quick_write() else "Quicksave Failed")
+		return
+	if not us_files.has(QUICK_FILE):
+		_quick_say("No Quicksave Yet")
+		return
+	if not _quick_confirm("Quickload? (Y/N)"):
+		return
+	US_CenterWindow(10, 3)
+	US_PrintCentered("Loading")
+	VW_UpdateScreen()
+	if _quick_read():
+		loadedgame = true
+		Paused = true
+	else:
+		_quick_say("Quickload Failed")
+
+
+func _quick_write() -> bool:
+	var game: US_SaveGame = US_SaveGame.new()
+	var sig: PackedByteArray = EXTENSION.to_ascii_buffer()
+	for i: int in range(mini(3, sig.size())):
+		game.signature[i] = sig[i]
+	game.present = true
+	var nm: PackedByteArray = "QuickSave".to_ascii_buffer()
+	for i: int in range(nm.size()):
+		game.name[i] = nm[i]
+	var file: BE_FILE_T = BE_Cross_open_rewritable_for_overwriting(QUICK_FILE)
+	if not BE_Cross_IsFileValid(file):
+		return false
+	var ok: bool = BE_Cross_writeInt8LEBuffer(file, game.signature, 4) == 4 \
+		and BE_Cross_write_boolean_To16LE(file, game.present) == 2 \
+		and BE_Cross_writeInt8LEBuffer(file, game.name, MaxGameName + 1) == MaxGameName + 1 \
+		and BE_Cross_writeInt8LE(file, 0) == 1 \
+		and SaveGame(file)
+	BE_Cross_close(file)
+	if not ok:
+		BE_Cross_remove(QUICK_FILE)
+	return ok
+
+
+func _quick_read() -> bool:
+	var game: US_SaveGame = US_SaveGame.new()
+	var file: BE_FILE_T = BE_Cross_open_rewritable_for_reading(QUICK_FILE)
+	if not BE_Cross_IsFileValid(file):
+		return false
+	var ok: bool = _us_read_game_header(file, game) and _us_signature_ok(game) and LoadGame(file)
+	BE_Cross_close(file)
+	return ok
+
+
+## The question in the panel's window: Y, Enter or the jump button yes; N, Escape or the throw button no.
+func _quick_confirm(question: String) -> bool:
+	if options != null and not bool(options.get_value("quicksave_confirm")):
+		return true
+	US_CenterWindow(16, 3)
+	US_PrintCentered(question)
+	VW_UpdateScreen()
+	IN_ClearKeysDown()
+	var info: CursorInfo = CursorInfo.new()
+	var was: Array = [true, true]
+	while not quitting:
+		BE_ST_ShortSleep()
+		var scan: int = LastScan
+		if scan == sc_Y or scan == sc_Return:
+			IN_ClearKeysDown()
+			return true
+		if scan == sc_N or scan == sc_Escape:
+			IN_ClearKeysDown()
+			return false
+		IN_ReadControl(0, info)
+		if info.button0 and not was[0]:
+			return true
+		if info.button1 and not was[1]:
+			return false
+		was = [info.button0, info.button1]
+	return false
+
+
+## A word in the panel's window until a key or button.
+func _quick_say(text: String) -> void:
+	US_CenterWindow(18, 3)
+	US_PrintCentered(text)
+	VW_UpdateScreen()
+	IN_ClearKeysDown()
+	IN_Ack()
 
 
 func CalcInactivate() -> void:
@@ -1840,7 +1960,14 @@ func StateMachine(ob: objtype) -> void:
 	if ob.xmove or ob.ymove or ob.shapenum != oldshapenum:
 		# actor moved or changed shape
 		# make sure the movement is within limits (one tile)
-		ClipToWalls(ob)
+		if cheat_noClip and ob == player:
+			# CHEAT-02: No clipping: Keen's edges worked out, the walls not applied (NewState's trick)
+			var keep: bool = ob.needtoclip
+			ob.needtoclip = false
+			ClipToWalls(ob)
+			ob.needtoclip = keep
+		else:
+			ClipToWalls(ob)
 
 
 func NewState(ob: objtype, state: statetype) -> void:
@@ -1900,7 +2027,8 @@ func PlayLoop() -> void:
 				obj.needtoreact = true
 				obj.active = yes
 
-			if obj.active:
+			# CHEAT-02: Freeze enemies: every actor but Keen, his flowers and the score box holds still
+			if obj.active and not (cheat_freezeEnemies and obj != player and obj != scoreobj and obj.obclass != powerobj):
 				StateMachine(obj)
 
 			if ((obj.active == yes or obj.active == removable) and
@@ -2114,7 +2242,8 @@ func HandleDeath() -> void:
 
 	gamestate.keys = 0
 	gamestate.boobusbombs = s16(gamestate.boobusbombs - gamestate.bombsthislevel)
-	gamestate.lives = s16(gamestate.lives - 1)
+	if not cheat_infiniteLives:    # CHEAT-02: death still plays; the count never falls
+		gamestate.lives = s16(gamestate.lives - 1)
 	if gamestate.lives < 0:
 		return
 

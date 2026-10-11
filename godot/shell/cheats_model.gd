@@ -37,6 +37,13 @@ const CODES: Dictionary = {
 		["G+O+D", "Hold G, O and D in play: God mode on or off."],
 		["C+T+Space", "Hold C, T and Space in play: all the keycards and lots of ammo (and the pogo stick in Keen 1)."],
 	],
+	"dreams": [
+		["F10+G", "God mode on or off"],
+		["F10+I", "99 flowers, bombs and keys"],
+		["F10+J", "Jump cheat on or off"],
+		["F10+S", "Slow motion on or off"],
+		["F10+W", "Warp to a level (0-16)"],
+	],
 	"galaxy": [
 		["B+A+T", "Gems, 99 shots, a life"],
 		["A+2+Enter", "Turns on the F10 keys"],

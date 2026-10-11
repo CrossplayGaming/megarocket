@@ -580,11 +580,12 @@ func ThrowPower(x: int, y: int, dir: int) -> void:
 		gamestate.bombsthislevel -= 1
 		gamestate.boobusbombs -= 1
 	else:
-		if gamestate.flowerpowers == 0:
+		if gamestate.flowerpowers == 0 and not cheat_infiniteAmmo:
 			SD_PlaySound(NOWAYSND)
 			return    # no flower power to throw
 		SD_PlaySound(THROWSND)
-		gamestate.flowerpowers -= 1
+		if not cheat_infiniteAmmo:    # CHEAT-02: a throw uses nothing (and none is needed)
+			gamestate.flowerpowers -= 1
 
 	GetNewObj(true)
 	newobj.obclass = powerobj
@@ -2461,3 +2462,81 @@ func BoobusAirReact(ob: objtype) -> void:
 		ChangeState(ob, S(&"s_boobuswalk1"))
 
 	call(RF_PlaceSprite, ob, ob.x, ob.y, ob.shapenum, spritedraw, 0)
+
+
+# ===================================================================== the shell's cheats (CHEAT-01)
+
+## The cheats this engine has (CheatsModel's keys). No Unlock the map (Tuberia's levels are open) and no
+## Reveal secrets until Dreams has a draw list (REND).
+func shell_cheat_supported() -> Array:
+	return ["god", "infinite_ammo", "infinite_lives", "no_clip", "jump", "slow_motion", "freeze_enemies",
+		"free_items", "extra_lives", "skip_level", "level_select"]
+
+
+func shell_in_game() -> bool:
+	return ingame
+
+
+func shell_cheat_get(key: String) -> bool:
+	match key:
+		"god": return godmode
+		"infinite_ammo": return cheat_infiniteAmmo
+		"infinite_lives": return cheat_infiniteLives
+		"no_clip": return cheat_noClip
+		"jump": return jumpcheat
+		"slow_motion": return singlestep
+		"freeze_enemies": return cheat_freezeEnemies
+	return false
+
+
+func shell_cheat_set(key: String, on: bool) -> void:
+	match key:
+		"god": godmode = on
+		"infinite_ammo": cheat_infiniteAmmo = on
+		"infinite_lives": cheat_infiniteLives = on
+		"no_clip": cheat_noClip = on
+		"jump": jumpcheat = on
+		"slow_motion": singlestep = on
+		"freeze_enemies": cheat_freezeEnemies = on
+
+
+## A one-shot applied; what it did, for the help line. Skip this level leaves the panel too (the level
+## ends as if Keen walked out: playstate levelcomplete, F10+E's in Keen 4-6).
+func shell_cheat_fire(key: String) -> String:
+	match key:
+		"free_items":
+			# F10+I's, without its window and wait
+			gamestate.boobusbombs = 99
+			gamestate.flowerpowers = 99
+			gamestate.keys = 99
+			return "99 Flowers, 99 Bombs, 99 Keys"
+		"extra_lives":
+			var before: int = gamestate.lives
+			gamestate.lives = s16(mini(before + CheatsModel.EXTRA_LIVES, CheatsModel.MAX_LIVES))
+			return "%d Lives" % gamestate.lives if gamestate.lives != before else "Lives Are Full"
+		"skip_level":
+			if gamestate.mapon == 0:
+				return "Only Inside a Level"
+			playstate = levelcomplete
+			ResumeGame = true    # the panel closes: the level ends at once
+			return "Level Skipped"
+	return ""
+
+
+## Level select's list (CHEAT-04): the sixteen levels by their names (the original names some by number).
+func shell_levels() -> Array:
+	var out: Array = []
+	for n: int in range(1, 17):
+		out.append([n, levelnames[n] if n < levelnames.size() and levelnames[n] != "" else "Level %d" % n])
+	return out
+
+
+## Level select chose a level: entered as F10+W enters it (the panel closes, PlayLoop leaves for it).
+## Returns why not, or "".
+func shell_warp_to(n: int) -> String:
+	if not ingame:
+		return "Only During a Game"
+	gamestate.mapon = n
+	playstate = warptolevel
+	ResumeGame = true
+	return ""

@@ -513,6 +513,12 @@ var str2: String = ""
 var singlestep: bool = false
 var jumpcheat: bool = false
 var godmode: bool = false
+# CHEAT-01: the shell's cheats, each a flag read at its one named point (the originals' F10 keys read
+# godmode, jumpcheat and singlestep, which God mode, Jump cheat and Slow motion share)
+var cheat_infiniteAmmo: bool = false    # read in ThrowPower
+var cheat_infiniteLives: bool = false    # read in HandleDeath
+var cheat_noClip: bool = false    # read in StateMachine
+var cheat_freezeEnemies: bool = false    # read in PlayLoop
 var tedlevel: bool = false
 var tedlevelnum: int = 0
 var DemoLoop: StringName = &""

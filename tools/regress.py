@@ -413,12 +413,14 @@ def cheat03():
 def save02():
     """Quicksave and quickload (SAVE-02, Enhanced). Keen 4-6: F5 into the sixth slot named QuickSave, F9
     back to where it was saved, with and without the question; Classic's F5 is the original's save card.
-    Keen 1-3: F7 and F9 in the level and from the world map after leaving it, kept on disk; Classic: none."""
+    Keen 1-3: F7 and F9 in the level and from the world map after leaving it, kept on disk; Classic: none.
+    Dreams: F8 and F9 in a level through the original's own save, asked first or not, off with quicksave off."""
     import gdtest
     code, out = gdtest.run("save02_quicksave", [], timeout=900.0, quiet=True)
     code2, out2 = gdtest.run("save02v_quicksave", [], timeout=900.0, quiet=True)
-    code = max(code, code2)
-    out = out + out2
+    code3, out3 = gdtest.run("save02d_quicksave", [], timeout=600.0, quiet=True)
+    code = max(code, code2, code3)
+    out = out + out2 + out3
     for line in out.splitlines():
         if "FAIL" in line or "checks" in line or "ERROR" in line:
             print("  " + line.strip())
@@ -899,11 +901,12 @@ def cheat_read_points(folder):
 
 
 def cheat01():
-    """The cheats (CHEAT-01/02), Keen 1-6: each flag read at its one named point; Keen 4-6's CHEATS card
-    and Keen 1-3's Cheats page, greyed with no game; the effects in a level."""
+    """The cheats (CHEAT-01/02), every game: each flag read at its one named point; Keen 4-6's CHEATS card,
+    Keen 1-3's Cheats page and Dreams' Cheat keycap, greyed with no game; the effects in a level."""
     import gdtest
-    code = max(cheat_read_points("godot/games/galaxy"), cheat_read_points("godot/games/vorticons"))
-    for test, mark in (("cheat01_galaxy", "objects"), ("cheat01_vorticons", "keen1:")):
+    code = max(cheat_read_points("godot/games/galaxy"), cheat_read_points("godot/games/vorticons"),
+               cheat_read_points("godot/games/dreams"))
+    for test, mark in (("cheat01_galaxy", "objects"), ("cheat01_vorticons", "keen1:"), ("cheat01_dreams", "creatures")):
         code2, out = gdtest.run(test, [], timeout=600.0, quiet=True)
         code = max(code, code2)
         for line in out.splitlines():

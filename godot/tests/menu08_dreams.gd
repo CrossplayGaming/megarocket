@@ -3,7 +3,7 @@ extends SceneTree
 ## MENU-08: Keen Dreams' control panel in the modern order (v1.93 in the host, real time; text keycaps, no
 ## new art): the icons Start or Resume, Load / Save / Quit, Options, Sound, Music, Extras. Options (O): the
 ## Input, Video and Game keycaps; Video (V) the Display page in the box, Fullscreen changed with Enter;
-## Game (G) the Gameplay page, its Fixes...; Extras (E): the help's three and Score (S), the high scores
+## Game (G) the Gameplay page (Mode, quicksave, Fixes...), Mode moved with Right; Extras (E): the help's three and Score (S), the high scores
 ## over the panel, a key, the panel again. Pictures to --shots.
 ##
 ## Options: --game_data=<folder> [--shots=<folder>]
@@ -101,7 +101,14 @@ func _go() -> void:
 	await _pause(1.0)
 	await _shot("m08d_gameplay")
 	var rows: Array = host.options.page("gameplay").map(func(r: Dictionary) -> String: return r.label)
-	t.eq("the Gameplay page (Dreams: the fixes)", rows, ["Fixes...", "Back"])
+	t.eq("the Gameplay page (Dreams: Mode, quicksave, the fixes)", rows, ["Mode", "Quicksave F8/F9", "Quicksave asks", "Fixes...", "Back"])
+	await _tap(KEY_RIGHT)    # Mode: Enhanced -> Classic
+	await _pause(0.3)
+	t.ok("Mode moved with Right (%s)" % host.options.mode_text(), host.options.mode_text() == "Classic")
+	await _tap(KEY_RIGHT)
+	await _pause(0.3)
+	for i: int in range(3):
+		await _tap(KEY_DOWN)
 	await _tap(KEY_ENTER)    # Fixes...
 	await _pause(0.8)
 	await _shot("m08d_fixes")

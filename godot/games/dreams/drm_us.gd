@@ -2316,6 +2316,7 @@ func _shell_page_list(start: String) -> void:
 	var stack: Array = []    # [page, cursor] to come back to
 	var page: String = start
 	var pos: int = 0
+	_shell_list_top = 0
 	var info: CursorInfo = CursorInfo.new()
 	var was: Array = [true, true, 0, 0]    # the buttons held and the stick's y and x last time (one step a press)
 	var said: String = ""
@@ -2357,7 +2358,9 @@ func _shell_page_list(start: String) -> void:
 			continue
 		var row: Dictionary = rows[pos]
 		if act == 4 or act == 5:
-			if row.kind == "value" and not str(row.key).begins_with("bind:"):
+			if row.kind == "value" and str(row.key).begins_with("cheat:") and row.get("enabled", true):
+				_shell_cheat(row)
+			elif row.kind == "value" and not str(row.key).begins_with("bind:"):
 				options.step(row.key, -1 if act == 4 else 1)
 			continue
 		var key: String = "exit" if act == 3 else str(row.key)
@@ -2371,11 +2374,21 @@ func _shell_page_list(start: String) -> void:
 		if not row.get("enabled", true):
 			said = str(row.get("why", "Not Now"))
 			continue
-		var to: String = options.activate(key)
+		var to: String = ""
+		if key.begins_with("cheat:"):
+			to = _shell_cheat(row)
+			if to == "close":
+				break
+			if to.begins_with("say:"):
+				said = to.substr(4)
+				continue
+		else:
+			to = options.activate(key)
 		if to.begins_with("page:"):
 			stack.append([page, pos])
 			page = to.substr(5)
 			pos = 0
+			_shell_list_top = 0
 		elif key.begins_with("capture:"):
 			var cp: PackedStringArray = key.split(":")
 			said = _shell_capture(cp[1], cp[2], int(cp[3]))
@@ -2411,22 +2424,91 @@ func _shell_controls_list(device: String) -> void:
 
 
 ## A page's rows (the model's), the movement row of the Controller page left out (nothing to choose).
+## The cheats (CHEAT-01): the engine's, from CheatsModel: a toggle reads On or Off, a one-shot is a plain
+## row, Level select its own pages, the original's F10 codes last; with no game in progress every one is
+## greyed, and says so when chosen.
 func _shell_list_rows(page: String) -> Array:
+	if page.begins_with("levels:"):
+		var levels: Array = call(&"shell_levels")    # (DreamsGame's, down the chain)
+		var first: int = int(page.substr(7))
+		var rows: Array = []
+		for l: Array in levels.slice(first, first + 10):
+			rows.append({"key": "cheat:warp:%d" % l[0], "label": l[1], "kind": "action", "enabled": bool(call(&"shell_in_game")), "why": "Only During a Game"})
+		if first + 10 < levels.size():
+			rows.append({"key": "cheat:levels:%d" % (first + 10), "label": "More levels...", "kind": "page"})
+		rows.append({"key": "exit", "label": "Back", "kind": "action"})
+		return rows
+	if page == "codes":
+		var rows: Array = []
+		for c: Array in CheatsModel.CODES.get("dreams", []):
+			rows.append({"key": "cheat:info", "label": str(c[0]), "kind": "action", "desc": str(c[1])})
+		rows.append({"key": "exit", "label": "Back", "kind": "action"})
+		return rows
+	if page == "cheats":
+		var rows: Array = []
+		for r: Dictionary in CheatsModel.rows(self):
+			if r.kind == "toggle":
+				rows.append({"key": "cheat:" + r.key, "label": r.label, "kind": "value", "value": "On" if r.value else "Off", "enabled": r.enabled, "why": "Only During a Game"})
+			elif r.kind == "once":
+				rows.append({"key": "cheat:" + r.key, "label": r.label, "kind": "action", "enabled": r.enabled, "why": "Only During a Game"})
+			elif r.kind == "pick" and r.key == "level_select":
+				rows.append({"key": "cheat:levels:0", "label": r.label + "...", "kind": "page", "enabled": r.enabled, "why": "Only During a Game"})
+		if not (CheatsModel.CODES.get("dreams", []) as Array).is_empty():
+			rows.append({"key": "cheat:codes", "label": "Original codes...", "kind": "page"})
+		rows.append({"key": "exit", "label": "Back", "kind": "action"})
+		return rows
 	return (options.page(page) as Array).filter(func(r: Dictionary) -> bool: return r.key != "pad_fixed")
+
+
+## A cheat row chosen (or, a toggle, moved): the toggle flips; a one-shot is applied and says what it did;
+## Level select's level is entered. Returns the list's next act: "say:<word>", "page:<name>", "close" (the
+## panel is leaving for the game) or "" (the list drawn again).
+func _shell_cheat(row: Dictionary) -> String:
+	var key: String = str(row.key).substr(6)
+	if key == "codes":
+		return "page:codes"
+	if key == "info":
+		return ""
+	if key.begins_with("levels:"):
+		return "page:" + key
+	if key.begins_with("warp:"):
+		var why: String = str(call(&"shell_warp_to", int(key.substr(5))))
+		return "say:" + why if why != "" else "close"
+	if row.kind == "value":
+		CheatsModel.toggle(self, key)
+		return ""
+	var said: String = str(call(&"shell_cheat_fire", key))
+	return "close" if ResumeGame else "say:" + said
 
 
 ## The list in the box: on an action's page its keys first, as a heading; the row chosen in the panel's
 ## red (its own highlight: the chosen button's frame, the help's second colour) with a red mark before it.
+## A list longer than the box (the cheats') scrolls: its window of rows follows the cursor, and a red
+## mark at the box's top or bottom edge says there are more that way.
+var _shell_list_top: int = 0
+
+
 func _shell_list_draw(rows: Array, pos: int, page: String) -> void:
 	VWB_Bar(SHELL_LIST_X - 6, SHELL_LIST_Y - 1, SHELL_LIST_W + 10, 13 * 8 - 2, WHITE)
 	var y: int = SHELL_LIST_Y
-	if page.begins_with("bindact:"):
+	var heading: bool = page.begins_with("bindact:")
+	if heading:
 		fontcolor = F_SECONDCOLOR
 		px = SHELL_LIST_X
 		py = y
 		call(USL_DrawString, str(rows[0].get("desc", "")), -1)
 		y += SHELL_LIST_ROW + 4
-	for k: int in range(rows.size()):
+	var max_rows: int = (13 * 8 - 2 - (y - SHELL_LIST_Y)) / SHELL_LIST_ROW
+	if pos < _shell_list_top:
+		_shell_list_top = pos
+	if pos >= _shell_list_top + max_rows:
+		_shell_list_top = pos - max_rows + 1
+	_shell_list_top = clampi(_shell_list_top, 0, maxi(0, rows.size() - max_rows))
+	if _shell_list_top > 0:
+		VWB_Bar(SHELL_LIST_X + SHELL_LIST_W / 2 - 4, SHELL_LIST_Y - 1, 8, 2, 12)
+	if _shell_list_top + max_rows < rows.size():
+		VWB_Bar(SHELL_LIST_X + SHELL_LIST_W / 2 - 4, SHELL_LIST_Y + 13 * 8 - 5, 8, 2, 12)
+	for k: int in range(_shell_list_top, mini(rows.size(), _shell_list_top + max_rows)):
 		var r: Dictionary = rows[k]
 		if k == pos:
 			VWB_Bar(SHELL_LIST_X - 5, y + 1, 3, SHELL_LIST_ROW - 4, 12)    # (EGA light red)
@@ -2497,15 +2579,16 @@ func _shell_panel_setup() -> void:
 	CtlPanels[1].key = sc_E
 	var keys: Array = []
 	# (a cap's face holds some 38 pixels of the panel's font: the help line names each in full)
-	for e: Array in [[2, "Input", "controls", "Controls: Keys and Controller Buttons", sc_F3],
-			[11, "Video", "display", "Display: Fullscreen, Pixel Shape", sc_V],
-			[20, "Game", "gameplay", "Gameplay: Fixes for the Original's Bugs", sc_G]]:
+	for e: Array in [[1, "Input", "controls", "Controls: Keys and Controller Buttons", sc_F3],
+			[8, "Video", "display", "Display: Fullscreen, Pixel Shape", sc_V],
+			[15, "Game", "gameplay", "Gameplay: Fixes for the Original's Bugs", sc_G],
+			[22, "Cheat", "cheats", "Cheats (Only During a Game)", sc_C]]:
 		var item: UserItem = _ui(CtlPanelKC2R(e[0], 0), uii_KeyCap, CTL_KEYCAPPIC, CTL_KEYCAPCURPIC, e[3], e[4], ui_Normal,
 			&"USL_CtlShellKeyCustom", e[1])
 		keys.append(item)
 	keys.append(_ui_end())
 	CtlPanels2[3] = keys
-	_shell_pages = ["controls", "display", "gameplay"]
+	_shell_pages = ["controls", "display", "gameplay", "cheats"]
 	# the help's three moved left to make room: the row of four centred in the box
 	for k: int in range(3):
 		var hr: Array = CtlPanel2R(4 + 5 * k, 0)

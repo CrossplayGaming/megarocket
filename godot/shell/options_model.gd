@@ -60,9 +60,11 @@ func page(name: String) -> Array:
 			# what changes the play itself: quicksave and quickload (SAVE-02; Keen 1-3's F7/F9, 4-6's F5/F9),
 			# Keen 6's creature question, the fixes
 			var rows: Array = []
-			if engine != "dreams":
-				rows.append(_value("quicksave", "Quicksave F7/F9" if engine == "vorticons" else "Quicksave F5/F9", _on_off(get_value("quicksave"))))
-				rows.append(_value("quicksave_confirm", "Quicksave asks", _on_off(get_value("quicksave_confirm"))))
+			if engine == "dreams":
+				rows.append(_value("mode", "Mode", mode_text()))    # (Dreams' panel has no Options page to carry it)
+			var qkeys: String = {"vorticons": "F7/F9", "galaxy": "F5/F9", "dreams": "F8/F9"}.get(engine, "F5/F9")
+			rows.append(_value("quicksave", "Quicksave " + qkeys, _on_off(get_value("quicksave"))))
+			rows.append(_value("quicksave_confirm", "Quicksave asks", _on_off(get_value("quicksave_confirm"))))
 			if game_id == "keen6":
 				rows.append(_value("creature_question", "Creature question", _on_off(get_value("creature_question"))))
 			if not FixesModel.for_game(game_id).is_empty():
