@@ -21,8 +21,9 @@ def decode(run_name):
     videos = [run_dir / "capture" / name for name in pointer.read_text(encoding="ascii").split()]
     case = run_dir / "case.json"
     keyfeed = case.exists() and json.loads(case.read_text(encoding="utf-8")).get("keyfeed", False)
+    # (key-fed runs record the text-mode screens too: kept apart in text_frames, HARN-06)
     count = frames.from_videos(videos, run_dir / "frames", {"run": run_name, "videos": [v.name for v in videos]},
-                               skip_other_sizes=keyfeed)
+                               skip_other_sizes=keyfeed, text_folder=(run_dir / "text_frames") if keyfeed else None)
     seq = frames.Sequence(run_dir / "frames")
     print(f"{run_name}: {seq.raw_frames} recorded pictures, {count} distinct")
     return common.PASS if count > 0 else common.FAIL
