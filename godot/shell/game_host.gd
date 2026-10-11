@@ -972,18 +972,22 @@ func _feed_audio(pending: Array, machine_t: float) -> void:
 		_audio_started = true
 	if _playback == null:
 		return
-	# fallen behind (the screen side stalled): catch up silently, keeping a
-	# quarter second to fill the output with
-	if machine_t - AUDIO_LATENCY - audio.t > 0.4:
-		ShellMessages.note("Audio: fell %.2f s behind the game at %.2f s; skipped ahead" % [machine_t - AUDIO_LATENCY - audio.t, machine_t])
-		audio.skip_to(machine_t - AUDIO_LATENCY - 0.25)
+	# fallen behind (the screen side stalled): catch up silently to the latency
+	if machine_t - audio.t > AUDIO_LATENCY + 0.4:
+		ShellMessages.note("Audio: fell %.2f s behind the game at %.2f s; skipped ahead" % [machine_t - audio.t, machine_t])
+		audio.skip_to(machine_t - AUDIO_LATENCY)
 	var skips: int = _playback.get_skips()
+	if machine_t < 2.0 * AUDIO_LATENCY:
+		_audio_skips = skips    # the output started before the first sound was in: silence, not a crackle
 	if skips > _audio_skips:
 		ShellMessages.note("Audio: the output ran dry (%d frames, %d in all) at game time %.2f s; %.3f s of sound was ready" %
-			[skips - _audio_skips, skips, machine_t, machine_t - AUDIO_LATENCY - audio.t])
+			[skips - _audio_skips, skips, machine_t, machine_t - audio.t])
 		_audio_skips = skips
-	# never run the audio clock past the machine's (less the latency)
-	var room: int = int((machine_t - AUDIO_LATENCY - audio.t) * HostAudio.RATE)
+	# the audio clock started AUDIO_LATENCY behind the machine's and is rendered up to the machine's own
+	# time (every event up to it is in): the output holds that much sound in hand, so a slow frame on the
+	# screen side does not run it dry (rendering only to machine_t - AUDIO_LATENCY kept it near empty and
+	# every hitch was a click: Keen 4-6's death sound breaking into static, 2026-10-11)
+	var room: int = int((machine_t - audio.t) * HostAudio.RATE)
 	var n: int = mini(_playback.get_frames_available(), maxi(room, 0))
 	if n > 0:
 		_playback.push_buffer(audio.render(n))
