@@ -12,8 +12,9 @@ the original one picture and the port another, a difference in timing, not in co
 
 For each key (keys pressed together count as one), in order, the port is run with it moved by up to four
 refreshes either way (the original has met the main menu's first key up to three refreshes before the port:
-Keen 2) and by half a refresh. If the pictures that stay up `settled` refreshes from the key to the next are
-not the same in all eleven runs, the key is moved a refresh at a time (later, then earlier, up to `--reach`
+Keen 2) and by half a refresh. If the pictures that stay up `settled` refreshes from the key to the next (less
+those the screen it leaves showed in the second before it) are not the same in all eleven runs, the key is
+moved a refresh at a time (later, then earlier, up to `--reach`
 refreshes) and, failing that, held half a refresh or a refresh shorter or longer, until they are.
 Screens named at a moved key's time, and the case's mask edges between it and the next key, move with it. Design the case in the port first (`screen_case.py
 port`), steady its keys, then record it: a recording is the result of its keys.
@@ -67,9 +68,13 @@ def steady(game, case, reach=24, start_from=0.0, say=print):
         if folder is None:
             return None
         view = sc.View(frames.Sequence(folder), base["masks"], t1 + 0.6, "port")
+        # the screen the key leaves (a cursor spinning, tiles animating) shows a step more or less as the key
+        # moves: its pictures, all shown in the second before the key, are left out; what the key brings stays
+        before = {e.digest for e in view.entries if t0 - 1.0 <= e.at < t0 - 2 / sc.REFRESH_HZ}
         sig = []
         for e in view.entries:
-            if t0 <= e.at < t1 and e.reps >= base["settled"] and (not sig or sig[-1] != e.digest):
+            if (t0 <= e.at < t1 and e.reps >= base["settled"] and e.digest not in before
+                    and (not sig or sig[-1] != e.digest)):
                 sig.append(e.digest)
         return sig
 
