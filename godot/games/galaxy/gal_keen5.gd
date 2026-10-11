@@ -506,8 +506,9 @@ func _ck5_GalExplodeDelay() -> void:
 
 func CK5_ExplodeGalaxy() -> void:
 	# purge_chunks()
-	VL_SetScrollCoords(0, 0)
-
+	# (SCR-01: the screen fades out where the level's play left it; KEEN5E.EXE 0F00:0656 sets the screen
+	# to 0,0 only after the fade and the caches, where VH_SetScreen is below. Omnispeak scrolls first, so
+	# its fade showed the play shifted by the scroll's pan; keen5 scr_over)
 	VL_FadeToBlack()
 	CA_CacheGrChunk(CK_CHUNKNUM("PIC_MILKYWAY")) # Galaxy Pic
 	CA_CacheGrChunk(CK_CHUNKNUM("EXTERN_GALAXY")) # Star Coords
@@ -515,6 +516,7 @@ func CK5_ExplodeGalaxy() -> void:
 
 	# VW_SetLineWidth(40);
 	# VH_SetScreen(0);
+	VL_SetScrollCoords(0, 0)
 	# VW_ClearVideo(0);
 	VL_ClearScreen(0)
 
