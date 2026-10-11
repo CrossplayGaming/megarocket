@@ -330,5 +330,12 @@
  "port": {
   "costs": "loadgraphics=281436522"
  },
- "note": "SCR-01V: no keys: the attract loop's four screens (title, id, high scores, the timed ordering screen) and back to the title."
+ "note": "SCR-01V: no keys: the attract loop's four screens (title, id, high scores, the timed ordering screen) and back to the title.",
+ "sequences": [
+  {
+   "from": 64.85,
+   "to": 81.45,
+   "reason": "the timed ordering screen: the Foob walk by the clock and the random numbers, no key steers them, so every step comes in the same order on both machines; the poses repeat (and many steps are up under 4 refreshes), so S1-S5 alone cannot tell another walk (with the old clock, dos_ticks 22, Keen 1's Yorp walks otherwise). The window starts and ends mid-picture on both sides"
+  }
+ ]
 }

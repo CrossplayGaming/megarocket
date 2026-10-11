@@ -113,7 +113,9 @@ def harn06a():
 def harn06():
     """The screen-case tool (tools/screen_case.py) fails on planted faults: in Keen 1's and Keen Dreams
     v1.93's menu cases, one settled picture of the port altered by a pixel and one settled picture of the
-    original left out of the port are each reported, and (v1.93's start screens) one text cell's colour."""
+    original left out of the port are each reported, two swapped, a screen no key ends cut to one refresh
+    (S4), and (v1.93's start screens) one text cell's colour, one character swapped for one the screen shows
+    nowhere else (cells read by shape, J-38) and the text cursor moved."""
     import screen_case
     worst = common.PASS
     tag = screen_case.checkout_tag("harn06")
@@ -1554,6 +1556,19 @@ def shell15():
     return code
 
 
+def shell16():
+    """The launcher's folder chooser (SHELL-16), Megarocket's own framed box in place of Godot's file
+    dialog: opened, a made folder tree walked by keys, real controller events and the mouse, cancelled,
+    the games found named, a folder added (saved and scanned), the export's choosers; at 1280x720 and
+    1920x1080 no text cut off and ten rows of folders in view."""
+    import gdtest
+    code, out = gdtest.run("shell16_folder_chooser", [], timeout=400.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+            print("  " + line.strip())
+    return code
+
+
 def scr05g():
     """Keen 4-6 by the controller alone (SCR-05, SCR-03, MENU-02), real controller events to the host: the d-pad's
     letters (PadTextEntry) on their own; Keen 4's EXTRAS HELP walked by the pad, a game saved as KEEN typed with
@@ -1829,14 +1844,33 @@ def and04():
 
 
 def and03a():
-    """The touch controls: bounds at three screens, each engine's Fire, and in the host on Keen 1 the
-    touches delivered to the game as the keyboard's scan codes; hidden with a pad in use."""
+    """The touch controls: bounds at three screens (J-54: in each layout and size), each engine's Fire,
+    Status's own code (J-50), and in the host on Keen 1 the touches delivered to the game as the keyboard's
+    scan codes; hidden with a pad in use."""
     import gdtest
     code, out = gdtest.run("and03_touch", [], timeout=300.0, quiet=True)
     for line in out.splitlines():
         if "FAIL" in line or "checks" in line or "ERROR" in line:
             print("  " + line.strip())
     return code
+
+
+def touch01():
+    """The touch controls' settings and Status button (J-54, J-50), one game of each engine (Keen 1, Keen 4,
+    Keen Dreams v1.93) in the host with real key, controller and touch events: the game's Touch page (Keen
+    1-3's Options > Controls... > Touch..., Keen 4-6's CONFIGURE > TOUCH card, Dreams' Input keycap) moves
+    Layout, Opacity, Size and Show with a pad by the keys and the controller, the game's own setting
+    changes and the on-screen controls follow at once; with the keyboard's Status moved to Q the overlay's
+    Status opens the status screen (OK, Enter, no longer does) and a key closes it."""
+    import gdtest
+    worst = 0
+    for game in ("keen1", "keen4", "kdreams193"):
+        code, out = gdtest.run("touch01_settings", ["--game=" + game], timeout=600.0, quiet=True)
+        for line in out.splitlines():
+            if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+                print("  %s: %s" % (game, line.strip()))
+        worst = max(worst, code)
+    return worst
 
 
 def shell07():
@@ -1989,6 +2023,7 @@ CHECKS = {
     "MENU-08": (menu08, "fast"),
     "AUDIO-06": (audio06, "fast"),
     "SHELL-15": (shell15, "fast"),
+    "SHELL-16": (shell16, "fast"),
     "SCR-05G": (scr05g, "fast"),
     "SCR-05D": (scr05d, "fast"),
     "SHELL-04": (shell04, "fast"),
@@ -1998,6 +2033,7 @@ CHECKS = {
     "AND-02a": (and02a, "fast"),
     "SHELL-10b": (shell10b, "fast"),
     "AND-03a": (and03a, "fast"),
+    "TOUCH-01": (touch01, "fast"),
     "SCR-04": (scr04, "fast"),
     "SCR-05V": (scr05v, "fast"),
     "HOST-01": (host01, "slow"),

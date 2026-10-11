@@ -346,6 +346,7 @@ func start(found: Dictionary) -> bool:
 	apply_setting("smooth_motion")
 	apply_setting("wide_view")
 	apply_setting("controls")
+	apply_setting("touch_layout")
 	_player = AudioStreamPlayer.new()
 	var gen: AudioStreamGenerator = AudioStreamGenerator.new()
 	gen.mix_rate = HostAudio.RATE
@@ -390,6 +391,13 @@ func apply_setting(name: String) -> void:
 			_native.snap = not native
 			_wide = wide
 			_fit_view()
+		return
+	if name.begins_with("touch_"):
+		# J-54: the Touch page's layout, opacity, size and Show with a pad, to the on-screen controls at once
+		if overlay != null:
+			overlay.configure(str(options.get_value("touch_layout")), int(options.get_value("touch_opacity")),
+				int(options.get_value("touch_size")), bool(options.get_value("touch_with_pad")))
+			_update_overlay()
 		return
 	match name:
 		"fullscreen":
@@ -787,13 +795,13 @@ func _touch_key(code: int, down: bool) -> void:
 	send_key(sent, true)
 
 
-## The overlay shows on a touch screen while no pad is in use; hiding it lets
-## go of whatever its fingers held.
+## The overlay shows on a touch screen while no pad is in use (J-54: or always, the player's Show with a
+## pad); hiding it lets go of whatever its fingers held.
 func _update_overlay() -> void:
 	if overlay == null:
 		return
 	var pad_in_use: bool = pad_device >= 0 and (connected_pads.call() as Array).has(pad_device)
-	var show: bool = TouchOverlay.wanted(force_touch or DisplayServer.is_touchscreen_available(), pad_in_use)
+	var show: bool = TouchOverlay.wanted(force_touch or DisplayServer.is_touchscreen_available(), pad_in_use, overlay.with_pad)
 	if overlay.visible and not show:
 		overlay.release_all()
 	overlay.visible = show

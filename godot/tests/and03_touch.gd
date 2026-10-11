@@ -2,7 +2,8 @@
 extends SceneTree
 ## AND-03: the on-screen controls. At a landscape phone, a desktop window and
 ## a portrait phone every control lies inside the screen and none overlaps
-## another. Keen 4's Fire is Space, Keen 1's is Ctrl and Alt together. In the
+## another (J-54: in each layout, at sizes 50, 100 and 150; the layouts, opacity and size as set; J-50:
+## Status has its own code, beside OK). Keen 4's Fire is Space, Keen 1's is Ctrl and Alt together. In the
 ## host, on Keen 1 in real time, touches reach the game as the keyboard's keys
 ## (the scan codes the machine delivers through its keyboard interrupt): Jump, the one-button Fire, the d-pad's Right, a slide to
 ## the up-right diagonal (two arrows) and on to the left (the others let go),
@@ -40,25 +41,52 @@ func _drag(o: TouchOverlay, index: int, at: Vector2) -> void:
 
 
 func _go() -> void:
-	# layout at three screens
+	# layout at three screens (J-54: in every layout, at the smallest, the usual and the largest size)
 	for sz: Vector2 in [Vector2(851, 393), Vector2(1280, 720), Vector2(393, 851)]:
-		for id: String in ["keen1", "keen4"]:
-			var o: TouchOverlay = TouchOverlay.new(id)
-			o.size = sz
-			o._place()
-			var rects: Array = [o.dpad_rect()]
-			for n: String in o._buttons:
-				rects.append(o.button_rect(n))
-			var inside: bool = true
-			var apart: bool = true
-			for i: int in range(rects.size()):
-				if not Rect2(Vector2.ZERO, sz).encloses(rects[i]):
-					inside = false
-				for j: int in range(i + 1, rects.size()):
-					if (rects[i] as Rect2).intersects(rects[j]):
-						apart = false
-			t.ok("%s at %dx%d: every control inside the screen, none overlapping" % [id, sz.x, sz.y], inside and apart)
-			o.free()
+		for id: String in ["keen1", "keen4", "kdreams"]:
+			var bad: Array = []
+			for lay: String in ["standard", "swapped", "compact"]:
+				for pct: int in [50, 100, 150]:
+					var o: TouchOverlay = TouchOverlay.new(id)
+					o.size = sz
+					o.configure(lay, 50, pct, false)
+					var rects: Array = [o.dpad_rect()]
+					for n: String in o._buttons:
+						rects.append(o.button_rect(n))
+					var inside: bool = true
+					var apart: bool = true
+					for i: int in range(rects.size()):
+						if not Rect2(Vector2.ZERO, sz).encloses(rects[i]):
+							inside = false
+						for j: int in range(i + 1, rects.size()):
+							if (rects[i] as Rect2).intersects(rects[j]):
+								apart = false
+					if not (inside and apart):
+						bad.append("%s %d%%" % [lay, pct])
+					o.free()
+			t.ok("%s at %dx%d: every control inside the screen, none overlapping, in each layout and size %s" % [id, sz.x, sz.y, bad], bad.is_empty())
+	# J-50: Status beside Menu and OK, its own code
+	var os: TouchOverlay = TouchOverlay.new("keen1")
+	os.size = Vector2(851, 393)
+	os._place()
+	t.ok("Status: the touch screen's own Status code (0x74), at the top beside OK",
+		os.codes_at(os.button_rect("Status").get_center()) == [0x74] and os.button_rect("Status").end.x < os.button_rect("OK").position.x
+		and os.button_rect("Status").position.y == os.button_rect("OK").position.y)
+	os.free()
+	# J-54: the layouts' sides, the opacity and the size as configured
+	var oc: TouchOverlay = TouchOverlay.new("keen4")
+	oc.size = Vector2(851, 393)
+	oc.configure("swapped", 100, 150, true)
+	t.ok("swapped: the d-pad right, the buttons left; opacity 100 twice the usual alpha; size 150 the buttons 108",
+		oc.dpad_rect().position.x > 425 and oc.button_rect("Fire").end.x < 425 and is_equal_approx(oc.shade(0.18), 0.36)
+		and is_equal_approx(oc.button_rect("Jump").size.x, 108.0))
+	oc.configure("compact", 50, 100, false)
+	t.ok("compact: the buttons a block of two columns in the corner",
+		oc.button_rect("Fire").position.y == oc.button_rect("Pogo").position.y and oc.button_rect("Jump").position.x == oc.button_rect("Fire").position.x
+		and oc.button_rect("Jump").end.y < oc.button_rect("Fire").position.y)
+	oc.free()
+	t.ok("wanted: hidden with a pad in use unless Show with a pad",
+		not TouchOverlay.wanted(true, true) and TouchOverlay.wanted(true, true, true) and TouchOverlay.wanted(true, false) and not TouchOverlay.wanted(false, false, true))
 	var o4: TouchOverlay = TouchOverlay.new("keen4")
 	o4.size = Vector2(851, 393)
 	o4._place()

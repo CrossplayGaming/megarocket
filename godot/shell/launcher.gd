@@ -77,6 +77,11 @@ var _export_thread: Thread = null
 var _export_label: Label = null
 ## The how-to page (J-12), over the tiles while open.
 var howto: PanelContainer = null
+## SHELL-16: the folder chooser while it is up, and the control the keys go back to when it closes.
+var folder_chooser: FolderChooser = null
+var _chooser_return: Control = null
+## The finder the scans use (a new one if null); a test gives one whose Steam and GOG readers find nothing.
+var finder: GameFinder = null
 ## One sideways row (narrow or portrait windows).
 var carousel: bool = false
 ## id -> the tile's PanelContainer
@@ -204,8 +209,8 @@ func _ready() -> void:
 
 
 func _scan() -> void:
-	var finder: GameFinder = GameFinder.new()
-	show_results(finder.scan_all(scan_roots()))
+	var f: GameFinder = finder if finder != null else GameFinder.new()
+	show_results(f.scan_all(scan_roots()))
 
 
 ## The folders scanned besides Steam and GOG: the player's own, and the games
@@ -488,22 +493,59 @@ func start_anyway() -> void:
 
 # ---- a folder the player chooses (SHELL-05's game_folders)
 
+## Add a folder: Megarocket's own folder chooser (SHELL-16), starting at the folder added last (or the
+## home folder); Android keeps the system's picker (AND-02).
 func _pick_folder() -> void:
-	var fd: FileDialog = FileDialog.new()
-	fd.file_mode = FileDialog.FILE_MODE_OPEN_DIR
-	fd.access = FileDialog.ACCESS_FILESYSTEM
-	fd.title = "Choose a folder with Keen games in it"
-	fd.use_native_dialog = OS.has_feature("android")    # the system's picker (AND-02)
-	fd.dir_selected.connect(func(dir: String) -> void:
-		ShellMessages.note("Folder chosen: %s" % dir)
-		if dir.begins_with("content://") and AndroidSaf.available():
-			import_games(GameImporter.SafSource.new(dir))    # Android: read through the picker's grant, copied in
-		else:
-			add_folder(dir)
-		fd.queue_free())
-	fd.canceled.connect(fd.queue_free)
-	add_child(fd)
-	fd.popup_centered_ratio(0.7)
+	if OS.has_feature("android"):
+		var fd: FileDialog = FileDialog.new()
+		fd.file_mode = FileDialog.FILE_MODE_OPEN_DIR
+		fd.access = FileDialog.ACCESS_FILESYSTEM
+		fd.title = "Choose a folder with Keen games in it"
+		fd.use_native_dialog = true    # the system's picker (AND-02)
+		fd.dir_selected.connect(func(dir: String) -> void:
+			ShellMessages.note("Folder chosen: %s" % dir)
+			if dir.begins_with("content://") and AndroidSaf.available():
+				import_games(GameImporter.SafSource.new(dir))    # Android: read through the picker's grant, copied in
+			else:
+				add_folder(dir)
+			fd.queue_free())
+		fd.canceled.connect(fd.queue_free)
+		add_child(fd)
+		fd.popup_centered_ratio(0.7)
+		return
+	var fc: FolderChooser = FolderChooser.new()    # (its title and button say Add this folder)
+	fc.start_dir = extra_folders[extra_folders.size() - 1] if not extra_folders.is_empty() else ""
+	open_chooser(fc)
+	fc.chosen.connect(func(dir: String) -> void:
+		close_chooser()
+		add_folder(dir))
+
+
+## SHELL-16: Megarocket's folder chooser `fc` (set up, not yet shown) over the launcher or the export page,
+## framed in its look; the keys and the pad stay in it while it is up, and come back to the button that
+## opened it.
+func open_chooser(fc: FolderChooser) -> void:
+	close_chooser()
+	fc.canceled.connect(close_chooser)
+	_chooser_return = get_viewport().gui_get_focus_owner() if is_inside_tree() else null
+	for p: Control in [_page, export_page]:
+		if p != null:
+			p.focus_behavior_recursive = Control.FOCUS_BEHAVIOR_DISABLED
+	folder_chooser = fc
+	add_child(fc)
+
+
+func close_chooser() -> void:
+	if folder_chooser == null:
+		return
+	folder_chooser.queue_free()
+	folder_chooser = null
+	for p: Control in [_page, export_page]:
+		if p != null:
+			p.focus_behavior_recursive = Control.FOCUS_BEHAVIOR_INHERITED
+	if is_instance_valid(_chooser_return) and _chooser_return.is_visible_in_tree():
+		_chooser_return.grab_focus()
+	_chooser_return = null
 
 
 ## Remembers a folder (saved at once) and scans again. False if it was known.
@@ -637,26 +679,26 @@ func show_export() -> void:
 	(row.get_child(0) as Button).grab_focus()
 
 
+## Where the export goes, in Megarocket's folder chooser (SHELL-16): the folder the "Megarocket Games"
+## folder goes into, or the one the ZIP is saved in under its own name (the box says when one is already
+## there and would be replaced).
 func _pick_export_target(as_zip: bool) -> void:
-	var fd: FileDialog = FileDialog.new()
-	fd.access = FileDialog.ACCESS_FILESYSTEM
+	var zip_name: String = GameExporter.FOLDER + ".zip"
+	var fc: FolderChooser = FolderChooser.new()
+	fc.look_for_games = false
 	if as_zip:
-		fd.file_mode = FileDialog.FILE_MODE_SAVE_FILE
-		fd.filters = PackedStringArray(["*.zip ; ZIP"])
-		fd.current_file = GameExporter.FOLDER + ".zip"
-		fd.title = "Where to save the ZIP"
-		fd.file_selected.connect(func(path: String) -> void:
-			export_games(path, true)
-			fd.queue_free())
+		fc.title_text = "Where to save %s" % zip_name
+		fc.accept_text = "Save the ZIP here"
+		fc.file_name = zip_name
 	else:
-		fd.file_mode = FileDialog.FILE_MODE_OPEN_DIR
-		fd.title = "Where to put the \"%s\" folder" % GameExporter.FOLDER
-		fd.dir_selected.connect(func(dir: String) -> void:
-			export_games(dir, false)
-			fd.queue_free())
-	fd.canceled.connect(fd.queue_free)
-	add_child(fd)
-	fd.popup_centered_ratio(0.7)
+		fc.title_text = "Where to put the \"%s\" folder" % GameExporter.FOLDER
+		fc.accept_text = "Export here"
+		fc.note_text = "The \"%s\" folder goes inside the folder shown." % GameExporter.FOLDER
+	fc.start_dir = OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
+	open_chooser(fc)
+	fc.chosen.connect(func(dir: String) -> void:
+		close_chooser()
+		export_games(dir.path_join(zip_name) if as_zip else dir, as_zip))
 
 
 ## Writes the export (into `target`, or as the ZIP `target`) on a thread.
@@ -947,8 +989,12 @@ func back() -> String:
 	return did
 
 
-## Closes whichever launcher page is open (the quit box, how-to, import, export). False if none.
+## Closes whichever launcher page is open (the folder chooser, the quit box, how-to, import, export).
+## False if none.
 func close_page() -> bool:
+	if folder_chooser != null:
+		close_chooser()
+		return true
 	if quit_box != null:
 		close_quit()
 		return true

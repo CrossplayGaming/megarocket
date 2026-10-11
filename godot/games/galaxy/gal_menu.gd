@@ -2237,6 +2237,7 @@ func CK_US_ShellCards() -> void:
 	# CTRL-04: TWO-BUTTON FIRING is the CONTROLS card's FIRE BUTTON row now
 	ck_us_optionsMenuItems.erase(ck_us_optionsOriginal[1])
 	_shell_controls_card()
+	_shell_touch_card()
 	var display_items: Array = []
 	for r: Dictionary in options.page("display"):
 		if r.kind == "value":
@@ -2376,6 +2377,25 @@ func _shell_controls_card() -> void:
 	ck_us_configureMenuItems.insert(at, _us_item(US_ITEM_Submenu, US_IS_Gap, IN_SC_C, "CONTROLS", US_Comm_None, ck_us_controlsMenu))
 
 
+## J-54 (MENUS.md: CONFIGURE's TOUCH card): the on-screen controls' LAYOUT, OPACITY, SIZE and SHOW WITH A PAD,
+## each a row that moves on when chosen (the touch controls follow at once), on CONFIGURE after CONTROLS.
+var ck_us_touchMenu: US_Card = null
+
+
+func _shell_touch_card() -> void:
+	var items: Array = []
+	for r: Dictionary in options.page("touch"):
+		if r.kind == "value":
+			items.append(_shell_row_item(r.key, "option"))
+	items.append(_us_item_end())
+	ck_us_touchMenu = _us_card(8, 0, "TEXT:TOUCH", 0, items, &"", 0, 0, 0)
+	var at: int = ck_us_configureMenuItems.size() - 1
+	for item: US_CardItem in ck_us_configureMenuItems:
+		if item.subMenu == ck_us_controlsMenu:
+			at = ck_us_configureMenuItems.find(item) + 1
+	ck_us_configureMenuItems.insert(at, _us_item(US_ITEM_Submenu, 0, IN_SC_T, "TOUCH", US_Comm_None, ck_us_touchMenu))
+
+
 ## CTRL-04: catches a key or button for an action in the watch's dialog: what to press, a line, Esc (or Start)
 ## cancels and a five-second countdown; the host hands the next press over (controls_captured) and the game
 ## never sees it. Returns what happened, to be said.
@@ -2473,7 +2493,7 @@ func CK_US_ShellCaptions() -> void:
 	if options == null:
 		return
 	var rows: Dictionary = {}
-	for page_name: String in ["options", "gameplay", "display", "sound", "fixes", "controls", "keys", "pad"]:
+	for page_name: String in ["options", "gameplay", "display", "sound", "fixes", "controls", "keys", "pad", "touch"]:
 		for r: Dictionary in options.page(page_name):
 			rows[r.key] = r
 	for item: US_CardItem in _shell_bind_items:
