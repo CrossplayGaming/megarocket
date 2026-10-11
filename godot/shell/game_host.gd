@@ -90,6 +90,9 @@ var _machine_t: float = 0.0
 var _player: AudioStreamPlayer = null
 var _playback: AudioStreamGeneratorPlayback = null
 var _audio_started: bool = false
+## The output's underruns seen so far (AudioStreamGeneratorPlayback.get_skips), each new run of them logged
+## with the game's time and why the sound had nothing to play (a crackle the player hears).
+var _audio_skips: int = 0
 
 var _view: TextureRect
 var _backdrop: StageBackdrop = null
@@ -972,7 +975,13 @@ func _feed_audio(pending: Array, machine_t: float) -> void:
 	# fallen behind (the screen side stalled): catch up silently, keeping a
 	# quarter second to fill the output with
 	if machine_t - AUDIO_LATENCY - audio.t > 0.4:
+		ShellMessages.note("Audio: fell %.2f s behind the game at %.2f s; skipped ahead" % [machine_t - AUDIO_LATENCY - audio.t, machine_t])
 		audio.skip_to(machine_t - AUDIO_LATENCY - 0.25)
+	var skips: int = _playback.get_skips()
+	if skips > _audio_skips:
+		ShellMessages.note("Audio: the output ran dry (%d frames, %d in all) at game time %.2f s; %.3f s of sound was ready" %
+			[skips - _audio_skips, skips, machine_t, machine_t - AUDIO_LATENCY - audio.t])
+		_audio_skips = skips
 	# never run the audio clock past the machine's (less the latency)
 	var room: int = int((machine_t - AUDIO_LATENCY - audio.t) * HostAudio.RATE)
 	var n: int = mini(_playback.get_frames_available(), maxi(room, 0))
