@@ -1011,6 +1011,7 @@ func VL_1bppInvBlitClipToPAL8(src: PackedByteArray, so: int, dst: PackedByteArra
 
 func VL_InitScreen() -> void:
 	vm.card.bios_set_video_mode(0x0D)
+	vm.mark("mode_0d")    # HARN-06: a screen case's key timetable starts here (KEYFEED.COM sees the BIOS mode)
 	vl_screen = VL_Surface.new(RF_BUFFER_WIDTH_PIXELS, RF_BUFFER_HEIGHT_PIXELS)
 	VL_SetPaletteAndBorderColor(vl_palette[3])
 
