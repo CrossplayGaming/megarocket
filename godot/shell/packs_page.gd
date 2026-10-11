@@ -7,6 +7,9 @@ extends PanelContainer
 ## kept in the "packs" setting; the folder opened for the player; and the export tool, which writes the
 ## game's pictures as templates (a PNG per sprite named as a pack wants it, a sheet per set with its
 ## grid) into the player's own folder. Every control is a button: keys, a pad and the mouse all work.
+## V15-05: each pack can be shared (Share: a folder and a ZIP of its own pictures, AssetPacks.export_pack,
+## where the player chooses) and a shared one brought in (Bring in a pack...: a ZIP or a folder, switched
+## on); the Asset Studio puts single pictures into My pack.
 
 signal closed
 
@@ -19,6 +22,11 @@ var list_box: VBoxContainer
 var status: Label
 var first_button: Button
 var back_button: Button
+## The chooser's host (the launcher's open_chooser(fc) and close_chooser()); without them the page holds
+## the chooser itself.
+var open_chooser_fn: Callable = Callable()
+var close_chooser_fn: Callable = Callable()
+var _chooser: FolderChooser = null
 
 
 func _init() -> void:
@@ -69,6 +77,7 @@ func _build() -> void:
 		DirAccess.make_dir_recursive_absolute(AssetPacks.mods_dir(game))
 		OS.shell_open(AssetPacks.mods_dir(game)))
 	_button(row, "Export", "Export templates", _export)
+	_button(row, "Bring", "Bring in a pack...", _bring_dialog)
 	back_button = _button(row, "Back", "Back", func() -> void: closed.emit())
 	col.add_child(row)
 
@@ -126,6 +135,7 @@ func _fill() -> void:
 		r.add_child(on)
 		_button(r, "Up", "Up", func() -> void: _move(packs, i, -1))
 		_button(r, "Down", "Down", func() -> void: _move(packs, i, 1))
+		_button(r, "Share", "Share...", func() -> void: _share_dialog(String(e[0])))
 		list_box.add_child(r)
 
 
@@ -158,3 +168,53 @@ func _export() -> void:
 	var where: String = AssetPacks.export_templates(d.stage, AssetPacks.sprites_of(d))
 	status.text = ("Templates written to %s: sprites/ has a picture per sprite, named as a pack wants it; sheets/ a sheet per set with its grid." % where
 		if where != "" else "The templates folder could not be written.")
+
+
+# ---- sharing a pack, bringing one in (V15-05)
+
+func _share_dialog(pack: String) -> void:
+	var fc: FolderChooser = StudioPage.share_chooser(game, pack)
+	fc.chosen.connect(func(dir: String) -> void:
+		_close_chooser()
+		var r: Dictionary = AssetPacks.export_pack(game, pack, dir)
+		status.text = String(r.message))
+	_open_chooser(fc)
+
+
+func _bring_dialog() -> void:
+	var start: String = String(settings.get_value("studio_folder"))
+	var fc: FolderChooser = StudioPage.bring_chooser(start if DirAccess.dir_exists_absolute(start) else OS.get_system_dir(OS.SYSTEM_DIR_DOWNLOADS))
+	fc.chosen.connect(func(path: String) -> void:
+		_close_chooser()
+		bring_in(path))
+	_open_chooser(fc)
+
+
+## A shared pack (a ZIP or a folder) brought in, switched on, and listed.
+func bring_in(path: String) -> void:
+	var r: Dictionary = AssetPacks.import_pack(path, game)
+	if r.ok:
+		AssetPacks.switch_on(settings, String(r.game), String(r.pack))
+		if String(r.game) != game and found.has(String(r.game)):
+			_show_game(String(r.game))
+		_fill()
+	status.text = String(r.message)
+
+
+func _open_chooser(fc: FolderChooser) -> void:
+	_chooser = fc
+	if open_chooser_fn.is_valid():
+		open_chooser_fn.call(fc)
+	else:
+		fc.canceled.connect(_close_chooser)
+		add_child(fc)
+
+
+func _close_chooser() -> void:
+	if _chooser == null:
+		return
+	if close_chooser_fn.is_valid():
+		close_chooser_fn.call()
+	elif is_instance_valid(_chooser):
+		_chooser.queue_free()
+	_chooser = null

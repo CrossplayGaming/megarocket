@@ -651,6 +651,20 @@ def v1501():
     return code
 
 
+def v1505():
+    """The Asset Studio (V15-05) by real input: opened from the launcher beside the packs page, Keen 4's
+    sprites in categories, moved through by the pad; shape pictures dropped at 1x and 4x replace one (My
+    pack made and on, the stage serving it), a wrong size and non-PNG files refused with their messages,
+    several by their names; Replace... through the chooser in file mode, Revert, the template; My pack
+    shared as a folder and a ZIP and brought back in, the same files."""
+    import gdtest
+    code, out = gdtest.run("v15_studio", [], timeout=900.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend04d():
     """The wide view (REND-04D), Keen Dreams, a reach of six tiles past the picture: the 1x picture still the
     card's, at 416 every image shifted alike with the score box kept on the screen and the map's tiles over
@@ -2043,6 +2057,7 @@ CHECKS = {
     "REND-01D": (rend01d, "fast"),
     "V15-06": (v1506, "fast"),
     "V15-01": (v1501, "fast"),
+    "V15-05": (v1505, "fast"),
     "REND-09": (rend09, "fast"),
     "CHEAT-03": (cheat03, "fast"),
     "SAVE-02": (save02, "fast"),
