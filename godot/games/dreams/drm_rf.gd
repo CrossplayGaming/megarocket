@@ -783,6 +783,17 @@ func RF_NewPosition_EGA(x: int, y: int) -> void:
 	update[page1ptr - PORTTILESWIDE] = 3
 
 
+## REND-01R: the master screen copied to another place (the compatibility mode's move): its record too.
+func _draw_master_moved(from: int, to: int) -> void:
+	var moved: Dictionary = {}
+	for y: int in range(PORTTILESHIGH):
+		for x: int in range(PORTTILESWIDE):
+			var o: int = u16(from + blockstarts[y * UPDATEWIDE + x])
+			if _draw_master.has(o):
+				moved[u16(to + blockstarts[y * UPDATEWIDE + x])] = _draw_master[o]
+	_draw_master.merge(moved, true)
+
+
 ## Uncache the trailing row of tiles. `updatespot` and `step` are in bytes, both even.
 func RFL_OldRow(updatespot: int, count: int, step: int) -> void:
 	var backptr: int = updatespot    # inside background plane
@@ -834,6 +845,8 @@ func RF_Scroll_EGA(x: int, y: int) -> void:
 			var newscreen: int = u16(oldscreen + screencopy)
 			screenstart[i] = u16(newscreen + screenmove)
 			VW_ScreenToScreen_EGA(oldscreen, newscreen, PORTTILESWIDE * 2, PORTTILESHIGH * 16)
+			if i == 2 and draw_capture:
+				_draw_master_moved(oldscreen, newscreen)
 
 			if i == screenpage:
 				VW_SetScreen_EGA(u16(newscreen + oldpanadjust), oldpanx & xpanmask)
@@ -1175,11 +1188,16 @@ func RF_Refresh_EGA() -> void:
 
 	# if the main program has a refresh hook set, call their function before
 	# displaying the new page
+	var presents: int = _draw_presents
 	if refreshvector != &"":
 		call(refreshvector)
 
-	# REND-01D: the list of what this refresh drew, for the page flip to present
-	if draw_capture:
+	# REND-01D: the list of what this refresh drew, for the page flip to present. Not when the hook put
+	# pictures on the card itself (v1.10 on: FadeAndUnhook's RF_ForceRefresh, two refreshes of their own,
+	# with the tiles animated twice): the page this one flips to is the first of those's, and the map is
+	# the second's (REND-01R: kdreams193's level sessions, an animated tile a frame apart); the flip then
+	# has no list of its own (a window over the last refresh's page, or none)
+	if draw_capture and _draw_presents == presents:
 		_capture_draw_list()
 	draw_stepped.clear()
 
@@ -1256,6 +1274,13 @@ func _capture_draw_list() -> void:
 			if x >= 0 and x < mapwidth and y >= 0 and y < mapheight and ofs < m0.size():
 				bg[i] = m0[ofs] & 0xFFFF
 				fg[i] = (m1[ofs] & 0xFFFF) if ofs < m1.size() else 0
+				# in the port: the background tile the master screen holds there (and the page copied)
+				var px: int = x - originxtile
+				var py: int = y - originytile
+				if fg[i] == 0 and px >= 0 and px < PORTTILESWIDE and py >= 0 and py < PORTTILESHIGH:
+					var held: Array = _draw_master.get(u16(masterofs + blockstarts[py * UPDATEWIDE + px]), [])
+					if not held.is_empty() and int(held[1]) == 0:
+						bg[i] = int(held[0])
 			else:
 				bg[i] = -1    # past the map
 	var sprites: Array = []
@@ -1323,6 +1348,15 @@ const TILESHIGH: int = 14
 var screenstartcs: int = 0    # in code segment for accesability
 
 
+## REND-01R: what each tile place of the master screen holds, by its offset in the card's memory:
+## [background, foreground] as drawn there. A background tile drawn from the master screen cache copies
+## whatever its cached place holds now, which an animated tile may have changed since (the original's
+## cache keeps the old tile's place: AnimateTiles uncaches only the new one), so the pages can show
+## another frame of a water tile than the map says (kdreams193 level 4, a column scrolled on); the draw
+## list takes the background from here. Presentation only (draw_capture).
+var _draw_master: Dictionary = {}
+
+
 ## Draws a composit two plane tile to the master screen and sets the update spot to 1 in both
 ## update pages, forcing the tile to be copied to the view pages the next two refreshes. Called to
 ## draw newly scrolled on strips and animating tiles. Assumes write mode 0.
@@ -1347,6 +1381,8 @@ func RFL_NewTile_EGA(updateoffset: int) -> void:
 			# Draw single tile from cache
 			var egasrcoff: int = tilecache[backtilenum]
 			var egadestoff: int = screenstartcs
+			if draw_capture:
+				_draw_master[screenstartcs] = _draw_master.get(egasrcoff, [backtilenum, 0])
 			for loopvar: int in range(15):
 				BE_ST_EGAUpdateGFXByteInAllPlanesScrToScr(egadestoff, egasrcoff)
 				BE_ST_EGAUpdateGFXByteInAllPlanesScrToScr(egadestoff + 1, egasrcoff + 1)
@@ -1358,6 +1394,8 @@ func RFL_NewTile_EGA(updateoffset: int) -> void:
 
 		# Draw single tile from main memory
 		tilecache[backtilenum] = screenstartcs    # next time it can be drawn from here with latch
+		if draw_capture:
+			_draw_master[screenstartcs] = [backtilenum, 0]
 		var backsrc: PackedByteArray = _rf_grseg(STARTTILE16 + backtilenum)
 		var backofs: int = 0
 		for currentplane: int in range(4):    # draw four planes
@@ -1371,6 +1409,8 @@ func RFL_NewTile_EGA(updateoffset: int) -> void:
 		return
 
 	# Draw a masked tile combo
+	if draw_capture:
+		_draw_master[screenstartcs] = [backtilenum, foretilenum]
 	var back: PackedByteArray = _rf_grseg(STARTTILE16 + backtilenum)
 	var fore: PackedByteArray = _rf_grseg(STARTTILE16M + foretilenum)
 	var bp: int = 0

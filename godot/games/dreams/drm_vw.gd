@@ -776,6 +776,8 @@ var draw_list: Dictionary = {}
 var draw_list_prev: Dictionary = {}
 ## A refresh's list waiting for its present (set by RF_Refresh_EGA just before VW_SetScreen_EGA)
 var _draw_pending: Dictionary = {}
+## The pictures put on the card so far (REND-01R: a refresh hook that refreshes the screen itself)
+var _draw_presents: int = 0
 ## REND-04: the wide view's extra tiles each side of the original's 20 (the host sets it from the
 ## window's shape; 0 in Classic, headless and the oracle runs: the original exactly)
 var wide_tiles: int = 0
@@ -796,6 +798,7 @@ const DRAW_EXTRA_MAX: int = 320 * 200 * 6 / 10
 ## The list for a picture just put on the card: `start` the CRTC address written, `pan` the pel panning
 ## it shows with; its retrace count is now (the start is taken at the next retrace).
 func _draw_presented(start: int, pan: int) -> void:
+	_draw_presents += 1
 	draw_list_prev = draw_list
 	if not _draw_pending.is_empty():
 		draw_list = _draw_pending

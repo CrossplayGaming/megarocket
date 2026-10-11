@@ -1031,6 +1031,7 @@ func _draw_page(page1: bool) -> void:
 	if draw_capture and drawn == PORTTILESWIDE * PORTTILESHIGH:
 		draw_overlaid[1 if page1 else 0] = false    # every tile painted again: nothing else is left on it
 		draw_overlay_rect[1 if page1 else 0] = Rect2i()
+		draw_user_left[1 if page1 else 0] = &""
 
 
 ## Tests only: print each refresh's start and start-address write time (the
@@ -1063,6 +1064,8 @@ func VidRefresh() -> void:
 	screenseg = saved
 	if uservect != &"":
 		call(uservect)
+	if draw_capture:
+		_user_left()
 	if trace_frames:
 		var unit: float = DosMachine.PIT_HZ * DosMachine.UNIT
 		print("TRACE refresh t=%.6f timecount=%d next_tick=%.6f next_vbl=%.6f vbl=%d" % [vm.now / unit, timecount, vm.next_tick / unit, vm.next_vbl / unit, vm.vbl_count])
@@ -1117,6 +1120,10 @@ var draw_overlay_rect: Array = [Rect2i(), Rect2i()]
 ## screens: they keep the original picture, framed)
 var shell_on_map: bool = false
 var draw_forced: Array = [false, false]
+## Per page: the user routine that drew on it in an earlier refresh (the title's pictures, the id screen's,
+## the high scores'), its drawing still there until every tile is painted again: the refreshes after it
+## (uservect cleared, only the tiles that changed drawn) show it, which their lists don't hold.
+var draw_user_left: Array = [&"", &""]
 
 
 func _capture_draw_list() -> void:
@@ -1145,6 +1152,17 @@ func _capture_draw_list() -> void:
 		"pics": piclist.slice(0, picsshown), "user": uservect,
 		"start": screenstart & 0xFFFF, "pan": screenpan, "written_vbl": -1,
 		"level": level, "reveal": bool(get("cheat_revealSecrets"))}    # the Reveal secrets cheat (the view's alone)
+
+
+## REND-01R: a page a user routine drew on keeps that drawing (the next refreshes draw only the tiles
+## that change) until every tile is painted again; the list of a refresh drawn over it names the routine
+## as its own, so it is shown as the card's picture, not drawn from the list.
+func _user_left() -> void:
+	var page: int = 1 if EGApage != 0 else 0
+	if uservect != &"":
+		draw_user_left[page] = uservect
+	elif draw_user_left[page] != &"" and str(draw_list.get("user", "")) == "":
+		draw_list["user"] = String(draw_user_left[page]) + " (left on the page)"
 
 
 func _set_crtc_start() -> void:

@@ -1353,9 +1353,14 @@ func _draw_presented(base: int) -> void:
 
 ## Something written straight onto the card's page on display: the list shown with what was drawn as its
 ## overlay, if that is a window over the last refresh's picture; neither list is the picture otherwise.
-func _draw_touched() -> void:
+## `filled`: what is written there that the screen surface does not hold (a fill, the memory cleared), in
+## the surface's pixels, counted as drawn outside the refreshes too (REND-01R: the story screen's black,
+## written onto the page while the demo's last picture was its list).
+func _draw_touched(filled: Rect2i = Rect2i()) -> void:
 	if not draw_capture:
 		return
+	if filled.size != Vector2i.ZERO:
+		_draw_extra = filled if _draw_extra.size == Vector2i.ZERO else _draw_extra.merge(filled)
 	var shown: Dictionary = _draw_window_list()
 	if shown.get("none", false):
 		draw_list["touched"] = true
@@ -1441,7 +1446,7 @@ func VL_Present() -> void:
 ## DOS's VW_ClearVideo: every byte of all four planes zeroed at once, the page
 ## on display too, so the black shows as the beam reaches it (TIME-G).
 func VL_ClearVideo() -> void:
-	_draw_touched()
+	_draw_touched(Rect2i(vl_scrollXpixels, vl_scrollYpixels, VL_EGAVGA_GFX_WIDTH, VL_EGAVGA_GFX_HEIGHT))
 	var card: EgaCard = vm.card
 	for i: int in range(4):
 		var pl: PackedByteArray = card.get("plane%d" % i)
@@ -1454,7 +1459,7 @@ func VL_ClearVideo() -> void:
 ## the original draws onto the page being shown, so the card shows the work
 ## in progress at each refresh (TIME-G4: the story screen).
 func VL_ShowRows(y0: int, y1: int, colour: int = -1) -> void:
-	_draw_touched()
+	_draw_touched(Rect2i(vl_scrollXpixels, vl_scrollYpixels + y0, VL_EGAVGA_GFX_WIDTH, y1 - y0) if colour >= 0 else Rect2i())
 	_write_rows(vl_shownPage * EgaCard.PAGE_SIZE, y0, y1, colour)
 
 
