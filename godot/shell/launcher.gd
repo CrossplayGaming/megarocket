@@ -1022,6 +1022,9 @@ func launch(id: String) -> bool:
 		return false
 	host = GameHost.new()
 	host.settings_path = settings_path
+	for g: String in ["keen4", "keen5"]:
+		if states.get(g, "") == "found":
+			host.galaxy_folders[g] = str(found_results[g].folder)    # AUDIO-06: their effects under Keen 1-3
 	add_child(host)
 	if not host.start(found_results[id]):
 		_status_label(tiles[id]).text = host.error

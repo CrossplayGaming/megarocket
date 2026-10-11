@@ -1044,6 +1044,17 @@ def menu08():
     return worst
 
 
+def audio06():
+    """Keen 4-6's AdLib effects in Keen 1-3 (AUDIO-06): every table sound from Keen 4 and 5, and from Keen 5
+    alone; an effect's writes and its sound through the chip; in Keen 1 a jump's effect, the speaker silent."""
+    import gdtest
+    code, out = gdtest.run("audio06_galaxy_sfx", [], timeout=300.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line or "COULD-NOT-RUN" in line:
+            print("  " + line.strip())
+    return code
+
+
 def perf01():
     """Keen 4-6's faster drawing (PERF-01): the screen's conversion into the card's planes, the surface copies,
     tiles, sprites, the intro's one-bit picture and the masked fill give byte for byte what the per-pixel loops
@@ -1397,6 +1408,7 @@ CHECKS = {
     "CTRL-04": (ctrl04, "fast"),
     "CTRL-05": (ctrl05, "fast"),
     "MENU-08": (menu08, "fast"),
+    "AUDIO-06": (audio06, "fast"),
     "SECRET-01": (secret01, "fast"),
     "SECRET-02": (secret02, "fast"),
     "AND-02a": (and02a, "fast"),

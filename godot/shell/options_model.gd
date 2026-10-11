@@ -20,6 +20,8 @@ var engine: String = ""
 var applier: Callable = Callable()
 ## CTRL-03..05: the player's keys and buttons (shared by every game), for the Controls pages.
 var controls: ControlsModel = null
+## AUDIO-06: Keen 4 or Keen 5 found, so Keen 1-3 can have their effects.
+var galaxy_available: bool = false
 ## The Mode presets: the rows each sets (MENUS.md "The Mode row"). The wide view, native resolution, smooth motion and the fixes so far
 ## (FixesModel): one-button fire, all off in Classic, on in Enhanced; more join
 ## as they are built.
@@ -78,6 +80,13 @@ func page(name: String) -> Array:
 			]
 		"sound":
 			var rows: Array = [_value("effects_volume", "Effects volume", "%d%%" % int(get_value("effects_volume")))]
+			if engine == "vorticons":
+				# AUDIO-06: Keen 4-6's AdLib effects for the speaker's, from the player's own Keen 4 or 5
+				var gr: Dictionary = _value("galaxy_sfx", "Keen 4-6 sounds", _on_off(get_value("galaxy_sfx")) if galaxy_available else "Off")
+				gr["enabled"] = galaxy_available
+				gr["why"] = "Needs Keen 4 or Keen 5"
+				gr["desc"] = "Keen 4 and 5's sound effects in place of the PC speaker's (from your own Keen 4 or 5)."
+				rows.append(gr)
 			if engine == "galaxy":
 				rows.append(_value("music_volume", "Music volume", "%d%%" % int(get_value("music_volume"))))
 			rows.append(_row("exit", "Back", "action"))
@@ -217,6 +226,9 @@ func step(key: String, dir: int) -> void:
 			_put("fullscreen", not bool(get_value("fullscreen")))
 		"creature_question":
 			_put("creature_question", not bool(get_value("creature_question")))
+		"galaxy_sfx":
+			if galaxy_available:
+				_put(key, not bool(get_value(key)))
 		"native_resolution", "smooth_motion", "wide_view", "one_button_fire", "two_button_fire", "quicksave", "quicksave_confirm":
 			_put(key, not bool(get_value(key)))
 		"pixel_shape":

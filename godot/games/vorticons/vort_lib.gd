@@ -276,6 +276,9 @@ var keydown: PackedByteArray = PackedByteArray()
 ## ControlPlayer and the status key in place of the control panel's keys; empty (the tests, the
 ## recordings) the original's. Fire (with shell_one_fire) holds both buttons, the original's fire.
 var shell_controls: Dictionary = {}
+## AUDIO-06: called with each sound the speaker starts (after its priority won), for the host's Keen 4-6
+## effects; nothing in the game reads it.
+var shell_sound_hook: Callable = Callable()
 var shell_one_fire: bool = false
 ## The refresh the play controls were last read on: the host's pad is the controls while they are being
 ## read, the menus' arrows, Enter and Escape otherwise.
@@ -1564,6 +1567,8 @@ func PlaySound(playnum: int) -> void:
 		return
 	SndPriority = s.priority
 	SndPtr = (playnum << 16) | 0
+	if shell_sound_hook.is_valid() and soundmode != 0:
+		shell_sound_hook.call(playnum)    # AUDIO-06: the host's Keen 4-6 effects (presentation only)
 
 
 func StopSound() -> void:

@@ -26,7 +26,8 @@ const SPEC: Dictionary = {
 	"smooth_motion": [true, "bool", null],        # REND-03: pictures between the game's (Enhanced)
 	"wide_view": [true, "bool", null],            # REND-04: the screen's own shape, more of the level (Enhanced)
 	"one_button_fire": [true, "bool", null],
-	"two_button_fire": [false, "bool", null],    # CTRL-02: Keen 4-6's Fire button row at Jump + Pogo (TWO-BUTTON FIRING)
+	"two_button_fire": [false, "bool", null],
+	"galaxy_sfx": [false, "bool", null],    # AUDIO-06: Keen 1-3 with Keen 4-6's AdLib effects (J-08: off by default)    # CTRL-02: Keen 4-6's Fire button row at Jump + Pogo (TWO-BUTTON FIRING)
 	"quicksave": [true, "bool", null],            # SAVE-02: Keen 4-6's F5 / F9 quicksave and quickload (Enhanced)
 	"quicksave_confirm": [true, "bool", null],    # and whether they ask Y/N first (omnispeak's default: they do)      # J-06: Keen 1-3's fire on one key (Left Shift) or pad button
 	# the bug-fix toggles (FixesModel), on by default (J-03); the Classic mode turns them off

@@ -29,7 +29,7 @@ var thread: Thread = null
 var frames_shown: int = 0
 var frames_made: int = 0
 var error: String = ""
-## Where the player's settings are read from (AUDIO-05's volumes; a test gives its own).
+## Where the player's settings are read from (AUDIO-06's volumes; a test gives its own).
 var settings_path: String = Settings.PATH
 
 var _mutex: Mutex = Mutex.new()
@@ -117,6 +117,11 @@ const STICK_DEADZONE: float = 0.5
 ## CTRL-01/02: the player's keys and buttons (shared by every game), and what each pad button, trigger
 ## and stick direction held down sent (so its release lets go of the same code, whatever has changed)
 var controls: ControlsModel = null
+## AUDIO-06: Keen 4 and 5's folders (the launcher's finds: {"keen4": folder, ...}) and, loaded from them for
+## Keen 1-3, their AdLib effects; the sound names of the game's sound numbers
+var galaxy_folders: Dictionary = {}
+var galaxy_sounds: GalaxySounds = null
+var _sound_names: PackedStringArray = PackedStringArray()
 var _pad_sent: Dictionary = {}
 
 const GALAXY_META: Dictionary = {"keen4": "keen4", "keen5": "keen5", "keen6": "keen6e14"}
@@ -252,6 +257,14 @@ func start(found: Dictionary) -> bool:
 	options = OptionsModel.new(settings, game_id, "vorticons" if engine is VortScreens else ("galaxy" if engine is GalGame else "dreams"))
 	options.applier = apply_setting
 	controls = ControlsModel.new(settings)
+	if engine is VortScreens and not galaxy_folders.is_empty():
+		galaxy_sounds = GalaxySounds.new()
+		galaxy_sounds.load(galaxy_folders)
+		options.galaxy_available = galaxy_sounds.available()
+		_sound_names = VortNames1.SOUND_NAMES if game_id == "keen1" else (VortNames2.SOUND_NAMES if game_id == "keen2" else VortNames3.SOUND_NAMES)
+		var gv: DosMachine = vm
+		(engine as VortScreens).shell_sound_hook = func(n: int) -> void:
+			_opl_local.append([gv.seconds(), -2, n])
 	options.controls = controls
 	if "options" in engine:
 		engine.set("options", options)
@@ -720,9 +733,14 @@ func _feed_audio(pending: Array, machine_t: float) -> void:
 	if audio == null:
 		return
 	pending.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	var galaxy: bool = galaxy_sounds != null and galaxy_sounds.available() and options != null and bool(options.get_value("galaxy_sfx"))
 	for e: Array in pending:
 		if e[1] == -1:
-			audio.push_speaker(e[0], e[2])
+			# AUDIO-06: with Keen 4-6's effects on, the speaker is silent (its sequencer runs on)
+			audio.push_speaker(e[0], 0 if galaxy else e[2])
+		elif e[1] == -2:
+			if galaxy and e[2] >= 1 and e[2] <= _sound_names.size():
+				audio.play_sfx(e[0], GalaxySounds.writes(galaxy_sounds.sound_for(_sound_names[e[2] - 1]), e[0]))
 		else:
 			audio.push_opl(e[0], e[1], e[2])
 	if not _audio_started:
