@@ -799,9 +799,12 @@ func _input(event: InputEvent) -> void:
 	# SHELL-15 (the user, 2026-10-10: on the launcher only the sticks did anything): Godot 4.7's built-in
 	# ui_accept holds Enter and Space only and ui_cancel Escape only (the d-pad and left stick are in
 	# ui_left..ui_down, so they moved the focus), so a controller's A and Start press the focused control
-	# as Enter does and B goes back as Escape does: the same action events, sent through Input so they
-	# arrive on the next flush and not inside this one. Not in a game (the host takes the controller there)
-	# and not where the button is already in the action (no double press under a Godot that adds them).
+	# as Enter does and B goes back as Escape does: the same action events, sent through Input, which
+	# delivers them later in the same flush (after this event, never nested in its dispatch). Not in a
+	# game (the host takes the controller there) and not where the button is already in the action (no
+	# double press under a Godot that adds them; upstream issue godotengine/godot#75225, open since 4.0).
+	# (The level maker's scene, run on its own, has no launcher above it: when it joins the program it
+	# needs this too, or the actions given the buttons in project.godot.)
 	var jb: InputEventJoypadButton = event as InputEventJoypadButton
 	if host == null and jb != null:
 		var action: String = ""
