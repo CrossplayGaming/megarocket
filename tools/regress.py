@@ -116,15 +116,16 @@ def harn06():
     original left out of the port are each reported, and (v1.93's start screens) one text cell's colour."""
     import screen_case
     worst = common.PASS
+    tag = screen_case.checkout_tag("harn06")
     for game in ("keen1", "kdreams193"):
         lines = []
-        code = screen_case.check(game, "scr_menu", tag="harn06", say=lines.append)
+        code = screen_case.check(game, "scr_menu", tag=tag, say=lines.append)
         print("  " + lines[0] if lines else f"  {game}: no report")
         if code != common.PASS:
             for line in lines[1:]:
                 print("  " + line)
             return code
-        worst = max(worst, screen_case.selftest(game, "scr_menu", tag="harn06"))
+        worst = max(worst, screen_case.selftest(game, "scr_menu", tag=tag))
     return worst
 
 

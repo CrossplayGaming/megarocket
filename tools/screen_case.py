@@ -924,10 +924,17 @@ def selftest(game, case, tag=""):
     return common.PASS if ok else common.FAIL
 
 
-def check_games(games, tag="regress"):
+def checkout_tag(what):
+    """A work-folder tag naming this checkout too ("regress_1600ac2d8c71" in a worktree), so that copies of the project
+    checking the same case at once (worktrees side by side) do not share the port's folder."""
+    return what + "_" + "".join(c for c in common.ROOT.name if c.isalnum())[-12:]
+
+
+def check_games(games, tag=None):
     """SCR-01V/G/D: every tools/cases/<game>/scr_*.json of the games checked against its recording (run a).
     A case not recorded yet is COULD-NOT-RUN. Returns the worst code (PASS when there are no cases)."""
     from concurrent.futures import ThreadPoolExecutor
+    tag = tag or checkout_tag("regress")
     todo = [(game, case) for game in games for case in cases(game)]
     if not todo:
         print(f"  no screen cases yet for {', '.join(games)}")
