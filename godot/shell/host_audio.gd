@@ -172,13 +172,14 @@ func skip_to(to: float) -> void:
 	t = maxf(t, to)
 
 
-## n stereo frames from the audio clock on.
-func render(n: int) -> PackedVector2Array:
+## n stereo frames from the audio clock on. hold: the chips and the speaker sound on as they stand, no
+## event applied and the clock not moved (the host fills a wait for the machine with it).
+func render(n: int, hold: bool = false) -> PackedVector2Array:
 	var out: PackedVector2Array = PackedVector2Array()
 	out.resize(n)
 	var dt: float = 1.0 / RATE
 	for i: int in range(n):
-		while _next < events.size() and float(events[_next][0]) <= t:
+		while not hold and _next < events.size() and float(events[_next][0]) <= t:
 			var e: Array = events[_next]
 			_next += 1
 			if e[1] == 0:
@@ -186,9 +187,9 @@ func render(n: int) -> PackedVector2Array:
 				writes_applied += 1
 			else:
 				_spk_freq = PIT_HZ / float(e[2]) if e[2] > 0 else 0.0
-		if _sfx_next < sfx.size():
+		if not hold and _sfx_next < sfx.size():
 			_apply_sfx(t)
-		if _mus_end > 6 or not _mus_queue.is_empty():
+		if not hold and (_mus_end > 6 or not _mus_queue.is_empty()):
 			_apply_music(t)
 		var s: float = 0.0
 		if opl != null:
@@ -201,7 +202,8 @@ func render(n: int) -> PackedVector2Array:
 			var v: float = speaker_volume * effects_volume
 			s += v if _spk_phase < 0.5 else -v
 		out[i] = Vector2(s, s)
-		t += dt
+		if not hold:
+			t += dt
 	if _next > 4096:
 		events = events.slice(_next)
 		_next = 0

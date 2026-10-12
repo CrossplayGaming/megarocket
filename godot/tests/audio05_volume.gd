@@ -8,7 +8,8 @@ extends SceneTree
 ## effects volume; the volumes saved in the settings reach a game the host
 ## starts; under the dummy audio driver (headless) the game runs. The output
 ## keeps sound in hand through stalls the machine drops (a phone's hitches):
-## a run of them refills it with one short gap instead of running it dry.
+## a run of them refills it instead of running it dry, with the notes sounding
+## on as they stand (no event applied, the clock not moved), not silence.
 ##
 ## Options: --game_data=<folder>
 
@@ -109,6 +110,17 @@ func _go() -> void:
 	var dry: Array = [_stalls(false), _stalls(true)]
 	t.ok("ten seconds at 60 frames with a 30 ms stall dropped every half second: the output ran dry in %d frames, %d with the refill" % dry,
 		dry[0] >= 10 and dry[1] == 0)
+	var h: HostAudio = HostAudio.new()
+	for w: Array in SHARED + FX:
+		h.push_opl(0.001, w[0], w[1])
+	h.push_opl(0.05, 0xB0, 0x11)    # the note's key-off, due after the hold would reach it
+	h.render(1000)
+	var at: float = h.t
+	var applied: int = h.writes_applied
+	var held: PackedVector2Array = h.render(4000, true)
+	t.ok("a refill holds the note (peak %.3f at its end), applies nothing (%d writes) and leaves the clock (%.4f s)" %
+		[_peak(held.slice(3000)), h.writes_applied - applied, h.t], _peak(held.slice(3000)) > 0.05 and h.writes_applied == applied and h.t == at)
+	h.close()
 	host.stop()
 	while host.thread != null and Time.get_ticks_msec() < until + 10000:
 		await process_frame

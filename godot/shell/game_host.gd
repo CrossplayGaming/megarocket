@@ -996,9 +996,7 @@ func _feed_audio(pending: Array, machine_t: float) -> void:
 	var free: int = _playback.get_frames_available()
 	var gap: int = mini(audio_refill(float(maxi(_audio_room - free, 0)) / HostAudio.RATE, machine_t - audio.t), free)
 	if gap > 0:
-		var silence: PackedVector2Array = PackedVector2Array()
-		silence.resize(gap)
-		_playback.push_buffer(silence)
+		_playback.push_buffer(audio.render(gap, true))
 		free -= gap
 	var room: int = int((machine_t - audio.t) * HostAudio.RATE)
 	var n: int = mini(free, maxi(room, 0))
@@ -1010,7 +1008,8 @@ func _feed_audio(pending: Array, machine_t: float) -> void:
 ## ready what the audio clock can render now (seconds). The machine drops a stall's time (_pace) while the
 ## output plays on in real time, so each stall leaves less in hand, and once it was near empty every later
 ## hitch ran it dry (Keen 4-6's death sound turning to static on a phone, 2026-10-12): when it falls under a
-## third of the latency, one short gap refills it.
+## third of the latency, it is refilled with the chips sounding on as they stand (silence there stuttered
+## through a phone's long level reload after a death).
 static func audio_refill(held: float, ready: float) -> int:
 	if held + ready >= AUDIO_LATENCY / 3.0:
 		return 0
