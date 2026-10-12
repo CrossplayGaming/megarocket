@@ -6,7 +6,9 @@ extends SceneTree
 ## exactly as the music alone, effects alone the same, both at half is
 ## exactly half of both at full; the speaker (an effect) scales with the
 ## effects volume; the volumes saved in the settings reach a game the host
-## starts; under the dummy audio driver (headless) the game runs.
+## starts; under the dummy audio driver (headless) the game runs. The output
+## keeps sound in hand through stalls the machine drops (a phone's hitches):
+## a run of them refills it with one short gap instead of running it dry.
 ##
 ## Options: --game_data=<folder>
 
@@ -101,12 +103,38 @@ func _go() -> void:
 	while host.frames_made < 50 and Time.get_ticks_msec() < until:
 		await process_frame
 	t.ok("with no audio device (driver %s) the game runs (%d frames)" % [AudioServer.get_driver_name(), host.frames_made], host.frames_made >= 50)
+	t.ok("in hand at the latency, no refill", GameHost.audio_refill(0.10, 0.02) == 0 and GameHost.audio_refill(0.041, 0.0) == 0)
+	t.ok("near empty, refilled to the latency (%d frames)" % GameHost.audio_refill(0.0, 0.005),
+		absi(GameHost.audio_refill(0.0, 0.005) - int(0.115 * HostAudio.RATE)) <= 1)
+	var dry: Array = [_stalls(false), _stalls(true)]
+	t.ok("ten seconds at 60 frames with a 30 ms stall dropped every half second: the output ran dry in %d frames, %d with the refill" % dry,
+		dry[0] >= 10 and dry[1] == 0)
 	host.stop()
 	while host.thread != null and Time.get_ticks_msec() < until + 10000:
 		await process_frame
 	host.queue_free()
 	await process_frame
 	t.finish(self)
+
+
+## Frames (of 600) in which the output ran dry: each frame it plays 1/60 s; the machine gains 1/60 s
+## but every 30th frame loses a 30 ms stall (_pace drops it); the host renders up to the machine's time.
+func _stalls(refill: bool) -> int:
+	var held: float = 0.0
+	var ready: float = GameHost.AUDIO_LATENCY
+	var dry: int = 0
+	for f: int in range(600):
+		if refill:
+			held += float(GameHost.audio_refill(held, ready)) / HostAudio.RATE
+		held += ready
+		ready = 0.0
+		held -= 1.0 / 60.0
+		if held < 0.0:
+			dry += 1
+			held = 0.0
+		ready = 1.0 / 60.0 - (0.03 if f % 30 == 29 else 0.0)
+		ready = maxf(ready, 0.0)
+	return dry
 
 
 func _mix(a: PackedVector2Array, ka: float, b: PackedVector2Array, kb: float) -> PackedVector2Array:

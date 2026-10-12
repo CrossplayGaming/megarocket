@@ -93,6 +93,8 @@ var _audio_started: bool = false
 ## The output's underruns seen so far (AudioStreamGeneratorPlayback.get_skips), each new run of them logged
 ## with the game's time and why the sound had nothing to play (a crackle the player hears).
 var _audio_skips: int = 0
+## The output's capacity in frames, read as the sound starts (what it holds is this less what is free).
+var _audio_room: int = 0
 
 var _view: TextureRect
 var _backdrop: StageBackdrop = null
@@ -972,6 +974,8 @@ func _feed_audio(pending: Array, machine_t: float) -> void:
 			return
 		audio.t = machine_t - AUDIO_LATENCY
 		_audio_started = true
+		if _playback != null:
+			_audio_room = _playback.get_frames_available()
 	if _playback == null:
 		return
 	# fallen behind (the screen side stalled): catch up silently to the latency
@@ -989,10 +993,28 @@ func _feed_audio(pending: Array, machine_t: float) -> void:
 	# time (every event up to it is in): the output holds that much sound in hand, so a slow frame on the
 	# screen side does not run it dry (rendering only to machine_t - AUDIO_LATENCY kept it near empty and
 	# every hitch was a click: Keen 4-6's death sound breaking into static, 2026-10-11)
+	var free: int = _playback.get_frames_available()
+	var gap: int = mini(audio_refill(float(maxi(_audio_room - free, 0)) / HostAudio.RATE, machine_t - audio.t), free)
+	if gap > 0:
+		var silence: PackedVector2Array = PackedVector2Array()
+		silence.resize(gap)
+		_playback.push_buffer(silence)
+		free -= gap
 	var room: int = int((machine_t - audio.t) * HostAudio.RATE)
-	var n: int = mini(_playback.get_frames_available(), maxi(room, 0))
+	var n: int = mini(free, maxi(room, 0))
 	if n > 0:
 		_playback.push_buffer(audio.render(n))
+
+
+## Frames of silence that put AUDIO_LATENCY of sound back in hand: held is what the output still holds,
+## ready what the audio clock can render now (seconds). The machine drops a stall's time (_pace) while the
+## output plays on in real time, so each stall leaves less in hand, and once it was near empty every later
+## hitch ran it dry (Keen 4-6's death sound turning to static on a phone, 2026-10-12): when it falls under a
+## third of the latency, one short gap refills it.
+static func audio_refill(held: float, ready: float) -> int:
+	if held + ready >= AUDIO_LATENCY / 3.0:
+		return 0
+	return int((AUDIO_LATENCY - held - ready) * HostAudio.RATE)
 
 
 ## Breaks the references between the machine, its handlers and the engine.
