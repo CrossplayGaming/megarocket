@@ -27,6 +27,22 @@ extern "C" {
  * is written then). */
 int d2_blit_planes(const uint8_t *src, int64_t src_off, int64_t pitch, int64_t rows, uint8_t *out);
 
+/* The card-to-screen conversion of the EGA card's compose_rows: rows y0..y1-1
+ * of the 320 x 200 picture from the four 64 KiB planes (each 65536 bytes),
+ * one byte per pixel (a palette index 0-15), row y at out + (y - y0) * 320.
+ *
+ * `display_start` is the CRTC start address, `stride` the bytes between rows
+ * (twice the CRTC offset), `split` the first row shown from address 0 (HEIGHT
+ * when there is no split), `pan` the pel panning (0-7), `compat` the
+ * attribute controller's pel-panning-compatibility bit (0 or 1: when set and
+ * the row is below the split, the panning is dropped).
+ *
+ * `out` must hold (y1 - y0) * D2_BLIT_WIDTH bytes. Returns 0 on success, -1
+ * when the request makes no sense (nothing is written then). */
+int d2_blit_compose(const uint8_t *p0, const uint8_t *p1, const uint8_t *p2, const uint8_t *p3,
+		int64_t display_start, int64_t stride, int64_t split, int64_t pan, int64_t compat,
+		int64_t y0, int64_t y1, uint8_t *out);
+
 #ifdef __cplusplus
 }
 #endif
