@@ -43,6 +43,8 @@ var model: MakerModel = MakerModel.new()
 var tiles: MakerTiles = MakerTiles.new()
 var library: MakerLibrary = MakerLibrary.new()
 var view: MakerView = null
+var _scale: int = 0               # the pixel scale the theme was built at (_apply_scale)
+var _side: VBoxContainer = null   # the palette's column, as wide as its cells at this scale
 var palette: MakerPalette = null
 var host: GameHost = null
 ## "games", "library", "remix", "editor"
@@ -79,7 +81,7 @@ var _notice_until: int = 0
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	standalone = get_parent() == get_tree().root
-	theme = MegaTheme.build(maxi(1, MegaTheme.pixel_scale(get_viewport_rect().size) - 1))    # a tool: more room for the level
+	_apply_scale()
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	var bg: ColorRect = ColorRect.new()
 	bg.color = MegaTheme.SPACE
@@ -471,6 +473,7 @@ func show_editor() -> void:
 	view = MakerView.new()
 	view.name = "Level"
 	view.model = model
+	view.zoom = float(clampi(_scale, 2, 6))    # a level's tiles as big as the page's pixels
 	view.tiles = tiles
 	view.parts = model.parts
 	view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -484,7 +487,8 @@ func show_editor() -> void:
 		_refresh())
 	split.add_child(view)
 	var side: VBoxContainer = VBoxContainer.new()
-	side.custom_minimum_size = Vector2(MakerPalette.COLUMNS * 36 + 16, 0)
+	side.custom_minimum_size = Vector2(MakerPalette.COLUMNS * (16.0 * clampi(_scale, 2, 6) + 4.0) + 8 * _scale, 0)
+	_side = side
 	split.add_child(side)
 	var cats: HBoxContainer = HBoxContainer.new()
 	side.add_child(cats)
@@ -503,6 +507,7 @@ func show_editor() -> void:
 	side.add_child(sc)
 	palette = MakerPalette.new()
 	palette.name = "Parts"
+	palette.zoom = clampi(_scale, 2, 6)    # its tiles as big as the level's
 	palette.chosen.connect(_on_part)
 	sc.add_child(palette)
 	palette.setup(tiles, model.parts)
@@ -681,7 +686,7 @@ func ask(text: String, buttons: Array, focus_back: String) -> void:
 		q.name = "Question"
 		q.text = text
 		q.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		q.custom_minimum_size = Vector2(minf(get_viewport_rect().size.x * 0.6, 640), 0)
+		q.custom_minimum_size = Vector2(minf(get_viewport_rect().size.x * 0.6, 320 * _scale), 0)
 		col.add_child(q)
 	var first: Button = null
 	for spec: Array in buttons:
@@ -721,7 +726,7 @@ func rename_box(path: String, name: String) -> void:
 	_rename_edit.name = "Name"
 	_rename_edit.text = name
 	_rename_edit.max_length = 40
-	_rename_edit.custom_minimum_size = Vector2(360, 0)
+	_rename_edit.custom_minimum_size = Vector2(180 * _scale, 0)
 	_pending_name = name
 	_rename_edit.text_changed.connect(func(t: String) -> void: _pending_name = t)
 	_rename_edit.text_submitted.connect(func(_t: String) -> void: (box.find_child("Ask_OK", true, false) as Button).pressed.emit())
@@ -1063,6 +1068,30 @@ func _unhandled_input(event: InputEvent) -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST and standalone:
 		back()
+	elif what == NOTIFICATION_RESIZED:
+		_apply_scale()
+
+
+## The maker's pixel scale for a window's: Megarocket's (MegaTheme.pixel_scale), a step smaller from 4 up (a
+## tool: more room for the level) but never below 2 there, so its text stays as readable as the launcher's
+## at 720p and keeps up with 1080p and 4K (the user, 2026-10-13: the new pages too small on big screens).
+static func ui_scale(window: Vector2) -> int:
+	var s: int = MegaTheme.pixel_scale(window)
+	return s - 1 if s >= 4 else s
+
+
+## The theme, the side panel and the level's first zoom for the window's size now (and again on a resize).
+func _apply_scale() -> void:
+	var s: int = ui_scale(size if size.x > 0 else get_viewport_rect().size)
+	if s == _scale:
+		return
+	_scale = s
+	theme = MegaTheme.build(s)
+	if _side != null:
+		_side.custom_minimum_size = Vector2(MakerPalette.COLUMNS * (16.0 * clampi(s, 2, 6) + 4.0) + 8 * s, 0)
+	if palette != null:
+		palette.zoom = clampi(s, 2, 6)
+		palette.call("_resize")
 
 
 func _focus(c: Control) -> void:

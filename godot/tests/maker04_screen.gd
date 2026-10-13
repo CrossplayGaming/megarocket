@@ -302,4 +302,9 @@ func _go() -> void:
 	t.ok("B again: the launcher, its Keen Maker button focused (%s)" % _owner(), l.maker == null and l._page.visible and _owner() == "KeenMaker")
 	l.queue_free()
 	await _frames(2)
+	# the page sizes (the user, 2026-10-13): never smaller than the launcher's at 720p, a step smaller from 1080p up
+	var sizes: Array = [[Vector2(1280, 720), 2, 2], [Vector2(1920, 1080), 4, 3], [Vector2(3840, 2160), 8, 7]]
+	for sz: Array in sizes:
+		t.ok("at %s: the launcher's scale %d, Keen Maker's %d" % [sz[0], MegaTheme.pixel_scale(sz[0]), MakerScreen.ui_scale(sz[0])],
+			MegaTheme.pixel_scale(sz[0]) == sz[1] and MakerScreen.ui_scale(sz[0]) == sz[2])
 	t.finish(self)
