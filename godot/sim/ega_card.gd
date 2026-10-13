@@ -554,37 +554,54 @@ func begin_frame() -> void:
 	# does not change while it is drawn; decided here, per frame, so that a
 	# frame that falls back to the GDScript path finishes it there too.
 	_native_frame = blit != null and video_mode == MODE_EGA and palette_serial == _frame_serial
+	if _native_frame:
+		_band_keys.clear()
 
 
 func scan_rows(y0: int, y1: int) -> void:
+	if _native_frame and palette_serial != _frame_serial:
+		# the palette changed while the beam draws this frame: the mixed frame's colours are taken row by row
+		# from frame_pixels, so the rows so far go there and the frame finishes on the GDScript path
+		_flush_bands(y0)
 	if _native_frame:
 		var band: PackedByteArray = blit.compose(plane0, plane1, plane2, plane3,
 				display_start, line_width(), split_row(), atc[ATR_PELPAN],
 				atc[ATR_MODE] & 0x20, y0, y1)
-		if band.size() == (y1 - y0) * WIDTH:
+		if band.size() == (y1 - y0) * WIDTH and _bands[y0 / 4] == null:
 			_bands[y0 / 4] = band
 			if y1 >= HEIGHT:
 				var joined: PackedByteArray = PackedByteArray()
 				for b: Variant in _bands:
-					joined.append_array(b)
+					if b != null:
+						joined.append_array(b)
 				if joined.size() == WIDTH * HEIGHT:
 					frame_pixels = joined
-				else:
-					_native_frame = false
-					_bands = []
-					_finish_old_path(y0, y1)
-			if palette_serial != _frame_serial and not frame_mixed:
-				frame_mixed = true
-				_frame_rgb_mixed.resize(WIDTH * HEIGHT * 3)
-				_rgb_rows(_frame_rgb_mixed, 0, y0, frame_palette)
-			if frame_mixed:
-				_rgb_rows(_frame_rgb_mixed, y0, y1, palette_rgb())
-			return
-		# The band did not come back whole: this frame goes back to the
-		# GDScript path, and it composes this band there too.
-		_native_frame = false
-		_bands = []
+					return
+				# a band missing (the beam did not start at the top): this frame on the GDScript path
+				_flush_bands(y0)
+			else:
+				return
+		else:
+			_flush_bands(y0)
 	_finish_old_path(y0, y1)
+
+
+## The native frame's bands above row y0 into frame_pixels (the rows below keep the last frame's), and the rest
+## of the frame on the GDScript path. _band_unchanged's memory is dropped: frame_pixels changed without it.
+func _flush_bands(y0: int) -> void:
+	var head: PackedByteArray = PackedByteArray()
+	for i: int in range(y0 / 4):
+		if _bands[i] == null:
+			head = PackedByteArray()
+			break
+		head.append_array(_bands[i])
+	if head.size() == y0 * WIDTH and frame_pixels.size() == WIDTH * HEIGHT:
+		frame_pixels = head + frame_pixels.slice(y0 * WIDTH)
+	elif frame_pixels.size() == WIDTH * HEIGHT:
+		compose_rows(frame_pixels, 0, y0)    # the rows so far, as they are now (only when a band went missing)
+	_native_frame = false
+	_bands = []
+	_band_keys.clear()
 
 
 func _finish_old_path(y0: int, y1: int) -> void:
