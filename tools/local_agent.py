@@ -131,15 +131,17 @@ class Agent:
             cmd = a["command"].strip()
             if not cmd.startswith(ALLOWED):
                 return "not allowed; allowed commands start with: " + ", ".join(ALLOWED)
+            limit = 1800
             if cmd.startswith("godot "):
                 cmd = f'"{GODOT}" ' + cmd[6:]
+                limit = 300    # a script that errors never quits: tests go through tools/gdtest.py (its own watchdog)
             try:
                 r = subprocess.run(cmd, shell=True, cwd=self.wt, capture_output=True, text=True, encoding="utf-8",
-                                   errors="replace", timeout=1800)
+                                   errors="replace", timeout=limit)
                 out = (r.stdout + r.stderr)
                 return f"exit {r.returncode}\n" + out[-OUT_CAP:]
             except subprocess.TimeoutExpired:
-                return "timed out after 30 minutes"
+                return f"timed out after {limit} s (a Godot script that hits an error never quits: run tests with python tools/gdtest.py <test> --timeout 300)"
         if name == "journal":
             with open(self.journal_path, "a", encoding="utf-8") as f:
                 f.write(f"\n## {time.strftime('%Y-%m-%d %H:%M')}\n{a['note']}\n")
