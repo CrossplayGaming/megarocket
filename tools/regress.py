@@ -721,6 +721,18 @@ def native02():
     return code
 
 
+def native03():
+    """NATIVE-03: the native card-to-screen conversion (D2Blit.compose) gives the GDScript loop's bytes
+    exactly for panning, split, compatibility, start-address, line-width and row-range cases, refuses
+    out-of-range requests, and a whole frame is the same with and without the class (tests/native03_compose.gd)."""
+    import gdtest
+    code, out = gdtest.run("native03_compose", [], timeout=300.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend03r():
     """REND-03R: with smooth motion on, Keen riding a Bounder (Keen 4 level 2) or a lift (level 5) is drawn
     the same distance above it in every picture, between refreshes too (tests/rend03_ride.gd)."""
@@ -2075,6 +2087,7 @@ CHECKS = {
     "REND-03": (rend03, "slow"),
     "REND-03R": (rend03r, "slow"),
     "NATIVE-02": (native02, "fast"),
+    "NATIVE-03": (native03, "fast"),
     "REND-01R": (rend01r, "slow"),
     "REND-04": (rend04, "slow"),
     "REND-01G": (rend01g, "slow"),

@@ -493,6 +493,14 @@ func compose_rows(out: PackedByteArray, y0: int, y1: int) -> void:
 ## The frame the beam is drawing: begun when the first visible line is
 ## scanned, filled band by band (DosMachine), finished at the last row.
 var frame_pixels: PackedByteArray = PackedByteArray()
+## The card-to-screen conversion in C (NATIVE-03), when the library is there.
+var blit: Object = ClassDB.instantiate("D2Blit") if ClassDB.class_exists("D2Blit") else null
+## The frame's bands, one per band of DosMachine.BAND_ROWS rows, in order:
+## filled by the native path and joined into frame_pixels at the last band.
+var _bands: Array = []
+## This frame's bands are composed in C (decided in begin_frame, so that a
+## frame that falls back to the GDScript path finishes it there too).
+var _native_frame: bool = false
 var frame_palette: PackedByteArray = PackedByteArray()
 ## A palette change while the beam is drawing a frame shows from the row it
 ## has reached (DOSBox looks the colours up line by line): the rows above keep
@@ -540,9 +548,46 @@ func begin_frame() -> void:
 	frame_palette = palette_rgb()
 	_frame_serial = palette_serial
 	frame_mixed = false
+	_bands = []
+	_bands.resize(HEIGHT / 4)
+	# The native path needs the class, the EGA mode and a frame whose palette
+	# does not change while it is drawn; decided here, per frame, so that a
+	# frame that falls back to the GDScript path finishes it there too.
+	_native_frame = blit != null and video_mode == MODE_EGA and palette_serial == _frame_serial
 
 
 func scan_rows(y0: int, y1: int) -> void:
+	if _native_frame:
+		var band: PackedByteArray = blit.compose(plane0, plane1, plane2, plane3,
+				display_start, line_width(), split_row(), atc[ATR_PELPAN],
+				atc[ATR_MODE] & 0x20, y0, y1)
+		if band.size() == (y1 - y0) * WIDTH:
+			_bands[y0 / 4] = band
+			if y1 >= HEIGHT:
+				var joined: PackedByteArray = PackedByteArray()
+				for b: Variant in _bands:
+					joined.append_array(b)
+				if joined.size() == WIDTH * HEIGHT:
+					frame_pixels = joined
+				else:
+					_native_frame = false
+					_bands = []
+					_finish_old_path(y0, y1)
+			if palette_serial != _frame_serial and not frame_mixed:
+				frame_mixed = true
+				_frame_rgb_mixed.resize(WIDTH * HEIGHT * 3)
+				_rgb_rows(_frame_rgb_mixed, 0, y0, frame_palette)
+			if frame_mixed:
+				_rgb_rows(_frame_rgb_mixed, y0, y1, palette_rgb())
+			return
+		# The band did not come back whole: this frame goes back to the
+		# GDScript path, and it composes this band there too.
+		_native_frame = false
+		_bands = []
+	_finish_old_path(y0, y1)
+
+
+func _finish_old_path(y0: int, y1: int) -> void:
 	if not _band_unchanged(y0, y1):
 		compose_rows(frame_pixels, y0, y1)
 	if palette_serial != _frame_serial and not frame_mixed:

@@ -220,6 +220,80 @@ static void planes_call(void *userdata, GDExtensionClassInstancePtr instance, co
 	error->error = GDEXTENSION_CALL_OK;
 }
 
+/* --- D2Blit: compose(p0, p1, p2, p3, display_start, stride, split, pan, compat, y0, y1) --- */
+
+/* The conversion behind compose(): fills `out` (an empty PackedByteArray) or leaves it empty when a
+ * plane is smaller than 64 KiB or the row range makes no sense (the caller then uses its own loop). */
+static void compose_into(const GDExtensionConstTypePtr planes[4], int64_t display_start, int64_t stride,
+		int64_t split, int64_t pan, int64_t compat, int64_t y0, int64_t y1, GDExtensionTypePtr out) {
+	if (y0 < 0 || y1 > 200 || y1 <= y0) {
+		return;
+	}
+	for (int p = 0; p < 4; p++) {
+		int64_t size = 0;
+		pba_size((GDExtensionTypePtr)planes[p], NULL, &size, 0);
+		if (size < 65536) {
+			return;
+		}
+	}
+	int64_t total = (y1 - y0) * D2_BLIT_WIDTH;
+	const GDExtensionConstTypePtr resize_args[1] = { &total };
+	int64_t resized = 0;    /* resize() returns an Error: it needs somewhere to put it */
+	pba_resize(out, resize_args, &resized, 1);
+	d2_blit_compose(pba_index_const(planes[0], 0), pba_index_const(planes[1], 0),
+			pba_index_const(planes[2], 0), pba_index_const(planes[3], 0),
+			display_start, stride, split, pan, compat, y0, y1, pba_index(out, 0));
+}
+
+static void compose_ptrcall(void *userdata, GDExtensionClassInstancePtr instance,
+		const GDExtensionConstTypePtr *args, GDExtensionTypePtr ret) {
+	(void)userdata;
+	(void)instance;
+	compose_into(args, *(const int64_t *)args[4], *(const int64_t *)args[5], *(const int64_t *)args[6],
+			*(const int64_t *)args[7], *(const int64_t *)args[8], *(const int64_t *)args[9],
+			*(const int64_t *)args[10], ret);
+}
+
+static void compose_call(void *userdata, GDExtensionClassInstancePtr instance,
+		const GDExtensionConstVariantPtr *args, GDExtensionInt argument_count, GDExtensionVariantPtr ret,
+		GDExtensionCallError *error) {
+	(void)userdata;
+	(void)instance;
+	if (argument_count < 11) {
+		error->error = GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS;
+		error->expected = 11;
+		return;
+	}
+	D2Bytes planes[4];
+	const GDExtensionConstTypePtr plane_ptrs[4] = { &planes[0], &planes[1], &planes[2], &planes[3] };
+	D2Bytes out;
+	pba_new(&out, NULL);
+	for (int p = 0; p < 4; p++) {
+		pba_from_variant(&planes[p], (GDExtensionVariantPtr)args[p]);
+	}
+	int64_t display_start = 0;
+	int64_t stride = 0;
+	int64_t split = 0;
+	int64_t pan = 0;
+	int64_t compat = 0;
+	int64_t y0 = 0;
+	int64_t y1 = 0;
+	int_from_variant(&display_start, (GDExtensionVariantPtr)args[4]);
+	int_from_variant(&stride, (GDExtensionVariantPtr)args[5]);
+	int_from_variant(&split, (GDExtensionVariantPtr)args[6]);
+	int_from_variant(&pan, (GDExtensionVariantPtr)args[7]);
+	int_from_variant(&compat, (GDExtensionVariantPtr)args[8]);
+	int_from_variant(&y0, (GDExtensionVariantPtr)args[9]);
+	int_from_variant(&y1, (GDExtensionVariantPtr)args[10]);
+	compose_into(plane_ptrs, display_start, stride, split, pan, compat, y0, y1, &out);
+	variant_from_pba(ret, &out);
+	for (int p = 0; p < 4; p++) {
+		pba_free(&planes[p]);
+	}
+	pba_free(&out);
+	error->error = GDEXTENSION_CALL_OK;
+}
+
 /* --- registration ------------------------------------------------------ */
 
 static GDExtensionPropertyInfo int_property(D2StringName *name) {
@@ -318,6 +392,50 @@ static void bind_blit(const char *method, GDExtensionClassMethodCall call, GDExt
 	register_method(library, &name_blit, &info);
 }
 
+/* D2Blit's second method: four PackedByteArrays and seven ints in, a PackedByteArray out. */
+static void bind_compose(const char *method, GDExtensionClassMethodCall call, GDExtensionClassMethodPtrCall ptrcall,
+		const char *a0, const char *a1, const char *a2, const char *a3, const char *a4, const char *a5,
+		const char *a6, const char *a7, const char *a8, const char *a9, const char *a10) {
+	D2StringName name_method;
+	D2StringName name_a[11];
+	const char *names[11] = { a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10 };
+	string_name_new(&name_method, method, 1);
+	for (int i = 0; i < 11; i++) {
+		string_name_new(&name_a[i], names[i], 1);
+	}
+
+	GDExtensionPropertyInfo arguments[11];
+	for (int i = 0; i < 4; i++) {
+		arguments[i] = pba_property(&name_a[i]);
+	}
+	for (int i = 4; i < 11; i++) {
+		arguments[i] = int_property(&name_a[i]);
+	}
+	GDExtensionClassMethodArgumentMetadata metadata[11] = { GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE,
+		GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE, GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE,
+		GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE, GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE,
+		GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE, GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE,
+		GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE, GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE,
+		GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE, GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE };
+	GDExtensionPropertyInfo return_info = pba_property(&name_empty);
+
+	GDExtensionClassMethodInfo info;
+	info.name = &name_method;
+	info.method_userdata = NULL;
+	info.call_func = call;
+	info.ptrcall_func = ptrcall;
+	info.method_flags = GDEXTENSION_METHOD_FLAGS_DEFAULT;
+	info.has_return_value = 1;
+	info.return_value_info = &return_info;
+	info.return_value_metadata = GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE;
+	info.argument_count = 11;
+	info.arguments_info = arguments;
+	info.arguments_metadata = metadata;
+	info.default_argument_count = 0;
+	info.default_arguments = NULL;
+	register_method(library, &name_blit, &info);
+}
+
 static void initialize(void *userdata, GDExtensionInitializationLevel level) {
 	(void)userdata;
 	if (level != GDEXTENSION_INITIALIZATION_SCENE) {
@@ -386,6 +504,8 @@ static void initialize(void *userdata, GDExtensionInitializationLevel level) {
 	register_class(library, &name_blit, &name_parent, &blit_info);
 
 	bind_blit("planes", planes_call, planes_ptrcall, "src", "src_off", "pitch", "rows");
+	bind_compose("compose", compose_call, compose_ptrcall,
+			"p0", "p1", "p2", "p3", "display_start", "stride", "split", "pan", "compat", "y0", "y1");
 }
 
 static void deinitialize(void *userdata, GDExtensionInitializationLevel level) {
