@@ -21,6 +21,10 @@ extends RefCounted
 
 var vm: DosMachine
 var data: GalData
+## NATIVE-02: the screen-to-card conversion in C (the native library's D2Blit),
+## or null when the library is not loaded; _write_rows then uses the GDScript loop. Made here, not in
+## an _init: GalRF's _init does not call its parent's.
+var blit: Object = ClassDB.instantiate("D2Blit") if ClassDB.class_exists("D2Blit") else null
 
 
 # --------------------------------------------------------------- arithmetic
@@ -1521,10 +1525,30 @@ func _write_rows(base: int, y0: int, y1: int, colour: int) -> void:
 	var t2: PackedInt32Array = pairs[2]
 	var t3: PackedInt32Array = pairs[3]
 	var size: int = src.size()
-	for y: int in range(y0, y1):
+	var y: int = y0
+	while y < y1:
 		var srow: int = (y + vl_scrollYpixels) * pitch + vl_scrollXpixels
 		var drow: int = base + y * (VL_EGAVGA_GFX_WIDTH / 8)
 		if colour < 0 and srow >= 0 and srow + VL_EGAVGA_GFX_WIDTH <= size:
+			# NATIVE-02: a run of such rows is pitch apart in the source and 40 bytes apart in the card,
+			# so one native call converts the whole run; the per-byte loop below is the fallback.
+			var run: int = 1
+			while y + run < y1:
+				var srow_n: int = srow + run * pitch
+				if srow_n < 0 or srow_n + VL_EGAVGA_GFX_WIDTH > size:
+					break
+				run += 1
+			if blit != null and run > 0:
+				var start: int = base + y * (VL_EGAVGA_GFX_WIDTH / 8)
+				var n: int = run * (VL_EGAVGA_GFX_WIDTH / 8)
+				var block: PackedByteArray = blit.planes(src, srow, pitch, run)
+				if block.size() == 4 * n:
+					p0 = p0.slice(0, start) + block.slice(0, n) + p0.slice(start + n)
+					p1 = p1.slice(0, start) + block.slice(n, 2 * n) + p1.slice(start + n)
+					p2 = p2.slice(0, start) + block.slice(2 * n, 3 * n) + p2.slice(start + n)
+					p3 = p3.slice(0, start) + block.slice(3 * n, 4 * n) + p3.slice(start + n)
+					y += run
+					continue
 			# eight pixels at a time: each pair of pixel bytes looked up as its bits in the four planes
 			var s8: int = srow
 			for bx: int in range(VL_EGAVGA_GFX_WIDTH / 8):
@@ -1534,6 +1558,7 @@ func _write_rows(base: int, y0: int, y1: int, colour: int) -> void:
 				p2[drow + bx] = (acc >> 16) & 0xFF
 				p3[drow + bx] = (acc >> 24) & 0xFF
 				s8 += 8
+			y += 1
 			continue
 		for bx: int in range(VL_EGAVGA_GFX_WIDTH / 8):
 			var b0: int = 0
@@ -1556,6 +1581,7 @@ func _write_rows(base: int, y0: int, y1: int, colour: int) -> void:
 			p1[drow + bx] = b1
 			p2[drow + bx] = b2
 			p3[drow + bx] = b3
+		y += 1
 	card.plane0 = p0
 	card.plane1 = p1
 	card.plane2 = p2

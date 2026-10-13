@@ -21,7 +21,7 @@ from pathlib import Path
 
 import common
 
-SOURCES = ["opl2.c", "d2opl_gdextension.c"]
+SOURCES = ["opl2.c", "blit.c", "d2opl_gdextension.c"]
 NDK = Path(os.environ.get("ANDROID_NDK_HOME", "")) if os.environ.get("ANDROID_NDK_HOME") else None
 NDK_CANDIDATES = [
     Path.home() / "AppData/Local/Android/Sdk/ndk",
