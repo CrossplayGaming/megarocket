@@ -710,6 +710,17 @@ def rend03():
     return common.COULD_NOT_RUN if common.COULD_NOT_RUN in results else max(results)
 
 
+def rend03r():
+    """REND-03R: with smooth motion on, Keen riding a Bounder (Keen 4 level 2) or a lift (level 5) is drawn
+    the same distance above it in every picture, between refreshes too (tests/rend03_ride.gd)."""
+    import gdtest
+    code, out = gdtest.run("rend03_ride", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend01r():
     """REND-01R: the draw list drawn at 1x is the card's picture on every recorded session. Each session
     runs with --compare_lists (tests/list_compare.gd: every picture shown held against the list of the
@@ -2051,6 +2062,7 @@ CHECKS = {
     "CHEAT-01": (cheat01, "fast"),
     "REND-01": (rend01, "slow"),
     "REND-03": (rend03, "slow"),
+    "REND-03R": (rend03r, "slow"),
     "REND-01R": (rend01r, "slow"),
     "REND-04": (rend04, "slow"),
     "REND-01G": (rend01g, "slow"),

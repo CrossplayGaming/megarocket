@@ -427,8 +427,12 @@ func CK_ActionThink(obj: CK_object, time: int) -> int:
 			ck_nextX = s16(ck_nextX + action.velX * obj.xDirection)
 		if obj.yDirection != 0:
 			ck_nextY = s16(ck_nextY + action.velY * obj.yDirection)
-		if draw_capture and ((obj.xDirection != 0 and action.velX != 0) or (obj.yDirection != 0 and action.velY != 0)):
-			draw_stepped[obj] = true    # REND-03: a step, not a slide (presentation only)
+		# REND-03: a step, not a slide (presentation only). Not Keen riding a platform: his standing action's
+		# push down (clipped straight back) is no step there, and he moves with the platform's slide (marked,
+		# he was drawn where he stood every other refresh while the platform slid: he shook on a Bounder or
+		# a lift, 2026-10-12)
+		if draw_capture and ((obj.xDirection != 0 and action.velX != 0) or (obj.yDirection != 0 and action.velY != 0)) 				and not (obj == ck_keenObj and ck_keenState.platform != null):
+			draw_stepped[obj] = true
 
 	if action.think != &"":
 		if obj.timeUntillThink != 0:
