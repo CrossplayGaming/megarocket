@@ -4,7 +4,7 @@
     python tools/local_agent.py <task.md> [--model qwen3.8:27b-mtp-q4_K_M] [--steps 400]
 
 The task file says what to do and what "done" means. The work happens in a worktree beside the task
-file (<task folder>/wt, on branch local/<task name>), set up as an agent's worktree is (the config,
+file (<task folder>/wt, on branch local/<task folder's name>), set up as an agent's worktree is (the config,
 the native library copied, the import run), so the main checkout is never touched. The model has
 tools to look, edit, run the project's own commands (an allowlist), keep a journal and finish.
 
@@ -61,7 +61,7 @@ class Agent:
     def __init__(self, task: Path, model: str):
         self.task = task
         self.dir = task.parent
-        self.name = re.sub(r"[^a-z0-9]+", "-", task.stem.lower()).strip("-")
+        self.name = re.sub(r"[^a-z0-9]+", "-", task.parent.name.lower()).strip("-")    # the task's folder
         self.wt = self.dir / "wt"
         self.journal_path = self.dir / "JOURNAL.md"
         self.log_path = self.dir / "log.txt"
