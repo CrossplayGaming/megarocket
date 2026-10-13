@@ -166,7 +166,10 @@ class Agent:
 
     def run(self, steps: int, fresh_every: int) -> None:
         self.setup()
-        ctx = next((int(m.get("context_length", 0)) for m in ask_local.models() if m.get("id") == self.model), 32768)
+        try:
+            ctx = next((int(m.get("context_length", 0)) for m in ask_local.models() if m.get("id") == self.model), 32768)
+        except (SystemExit, OSError):
+            ctx = 32768
         msgs = self.opening("")
         since = 0
         last = ""
@@ -175,9 +178,19 @@ class Agent:
                 self.log("compaction: starting again from the task and the journal")
                 msgs = self.opening(last)
                 since = 0
-            r = ask_local.call("/chat/completions", {"model": self.model, "messages": msgs, "tools": tool_specs(),
-                                                      "reasoning_effort": "medium", "max_tokens": 6000, "temperature": 0.2},
-                               timeout=900.0)
+            r = None
+            for attempt in range(6):    # the server can be busy or away for a while: wait, then try again
+                try:
+                    r = ask_local.call("/chat/completions", {"model": self.model, "messages": msgs, "tools": tool_specs(),
+                                                              "reasoning_effort": "medium", "max_tokens": 6000,
+                                                              "temperature": 0.2}, timeout=900.0)
+                    break
+                except (SystemExit, OSError) as e:
+                    self.log(f"the model did not answer ({e}); trying again in {60 * (attempt + 1)} s")
+                    time.sleep(60 * (attempt + 1))
+            if r is None:
+                self.log("the model stayed away; stopping (run again to resume)")
+                return
             msg = r.get("choices", [{}])[0].get("message", {})
             calls = msg.get("tool_calls") or []
             msgs.append({"role": "assistant", "content": msg.get("content") or "", "tool_calls": calls} if calls
