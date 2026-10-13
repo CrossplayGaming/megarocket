@@ -710,6 +710,17 @@ def rend03():
     return common.COULD_NOT_RUN if common.COULD_NOT_RUN in results else max(results)
 
 
+def native02():
+    """NATIVE-02: the native screen-to-card conversion (D2Blit.planes) gives the GDScript loop's bytes
+    exactly, refuses requests outside the screen (tests/native02_planes.gd)."""
+    import gdtest
+    code, out = gdtest.run("native02_planes", [], timeout=300.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend03r():
     """REND-03R: with smooth motion on, Keen riding a Bounder (Keen 4 level 2) or a lift (level 5) is drawn
     the same distance above it in every picture, between refreshes too (tests/rend03_ride.gd)."""
@@ -2063,6 +2074,7 @@ CHECKS = {
     "REND-01": (rend01, "slow"),
     "REND-03": (rend03, "slow"),
     "REND-03R": (rend03r, "slow"),
+    "NATIVE-02": (native02, "fast"),
     "REND-01R": (rend01r, "slow"),
     "REND-04": (rend04, "slow"),
     "REND-01G": (rend01g, "slow"),
