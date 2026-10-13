@@ -85,6 +85,9 @@ const SPEC: Dictionary = {
 	# a part missing keeps Keen's own)
 	"closet_on": [false, "bool", null],
 	"closet": [{}, "colors", null],
+	# Keen's Closet's page: Simple (a few looks per item, the stripe with the helmet) or Advanced (each part, any
+	# colour) (the user, 2026-10-13; global)
+	"closet_mode": ["simple", "enum", ["simple", "advanced"]],
 	# V15-01 replacement packs, per game: [name, on] in the order they apply (a later pack wins)
 	"packs": [[], "packs", null],
 	# V15-05 the Asset Studio: the folder a replacement picture was last chosen from (global)

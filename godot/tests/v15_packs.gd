@@ -185,10 +185,26 @@ func _pages(found: Dictionary) -> void:
 			if (p[0] as TextureRect).texture != null:
 				shown += 1
 		t.eq("the preview shows Keen running, jumping and pogoing from the game's files", shown, 3)
+		# Simple mode first (the user, 2026-10-13): a helmet look sets the helmet and its stripe together
+		t.ok("the page opens in Simple mode, Advanced's rows hidden", page.simple_box.visible and not page.advanced_box.visible)
+		(page.find_child("Item_helmet", true, false).get_node("Next") as Button).grab_focus()
+		await _frames(2)
+		await _pad(JOY_BUTTON_A)
+		t.eq("a helmet look stepped with the pad sets the helmet and its stripe", l.settings.get_value("closet", "keen4"),
+			{"helmet": "#ff5555", "trim": "#ffffff"})
+		t.eq("and the row names it", (page.simple_swatches["helmet"][2] as Label).text, "Red")
+		(page.find_child("ModeButton", true, false) as Button).grab_focus()
+		await _frames(2)
+		await _pad(JOY_BUTTON_A)
+		t.ok("the mode button shows Advanced, kept in the settings", page.advanced_box.visible and not page.simple_box.visible
+			and String(l.settings.get_value("closet_mode")) == "advanced")
 		(page.find_child("Part_shirt", true, false).get_node("Next") as Button).grab_focus()
 		await _frames(2)
 		await _pad(JOY_BUTTON_A)
-		t.eq("a colour stepped with the pad is kept for the game", l.settings.get_value("closet", "keen4"), {"shirt": "#000000"})
+		t.eq("a colour stepped with the pad is kept for the game", l.settings.get_value("closet", "keen4"),
+			{"helmet": "#ff5555", "trim": "#ffffff", "shirt": "#000000"})
+		t.eq("a part changed in Advanced shows in Simple as the player's own", KeenCloset.simple_look("helmet",
+			KeenCloset.with_look("helmet", {"helmet": "#123456"}, -1).merged({"helmet": "#123456"})), -2)
 		await _pad(JOY_BUTTON_B)
 		t.ok("B goes back to the launcher, the focus on Keen's Closet (%s)" % _owner(), l.closet_page == null and l._page.visible
 			and _owner() == "Closet")

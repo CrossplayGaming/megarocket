@@ -36,6 +36,10 @@ var title_label: Label
 var wear: CheckButton
 var outfit_label: Label
 var outfit_index: int = 0
+var mode_button: Button
+var simple_box: VBoxContainer       # Simple mode's rows (the user, 2026-10-13)
+var advanced_box: VBoxContainer     # Advanced: the outfits and each part's colour
+var simple_swatches: Dictionary = {}    # item -> [ColorRect (the main colour), ColorRect (the stripe), Label]
 var swatches: Dictionary = {}     # part -> ColorRect
 var swatch_names: Dictionary = {} # part -> Label
 var pickers: Dictionary = {}      # part -> ColorPickerButton
@@ -122,6 +126,48 @@ func _build() -> void:
 		settings.set_value("closet_on", on, game)
 		settings.save())
 	col.add_child(wear)
+	# Simple or Advanced
+	var mrow: HBoxContainer = HBoxContainer.new()
+	mrow.name = "Mode"
+	var mcap: Label = Label.new()
+	mcap.text = "Mode:"
+	mrow.add_child(mcap)
+	mode_button = _button(mrow, "ModeButton", "", func() -> void:
+		settings.set_value("closet_mode", "advanced" if _simple() else "simple")
+		settings.save()
+		_show_mode())
+	col.add_child(mrow)
+	# Simple: a look per item, its shading kept
+	simple_box = VBoxContainer.new()
+	simple_box.name = "Simple"
+	simple_box.add_theme_constant_override("separation", 10)
+	col.add_child(simple_box)
+	for i: int in range(KeenCloset.SIMPLE_ITEMS.size()):
+		var item: String = KeenCloset.SIMPLE_ITEMS[i]
+		var sr: HBoxContainer = HBoxContainer.new()
+		sr.name = "Item_" + item
+		var sl: Label = Label.new()
+		sl.text = KeenCloset.SIMPLE_LABELS[i]
+		sl.custom_minimum_size.x = 80 * pixel
+		sr.add_child(sl)
+		_button(sr, "Prev", "<", func() -> void: _step_look(item, -1))
+		var main: ColorRect = ColorRect.new()
+		main.custom_minimum_size = Vector2(14, 10) * pixel
+		sr.add_child(main)
+		var stripe: ColorRect = ColorRect.new()
+		stripe.custom_minimum_size = Vector2(5, 10) * pixel
+		# the stripe's swatch on every row (clear but the helmet's), so the rows' arrows line up
+		sr.add_child(stripe)
+		_button(sr, "Next", ">", func() -> void: _step_look(item, 1))
+		var ln: Label = Label.new()
+		ln.custom_minimum_size.x = 90 * pixel
+		sr.add_child(ln)
+		simple_swatches[item] = [main, stripe, ln]
+		simple_box.add_child(sr)
+	advanced_box = VBoxContainer.new()
+	advanced_box.name = "Advanced"
+	advanced_box.add_theme_constant_override("separation", 10)
+	col.add_child(advanced_box)
 	# outfits
 	var orow: HBoxContainer = HBoxContainer.new()
 	orow.name = "Outfits"
@@ -135,7 +181,7 @@ func _build() -> void:
 	orow.add_child(outfit_label)
 	_button(orow, "NextOutfit", ">", func() -> void: _step_outfit(1))
 	_button(orow, "Random", "Random", _random)
-	col.add_child(orow)
+	advanced_box.add_child(orow)
 	# the parts
 	for i: int in range(KeenCloset.REGIONS.size()):
 		var part: String = KeenCloset.REGIONS[i]
@@ -163,7 +209,7 @@ func _build() -> void:
 		pr.add_child(pick)
 		pickers[part] = pick
 		_button(pr, "Own", "Keen's own", func() -> void: _set_color(part, ""))
-		col.add_child(pr)
+		advanced_box.add_child(pr)
 	view_note = Label.new()
 	view_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	view_note.add_theme_color_override("font_color", MegaTheme.ega(11))
@@ -239,7 +285,7 @@ func _show_game(id: String) -> void:
 	for i: int in range(3):
 		var spec: Array = PREVIEW[fam][i]
 		previews[i][2].text = spec[0]
-	_refresh()
+	_show_mode()
 
 
 func _colors() -> Dictionary:
@@ -281,6 +327,32 @@ func _step_color(part: String, d: int) -> void:
 	_set_color(part, "" if at < 0 else "#" + choices[at].to_html(false))
 
 
+func _simple() -> bool:
+	return String(settings.get_value("closet_mode")) != "advanced"
+
+
+## Simple or Advanced shown, as the setting says (the focus stays on the mode's button).
+func _show_mode() -> void:
+	var simple: bool = _simple()
+	mode_button.text = "Simple (change to Advanced)" if simple else "Advanced (change to Simple)"
+	simple_box.visible = simple
+	advanced_box.visible = not simple
+	_refresh()
+
+
+## Simple mode: the item's next or last look (after them, Keen's own).
+func _step_look(item: String, d: int) -> void:
+	var c: Dictionary = _colors()
+	var n: int = (KeenCloset.SIMPLE_LOOKS[item] as Array).size()
+	var at: int = maxi(KeenCloset.simple_look(item, c), -1)    # a colouring of the player's own steps from Keen's own
+	at += d
+	if at >= n:
+		at = -1
+	elif at < -1:
+		at = n - 1
+	_set_colors(KeenCloset.with_look(item, c, at))
+
+
 func _step_outfit(d: int) -> void:
 	outfit_index = (outfit_index + d + KeenCloset.OUTFITS.size()) % KeenCloset.OUTFITS.size()
 	_set_colors((KeenCloset.OUTFITS[outfit_index][1] as Dictionary).duplicate())
@@ -297,6 +369,12 @@ func _random() -> void:
 func _refresh() -> void:
 	var c: Dictionary = _colors()
 	outfit_label.text = String(KeenCloset.OUTFITS[outfit_index][0]) if c == KeenCloset.OUTFITS[outfit_index][1] else "Your own"
+	for item: String in KeenCloset.SIMPLE_ITEMS:
+		var look: int = KeenCloset.simple_look(item, c)
+		var sw: Array = simple_swatches[item]
+		(sw[0] as ColorRect).color = Color.html(c[item]) if c.has(item) else Color(0, 0, 0, 0)
+		(sw[1] as ColorRect).color = Color.html(c["trim"]) if item == "helmet" and c.has("trim") else Color(0, 0, 0, 0)
+		(sw[2] as Label).text = "Keen's own" if look == -1 else ("Your own" if look == -2 else String(KeenCloset.SIMPLE_LOOKS[item][look][0]))
 	for part: String in KeenCloset.REGIONS:
 		var has: bool = c.has(part)
 		(swatches[part] as ColorRect).color = Color.html(c[part]) if has else Color(0, 0, 0, 0)

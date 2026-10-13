@@ -43,6 +43,65 @@ const RULES: Dictionary = {
 	},
 }
 
+## Simple mode's looks (the user, 2026-10-13): per item, a few colours that look right with Keen's own shading
+## (each part's tones follow its colour, as always). The helmet's looks set its stripe too, a colour that goes
+## with it. The EGA colours themselves, so Classic shows them exactly. Item -> [[name, {part: colour}]].
+const SIMPLE_ITEMS: PackedStringArray = ["helmet", "shirt", "pants", "shoes"]
+const SIMPLE_LABELS: PackedStringArray = ["Helmet", "Shirt", "Pants", "Shoes"]
+const SIMPLE_LOOKS: Dictionary = {
+	"helmet": [["Red", {"helmet": "#ff5555", "trim": "#ffffff"}], ["Blue", {"helmet": "#5555ff", "trim": "#ffff55"}],
+		["Green", {"helmet": "#55ff55", "trim": "#00aa00"}], ["Sky", {"helmet": "#55ffff", "trim": "#0000aa"}],
+		["Pink", {"helmet": "#ff55ff", "trim": "#ffffff"}], ["Gold", {"helmet": "#ffff55", "trim": "#aa0000"}],
+		["Silver", {"helmet": "#aaaaaa", "trim": "#5555ff"}], ["Black", {"helmet": "#555555", "trim": "#ff5555"}]],
+	"shirt": [["Red", {"shirt": "#aa0000"}], ["Blue", {"shirt": "#0000aa"}], ["Green", {"shirt": "#00aa00"}],
+		["Teal", {"shirt": "#00aaaa"}], ["Purple", {"shirt": "#aa00aa"}], ["Orange", {"shirt": "#aa5500"}],
+		["Grey", {"shirt": "#555555"}], ["White", {"shirt": "#ffffff"}]],
+	"pants": [["Blue", {"pants": "#0000aa"}], ["Black", {"pants": "#555555"}], ["Brown", {"pants": "#aa5500"}],
+		["Green", {"pants": "#00aa00"}], ["Red", {"pants": "#aa0000"}], ["Teal", {"pants": "#00aaaa"}],
+		["Purple", {"pants": "#aa00aa"}], ["White", {"pants": "#aaaaaa"}]],
+	"shoes": [["Red", {"shoes": "#aa0000"}], ["Black", {"shoes": "#555555"}], ["Brown", {"shoes": "#aa5500"}],
+		["White", {"shoes": "#ffffff"}], ["Blue", {"shoes": "#0000aa"}], ["Green", {"shoes": "#00aa00"}],
+		["Yellow", {"shoes": "#ffff55"}], ["Purple", {"shoes": "#aa00aa"}]],
+}
+
+
+## The parts an item's look sets (the helmet's: the helmet and its stripe).
+static func simple_parts(item: String) -> PackedStringArray:
+	return PackedStringArray(["helmet", "trim"]) if item == "helmet" else PackedStringArray([item])
+
+
+## Which of an item's looks the colours wear: its index, -1 Keen's own (none of its parts coloured), -2 a
+## colouring of the player's own (from Advanced).
+static func simple_look(item: String, colors: Dictionary) -> int:
+	var parts: PackedStringArray = simple_parts(item)
+	var mine: Dictionary = {}
+	for p: String in parts:
+		if colors.has(p):
+			mine[p] = Color.html(colors[p]).to_html(false)
+	if mine.is_empty():
+		return -1
+	var looks: Array = SIMPLE_LOOKS[item]
+	for i: int in range(looks.size()):
+		var want: Dictionary = {}
+		for p: String in looks[i][1]:
+			want[p] = Color.html(looks[i][1][p]).to_html(false)
+		if want == mine:
+			return i
+	return -2
+
+
+## The colours with an item's look changed to look `i` (-1: Keen's own for its parts).
+static func with_look(item: String, colors: Dictionary, i: int) -> Dictionary:
+	var c: Dictionary = colors.duplicate()
+	for p: String in simple_parts(item):
+		c.erase(p)
+	if i >= 0:
+		var look: Dictionary = SIMPLE_LOOKS[item][i][1]
+		for p: String in look:
+			c[p] = look[p]
+	return c
+
+
 ## Outfits: a colour per part ("" keeps Keen's own). The id-family homages are colours on Keen's own
 ## silhouette (no other game's art): the Doom marine's green armour with a dark visor tone on the
 ## helmet's stripe, B.J.'s olive and khaki fatigues.
