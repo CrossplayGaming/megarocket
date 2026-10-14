@@ -93,6 +93,8 @@ var _audio_started: bool = false
 ## The output's underruns seen so far (AudioStreamGeneratorPlayback.get_skips), each new run of them logged
 ## with the game's time and why the sound had nothing to play (a crackle the player hears).
 var _audio_skips: int = 0
+var _audio_thread: Thread = null
+var _audio_running: bool = false    # set false (under _mutex) to stop the sound's thread
 ## The output's capacity in frames, read as the sound starts (what it holds is this less what is free).
 var _audio_room: int = 0
 
@@ -366,6 +368,12 @@ func start(found: Dictionary) -> bool:
 	_player.stream = gen
 	add_child(_player)
 	_player.play()
+	# the sound is fed on its own thread, not the screen's: a slow frame (a picture prepared the first time it
+	# is drawn, a big window) then never runs the output dry (the user, 2026-10-14: Keen 4's death sound slowed
+	# on a PC and a phone; a 4K window took 499 ms over one frame as Keen died)
+	_audio_running = true
+	_audio_thread = Thread.new()
+	_audio_thread.start(_audio_loop)
 	_playback = _player.get_stream_playback()
 	_start_usec = Time.get_ticks_usec()
 	thread = Thread.new()
@@ -905,11 +913,8 @@ func _process(_delta: float) -> void:
 	_frame_text = PackedByteArray()
 	_frame_new = false
 	var done: bool = _done
-	var pending: Array = _audio_pending
-	_audio_pending = []
 	var machine_t: float = _machine_t
 	_mutex.unlock()
-	_feed_audio(pending, machine_t)
 	if fresh and not text.is_empty():
 		_text_view.show_text(text)
 		_text_view.visible = true
@@ -941,6 +946,21 @@ func _process(_delta: float) -> void:
 		thread = null
 		_release()
 		finished.emit(_quit_message)
+
+
+## The sound's thread: every 5 ms the events so far into the mixer and the output topped up.
+func _audio_loop() -> void:
+	while true:
+		_mutex.lock()
+		var running: bool = _audio_running
+		var pending: Array = _audio_pending
+		_audio_pending = []
+		var machine_t: float = _machine_t
+		_mutex.unlock()
+		if not running:
+			return
+		_feed_audio(pending, machine_t)
+		OS.delay_msec(5)
 
 
 ## Sound: events into the mixer (in time order), samples to the output.
@@ -1024,6 +1044,12 @@ func _release() -> void:
 		vm.int8 = Callable()
 		vm.int9 = Callable()
 		vm.on_limit = Callable()
+	if _audio_thread != null:
+		_mutex.lock()
+		_audio_running = false
+		_mutex.unlock()
+		_audio_thread.wait_to_finish()
+		_audio_thread = null
 	if audio != null:
 		audio.close()
 		audio = null
