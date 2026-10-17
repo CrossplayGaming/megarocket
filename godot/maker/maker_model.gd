@@ -168,6 +168,7 @@ func _reset() -> void:
 	_undo = []
 	_redo = []
 	_stroke = []
+	_paired_at = 0
 	dirty = false
 	trail = PackedVector2Array()
 
@@ -510,6 +511,65 @@ func place_object(i: int, x: int, y: int) -> int:
 			n += 1
 	end_stroke()
 	return n
+
+
+## MAKER-05: the colours of keys and gems, by the doors' order (Keen 1-3's intile 2-5 / 18-21; Keen 4-6's
+## gem holders' misc 7-10 and gems' info 57-60)
+const KEY_COLOURS: Dictionary = {KeenLevel.VORTICONS: ["yellow", "red", "green", "blue"], KeenLevel.GALAXY: ["red", "yellow", "blue", "green"]}
+## The undo steps already looked at by next_step
+var _paired_at: int = 0
+
+
+## MAKER-05: what the step just made calls for next, so a door is never left without what opens it:
+## {say (in words), part ([plane, value] to choose: the keycard or gem of its colour), link_from (a cell to
+## link from: the gem holder just placed)}; empty when nothing (or when nothing new was done: an undo, a
+## step already answered). Keen 1-3: a door placed with no keycard of its colour in the level asks for the
+## keycard. Keen 4-6: a gem holder placed asks for the door it opens (the link), and once linked, for its
+## gem if the level has none of that colour.
+func next_step() -> Dictionary:
+	if _undo.size() <= _paired_at or parts == null or level == null:
+		_paired_at = _undo.size()
+		return {}
+	_paired_at = _undo.size()
+	var stroke: Array = _undo[_undo.size() - 1]
+	var tp: int = parts.tile_plane()
+	for e: Array in stroke:
+		var plane: int = e[0]
+		var at: Vector2i = Vector2i(e[1], e[2])
+		if engine == KeenLevel.VORTICONS and plane == tp:
+			var u: int = parts.props(int(e[4])).use
+			if u >= 2 and u <= 5 and not _has_tile_use(18 + u - 2):
+				var key: int = _tile_with_use(18 + u - 2)
+				if key >= 0:
+					return {"part": [tp, key], "say": "Now place the %s keycard: the door opens with it." % KEY_COLOURS[engine][u - 2]}
+		elif engine == KeenLevel.GALAXY and plane == 1:
+			var u2: int = parts.props(int(e[4])).use
+			if u2 >= 7 and u2 <= 10 and parts.link_target(level, at.x, at.y).x < 0:
+				return {"link_from": at, "say": "Now pick the door this %s gem holder opens." % KEY_COLOURS[engine][u2 - 7]}
+		elif engine == KeenLevel.GALAXY and plane == 2:
+			var u3: int = parts.props(level.get_word(1, at.x, at.y)).use
+			if u3 >= 7 and u3 <= 10 and parts.link_target(level, at.x, at.y).x >= 0 and not level.planes[2].has(57 + u3 - 7):
+				return {"part": [2, 57 + u3 - 7], "say": "Now place the %s gem: the holder takes it." % KEY_COLOURS[engine][u3 - 7]}
+	return {}
+
+
+func _has_tile_use(use: int) -> bool:
+	var tp: int = parts.tile_plane()
+	for v: int in level.planes[tp]:
+		if parts.props(v).use == use:
+			return true
+	return false
+
+
+## The first tile of a use (as the palette lists them).
+func _tile_with_use(use: int) -> int:
+	for cat: Dictionary in parts.tile_categories:
+		if int(cat.plane) != parts.tile_plane():
+			continue
+		for v: int in cat.values:
+			if parts.props(v).use == use:
+				return v
+	return -1
 
 
 ## MAKER-04: backdrop `i` painted into the cell at (x, y) (its pattern lined up with the level); part of

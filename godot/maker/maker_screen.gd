@@ -480,7 +480,9 @@ func show_editor() -> void:
 	view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	view.picked.connect(_on_picked)
 	view.hovered.connect(func(_c: Vector2i) -> void: _refresh())
-	view.changed.connect(_refresh)
+	view.changed.connect(func() -> void:
+		_follow_up()
+		_refresh())
 	view.refused.connect(func(why: String) -> void:
 		_notice = "Can't: " + why
 		_notice_until = Time.get_ticks_msec() + 4000
@@ -564,6 +566,26 @@ func _on_picked(plane: int, value: int) -> void:
 		view.value = value
 	palette.show_chosen()
 	set_tool("paint")
+
+
+## MAKER-05: what the last step calls for (the keycard or gem a door needs, the door a gem holder opens),
+## chosen for the player, with a word on the status line.
+func _follow_up() -> void:
+	var n: Dictionary = model.next_step()
+	if n.is_empty():
+		return
+	if n.has("link_from"):
+		set_tool("link")
+		view.anchor = n.link_from
+	elif n.has("part"):
+		if palette.select_value(int(n.part[0]), int(n.part[1])):
+			palette.show_chosen()
+		view.plane = int(n.part[0])
+		view.value = int(n.part[1])
+		set_tool("paint")
+	_notice = str(n.say)
+	_notice_until = Time.get_ticks_msec() + 8000
+	view.queue_redraw()
 
 
 func _did(_changed: bool) -> void:

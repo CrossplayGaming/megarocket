@@ -745,6 +745,18 @@ def maker04():
     return code
 
 
+def maker05():
+    """MAKER-05: a door is never left without what opens it: Keen 1's door asks for its keycard, Keen 4's gem
+    holder for the door it opens and then its gem; nothing asked twice, after an undo, or when the level
+    already has it (tests/maker07_pairs.gd)."""
+    import gdtest
+    code, out = gdtest.run("maker07_pairs", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend03r():
     """REND-03R: with smooth motion on, Keen riding a Bounder (Keen 4 level 2) or a lift (level 5) is drawn
     the same distance above it in every picture, between refreshes too (tests/rend03_ride.gd)."""
@@ -2100,6 +2112,7 @@ CHECKS = {
     "REND-03R": (rend03r, "slow"),
     "NATIVE-02": (native02, "fast"),
     "MAKER-04": (maker04, "slow"),
+    "MAKER-05": (maker05, "slow"),
     "NATIVE-03": (native03, "fast"),
     "REND-01R": (rend01r, "slow"),
     "REND-04": (rend04, "slow"),
