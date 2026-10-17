@@ -30,7 +30,7 @@ const KIND_NAMES: Dictionary = {"Slopes": "Ramps", "Doors, keys and gems": "Door
 	"All background tiles": "All background tiles (advanced)"}
 ## The editor's keys, under the tip
 const EDITOR_KEYS: String = "Cursor: arrows / d-pad   Use tool: Enter / A   Erase: Del / B   Tool: Tab / X   Part: [ ] / LB RB   Kind: PgUp PgDn / LT RT   Play here: P / Y   Menu: Esc / Start"
-const TOOL_NAMES: Dictionary = {"paint": "Paint", "brush": "Ground brush", "pick": "Pick", "erase": "Erase", "rect": "Fill box", "link": "Link", "start": "Keen start"}
+const TOOL_NAMES: Dictionary = {"paint": "Paint", "brush": "Ground brush", "pick": "Pick", "erase": "Erase", "rect": "Fill box", "link": "Link", "start": "Keen"}
 ## The cursor's repeat while a direction is held: first step, then every
 const REPEAT_FIRST: float = 0.28
 const REPEAT_EVERY: float = 0.06
@@ -464,16 +464,21 @@ func show_editor() -> void:
 	var bar: HFlowContainer = HFlowContainer.new()
 	bar.name = "Tools"
 	_page_box.add_child(bar)
-	for t: String in MakerView.TOOLS:
+	for t: String in tools():
 		var b: Button = _button(bar, TOOL_NAMES[t], set_tool.bind(t), "Tool_" + t)
 		b.toggle_mode = true
 		b.focus_mode = Control.FOCUS_NONE
 		_tool_buttons[t] = b
+	# MAKER-10: the bar in groups: building, undoing, seeing, playing, keeping
+	bar.add_child(VSeparator.new())
 	_undo_b = _button(bar, "Undo", func() -> void: _did(model.undo()), "Undo")
 	_redo_b = _button(bar, "Redo", func() -> void: _did(model.redo()), "Redo")
-	_button(bar, "Whole level", toggle_whole, "Whole")
+	bar.add_child(VSeparator.new())
+	_button(bar, "See all", toggle_whole, "Whole")
+	bar.add_child(VSeparator.new())
 	_button(bar, "Play here", play_here, "PlayHere")
 	_button(bar, "Play", play_start, "Play")
+	bar.add_child(VSeparator.new())
 	_button(bar, "Save", save, "Save")
 	_button(bar, "Menu", open_menu, "Menu")
 	for b: Node in bar.get_children():
@@ -567,8 +572,14 @@ func set_tool(t: String) -> void:
 
 
 func next_tool(d: int = 1) -> void:
-	var i: int = MakerView.TOOLS.find(view.tool)
-	set_tool(MakerView.TOOLS[posmod(i + d, MakerView.TOOLS.size())])
+	var list: Array = tools()
+	var i: int = list.find(view.tool)
+	set_tool(list[posmod(i + d, list.size())])
+
+
+## MAKER-10: the tools this game's levels use (Link only in Keen 4-6, the games that link).
+func tools() -> Array:
+	return MakerView.TOOLS.filter(func(t: String) -> bool: return t != "link" or model.engine == KeenLevel.GALAXY)
 
 
 func _category(d: int) -> void:
@@ -772,7 +783,7 @@ func open_menu() -> void:
 	ask("%s" % model.doc_name, [["Back to editing", func() -> void: pass], ["Play from Keen's start", play_start],
 		["Play from the cursor", play_here], ["Save", save], ["Rename", func() -> void: rename_box("", model.doc_name)],
 		["Undo", func() -> void: _did(model.undo())], ["Redo", func() -> void: _did(model.redo())],
-		["Whole level", toggle_whole], ["Level settings", show_slots], ["Back to your levels", leave_editor]], "")
+		["See all", toggle_whole], ["Level settings", show_slots], ["Back to your levels", leave_editor]], "")
 
 
 ## Leaves the editor for the library, asking first when there are unsaved changes.

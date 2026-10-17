@@ -75,5 +75,6 @@ func _go() -> void:
 		m.view.tool = "paint"
 		m.view.act_at(Vector2i(40 + v, 6))
 		m.view.act_end()
+	t.ok("Keen 4's bar has Link", m._tool_buttons.has("link"))
 	t.ok("no more than six are kept (%d)" % m._recent.size(), m._recent.size() == MakerScreen.RECENT_MAX)
 	t.finish(self)

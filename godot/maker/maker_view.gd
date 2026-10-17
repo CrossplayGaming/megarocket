@@ -18,7 +18,9 @@ signal refused(reason: String)
 ## "undo", "link"
 signal built(kind: String)
 
-const TOOLS: Array = ["paint", "brush", "pick", "erase", "rect", "link", "start"]
+## The tools the bar and Tab / X step through (MAKER-10: the old ground brush is off the bar, the ground
+## styles in the palette doing its work; it remains for set_tool("brush"))
+const TOOLS: Array = ["paint", "pick", "erase", "rect", "link", "start"]
 const ZOOMS: Array = [0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 6.0]
 
 var model: MakerModel = null

@@ -148,8 +148,9 @@ func _go() -> void:
 	t.eq("B erases it", m.model.level.get_word(part[0], c.x, c.y), 0 if m.model.engine != KeenLevel.VORTICONS or part[0] != 0 else int(m.model.tile_defaults.background))
 	await _button(JOY_BUTTON_A)
 	await _button(JOY_BUTTON_X)
-	t.eq("X: the next tool", v.tool, "brush")
-	for i: int in range(6):
+	t.eq("X: the next tool", v.tool, "pick")
+	t.ok("Keen 1's bar has no Link (only Keen 4-6 link) and no ground brush (the styles do its work)", not m._tool_buttons.has("link") and not m._tool_buttons.has("brush"))
+	for i: int in range(m.tools().size() - 1):
 		await _button(JOY_BUTTON_X)
 	t.eq("X round to paint again", v.tool, "paint")
 	# the keyboard: arrows, Enter, Ctrl+Z
@@ -191,8 +192,7 @@ func _go() -> void:
 		not m.model.trail.is_empty() and absf(m.model.trail[0].x - (target.x + 0.5)) < 1.0 and absf(m.model.trail[0].y - (target.y + 1.5)) < 1.0)
 	# a rule refused at once with its reason: Keen's start picked up and painted elsewhere
 	v.set_cursor(m.model.start_at())
-	await _button(JOY_BUTTON_X)
-	await _button(JOY_BUTTON_X)
+	await _button(JOY_BUTTON_X)    # paint -> pick
 	await _button(JOY_BUTTON_A)
 	await _button(JOY_BUTTON_DPAD_RIGHT)
 	await _button(JOY_BUTTON_A)
