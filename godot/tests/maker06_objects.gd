@@ -4,7 +4,10 @@ extends SceneTree
 ## objects are found in the game's levels (more than ten), none of them ground or a slope (those are the
 ## brush's) or bigger than MakerObjects.MAX_SIZE, and the palette opens on them. Every object, placed in a
 ## new level, is one thing there: from each of its cells the eraser finds all of its cells and no others.
-## Placing one and erasing it are one undo step each, and undo puts the level back exactly.
+## Placing one and erasing it are one undo step each, and undo puts the level back exactly. Stretchables (a
+## platform's ends and middle, a pole's): each game has some; one laid seven long is its first end, five
+## middles and its last end; the eraser takes all seven from a middle cell and the pick picks it; no other
+## object is made of nothing but a stretchable's pieces.
 ##
 ## Options: --game_data=<folder>
 
@@ -85,6 +88,47 @@ func _go() -> void:
 				first_bad = "object %d (%s %dx%d)" % [i, o.use, o.size.x, o.size.y]
 		t.ok("%s: every object placed is one thing to the eraser (%d of %d%s)" % [id, whole, objs.size(),
 			", first not: " + first_bad if first_bad != "" else ""], whole == objs.size())
+		# stretchables
+		var stretch: Array = []
+		var stretch_tiles: Dictionary = {}
+		for i: int in range(objs.size()):
+			if objs[i].has("stretch"):
+				stretch.append(i)
+				for tl: int in [objs[i].ends[0], objs[i].mid, objs[i].ends[1]]:
+					stretch_tiles[tl] = true
+		var fragments: int = 0
+		for o: Dictionary in objs:
+			if o.has("stretch") or int(o.plane) != m.parts.tile_plane():
+				continue
+			var all_pieces: bool = true
+			for c: Array in o.cells:
+				if not stretch_tiles.has(int(c[1])):
+					all_pieces = false
+			if all_pieces:
+				fragments += 1
+		var laid_ok: int = 0
+		for i: int in stretch:
+			m.new_level()
+			var o: Dictionary = objs[i]
+			var from: Vector2i = Vector2i(3, 3)
+			var to: Vector2i = from + (Vector2i(6, 0) if o.stretch == "h" else Vector2i(0, 6))
+			if not m.level.in_bounds(to.x, to.y):
+				continue
+			var n7: int = m.place_stretch(i, from, to)
+			var want: Array = [int(o.ends[0]), int(o.mid), int(o.mid), int(o.mid), int(o.mid), int(o.mid), int(o.ends[1])]
+			var got: Array = []
+			var step: Vector2i = Vector2i(1, 0) if o.stretch == "h" else Vector2i(0, 1)
+			for k: int in range(7):
+				var q: Vector2i = from + step * k
+				got.append(m.level.get_word(int(o.plane), q.x, q.y))
+			var mid_cell: Vector2i = from + step * 3
+			var whole7: bool = m.kit.cells_at(m.level, int(o.plane), mid_cell.x, mid_cell.y).size() == 7
+			var picked: bool = m.kit.object_at(m.level, int(o.plane), mid_cell.x, mid_cell.y) == i
+			var gone7: int = m.erase_object_at(int(o.plane), mid_cell.x, mid_cell.y)
+			if n7 == 7 and got == want and whole7 and gone7 == 7 and m.undo() and picked:
+				laid_ok += 1
+		t.ok("%s: %d stretchables, each laid 7 long as end, middles, end, erased and picked whole (%d), no fragment of one left as an object (%d)" % [id,
+			stretch.size(), laid_ok, fragments], not stretch.is_empty() and laid_ok == stretch.size() and fragments == 0)
 		# one undo step to place, one to erase, and undo puts the level back
 		m.new_level()
 		var big: int = 0

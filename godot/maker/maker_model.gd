@@ -512,6 +512,22 @@ func place_object(i: int, x: int, y: int) -> int:
 	return n
 
 
+## MAKER-04: stretchable object `i` laid from `from` to `to` (its first end, its middle, its last end; along
+## its way from `from`): one undo step. The cells set.
+func place_stretch(i: int, from: Vector2i, to: Vector2i) -> int:
+	if level == null or kit == null or i < 0 or i >= kit.objects.size() or not kit.objects[i].has("stretch"):
+		return 0
+	var o: Dictionary = kit.objects[i]
+	begin_stroke()
+	var n: int = 0
+	for c: Array in kit.stretch_cells(o, from, to):
+		var at: Vector2i = c[0]
+		if level.in_bounds(at.x, at.y) and paint(int(o.plane), at.x, at.y, int(c[1])):
+			n += 1
+	end_stroke()
+	return n
+
+
 ## MAKER-04: the whole object at (x, y) on `plane` erased (its glued cells: the foreground's left empty, a
 ## background's or Keen 1-3's given the level's plain background), one undo step. The cells erased: 0 when
 ## the cell is part of no object (one tile alone), for the caller to erase as a tile.

@@ -133,12 +133,22 @@ func _draw() -> void:
 		if tool == "paint" and plane == MakerObjects.PLANE and model.kit != null and value < model.kit.objects.size():
 			# MAKER-04: the whole object, see-through, where it will go
 			var o: Dictionary = model.kit.objects[value]
-			for oc: Array in o.cells:
-				var tex: Texture2D = tiles.texture(int(o.plane), int(oc[1]))
+			var shown: Array = []
+			if o.has("stretch"):
+				# laid from the first end (the anchor once set) to the cursor
+				var from: Vector2i = anchor if anchor.x >= 0 else cursor
+				var to: Vector2i = cursor if anchor.x >= 0 else cursor + (Vector2i(2, 0) if o.stretch == "h" else Vector2i(0, 2))
+				shown = model.kit.stretch_cells(o, from, to)
+			else:
+				for oc: Array in o.cells:
+					shown.append([cursor + (oc[0] as Vector2i), oc[1]])
+			var box: Rect2 = _cell_rect(shown[0][0])
+			for sc: Array in shown:
+				var tex: Texture2D = tiles.texture(int(o.plane), int(sc[1]))
 				if tex != null:
-					draw_texture_rect(tex, _cell_rect(cursor + (oc[0] as Vector2i)), false, Color(1, 1, 1, 0.6))
-			var size: Vector2i = o.size
-			draw_rect(_cell_rect(cursor).merge(_cell_rect(cursor + size - Vector2i.ONE)), MegaTheme.ega(11), false, 1.0)
+					draw_texture_rect(tex, _cell_rect(sc[0]), false, Color(1, 1, 1, 0.6))
+				box = box.merge(_cell_rect(sc[0]))
+			draw_rect(box, MegaTheme.ega(11), false, 1.0)
 		elif tool == "paint" and plane != mplane:
 			var tex: Texture2D = tiles.texture(plane, value)
 			if tex != null:
@@ -169,8 +179,15 @@ func act_at(c: Vector2i, drag: bool = false) -> void:
 		return
 	match tool:
 		"paint" when plane == MakerObjects.PLANE:
-			if not drag:
+			if drag:
+				return
+			if not stretching():
 				model.place_object(value, c.x, c.y)
+			elif anchor.x < 0:
+				anchor = c
+			else:
+				model.place_stretch(value, anchor, c)
+				anchor = Vector2i(-1, -1)
 		"erase" when not drag and _erase_object(c):
 			pass
 		"paint", "erase":
@@ -243,6 +260,12 @@ func act_end() -> void:
 
 
 ## What erasing leaves: Keen 1-3's tiles their game's background tile, the others nothing (0).
+## MAKER-04: a stretchable object is chosen (it is laid from one end to the other, like a box's corners)
+func stretching() -> bool:
+	return tool == "paint" and plane == MakerObjects.PLANE and model != null and model.kit != null \
+		and value >= 0 and value < model.kit.objects.size() and model.kit.objects[value].has("stretch")
+
+
 ## MAKER-04: the eraser takes a whole object at once (the foreground's first, then the background's); false
 ## when the cell holds none, so it erases the one tile as before.
 func _erase_object(c: Vector2i) -> bool:
@@ -328,13 +351,13 @@ func _gui_input(event: InputEvent) -> void:
 			MOUSE_BUTTON_LEFT:
 				if b.pressed:
 					cursor = c
-					_painting = tool in ["paint", "erase", "brush"]
-					if tool == "rect":
+					_painting = tool in ["paint", "erase", "brush"] and not stretching()
+					if tool == "rect" or stretching():
 						anchor = c
 					else:
 						act_at(c)
 				else:
-					if tool == "rect" and anchor.x >= 0:
+					if (tool == "rect" or stretching()) and anchor.x >= 0:
 						act_at(c)
 					_painting = false
 					act_end()

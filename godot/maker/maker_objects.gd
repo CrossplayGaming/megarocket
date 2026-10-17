@@ -44,6 +44,7 @@ func build(levels: Array, parts: MakerParts, planes: Array, empty: Dictionary) -
 	_empty = empty
 	for plane: int in planes:
 		_build_plane(levels, parts, plane)
+	_build_stretch(levels, parts, parts.tile_plane())
 	var order: Array = MakerParts.ORDER
 	objects.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		var ia: int = order.find(a.use)
@@ -141,6 +142,133 @@ func _build_plane(levels: Array, parts: MakerParts, plane: int) -> void:
 			"seen": int(best[1])})
 
 
+## Stretchable objects: a platform's left end, middle and right end, a pole's top, shaft and foot. In
+## id's levels, a row (or column) of tiles of one kind whose middle repeats one tile between two other
+## ends, found at least twice and at two lengths or more, is one: {stretch: "h" or "v", ends: [first,
+## last], mid, cells (its picture: three long)}. Ground and slopes are the brush's. A glued object made of
+## nothing but a stretchable's tiles is a piece of it, and goes.
+func _build_stretch(levels: Array, parts: MakerParts, plane: int) -> void:
+	var nothing: Dictionary = _empty.get(plane, {})
+	var found: Dictionary = {}    # [dir, first, mid, last] -> {lengths, n, use}
+	for l: KeenLevel in levels:
+		if l == null or plane >= l.planes.size():
+			continue
+		var p: PackedInt32Array = l.planes[plane]
+		for dir: String in ["h", "v"]:
+			var outer: int = l.height if dir == "h" else l.width
+			var inner: int = l.width if dir == "h" else l.height
+			for o: int in range(outer):
+				var run: Array = []
+				for i: int in range(inner + 1):
+					var t: int = -1
+					if i < inner:
+						t = p[o * l.width + i] if dir == "h" else p[i * l.width + o]
+					var u: String = parts.use_of(plane, t) if t >= 0 and not nothing.has(t) else ""
+					if not run.is_empty() and (u == "" or u != parts.use_of(plane, run[0])):
+						_note_run(run, dir, parts, plane, found)
+						run = []
+					if u != "":
+						run.append(t)
+	var kept: Array = []
+	var pieces: Dictionary = {}    # tile -> true, of the stretchables
+	for key: Array in found:
+		var f: Dictionary = found[key]
+		if int(f.n) < 2 or (f.lengths as Dictionary).size() < 2:
+			continue
+		var dir: String = key[0]
+		var step: Vector2i = Vector2i(1, 0) if dir == "h" else Vector2i(0, 1)
+		var cells: Array = [[Vector2i.ZERO, key[1]], [step, key[2]], [step * 2, key[3]]]
+		kept.append({"plane": plane, "stretch": dir, "ends": [key[1], key[3]], "mid": key[2], "cells": cells,
+			"size": Vector2i(3, 1) if dir == "h" else Vector2i(1, 3), "use": f.use, "seen": int(f.n)})
+		for k: int in [1, 2, 3]:
+			pieces[key[k]] = true
+	objects = objects.filter(func(o: Dictionary) -> bool:
+		if int(o.plane) != plane:
+			return true
+		for c: Array in o.cells:
+			if not pieces.has(int(c[1])):
+				return true
+		return false)
+	objects.append_array(kept)
+	_stretch_tiles = {}
+	for i: int in range(objects.size()):
+		if objects[i].has("stretch"):
+			for t: int in [objects[i].ends[0], objects[i].mid, objects[i].ends[1]]:
+				_stretch_tiles[t] = true
+
+
+func _note_run(run: Array, dir: String, parts: MakerParts, plane: int, found: Dictionary) -> void:
+	if run.size() < 3:
+		return
+	var mid: int = run[1]
+	for k: int in range(1, run.size() - 1):
+		if run[k] != mid:
+			return
+	var use: String = parts.use_of(plane, mid)
+	if run[0] == mid or run[-1] == mid or use == MakerParts.GROUND or use == MakerParts.SLOPES:
+		return
+	var key: Array = [dir, run[0], mid, run[-1]]
+	if not found.has(key):
+		found[key] = {"lengths": {}, "n": 0, "use": use}
+	found[key].lengths[run.size()] = true
+	found[key].n += 1
+
+
+## The tiles of the stretchables (for the eraser and the pick to walk a placed one)
+var _stretch_tiles: Dictionary = {}
+
+
+## A stretchable laid from `from` to `to` (along its way: the other coordinate is from's): its first end,
+## the middle repeated, its last end; one long, just its first end. [[level position, tile]].
+func stretch_cells(o: Dictionary, from: Vector2i, to: Vector2i) -> Array:
+	var h: bool = o.stretch == "h"
+	var a: int = mini(from.x, to.x) if h else mini(from.y, to.y)
+	var b: int = maxi(from.x, to.x) if h else maxi(from.y, to.y)
+	var out: Array = []
+	for i: int in range(a, b + 1):
+		var tile: int = int(o.mid)
+		if i == a:
+			tile = int(o.ends[0])
+		elif i == b:
+			tile = int(o.ends[1])
+		out.append([Vector2i(i, from.y) if h else Vector2i(from.x, i), tile])
+	return out
+
+
+## The placed stretchable through x,y: [object index, its cells] (empty when the cell is in none). It walks
+## from the cell to the first end one way and the last end the other, over the stretchable's tiles.
+func _stretch_at(l: KeenLevel, plane: int, x: int, y: int) -> Array:
+	var t: int = l.get_word(plane, x, y)
+	if not _stretch_tiles.has(t):
+		return []
+	for i: int in range(objects.size()):
+		var o: Dictionary = objects[i]
+		if not o.has("stretch") or int(o.plane) != plane or not [o.ends[0], o.mid, o.ends[1]].has(t):
+			continue
+		var step: Vector2i = Vector2i(1, 0) if o.stretch == "h" else Vector2i(0, 1)
+		var cells: Array[Vector2i] = [Vector2i(x, y)]
+		var ok: bool = true
+		for side: int in [-1, 1]:
+			var end_tile: int = int(o.ends[0] if side < 0 else o.ends[1])
+			var c: Vector2i = Vector2i(x, y)
+			var here: int = t
+			while here != end_tile:
+				c += step * side
+				if not l.in_bounds(c.x, c.y):
+					ok = false
+					break
+				here = l.get_word(plane, c.x, c.y)
+				if here != int(o.mid) and here != end_tile:
+					ok = false
+					break
+				cells.append(c)
+			if not ok:
+				break
+		if ok and cells.size() >= 2:
+			return [i, cells]
+	return []
+
+
 static func _root(parent: Dictionary, t: int) -> int:
 	while parent.has(t) and parent[t] != t:
 		t = parent[t]
@@ -186,6 +314,9 @@ func _reach(l: KeenLevel, plane: int, at: Vector2i) -> Dictionary:
 
 ## MAKER-04's pick: which object the cell at x,y is part of (as placed, the whole of it), -1 for none.
 func object_at(l: KeenLevel, plane: int, x: int, y: int) -> int:
+	var s: Array = _stretch_at(l, plane, x, y)
+	if not s.is_empty():
+		return int(s[0])
 	var cells: Array = _flood(l, plane, Vector2i(x, y), {})
 	if cells.size() < 2:
 		return -1
@@ -205,6 +336,9 @@ func cells_at(l: KeenLevel, plane: int, x: int, y: int) -> Array[Vector2i]:
 	if _empty.get(plane, {}).has(l.get_word(plane, x, y)):
 		out.append(Vector2i(x, y))
 		return out
+	var s: Array = _stretch_at(l, plane, x, y)
+	if not s.is_empty():
+		return s[1]
 	for c: Vector2i in _reach(l, plane, Vector2i(x, y)):
 		out.append(c)
 	return out
