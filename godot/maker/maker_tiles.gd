@@ -52,9 +52,30 @@ func texture(plane: int, tile: int) -> Texture2D:
 	return tex
 
 
-## MAKER-04: an object's picture (MakerObjects: its cells' tiles put together), made once per object.
+## MAKER-06: a ground piece's textures, bottom first (Keen 1-3: its tile; the others: background then
+## foreground, MakerParts.brush_key's form).
+func piece_textures(piece: int) -> Array[Texture2D]:
+	var out: Array[Texture2D] = []
+	if piece < 0:
+		return out
+	if _parts != null and _parts.engine == KeenLevel.VORTICONS:
+		var t: Texture2D = texture(0, piece)
+		if t != null:
+			out.append(t)
+		return out
+	for p: Array in [[0, piece >> 16], [1, piece & 0xFFFF]]:
+		if p[0] == 1 and p[1] == 0:
+			continue
+		var t2: Texture2D = texture(p[0], p[1])
+		if t2 != null:
+			out.append(t2)
+	return out
+
+
+## MAKER-04: an object's picture (MakerObjects: its cells' tiles put together; a ground style's, its hill
+## of pieces), made once per object.
 func object_texture(o: Dictionary) -> Texture2D:
-	var key: int = str(o.cells).hash()
+	var key: int = (str(o.cells) + str(o.get("picture", ""))).hash()
 	if _objects.has(key):
 		return _objects[key]
 	var size: Vector2i = o.size
@@ -66,6 +87,11 @@ func object_texture(o: Dictionary) -> Texture2D:
 		var part: Image = tex.get_image()
 		part.convert(Image.FORMAT_RGBA8)
 		img.blend_rect(part, Rect2i(0, 0, 16, 16), (c[0] as Vector2i) * 16)
+	for c: Array in o.get("picture", []):
+		for tex: Texture2D in piece_textures(int(c[1])):
+			var part2: Image = tex.get_image()
+			part2.convert(Image.FORMAT_RGBA8)
+			img.blend_rect(part2, Rect2i(0, 0, 16, 16), (c[0] as Vector2i) * 16)
 	var t: ImageTexture = ImageTexture.create_from_image(img)
 	_objects[key] = t
 	return t

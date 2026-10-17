@@ -132,6 +132,12 @@ func _go() -> void:
 	await _trigger(JOY_AXIS_TRIGGER_RIGHT)
 	t.eq("RT: the next kind of part", m.palette.category, cat0 + 1)
 	await _trigger(JOY_AXIS_TRIGGER_LEFT)
+	# the pad's painting checks below use plain tiles: the palette's raw tiles (MAKER-04: the kinds now lead
+	# with whole objects and ground styles, checked in MAKER-04/06)
+	for i: int in range(m.palette.parts.categories.size()):
+		if m.palette.parts.categories[i].name == MakerModel.ALL_TILES:
+			m.palette.show_category(i)
+	cat0 = m.palette.category
 	await _button(JOY_BUTTON_RIGHT_SHOULDER)
 	await _button(JOY_BUTTON_RIGHT_SHOULDER)
 	t.ok("RB twice: the third part of %s (%s)" % [m.palette.current().get("name", ""), m.palette.part_name()], m.palette.index == 2 and m.palette.category == cat0)

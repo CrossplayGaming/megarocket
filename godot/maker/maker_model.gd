@@ -116,6 +116,12 @@ func open(id: String, dir: String, ver: String = "", parts_too: bool = true) -> 
 			kit.build(_all_levels, parts, [0], {0: {int(tile_defaults.get("background", 0)): true}})
 		else:
 			kit.build(_all_levels, parts, [1, 0], {1: {0: true}})
+		terrain = MakerTerrain.new()
+		terrain.build(_all_levels, parts)
+		# MAKER-06: the ground styles as the kit's terrain entries (painted, not placed; a picture of each)
+		for i: int in range(terrain.styles.size()):
+			kit.objects.append({"plane": parts.tile_plane(), "terrain": i, "cells": [], "picture": terrain.styles[i].picture,
+				"size": Vector2i(6, 4), "use": MakerParts.GROUND, "seen": int(terrain.styles[i].cells)})
 		_fold_objects()
 	error = ""
 	return true
@@ -125,6 +131,8 @@ func open(id: String, dir: String, ver: String = "", parts_too: bool = true) -> 
 var _all_levels: Array = []
 ## MAKER-04: the game's whole objects, found in its levels when it is opened (with the parts)
 var kit: MakerObjects = null
+## MAKER-06: the game's ground styles
+var terrain: MakerTerrain = null
 
 
 ## The level's fingerprint (its size and planes).
@@ -570,6 +578,51 @@ func _tile_with_use(use: int) -> int:
 			if parts.props(v).use == use:
 				return v
 	return -1
+
+
+## MAKER-06: ground of kit entry `i` (a terrain entry) put in the cell at (x, y) (or, with `on` false and
+## `i` -1, the ground there taken out), and it and the ground round it given the pieces their shapes take,
+## each in its own material. Part of the current stroke.
+func terrain_at(i: int, x: int, y: int, on: bool) -> bool:
+	if level == null or terrain == null or not level.in_bounds(x, y):
+		return false
+	var tp: int = parts.tile_plane()
+	var style: int = -1
+	if on:
+		if i < 0 or i >= kit.objects.size() or not kit.objects[i].has("terrain"):
+			return false
+		style = int(kit.objects[i].terrain)
+		# a placeholder ground piece first, so the cell counts as ground for its own shape
+		_put_piece(x, y, terrain.piece(style, 255, x, y))
+	elif parts.is_ground(level.get_word(tp, x, y)):
+		paint(0, x, y, int(tile_defaults.get("background", 0)))
+		if engine != KeenLevel.VORTICONS:
+			paint(1, x, y, 0)
+	else:
+		return false
+	var ground: Callable = func(cx: int, cy: int) -> bool: return parts.is_ground(level.get_word(tp, cx, cy))
+	for dy: int in range(-1, 2):
+		for dx: int in range(-1, 2):
+			var c: Vector2i = Vector2i(x + dx, y + dy)
+			if not level.in_bounds(c.x, c.y) or not ground.call(c.x, c.y):
+				continue
+			var st: int = style if c == Vector2i(x, y) else int(terrain.style_of.get(parts.brush_key(level, c.x, c.y), -1))
+			if st >= 0:
+				_put_piece(c.x, c.y, terrain.piece(st, MakerTerrain.shape(level, c.x, c.y, ground), c.x, c.y))
+	return true
+
+
+## MAKER-06: the box between two cells filled with ground of terrain entry `i`, edges and corners right
+## (and the ground round it re-pieced): one undo step. The cells it holds.
+func fill_terrain(i: int, a: Vector2i, b: Vector2i) -> int:
+	begin_stroke()
+	var n: int = 0
+	for y: int in range(mini(a.y, b.y), maxi(a.y, b.y) + 1):
+		for x: int in range(mini(a.x, b.x), maxi(a.x, b.x) + 1):
+			if terrain_at(i, x, y, true):
+				n += 1
+	end_stroke()
+	return n
 
 
 ## MAKER-04: backdrop `i` painted into the cell at (x, y) (its pattern lined up with the level); part of

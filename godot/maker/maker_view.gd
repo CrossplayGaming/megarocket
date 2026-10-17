@@ -134,7 +134,9 @@ func _draw() -> void:
 			# MAKER-04: the whole object, see-through, where it will go
 			var o: Dictionary = model.kit.objects[value]
 			var shown: Array = []
-			if o.has("backdrop"):
+			if o.has("terrain"):
+				pass    # (drawn below: the style's fill piece)
+			elif o.has("backdrop"):
 				shown.append([cursor, MakerObjects.backdrop_tile(o, cursor.x, cursor.y)])
 			elif o.has("stretch"):
 				# laid from the first end (the anchor once set) to the cursor
@@ -144,8 +146,15 @@ func _draw() -> void:
 			else:
 				for oc: Array in o.cells:
 					shown.append([cursor + (oc[0] as Vector2i), oc[1]])
+			if o.has("terrain"):
+				var piece: int = model.terrain.piece(int(o.terrain), 255, cursor.x, cursor.y)
+				for tex: Texture2D in tiles.piece_textures(piece):
+					draw_texture_rect(tex, r, false, Color(1, 1, 1, 0.6))
+				shown.append([cursor, -1])
 			var box: Rect2 = _cell_rect(shown[0][0])
 			for sc: Array in shown:
+				if int(sc[1]) < 0:
+					continue
 				var tex: Texture2D = tiles.texture(int(o.plane), int(sc[1]))
 				if tex != null:
 					draw_texture_rect(tex, _cell_rect(sc[0]), false, Color(1, 1, 1, 0.6))
@@ -180,6 +189,16 @@ func act_at(c: Vector2i, drag: bool = false) -> void:
 			refused.emit(model.refusal(plane, c.x, c.y, value))
 		return
 	match tool:
+		"paint" when plane == MakerObjects.PLANE and terrain():
+			# a ground style paints like the ground brush, in its own material
+			if not drag:
+				model.begin_stroke()
+			model.terrain_at(value, c.x, c.y, true)
+		"erase" when model.terrain != null and model.parts.is_ground(model.level.get_word(model.parts.tile_plane(), c.x, c.y)) and plane != model.parts.marker_plane():
+			# MAKER-06: ground taken out, the edges round it made right again
+			if not drag:
+				model.begin_stroke()
+			model.terrain_at(-1, c.x, c.y, false)
 		"paint" when plane == MakerObjects.PLANE and backdrop():
 			# a backdrop paints like a brush, its pattern lined up with the level
 			if not drag:
@@ -236,6 +255,8 @@ func act_at(c: Vector2i, drag: bool = false) -> void:
 					refused.emit(why)
 				elif backdrop():
 					model.fill_backdrop(value, anchor, c)
+				elif terrain():
+					model.fill_terrain(value, anchor, c)
 				elif plane == MakerObjects.PLANE:
 					refused.emit("The box fills with a tile or a backdrop; an object goes in whole with Paint.")
 				else:
@@ -275,6 +296,12 @@ func act_end() -> void:
 func stretching() -> bool:
 	return tool == "paint" and plane == MakerObjects.PLANE and model != null and model.kit != null \
 		and value >= 0 and value < model.kit.objects.size() and model.kit.objects[value].has("stretch")
+
+
+## MAKER-06: a ground style is chosen (painted like a brush; the box fills with it)
+func terrain() -> bool:
+	return plane == MakerObjects.PLANE and model != null and model.kit != null \
+		and value >= 0 and value < model.kit.objects.size() and model.kit.objects[value].has("terrain")
 
 
 ## MAKER-04: a backdrop is chosen (painted like a brush; the box fills with it)
@@ -368,7 +395,7 @@ func _gui_input(event: InputEvent) -> void:
 			MOUSE_BUTTON_LEFT:
 				if b.pressed:
 					cursor = c
-					_painting = tool in ["paint", "erase", "brush"] and not stretching() and not (tool == "paint" and plane == MakerObjects.PLANE and not backdrop())
+					_painting = tool in ["paint", "erase", "brush"] and not stretching() and not (tool == "paint" and plane == MakerObjects.PLANE and not backdrop() and not terrain())
 					if tool == "rect" or stretching():
 						anchor = c
 					else:

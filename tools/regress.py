@@ -757,6 +757,18 @@ def maker05():
     return code
 
 
+def maker06():
+    """MAKER-06: Keen Maker's ground styles (Keen 1, 4, Dreams): three or more each, agreeing with id's own
+    ground (a guard), a box of one that material only with each cell its shape's piece, the styles first
+    under Ground, a cell taken out re-fitting its neighbours (tests/maker08_terrain.gd)."""
+    import gdtest
+    code, out = gdtest.run("maker08_terrain", [], timeout=900.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend03r():
     """REND-03R: with smooth motion on, Keen riding a Bounder (Keen 4 level 2) or a lift (level 5) is drawn
     the same distance above it in every picture, between refreshes too (tests/rend03_ride.gd)."""
@@ -2113,6 +2125,7 @@ CHECKS = {
     "NATIVE-02": (native02, "fast"),
     "MAKER-04": (maker04, "slow"),
     "MAKER-05": (maker05, "slow"),
+    "MAKER-06": (maker06, "slow"),
     "NATIVE-03": (native03, "fast"),
     "REND-01R": (rend01r, "slow"),
     "REND-04": (rend04, "slow"),

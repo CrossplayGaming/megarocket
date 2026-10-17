@@ -29,7 +29,8 @@ func _go() -> void:
 		if not m.open(id, root_dir.path_join(id)):
 			t.ok("%s opens (%s)" % [id, m.error], false)
 			continue
-		var objs: Array = m.kit.objects
+		# (the ground styles are painted, not placed: MAKER-06 checks them)
+		var objs: Array = m.kit.objects.filter(func(o: Dictionary) -> bool: return not o.has("terrain"))
 		var bad_use: int = 0
 		var too_big: int = 0
 		for o: Dictionary in objs:
@@ -55,7 +56,8 @@ func _go() -> void:
 				continue
 			for v: int in cat.values:
 				if v < 0:
-					listed[-1 - v] = true
+					if -1 - v < objs.size():
+						listed[-1 - v] = true
 				elif int(cat.plane) != m.parts.marker_plane() and member.has(str(cat.plane) + ":" + str(v)):
 					pieces += 1
 		t.ok("%s: the palette lists every object (%d of %d), no object's piece as a loose tile (%d), the raw tiles last (%s)" % [id,
