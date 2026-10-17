@@ -285,6 +285,9 @@ func _go() -> void:
 	# play from the library
 	var left: String = "Level_" + str(MakerLibrary.list("keen1")[0].path).get_file().get_basename()
 	await _press_until(JOY_BUTTON_DPAD_DOWN, left, 4)
+	# the level played is the one in focus (two saved in the same second may list either way round)
+	if _owner().begins_with("Level_"):
+		left = _owner()
 	await _button(JOY_BUTTON_A)
 	await _press_until(JOY_BUTTON_DPAD_DOWN, "Ask_Play", 3)
 	await _button(JOY_BUTTON_A)
@@ -293,7 +296,7 @@ func _go() -> void:
 		m.host.stop()
 	await _wait(func() -> bool: return m.host == null, 15.0)
 	await _frames(3)
-	t.ok("and comes back to the library (%s)" % _owner(), m.page == "library" and _owner() == left)
+	t.ok("and comes back to the library (%s, want %s)" % [_owner(), left], m.page == "library" and _owner() == left)
 	# out: B to the games, B out to the launcher
 	await _button(JOY_BUTTON_B)
 	t.ok("B: back to the games, Keen 1 focused (%s)" % _owner(), m.page == "games" and _owner() == "keen1")

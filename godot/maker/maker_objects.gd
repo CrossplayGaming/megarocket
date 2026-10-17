@@ -13,8 +13,13 @@ extends RefCounted
 ## ground brush, and very big ones (a background's repeating forest) to the backdrop brushes.
 
 const GLUE: float = 0.9
-## An object no bigger than this, in cells (bigger groups are backdrops)
+## An object no bigger than this, in cells: the foreground's (or Keen 1-3's one plane's), and a
+## background's, whose set pieces are bigger (Keen 4's palm groves and forest)
 const MAX_SIZE: Vector2i = Vector2i(12, 12)
+const MAX_BACK: Vector2i = Vector2i(24, 24)
+## A backdrop's repeat, in cells, at most; and the cells a region of it must cover in id's levels
+const MAX_REPEAT: int = 16
+const BACKDROP_CELLS: int = 64
 ## The plane value an object is chosen on in the palette and the view (not a level plane)
 const PLANE: int = -2
 
@@ -45,6 +50,9 @@ func build(levels: Array, parts: MakerParts, planes: Array, empty: Dictionary) -
 	for plane: int in planes:
 		_build_plane(levels, parts, plane)
 	_build_stretch(levels, parts, parts.tile_plane())
+	for plane: int in planes:
+		if plane != parts.tile_plane():
+			_build_backdrops(levels, plane)
 	var order: Array = MakerParts.ORDER
 	objects.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		var ia: int = order.find(a.use)
@@ -130,7 +138,8 @@ func _build_plane(levels: Array, parts: MakerParts, plane: int) -> void:
 			size = Vector2i(maxi(size.x, c[0].x + 1), maxi(size.y, c[0].y + 1))
 			var u: String = parts.use_of(plane, int(c[1])) if plane == parts.tile_plane() else MakerParts.SCENERY
 			uses[u] = int(uses.get(u, 0)) + 1
-		if size.x > MAX_SIZE.x or size.y > MAX_SIZE.y:
+		var most: Vector2i = MAX_BACK if plane != parts.tile_plane() else MAX_SIZE
+		if size.x > most.x or size.y > most.y:
 			continue
 		var use: String = ""
 		for u: String in uses:
@@ -212,6 +221,118 @@ func _note_run(run: Array, dir: String, parts: MakerParts, plane: int, found: Di
 		found[key] = {"lengths": {}, "n": 0, "use": use}
 	found[key].lengths[run.size()] = true
 	found[key].n += 1
+
+
+## Backdrops: a background's repeating pattern (Keen 4's cave walls, 8 tiles repeating every 4 by 2 cells),
+## painted as a brush. In id's levels, a glued region of BACKDROP_CELLS or more whose tiles repeat across and
+## down within MAX_REPEAT cells is one: {backdrop: true, period, block (the repeat's tiles row by row, as id
+## lines them up with the level: a cell's tile is block[(y mod period.y) * period.x + x mod period.x]), cells
+## (its picture: the repeat, at least 4 by 4 cells)}.
+func _build_backdrops(levels: Array, plane: int) -> void:
+	var found: Dictionary = {}    # str(block) -> backdrop
+	for l: KeenLevel in levels:
+		if l == null or plane >= l.planes.size():
+			continue
+		var seen: Dictionary = {}
+		var p: PackedInt32Array = l.planes[plane]
+		for i: int in range(p.size()):
+			if seen.has(i):
+				continue
+			var r: Dictionary = _reach(l, plane, Vector2i(i % l.width, i / l.width))
+			for c: Vector2i in r:
+				seen[c.y * l.width + c.x] = true
+			if r.size() < BACKDROP_CELLS:
+				continue
+			var per: Vector2i = Vector2i(_repeat(r, Vector2i(1, 0)), _repeat(r, Vector2i(0, 1)))
+			if per.x < 1 or per.y < 1:
+				continue
+			var block: PackedInt32Array = PackedInt32Array()
+			block.resize(per.x * per.y)
+			block.fill(-1)
+			for c: Vector2i in r:
+				var k: int = posmod(c.y, per.y) * per.x + posmod(c.x, per.x)
+				if block[k] < 0:
+					block[k] = r[c]
+			if block.has(-1):
+				continue
+			var key: String = str(per) + str(block)
+			if found.has(key):
+				found[key].seen += 1
+				continue
+			var show: Vector2i = Vector2i(maxi(per.x, 4), maxi(per.y, 4))
+			var cells: Array = []
+			for y: int in range(show.y):
+				for x: int in range(show.x):
+					cells.append([Vector2i(x, y), block[posmod(y, per.y) * per.x + posmod(x, per.x)]])
+			found[key] = {"plane": plane, "backdrop": true, "period": per, "block": block, "cells": cells, "size": show,
+				"use": MakerParts.BACKGROUND, "seen": 1}
+	var list: Array = found.values()
+	list.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.seen) > int(b.seen))
+	# an object of nothing but one backdrop's tiles is a piece of it, and goes
+	var sets: Array = list.map(func(b: Dictionary) -> Dictionary:
+		var s: Dictionary = {}
+		for tl: int in b.block:
+			s[tl] = true
+		return s)
+	objects = objects.filter(func(o: Dictionary) -> bool:
+		if int(o.plane) != plane or o.has("stretch"):
+			return true
+		for s: Dictionary in sets:
+			var inside: bool = true
+			for c: Array in o.cells:
+				if not s.has(int(c[1])):
+					inside = false
+					break
+			if inside:
+				return false
+		return true)
+	objects.append_array(list)
+	_backdrop_tiles = {}
+	for i: int in range(objects.size()):
+		if objects[i].has("backdrop"):
+			var per: Dictionary = _backdrop_tiles.get(int(objects[i].plane), {})
+			for tl: int in objects[i].block:
+				per[tl] = i
+			_backdrop_tiles[int(objects[i].plane)] = per
+
+
+## A backdrop's tiles: plane -> {tile -> the backdrop} (the eraser takes such a cell alone; the pick picks the backdrop)
+var _backdrop_tiles: Dictionary = {}
+
+
+## The backdrop a glued region of `plane` is painted with (every one of its tiles that backdrop's), -1 for none.
+func _backdrop_of(plane: int, r: Dictionary) -> int:
+	var tiles: Dictionary = _backdrop_tiles.get(plane, {})
+	var b: int = -1
+	for c: Vector2i in r:
+		var t: int = r[c]
+		if not tiles.has(t) or (b >= 0 and int(tiles[t]) != b):
+			return -1
+		b = int(tiles[t])
+	return b
+
+
+## The smallest repeat of a region along `step` (the same tile `n` cells on, for 97% of the cells that have
+## a cell there), -1 for none within MAX_REPEAT.
+static func _repeat(r: Dictionary, step: Vector2i) -> int:
+	for n: int in range(1, MAX_REPEAT + 1):
+		var both: int = 0
+		var same: int = 0
+		for c: Vector2i in r:
+			var d: Vector2i = c + step * n
+			if r.has(d):
+				both += 1
+				if r[d] == r[c]:
+					same += 1
+		if both >= 20 and same >= both * 0.97:
+			return n
+	return -1
+
+
+## A backdrop's tile for the cell at x,y (lined up with the level as id's are).
+static func backdrop_tile(o: Dictionary, x: int, y: int) -> int:
+	var per: Vector2i = o.period
+	return int((o.block as PackedInt32Array)[posmod(y, per.y) * per.x + posmod(x, per.x)])
 
 
 ## The tiles of the stretchables (for the eraser and the pick to walk a placed one)
@@ -317,6 +438,12 @@ func object_at(l: KeenLevel, plane: int, x: int, y: int) -> int:
 	var s: Array = _stretch_at(l, plane, x, y)
 	if not s.is_empty():
 		return int(s[0])
+	var r: Dictionary = _reach(l, plane, Vector2i(x, y))
+	var b: int = _backdrop_of(plane, r)
+	if b >= 0:
+		return b
+	if r.size() > MAX_BACK.x * MAX_BACK.y:
+		return -1
 	var cells: Array = _flood(l, plane, Vector2i(x, y), {})
 	if cells.size() < 2:
 		return -1
@@ -339,6 +466,10 @@ func cells_at(l: KeenLevel, plane: int, x: int, y: int) -> Array[Vector2i]:
 	var s: Array = _stretch_at(l, plane, x, y)
 	if not s.is_empty():
 		return s[1]
-	for c: Vector2i in _reach(l, plane, Vector2i(x, y)):
+	var r: Dictionary = _reach(l, plane, Vector2i(x, y))
+	if r.size() > MAX_BACK.x * MAX_BACK.y or _backdrop_of(plane, r) >= 0:
+		out.append(Vector2i(x, y))    # a backdrop's region: the eraser takes the one cell
+		return out
+	for c: Vector2i in r:
 		out.append(c)
 	return out

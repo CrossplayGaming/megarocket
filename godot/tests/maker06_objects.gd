@@ -35,7 +35,8 @@ func _go() -> void:
 		for o: Dictionary in objs:
 			if o.use == MakerParts.GROUND or o.use == MakerParts.SLOPES:
 				bad_use += 1
-			if o.size.x > MakerObjects.MAX_SIZE.x or o.size.y > MakerObjects.MAX_SIZE.y:
+			var most: Vector2i = MakerObjects.MAX_SIZE if int(o.plane) == m.parts.tile_plane() else MakerObjects.MAX_BACK
+			if not o.has("backdrop") and (o.size.x > most.x or o.size.y > most.y):
 				too_big += 1
 		t.ok("%s: %d objects found, none ground or slope (%d), none too big (%d)" % [id, objs.size(), bad_use, too_big],
 			objs.size() > 10 and bad_use == 0 and too_big == 0)
@@ -66,6 +67,9 @@ func _go() -> void:
 		for i: int in range(objs.size()):
 			m.new_level()
 			var o: Dictionary = objs[i]
+			if o.has("backdrop"):
+				whole += 1    # a backdrop is painted, not placed (its checks follow)
+				continue
 			var at: Vector2i = Vector2i(4, 2)
 			if m.level.width < at.x + o.size.x + 2 or m.level.height < at.y + o.size.y + 2:
 				continue
@@ -129,11 +133,56 @@ func _go() -> void:
 				laid_ok += 1
 		t.ok("%s: %d stretchables, each laid 7 long as end, middles, end, erased and picked whole (%d), no fragment of one left as an object (%d)" % [id,
 			stretch.size(), laid_ok, fragments], not stretch.is_empty() and laid_ok == stretch.size() and fragments == 0)
+		# backdrops (Keen 4-6's repeating backgrounds): painted lined up with the level as id's are, so a box of
+		# one over a region id filled with it changes nothing, and painted anywhere each cell is the pattern's
+		var backs: Array = []
+		for i: int in range(objs.size()):
+			if objs[i].has("backdrop"):
+				backs.append(i)
+		if id == "keen4":
+			var seamless: int = 0
+			for i: int in backs:
+				var o: Dictionary = objs[i]
+				# a place id used it: the first original level cell that is the pattern's and has a pattern
+				# region round it
+				var done: bool = false
+				for n: Array in m.level_list():
+					var lv: KeenLevel = m.original(int(n[0]))
+					if lv == null or done:
+						continue
+					for y: int in range(2, lv.height - 6):
+						if done:
+							break
+						for x: int in range(2, lv.width - 6):
+							var all_pattern: bool = true
+							for dy: int in range(4):
+								for dx: int in range(4):
+									if lv.get_word(int(o.plane), x + dx, y + dy) != MakerObjects.backdrop_tile(o, x + dx, y + dy):
+										all_pattern = false
+							if all_pattern:
+								m.select(int(n[0]))
+								var before: String = m.fingerprint()
+								m.fill_backdrop(i, Vector2i(x, y), Vector2i(x + 3, y + 3))
+								if m.fingerprint() == before:
+									seamless += 1
+								done = true
+								break
+			m.new_level()
+			var painted_ok: bool = true
+			if not backs.is_empty():
+				m.fill_backdrop(backs[0], Vector2i(5, 3), Vector2i(14, 8))
+				for y: int in range(3, 9):
+					for x: int in range(5, 15):
+						if m.level.get_word(int(objs[backs[0]].plane), x, y) != MakerObjects.backdrop_tile(objs[backs[0]], x, y):
+							painted_ok = false
+			var lone: Array[Vector2i] = m.kit.cells_at(m.level, int(objs[backs[0]].plane) if not backs.is_empty() else 0, 9, 5)
+			t.ok("keen4: %d backdrops; each lined up as id's (%d seamless over a place id used it); painted, each cell the pattern's (%s); the eraser takes one cell of a big region (%d)" % [backs.size(),
+				seamless, painted_ok, lone.size()], backs.size() >= 1 and seamless == backs.size() and painted_ok and lone.size() == 1)
 		# one undo step to place, one to erase, and undo puts the level back
 		m.new_level()
 		var big: int = 0
 		for i: int in range(objs.size()):
-			if (objs[i].cells as Array).size() > (objs[big].cells as Array).size() and objs[i].size.x < m.level.width - 6:
+			if not objs[i].has("backdrop") and (objs[i].cells as Array).size() > (objs[big].cells as Array).size() and objs[i].size.x < m.level.width - 6 and objs[i].size.y < m.level.height - 4:
 				big = i
 		var before: String = m.fingerprint()
 		var n: int = m.place_object(big, 3, 2)

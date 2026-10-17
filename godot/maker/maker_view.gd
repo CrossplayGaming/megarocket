@@ -134,7 +134,9 @@ func _draw() -> void:
 			# MAKER-04: the whole object, see-through, where it will go
 			var o: Dictionary = model.kit.objects[value]
 			var shown: Array = []
-			if o.has("stretch"):
+			if o.has("backdrop"):
+				shown.append([cursor, MakerObjects.backdrop_tile(o, cursor.x, cursor.y)])
+			elif o.has("stretch"):
 				# laid from the first end (the anchor once set) to the cursor
 				var from: Vector2i = anchor if anchor.x >= 0 else cursor
 				var to: Vector2i = cursor if anchor.x >= 0 else cursor + (Vector2i(2, 0) if o.stretch == "h" else Vector2i(0, 2))
@@ -178,6 +180,11 @@ func act_at(c: Vector2i, drag: bool = false) -> void:
 			refused.emit(model.refusal(plane, c.x, c.y, value))
 		return
 	match tool:
+		"paint" when plane == MakerObjects.PLANE and backdrop():
+			# a backdrop paints like a brush, its pattern lined up with the level
+			if not drag:
+				model.begin_stroke()
+			model.paint_backdrop(value, c.x, c.y)
 		"paint" when plane == MakerObjects.PLANE:
 			if drag:
 				return
@@ -227,6 +234,10 @@ func act_at(c: Vector2i, drag: bool = false) -> void:
 				var why: String = _box_refusal(anchor, c)
 				if why != "":
 					refused.emit(why)
+				elif backdrop():
+					model.fill_backdrop(value, anchor, c)
+				elif plane == MakerObjects.PLANE:
+					refused.emit("The box fills with a tile or a backdrop; an object goes in whole with Paint.")
 				else:
 					model.fill_rect(plane, anchor, c, value)
 				anchor = Vector2i(-1, -1)
@@ -264,6 +275,12 @@ func act_end() -> void:
 func stretching() -> bool:
 	return tool == "paint" and plane == MakerObjects.PLANE and model != null and model.kit != null \
 		and value >= 0 and value < model.kit.objects.size() and model.kit.objects[value].has("stretch")
+
+
+## MAKER-04: a backdrop is chosen (painted like a brush; the box fills with it)
+func backdrop() -> bool:
+	return plane == MakerObjects.PLANE and model != null and model.kit != null \
+		and value >= 0 and value < model.kit.objects.size() and model.kit.objects[value].has("backdrop")
 
 
 ## MAKER-04: the eraser takes a whole object at once (the foreground's first, then the background's); false
@@ -351,7 +368,7 @@ func _gui_input(event: InputEvent) -> void:
 			MOUSE_BUTTON_LEFT:
 				if b.pressed:
 					cursor = c
-					_painting = tool in ["paint", "erase", "brush"] and not stretching()
+					_painting = tool in ["paint", "erase", "brush"] and not stretching() and not (tool == "paint" and plane == MakerObjects.PLANE and not backdrop())
 					if tool == "rect" or stretching():
 						anchor = c
 					else:

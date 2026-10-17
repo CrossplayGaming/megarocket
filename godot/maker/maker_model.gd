@@ -512,6 +512,27 @@ func place_object(i: int, x: int, y: int) -> int:
 	return n
 
 
+## MAKER-04: backdrop `i` painted into the cell at (x, y) (its pattern lined up with the level); part of
+## the current stroke.
+func paint_backdrop(i: int, x: int, y: int) -> bool:
+	if level == null or kit == null or i < 0 or i >= kit.objects.size() or not kit.objects[i].has("backdrop"):
+		return false
+	var o: Dictionary = kit.objects[i]
+	return paint(int(o.plane), x, y, MakerObjects.backdrop_tile(o, x, y))
+
+
+## MAKER-04: the box between two cells filled with backdrop `i`: one undo step. The cells set.
+func fill_backdrop(i: int, a: Vector2i, b: Vector2i) -> int:
+	begin_stroke()
+	var n: int = 0
+	for y: int in range(mini(a.y, b.y), maxi(a.y, b.y) + 1):
+		for x: int in range(mini(a.x, b.x), maxi(a.x, b.x) + 1):
+			if paint_backdrop(i, x, y):
+				n += 1
+	end_stroke()
+	return n
+
+
 ## MAKER-04: stretchable object `i` laid from `from` to `to` (its first end, its middle, its last end; along
 ## its way from `from`): one undo step. The cells set.
 func place_stretch(i: int, from: Vector2i, to: Vector2i) -> int:
