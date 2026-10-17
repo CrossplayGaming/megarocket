@@ -72,12 +72,23 @@ func part_name() -> String:
 		return ""
 	if int(p[0]) == MakerObjects.PLANE and objects != null and p[1] < objects.objects.size():
 		var o: Dictionary = objects.objects[p[1]]
+		if o.has("slope"):
+			return "Ramp %s, %s" % ["up" if float(slope_rise.call(int(o.slope))) < 0.0 else "down",
+				"steep" if absf(float(slope_rise.call(int(o.slope)))) >= 0.75 else "gentle"]
+		if o.has("terrain"):
+			return "Ground style %d" % (int(o.terrain) + 1)
+		if o.has("backdrop"):
+			return "Background pattern"
+		if o.has("stretch"):
+			return "%s, stretches %s" % [o.use, "across" if o.stretch == "h" else "up and down"]
 		return "%s, %dx%d" % [o.use, o.size.x, o.size.y]
 	return str(c.names.get(p[1], "%s tile %d" % [c.name, p[1]]))
 
 
 ## MAKER-04: the kit the objects category shows (set by the screen)
 var objects: MakerObjects = null
+## MAKER-09: a ramp family's rise (rows per cell, - up), for its name (set by the screen)
+var slope_rise: Callable = func(_i: int) -> float: return 0.0
 
 
 func _objects() -> bool:

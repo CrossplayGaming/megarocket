@@ -24,6 +24,12 @@ signal closed
 
 const GAMES: Array = [["keen1", "Keen 1"], ["keen2", "Keen 2"], ["keen3", "Keen 3"], ["keen4", "Keen 4"],
 	["keen5", "Keen 5"], ["keen6", "Keen 6"], ["kdreams", "Keen Dreams"]]
+## MAKER-09: the kinds' names as the palette shows them (a toy box's words, not the engine's)
+const KIND_NAMES: Dictionary = {"Slopes": "Ramps", "Doors, keys and gems": "Doors, keys & gems", "Exit": "Exits",
+	"Scenery": "Decorations", "Background": "Backgrounds", "All tiles": "All tiles (advanced)",
+	"All background tiles": "All background tiles (advanced)"}
+## The editor's keys, under the tip
+const EDITOR_KEYS: String = "Cursor: arrows / d-pad   Use tool: Enter / A   Erase: Del / B   Tool: Tab / X   Part: [ ] / LB RB   Kind: PgUp PgDn / LT RT   Play here: P / Y   Menu: Esc / Start"
 const TOOL_NAMES: Dictionary = {"paint": "Paint", "brush": "Ground brush", "pick": "Pick", "erase": "Erase", "rect": "Fill box", "link": "Link", "start": "Keen start"}
 ## The cursor's repeat while a direction is held: first step, then every
 const REPEAT_FIRST: float = 0.28
@@ -519,12 +525,13 @@ func show_editor() -> void:
 	palette.chosen.connect(_on_part)
 	sc.add_child(palette)
 	palette.objects = model.kit
+	palette.slope_rise = func(i: int) -> float: return float(model.slopes.families[i].rise) if model.slopes != null and i < model.slopes.families.size() else 0.0
 	palette.setup(tiles, model.parts)
 	sounds.use(model.parts, float(Settings.new(Settings.default_path()).get_value("effects_volume")) / 100.0)
 	_part_label = Label.new()
 	_part_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	side.add_child(_part_label)
-	hints.text = "Cursor: arrows / d-pad   Use tool: Enter / A   Erase: Del / B   Tool: Tab / X   Part: [ ] / LB RB   Kind: PgUp PgDn / LT RT   Play here: P / Y   Menu: Esc / Start"
+	hints.text = EDITOR_KEYS
 	set_tool("paint")
 	palette.show_category(0)
 	_focus(view)
@@ -576,6 +583,37 @@ func _on_picked(plane: int, value: int) -> void:
 	set_tool("paint")
 
 
+## MAKER-09: what the tool and the part chosen do, in a sentence (the builder's tutor).
+func tip() -> String:
+	match view.tool:
+		"erase":
+			return "Erase takes a whole object at once; ground taken out leaves its edges tidy."
+		"pick":
+			return "Pick something in the level to build more of it."
+		"link":
+			return "Link a switch, gem holder or door to what it works on: pick it, then its target."
+		"start":
+			return "Put Keen where he starts the level."
+		"brush":
+			return "Paint ground; its edges and corners fit themselves."
+		"rect":
+			if view.terrain() or view.backdrop():
+				return "Pick two corners to fill the box with it."
+			return "Pick two corners to fill the box."
+	if view.plane == MakerObjects.PLANE and model.kit != null and view.value >= 0 and view.value < model.kit.objects.size():
+		var o: Dictionary = model.kit.objects[view.value]
+		if o.has("slope") or o.has("stretch"):
+			return "Drag from one end to the other (or A at one end, then A at the other); the builder puts the ends on."
+		if o.has("terrain"):
+			return "Paint ground like a brush: edges and corners fit themselves. The Fill box fills an area with it."
+		if o.has("backdrop"):
+			return "Paint the background pattern like a brush; it joins up without seams. The Fill box fills an area."
+		return "Place the whole thing at once; Erase takes it away in one go."
+	if view.plane == model.parts.marker_plane():
+		return "Put it where it starts in the level."
+	return "A single tile, for fine detail (the whole objects come first in each kind)."
+
+
 ## MAKER-05: what the last step calls for (the keycard or gem a door needs, the door a gem holder opens),
 ## chosen for the player, with a word on the status line.
 func _follow_up() -> void:
@@ -618,8 +656,9 @@ func _refresh() -> void:
 	_undo_b.disabled = not model.can_undo()
 	_redo_b.disabled = not model.can_redo()
 	var c: Dictionary = palette.current()
-	_cat_label.text = "%s (%d)" % [c.get("name", ""), (c.get("values", PackedInt32Array()) as PackedInt32Array).size()]
+	_cat_label.text = "%s (%d)" % [KIND_NAMES.get(c.get("name", ""), c.get("name", "")), (c.get("values", PackedInt32Array()) as PackedInt32Array).size()]
 	_part_label.text = palette.part_name()
+	hints.text = "Tip: " + tip() + "\n" + EDITOR_KEYS
 	var s: Vector2i = model.start_at()
 	var under: String = ""
 	if model.level.in_bounds(view.cursor.x, view.cursor.y):

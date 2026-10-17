@@ -798,6 +798,17 @@ def maker08():
     return code
 
 
+def maker09():
+    """MAKER-09: Keen Maker explains itself: a tip for each kind of part and the eraser, the toy box's names
+    for the kinds, no loose piece of a ramp or ground style (tests/maker12_tips.gd)."""
+    import gdtest
+    code, out = gdtest.run("maker12_tips", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend03r():
     """REND-03R: with smooth motion on, Keen riding a Bounder (Keen 4 level 2) or a lift (level 5) is drawn
     the same distance above it in every picture, between refreshes too (tests/rend03_ride.gd)."""
@@ -2157,6 +2168,7 @@ CHECKS = {
     "MAKER-06": (maker06, "slow"),
     "MAKER-07": (maker07, "slow"),
     "MAKER-08": (maker08, "slow"),
+    "MAKER-09": (maker09, "slow"),
     "NATIVE-03": (native03, "fast"),
     "REND-01R": (rend01r, "slow"),
     "REND-04": (rend04, "slow"),

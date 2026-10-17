@@ -458,6 +458,21 @@ func _fold_objects() -> void:
 		for c: Array in o.cells:
 			m[int(c[1])] = true
 		members[int(o.plane)] = m
+	# MAKER-09: a ramp's tiles and tops, and a ground style's tiles, are its pieces too
+	var tp0: int = parts.tile_plane()
+	var own: Dictionary = members.get(tp0, {})
+	if slopes != null:
+		for f: Dictionary in slopes.families:
+			for tl: int in f.next:
+				own[tl] = true
+				own[int(f.next[tl][0])] = true
+			for tl: int in f.over:
+				if int(f.over[tl]) != 0:
+					own[int(f.over[tl])] = true
+	if terrain != null:
+		for k: int in terrain.style_of:
+			own[k if engine == KeenLevel.VORTICONS else (k & 0xFFFF)] = true
+	members[tp0] = own
 	var tp: int = parts.tile_plane()
 	var by_name: Dictionary = {}
 	for cat: Dictionary in parts.categories:
