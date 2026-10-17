@@ -631,7 +631,7 @@ func _refresh() -> void:
 			under += ", works on %d,%d" % [to.x, to.y]
 	var notice: String = _notice + "   " if Time.get_ticks_msec() < _notice_until else ""
 	status.text = notice + "%s (%s)   %dx%d   objects %d/%d   %s   cursor %d,%d %s   Keen starts %s%s%s" % [model.doc_name, _title(game), model.level.width,
-		model.level.height, model.objects(), MakerModel.OBJECT_LIMIT[model.engine], TOOL_NAMES[view.tool] + ((" - pick what it works on" if view.tool == "link" else (" - pick the other end" if view.stretching() else " - pick the other corner")) if view.anchor.x >= 0 else ""),
+		model.level.height, model.objects(), MakerModel.OBJECT_LIMIT[model.engine], TOOL_NAMES[view.tool] + ((" - pick what it works on" if view.tool == "link" else (" - pick the other end" if view.dragged() else " - pick the other corner")) if view.anchor.x >= 0 else ""),
 		view.cursor.x, view.cursor.y, under, "at %d,%d" % [s.x, s.y] if s.x >= 0 else "nowhere yet", "   cleared" if model.is_cleared() else "   not cleared yet", "   not saved" if model.dirty else ""]
 
 

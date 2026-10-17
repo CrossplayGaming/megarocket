@@ -145,7 +145,17 @@ func _draw() -> void:
 			# MAKER-04: the whole object, see-through, where it will go
 			var o: Dictionary = model.kit.objects[value]
 			var shown: Array = []
-			if o.has("terrain"):
+			if o.has("slope"):
+				# the ramp from the first end (the anchor once set) to the cursor: its slope tiles and tops
+				var from: Vector2i = anchor if anchor.x >= 0 else cursor
+				var to: Vector2i = cursor if anchor.x >= 0 else cursor + Vector2i(5, 0)
+				var fam: Dictionary = model.slopes.families[int(o.slope)]
+				for w: Array in model.slope_cells(value, from, to):
+					shown.append([w[0], w[1]])
+					var ov: int = int((fam.over as Dictionary).get(int(w[1]), 0))
+					if ov != 0:
+						shown.append([(w[0] as Vector2i) + Vector2i(0, -1), ov])
+			elif o.has("terrain"):
 				pass    # (drawn below: the style's fill piece)
 			elif o.has("backdrop"):
 				shown.append([cursor, MakerObjects.backdrop_tile(o, cursor.x, cursor.y)])
@@ -161,6 +171,8 @@ func _draw() -> void:
 				var piece: int = model.terrain.piece(int(o.terrain), 255, cursor.x, cursor.y)
 				for tex: Texture2D in tiles.piece_textures(piece):
 					draw_texture_rect(tex, r, false, Color(1, 1, 1, 0.6))
+				shown.append([cursor, -1])
+			if shown.is_empty():
 				shown.append([cursor, -1])
 			var box: Rect2 = _cell_rect(shown[0][0])
 			for sc: Array in shown:
@@ -218,12 +230,15 @@ func act_at(c: Vector2i, drag: bool = false) -> void:
 		"paint" when plane == MakerObjects.PLANE:
 			if drag:
 				return
-			if not stretching():
+			if not dragged():
 				model.place_object(value, c.x, c.y)
 			elif anchor.x < 0:
 				anchor = c
 			else:
-				model.place_stretch(value, anchor, c)
+				if sloping():
+					model.place_slope(value, anchor, c)
+				else:
+					model.place_stretch(value, anchor, c)
 				anchor = Vector2i(-1, -1)
 		"erase" when not drag and _erase_object(c):
 			pass
@@ -408,6 +423,17 @@ func stretching() -> bool:
 		and value >= 0 and value < model.kit.objects.size() and model.kit.objects[value].has("stretch")
 
 
+## MAKER-08: a ramp is chosen (laid from one end to the other)
+func sloping() -> bool:
+	return tool == "paint" and plane == MakerObjects.PLANE and model != null and model.kit != null \
+		and value >= 0 and value < model.kit.objects.size() and model.kit.objects[value].has("slope")
+
+
+## A stretchable or a ramp: laid by its two ends
+func dragged() -> bool:
+	return stretching() or sloping()
+
+
 ## MAKER-06: a ground style is chosen (painted like a brush; the box fills with it)
 func terrain() -> bool:
 	return plane == MakerObjects.PLANE and model != null and model.kit != null \
@@ -505,13 +531,13 @@ func _gui_input(event: InputEvent) -> void:
 			MOUSE_BUTTON_LEFT:
 				if b.pressed:
 					cursor = c
-					_painting = tool in ["paint", "erase", "brush"] and not stretching() and not (tool == "paint" and plane == MakerObjects.PLANE and not backdrop() and not terrain())
-					if tool == "rect" or stretching():
+					_painting = tool in ["paint", "erase", "brush"] and not dragged() and not (tool == "paint" and plane == MakerObjects.PLANE and not backdrop() and not terrain())
+					if tool == "rect" or dragged():
 						anchor = c
 					else:
 						act_at(c)
 				else:
-					if (tool == "rect" or stretching()) and anchor.x >= 0:
+					if (tool == "rect" or dragged()) and anchor.x >= 0:
 						act_at(c)
 					_painting = false
 					act_end()

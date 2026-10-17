@@ -118,6 +118,17 @@ func open(id: String, dir: String, ver: String = "", parts_too: bool = true) -> 
 			kit.build(_all_levels, parts, [1, 0], {1: {0: true}})
 		terrain = MakerTerrain.new()
 		terrain.build(_all_levels, parts)
+		# MAKER-08: Keen 4-6's slope families as the kit's ramp entries (laid end to end)
+		slopes = MakerSlopes.new()
+		if engine == KeenLevel.GALAXY:
+			slopes.build(_all_levels, parts)
+		for i: int in range(slopes.families.size()):
+			var pic: Array = slopes.families[i].picture
+			var size: Vector2i = Vector2i.ZERO
+			for c: Array in pic:
+				size = Vector2i(maxi(size.x, c[0].x + 1), maxi(size.y, c[0].y + 1))
+			kit.objects.append({"plane": parts.tile_plane(), "slope": i, "cells": [], "picture": pic, "size": size,
+				"use": MakerParts.SLOPES, "seen": int(slopes.families[i].runs)})
 		# MAKER-06: the ground styles as the kit's terrain entries (painted, not placed; a picture of each)
 		for i: int in range(terrain.styles.size()):
 			kit.objects.append({"plane": parts.tile_plane(), "terrain": i, "cells": [], "picture": terrain.styles[i].picture,
@@ -133,6 +144,8 @@ var _all_levels: Array = []
 var kit: MakerObjects = null
 ## MAKER-06: the game's ground styles
 var terrain: MakerTerrain = null
+## MAKER-08: Keen 4-6's slope families
+var slopes: MakerSlopes = null
 
 
 ## The level's fingerprint (its size and planes).
@@ -621,6 +634,65 @@ func fill_terrain(i: int, a: Vector2i, b: Vector2i) -> int:
 		for x: int in range(mini(a.x, b.x), maxi(a.x, b.x) + 1):
 			if terrain_at(i, x, y, true):
 				n += 1
+	end_stroke()
+	return n
+
+
+## MAKER-08: the ramp of kit entry `i` (a slope family) from `from` to `to` (its length their columns; laid
+## from the left, starting at `from` when it is the left end, else ending at it): [[cell, slope tile]].
+func slope_cells(i: int, from: Vector2i, to: Vector2i) -> Array:
+	if kit == null or slopes == null or i < 0 or i >= kit.objects.size() or not kit.objects[i].has("slope"):
+		return []
+	var fam: Dictionary = slopes.families[int(kit.objects[i].slope)]
+	var n: int = absi(to.x - from.x) + 1
+	var walk: Array = slopes.lay(fam, Vector2i.ZERO, n)
+	var rise: int = int((walk[walk.size() - 1][0] as Vector2i).y)
+	var left: Vector2i = from if from.x <= to.x else Vector2i(to.x, from.y - rise)
+	var out: Array = []
+	for w: Array in walk:
+		out.append([left + (w[0] as Vector2i), w[1]])
+	return out
+
+
+## MAKER-08: a ramp laid from `from` to `to`: each cell's slope tile, the ramp's top above it, the two
+## pieces of ground under it, and the ground beneath filled down to what is there (re-fitted in its own
+## material). One undo step; the cells set.
+func place_slope(i: int, from: Vector2i, to: Vector2i) -> int:
+	var cells: Array = slope_cells(i, from, to)
+	if level == null or cells.is_empty():
+		return 0
+	var fam: Dictionary = slopes.families[int(kit.objects[i].slope)]
+	var tp: int = parts.tile_plane()
+	begin_stroke()
+	var n: int = 0
+	var filled: Array[Vector2i] = []
+	for w: Array in cells:
+		var c: Vector2i = w[0]
+		var t: int = int(w[1])
+		if not level.in_bounds(c.x, c.y):
+			continue
+		if paint(tp, c.x, c.y, t):
+			n += 1
+		var ov: int = int((fam.over as Dictionary).get(t, 0))
+		if ov != 0 and level.in_bounds(c.x, c.y - 1) and paint(tp, c.x, c.y - 1, ov):
+			n += 1
+		var u: Array = (fam.under as Dictionary).get(t, [])
+		for k: int in range(u.size()):
+			if level.in_bounds(c.x, c.y + k + 1):
+				_put_piece(c.x, c.y + k + 1, int(u[k]))
+		# the ground beneath, down to what is there
+		var y: int = c.y + u.size() + 1
+		while int(fam.fill) >= 0 and level.in_bounds(c.x, y) and not parts.is_ground(level.get_word(tp, c.x, y)):
+			_put_piece(c.x, y, int(fam.fill))
+			filled.append(Vector2i(c.x, y))
+			y += 1
+	# the filled ground's edges, in its own material
+	if terrain != null:
+		var ground: Callable = func(cx: int, cy: int) -> bool: return parts.is_ground(level.get_word(tp, cx, cy))
+		for c: Vector2i in filled:
+			var st: int = int(terrain.style_of.get(parts.brush_key(level, c.x, c.y), -1))
+			if st >= 0:
+				_put_piece(c.x, c.y, terrain.piece(st, MakerTerrain.shape(level, c.x, c.y, ground), c.x, c.y))
 	end_stroke()
 	return n
 

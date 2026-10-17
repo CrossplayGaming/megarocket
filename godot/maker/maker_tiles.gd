@@ -88,7 +88,15 @@ func object_texture(o: Dictionary) -> Texture2D:
 		part.convert(Image.FORMAT_RGBA8)
 		img.blend_rect(part, Rect2i(0, 0, 16, 16), (c[0] as Vector2i) * 16)
 	for c: Array in o.get("picture", []):
-		for tex: Texture2D in piece_textures(int(c[1])):
+		# (a ramp's picture gives its foreground tiles alone as -1 - tile)
+		var texs: Array[Texture2D] = []
+		if int(c[1]) < 0:
+			var ft: Texture2D = texture(1, -1 - int(c[1]))
+			if ft != null:
+				texs.append(ft)
+		else:
+			texs = piece_textures(int(c[1]))
+		for tex: Texture2D in texs:
 			var part2: Image = tex.get_image()
 			part2.convert(Image.FORMAT_RGBA8)
 			img.blend_rect(part2, Rect2i(0, 0, 16, 16), (c[0] as Vector2i) * 16)

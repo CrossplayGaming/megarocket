@@ -29,8 +29,8 @@ func _go() -> void:
 		if not m.open(id, root_dir.path_join(id)):
 			t.ok("%s opens (%s)" % [id, m.error], false)
 			continue
-		# (the ground styles are painted, not placed: MAKER-06 checks them)
-		var objs: Array = m.kit.objects.filter(func(o: Dictionary) -> bool: return not o.has("terrain"))
+		# (the ground styles are painted and the ramps laid, not placed: MAKER-06 and MAKER-08 check them)
+		var objs: Array = m.kit.objects.filter(func(o: Dictionary) -> bool: return not o.has("terrain") and not o.has("slope"))
 		var bad_use: int = 0
 		var too_big: int = 0
 		for o: Dictionary in objs:
