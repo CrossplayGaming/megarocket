@@ -820,6 +820,17 @@ def maker10():
     return code
 
 
+def maker11():
+    """MAKER-11: Keen Maker's first-time tour: shown the first time, six framed steps through with A, then
+    seen; the menu brings it back, Skip ends it (tests/maker14_tour.gd)."""
+    import gdtest
+    code, out = gdtest.run("maker14_tour", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend03r():
     """REND-03R: with smooth motion on, Keen riding a Bounder (Keen 4 level 2) or a lift (level 5) is drawn
     the same distance above it in every picture, between refreshes too (tests/rend03_ride.gd)."""
@@ -2181,6 +2192,7 @@ CHECKS = {
     "MAKER-08": (maker08, "slow"),
     "MAKER-09": (maker09, "slow"),
     "MAKER-10": (maker10, "slow"),
+    "MAKER-11": (maker11, "slow"),
     "NATIVE-03": (native03, "fast"),
     "REND-01R": (rend01r, "slow"),
     "REND-04": (rend04, "slow"),

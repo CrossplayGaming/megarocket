@@ -16,6 +16,10 @@ func _init() -> void:
 
 
 func _go() -> void:
+	# (MAKER-11's first-time tour is its own test's)
+	var seen: Settings = Settings.new(Settings.default_path())
+	seen.set_value("maker_tour_done", true)
+	seen.save()
 	var scene: Node = load(ProjectSettings.get_setting("application/run/main_scene")).instantiate()
 	root.add_child(scene)
 	for i: int in range(120):

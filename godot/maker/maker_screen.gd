@@ -512,6 +512,7 @@ func show_editor() -> void:
 	var side: VBoxContainer = VBoxContainer.new()
 	side.custom_minimum_size = Vector2(MakerPalette.COLUMNS * (16.0 * clampi(_scale, 2, 6) + 4.0) + 8 * _scale, 0)
 	_side = side
+	side.name = "Side"
 	split.add_child(side)
 	var cats: HBoxContainer = HBoxContainer.new()
 	side.add_child(cats)
@@ -552,12 +553,87 @@ func show_editor() -> void:
 	palette.show_category(0)
 	_focus(view)
 	_centre.call_deferred()
+	# MAKER-11: the first time, a short tour
+	if not bool(Settings.new(Settings.default_path()).get_value("maker_tour_done")):
+		start_tour.call_deferred()
 
 
 func _centre() -> void:
 	if view != null:
 		view.centre_on_start()
 		_refresh()
+
+
+## MAKER-11: the first-time tour (Mario Maker's way of showing round): [what it frames (a node's name in the
+## editor, or "" the level), what it says]. Six steps; Next goes on, Skip ends it; seen once, it waits in the
+## menu ("Show me around").
+const TOUR: Array = [
+	["Level", "Welcome to Keen Maker! This is your level. Move round it with the arrows or the d-pad, or point and click."],
+	["Side", "Here are your parts, sorted by kind. The whole things come first: a house, a door, a ramp, a platform. Change kind with < and > (PgUp / PgDn, LT / RT)."],
+	["Side", "Some parts stretch: platforms, poles and ramps are dragged from one end to the other, and the builder puts the ends on. Ground and backgrounds paint like a brush."],
+	["Tools", "Paint puts parts in, Erase takes whole things out, Pick copies a part from the level, the Fill box fills an area. Undo if you change your mind."],
+	["Recent", "The parts you build with wait here, newest first. Press 1 to 6 to pick one up again."],
+	["Play", "Ready? Play tries your level from Keen's start; Play here sets Keen down at the cursor. Have fun!"],
+]
+var tour_step: int = -1
+
+
+## Starts the tour at its first step.
+func start_tour() -> void:
+	if page != "editor":
+		return
+	_tour(0)
+
+
+func _tour(i: int) -> void:
+	if i >= TOUR.size():
+		_end_tour()
+		return
+	tour_step = i
+	var last: bool = i == TOUR.size() - 1
+	ask("(%d/%d)  %s" % [i + 1, TOUR.size(), TOUR[i][1]], [["Let's build!" if last else "Next", _tour.bind(i + 1)],
+		["Skip the tour", _end_tour]], "")
+	(dialog as ColorRect).color = Color(0, 0, 0, 0.35)
+	dialog.name = "Tour"
+	sounds.play("pick")
+	# the thing it is about, framed; the words out of its way
+	var target: Control = _page_box.find_child(str(TOUR[i][0]), true, false) as Control
+	if str(TOUR[i][0]) == "Side":
+		target = _side
+	if target == null:
+		return
+	var r: Rect2 = target.get_global_rect()
+	var frame: ReferenceRect = ReferenceRect.new()
+	frame.name = "Frame"
+	frame.editor_only = false
+	frame.border_color = MegaTheme.ega(14)
+	frame.border_width = maxf(2.0, float(_scale))
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.position = r.position - dialog.get_global_rect().position - Vector2(4, 4)
+	frame.size = r.size + Vector2(8, 8)
+	dialog.add_child(frame)
+	var center: Control = dialog.get_child(0) as Control
+	var mid: float = dialog.size.y / 2.0
+	if r.get_center().y < mid and r.size.y < dialog.size.y * 0.6:
+		center.anchor_top = 0.5    # the words below it
+	elif r.get_center().y >= mid and r.size.y < dialog.size.y * 0.6:
+		center.anchor_bottom = 0.5    # above it
+	elif r.get_center().x > dialog.size.x / 2.0:
+		center.anchor_right = 0.6    # beside a tall thing on the right: on its left
+	else:
+		center.anchor_left = 0.4
+	center.offset_top = 0
+	center.offset_bottom = 0
+	center.offset_left = 0
+	center.offset_right = 0
+
+
+func _end_tour() -> void:
+	tour_step = -1
+	close_dialog()
+	var s: Settings = Settings.new(Settings.default_path())
+	s.set_value("maker_tour_done", true)
+	s.save()
 
 
 func set_tool(t: String) -> void:
@@ -629,6 +705,7 @@ func _show_recent() -> void:
 		c.queue_free()
 	# six to the palette's width (its column, less the gaps)
 	var cell: float = maxf(16.0, (_side.custom_minimum_size.x - 2.0 * _scale * (RECENT_MAX - 1)) / RECENT_MAX)
+	_recent_box.custom_minimum_size = Vector2(0, cell)    # its room kept while empty (the tour frames it)
 	for i: int in range(_recent.size()):
 		var p: Array = _recent[i]
 		var b: TextureButton = TextureButton.new()
@@ -783,7 +860,7 @@ func open_menu() -> void:
 	ask("%s" % model.doc_name, [["Back to editing", func() -> void: pass], ["Play from Keen's start", play_start],
 		["Play from the cursor", play_here], ["Save", save], ["Rename", func() -> void: rename_box("", model.doc_name)],
 		["Undo", func() -> void: _did(model.undo())], ["Redo", func() -> void: _did(model.redo())],
-		["See all", toggle_whole], ["Level settings", show_slots], ["Back to your levels", leave_editor]], "")
+		["See all", toggle_whole], ["Level settings", show_slots], ["Show me around", start_tour], ["Back to your levels", leave_editor]], "")
 
 
 ## Leaves the editor for the library, asking first when there are unsaved changes.

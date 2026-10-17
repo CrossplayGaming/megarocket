@@ -88,6 +88,8 @@ const SPEC: Dictionary = {
 	# Keen's Closet's page: Simple (a few looks per item, the stripe with the helmet) or Advanced (each part, any
 	# colour) (the user, 2026-10-13; global)
 	"closet_mode": ["simple", "enum", ["simple", "advanced"]],
+	# MAKER-11: Keen Maker's first-time tour has been seen (finished or skipped; global)
+	"maker_tour_done": [false, "bool", null],
 	# V15-01 replacement packs, per game: [name, on] in the order they apply (a later pack wins)
 	"packs": [[], "packs", null],
 	# V15-05 the Asset Studio: the folder a replacement picture was last chosen from (global)

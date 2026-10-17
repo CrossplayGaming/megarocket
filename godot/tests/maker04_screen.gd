@@ -77,6 +77,10 @@ func _press_until(b: JoyButton, name: String, most: int) -> bool:
 
 
 func _go() -> void:
+	# (MAKER-11's first-time tour is its own test's)
+	var seen: Settings = Settings.new(Settings.default_path())
+	seen.set_value("maker_tour_done", true)
+	seen.save()
 	var root_dir: String = T.options().get("game_data", "")
 	if root_dir == "":
 		t.blocked("no --game_data folder given")
