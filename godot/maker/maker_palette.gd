@@ -61,7 +61,8 @@ func part() -> Array:
 	var c: Dictionary = current()
 	if c.is_empty() or (c.values as PackedInt32Array).is_empty():
 		return []
-	return [int(c.plane), int(c.values[clampi(index, 0, c.values.size() - 1)])]
+	var v: int = int(c.values[clampi(index, 0, c.values.size() - 1)])
+	return [MakerObjects.PLANE, -1 - v] if v < 0 else [int(c.plane), v]
 
 
 func part_name() -> String:
@@ -69,7 +70,23 @@ func part_name() -> String:
 	var p: Array = part()
 	if p.is_empty():
 		return ""
+	if int(p[0]) == MakerObjects.PLANE and objects != null and p[1] < objects.objects.size():
+		var o: Dictionary = objects.objects[p[1]]
+		return "%s, %dx%d" % [o.use, o.size.x, o.size.y]
 	return str(c.names.get(p[1], "%s tile %d" % [c.name, p[1]]))
+
+
+## MAKER-04: the kit the objects category shows (set by the screen)
+var objects: MakerObjects = null
+
+
+func _objects() -> bool:
+	return bool(current().get("objects", false))
+
+
+## Columns: a category holding objects gives every picture room (half as many, twice the size)
+func _cols() -> int:
+	return COLUMNS / 2 if _objects() else COLUMNS
 
 
 func _named() -> bool:
@@ -77,7 +94,7 @@ func _named() -> bool:
 
 
 func _cell() -> float:
-	return 16.0 * zoom + 4.0
+	return (16.0 * zoom + 4.0) * (2.0 if _objects() else 1.0)
 
 
 func _row_h() -> float:
@@ -90,7 +107,7 @@ func _resize() -> void:
 	if _named():
 		custom_minimum_size = Vector2(COLUMNS * _cell(), n * _row_h())
 	else:
-		custom_minimum_size = Vector2(COLUMNS * _cell(), ceili(float(n) / COLUMNS) * _cell())
+		custom_minimum_size = Vector2(_cols() * _cell(), ceili(float(n) / _cols()) * _cell())
 	queue_redraw()
 
 
@@ -120,8 +137,8 @@ func select_value(plane: int, value: int) -> bool:
 		return false
 	for i: int in range(parts.categories.size()):
 		var c: Dictionary = parts.categories[i]
-		if int(c.plane) == plane:
-			var at: int = (c.values as PackedInt32Array).find(value)
+		if int(c.plane) == plane or plane == MakerObjects.PLANE:
+			var at: int = (c.values as PackedInt32Array).find(-1 - value if plane == MakerObjects.PLANE else value)
 			if at >= 0:
 				category = i
 				index = at
@@ -141,7 +158,7 @@ func rect_of(i: int) -> Rect2:
 	if _named():
 		return Rect2(Vector2(0, i * _row_h()), Vector2(size.x, _row_h()))
 	var t: float = _cell()
-	return Rect2(Vector2(i % COLUMNS, i / COLUMNS) * t, Vector2(t, t))
+	return Rect2(Vector2(i % _cols(), i / _cols()) * t, Vector2(t, t))
 
 
 func _draw() -> void:
@@ -175,6 +192,16 @@ func _draw() -> void:
 			else:
 				draw_string(font, box.get_center() + Vector2(-fs * 0.5, fs * 0.35), label.substr(0, 2), HORIZONTAL_ALIGNMENT_LEFT, -1, maxi(8, fs - 2), colour)
 			draw_string(font, Vector2(box.end.x + 6, r.position.y + r.size.y * 0.5 + fs * 0.35), label, HORIZONTAL_ALIGNMENT_LEFT, size.x - box.end.x - 8, fs, MegaTheme.ega(15))
+		elif values[i] < 0:
+			if objects != null and -1 - values[i] < objects.objects.size():
+				var tex: Texture2D = tiles.object_texture(objects.objects[-1 - values[i]])
+				var box: Rect2 = r.grow(-4)
+				# the object's picture fitted to its cell, never stretched, whole-pixel steps where it fits
+				var fit: float = minf(box.size.x / tex.get_width(), box.size.y / tex.get_height())
+				if fit >= 1.0:
+					fit = floorf(fit)
+				var s: Vector2 = tex.get_size() * fit
+				draw_texture_rect(tex, Rect2(box.get_center() - s / 2.0, s), false)
 		else:
 			var tex: Texture2D = tiles.texture(int(c.plane), values[i])
 			if tex != null:

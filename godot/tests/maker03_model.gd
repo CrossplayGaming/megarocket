@@ -257,7 +257,7 @@ func _rules(m: MakerModel, game: String) -> void:
 	m.new_level("Doors")
 	var door: int = -1
 	var key: int = -1
-	for c: Dictionary in m.parts.categories:
+	for c: Dictionary in m.parts.tile_categories:
 		if c.name == MakerParts.DOORS and int(c.plane) == m.parts.tile_plane():
 			for v: int in c.values:
 				var u: int = m.parts.props(v).use
@@ -312,7 +312,7 @@ func _uses(m: MakerModel, game: String) -> void:
 		"keen4": [MakerParts.GROUND, MakerParts.SLOPES, MakerParts.PLATFORMS, MakerParts.POLES, MakerParts.HAZARDS, MakerParts.DOORS, MakerParts.ITEMS, MakerParts.ENEMIES, MakerParts.MOVING, MakerParts.EXIT, MakerParts.BACKGROUND],
 		"kdreams": [MakerParts.GROUND, MakerParts.PLATFORMS, MakerParts.POLES, MakerParts.ITEMS, MakerParts.ENEMIES, MakerParts.EXIT, MakerParts.BACKGROUND]}[game]
 	var have: Dictionary = {}
-	for c: Dictionary in p.categories:
+	for c: Dictionary in p.tile_categories:
 		if not (c.values as PackedInt32Array).is_empty():
 			have[c.name] = true
 	var missing: Array = want.filter(func(w: String) -> bool: return not have.has(w))
@@ -320,7 +320,7 @@ func _uses(m: MakerModel, game: String) -> void:
 	# every tile in a kind has the properties that kind means
 	var wrong: Array = []
 	var tp: int = p.tile_plane()
-	for c: Dictionary in p.categories:
+	for c: Dictionary in p.tile_categories:
 		if int(c.plane) != tp or not (c.names as Dictionary).is_empty():
 			continue
 		for v: int in c.values:

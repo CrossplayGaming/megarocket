@@ -111,12 +111,20 @@ func open(id: String, dir: String, ver: String = "", parts_too: bool = true) -> 
 			parts.put_first([tile_defaults.top, tile_defaults.fill])
 		for entry: Array in level_list():
 			_all_levels.append(original(int(entry[0])))
+		kit = MakerObjects.new()
+		if engine == KeenLevel.VORTICONS:
+			kit.build(_all_levels, parts, [0], {0: {int(tile_defaults.get("background", 0)): true}})
+		else:
+			kit.build(_all_levels, parts, [1, 0], {1: {0: true}})
+		_fold_objects()
 	error = ""
 	return true
 
 
 ## The game's levels, for the ground brush's shapes the slot's own level lacks
 var _all_levels: Array = []
+## MAKER-04: the game's whole objects, found in its levels when it is opened (with the parts)
+var kit: MakerObjects = null
 
 
 ## The level's fingerprint (its size and planes).
@@ -410,6 +418,115 @@ func open_shared(text: String) -> bool:
 ## The planes' names for the screen (Keen 1-3: tiles, sprites; the others: background, foreground, info).
 func plane_names() -> Array:
 	return KeenLevel.PLANE_NAMES.get(engine, [])
+
+
+## MAKER-04: the raw tiles' categories, last in the palette (every tile, pieces of objects too)
+const ALL_TILES: String = "All tiles"
+const ALL_BACKGROUND: String = "All background tiles"
+
+
+## MAKER-04: the palette by what things are, whole objects first: each category of tiles (hazards, poles,
+## doors, scenery, the background) shows its objects (as -1 - the object's index) and then only the tiles
+## that are part of no object; the raw tiles, every one, wait in the two categories at the end. Creatures
+## and items stay as they are.
+func _fold_objects() -> void:
+	var members: Dictionary = {}    # plane -> {tile: true}
+	for o: Dictionary in kit.objects:
+		var m: Dictionary = members.get(int(o.plane), {})
+		for c: Array in o.cells:
+			m[int(c[1])] = true
+		members[int(o.plane)] = m
+	var tp: int = parts.tile_plane()
+	var by_name: Dictionary = {}
+	for cat: Dictionary in parts.categories:
+		if int(cat.plane) != parts.marker_plane():
+			by_name[str(cat.plane) + ":" + str(cat.name)] = cat
+	var objs: Dictionary = {}    # category key -> object values
+	for i: int in range(kit.objects.size()):
+		var o: Dictionary = kit.objects[i]
+		# under every kind its pieces are (an exit door under the exit and the scenery), most of them first
+		var keys: Array = [str(o.plane) + ":" + (str(o.use) if int(o.plane) == tp else MakerParts.BACKGROUND)]
+		if int(o.plane) == tp:
+			for c: Array in o.cells:
+				var u: String = parts.use_of(tp, int(c[1]))
+				var k: String = str(tp) + ":" + u
+				if u != MakerParts.GROUND and u != MakerParts.SLOPES and not keys.has(k):
+					keys.append(k)
+		var put: bool = false
+		for key: String in keys:
+			if by_name.has(key):
+				var list: PackedInt32Array = objs.get(key, PackedInt32Array())
+				list.append(-1 - i)
+				objs[key] = list    # (a packed array comes out of a dictionary as a copy)
+				put = true
+		if not put:
+			var key: String = str(tp) + ":" + MakerParts.SCENERY
+			var list2: PackedInt32Array = objs.get(key, PackedInt32Array())
+			list2.append(-1 - i)
+			objs[key] = list2
+	var out: Array = []
+	var raw: Array = []
+	for cat: Dictionary in parts.categories:
+		if int(cat.plane) == parts.marker_plane():
+			out.append(cat)
+			continue
+		var key: String = str(cat.plane) + ":" + str(cat.name)
+		var values: PackedInt32Array = objs.get(key, PackedInt32Array()).duplicate()
+		var m: Dictionary = members.get(int(cat.plane), {})
+		var seen: Dictionary = kit.used.get(int(cat.plane), {})
+		for v: int in cat.values:
+			# a loose tile shows where id used it at least twice (every tile is in the raw categories)
+			if not m.has(v) and int(seen.get(v, 0)) >= 2:
+				values.append(v)
+		raw.append(cat)
+		if not values.is_empty():
+			var c: Dictionary = cat.duplicate()
+			c["values"] = values
+			c["objects"] = objs.has(key)
+			out.append(c)
+	var every: PackedInt32Array = PackedInt32Array()
+	for cat: Dictionary in raw:
+		if int(cat.plane) == tp:
+			every.append_array(cat.values)
+	out.append({"name": ALL_TILES, "plane": tp, "values": every, "names": {}})
+	for cat: Dictionary in raw:
+		if int(cat.plane) != tp:
+			out.append({"name": ALL_BACKGROUND, "plane": int(cat.plane), "values": cat.values, "names": {}})
+	parts.tile_categories = parts.categories
+	parts.categories = out
+
+
+## MAKER-04: object `i` of the kit placed with its top-left at (x, y): one undo step (its cells outside the
+## level left out). The cells set.
+func place_object(i: int, x: int, y: int) -> int:
+	if level == null or kit == null or i < 0 or i >= kit.objects.size():
+		return 0
+	var o: Dictionary = kit.objects[i]
+	begin_stroke()
+	var n: int = 0
+	for c: Array in o.cells:
+		var at: Vector2i = Vector2i(x, y) + (c[0] as Vector2i)
+		if level.in_bounds(at.x, at.y) and paint(int(o.plane), at.x, at.y, int(c[1])):
+			n += 1
+	end_stroke()
+	return n
+
+
+## MAKER-04: the whole object at (x, y) on `plane` erased (its glued cells: the foreground's left empty, a
+## background's or Keen 1-3's given the level's plain background), one undo step. The cells erased: 0 when
+## the cell is part of no object (one tile alone), for the caller to erase as a tile.
+func erase_object_at(plane: int, x: int, y: int) -> int:
+	if level == null or kit == null or not level.in_bounds(x, y):
+		return 0
+	var cells: Array[Vector2i] = kit.cells_at(level, plane, x, y)
+	if cells.size() < 2:
+		return 0
+	var blank: int = 0 if engine != KeenLevel.VORTICONS and plane == 1 else int(tile_defaults.get("background", 0))
+	begin_stroke()
+	for c: Vector2i in cells:
+		paint(plane, c.x, c.y, blank)
+	end_stroke()
+	return cells.size()
 
 
 ## Sets one cell; part of the current stroke (begin_stroke / end_stroke make one undo step of a drag).

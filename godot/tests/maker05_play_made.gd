@@ -58,7 +58,7 @@ func _go() -> void:
 	if c.open("keen1", root_dir.path_join("keen1")):
 		c.new_level("Clear")
 		var exit: int = -1
-		for cat: Dictionary in c.parts.categories:
+		for cat: Dictionary in c.parts.tile_categories:
 			if cat.name == MakerParts.EXIT:
 				exit = int(cat.values[0])
 		var s: Vector2i = c.start_at()

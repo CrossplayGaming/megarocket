@@ -130,7 +130,16 @@ func _draw() -> void:
 		draw_rect(a.merge(b), MegaTheme.ega(11), false, 2.0)
 	if l.in_bounds(cursor.x, cursor.y):
 		var r: Rect2 = _cell_rect(cursor)
-		if tool == "paint" and plane != mplane:
+		if tool == "paint" and plane == MakerObjects.PLANE and model.kit != null and value < model.kit.objects.size():
+			# MAKER-04: the whole object, see-through, where it will go
+			var o: Dictionary = model.kit.objects[value]
+			for oc: Array in o.cells:
+				var tex: Texture2D = tiles.texture(int(o.plane), int(oc[1]))
+				if tex != null:
+					draw_texture_rect(tex, _cell_rect(cursor + (oc[0] as Vector2i)), false, Color(1, 1, 1, 0.6))
+			var size: Vector2i = o.size
+			draw_rect(_cell_rect(cursor).merge(_cell_rect(cursor + size - Vector2i.ONE)), MegaTheme.ega(11), false, 1.0)
+		elif tool == "paint" and plane != mplane:
 			var tex: Texture2D = tiles.texture(plane, value)
 			if tex != null:
 				draw_texture_rect(tex, r, false, Color(1, 1, 1, 0.6))
@@ -159,6 +168,11 @@ func act_at(c: Vector2i, drag: bool = false) -> void:
 			refused.emit(model.refusal(plane, c.x, c.y, value))
 		return
 	match tool:
+		"paint" when plane == MakerObjects.PLANE:
+			if not drag:
+				model.place_object(value, c.x, c.y)
+		"erase" when not drag and _erase_object(c):
+			pass
 		"paint", "erase":
 			if not drag:
 				model.begin_stroke()
@@ -229,6 +243,18 @@ func act_end() -> void:
 
 
 ## What erasing leaves: Keen 1-3's tiles their game's background tile, the others nothing (0).
+## MAKER-04: the eraser takes a whole object at once (the foreground's first, then the background's); false
+## when the cell holds none, so it erases the one tile as before.
+func _erase_object(c: Vector2i) -> bool:
+	var planes: Array = [0] if model.engine == KeenLevel.VORTICONS else [1, 0]
+	if plane >= 0 and plane != model.parts.marker_plane() and planes.has(plane):
+		planes = [plane]
+	for p: int in planes:
+		if model.erase_object_at(p, c.x, c.y) > 0:
+			return true
+	return false
+
+
 func erase_value() -> int:
 	if model.engine == KeenLevel.VORTICONS and plane == 0:
 		return int(model.tile_defaults.get("background", 0))
@@ -247,6 +273,14 @@ func pick_at(c: Vector2i) -> void:
 		p = 1
 	plane = p
 	value = l.get_word(p, c.x, c.y)
+	# MAKER-04: a cell of a whole object picks the object
+	if p != mplane and model.kit != null:
+		for op: int in ([p] if p == 1 or model.engine == KeenLevel.VORTICONS else [0]):
+			var o: int = model.kit.object_at(l, op, c.x, c.y)
+			if o >= 0:
+				plane = MakerObjects.PLANE
+				value = o
+				break
 	tool = "paint"
 	picked.emit(plane, value)
 	queue_redraw()

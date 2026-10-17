@@ -510,6 +510,7 @@ func show_editor() -> void:
 	palette.zoom = clampi(_scale, 2, 6)    # its tiles as big as the level's
 	palette.chosen.connect(_on_part)
 	sc.add_child(palette)
+	palette.objects = model.kit
 	palette.setup(tiles, model.parts)
 	_part_label = Label.new()
 	_part_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

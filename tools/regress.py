@@ -733,6 +733,18 @@ def native03():
     return code
 
 
+def maker04():
+    """MAKER-04: Keen Maker's whole objects (Keen 1, 4, Dreams): found in the game's levels, none ground or a
+    slope, each placed one thing to the eraser, placed and erased in one undo step each; the palette shows
+    every object in its kinds, no object's piece loose, the raw tiles last (tests/maker06_objects.gd)."""
+    import gdtest
+    code, out = gdtest.run("maker06_objects", [], timeout=900.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend03r():
     """REND-03R: with smooth motion on, Keen riding a Bounder (Keen 4 level 2) or a lift (level 5) is drawn
     the same distance above it in every picture, between refreshes too (tests/rend03_ride.gd)."""
@@ -2087,6 +2099,7 @@ CHECKS = {
     "REND-03": (rend03, "slow"),
     "REND-03R": (rend03r, "slow"),
     "NATIVE-02": (native02, "fast"),
+    "MAKER-04": (maker04, "slow"),
     "NATIVE-03": (native03, "fast"),
     "REND-01R": (rend01r, "slow"),
     "REND-04": (rend04, "slow"),

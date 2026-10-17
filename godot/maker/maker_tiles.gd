@@ -52,6 +52,28 @@ func texture(plane: int, tile: int) -> Texture2D:
 	return tex
 
 
+## MAKER-04: an object's picture (MakerObjects: its cells' tiles put together), made once per object.
+func object_texture(o: Dictionary) -> Texture2D:
+	var key: int = str(o.cells).hash()
+	if _objects.has(key):
+		return _objects[key]
+	var size: Vector2i = o.size
+	var img: Image = Image.create(size.x * 16, size.y * 16, false, Image.FORMAT_RGBA8)
+	for c: Array in o.cells:
+		var tex: Texture2D = texture(int(o.plane), int(c[1]))
+		if tex == null:
+			continue
+		var part: Image = tex.get_image()
+		part.convert(Image.FORMAT_RGBA8)
+		img.blend_rect(part, Rect2i(0, 0, 16, 16), (c[0] as Vector2i) * 16)
+	var t: ImageTexture = ImageTexture.create_from_image(img)
+	_objects[key] = t
+	return t
+
+
+var _objects: Dictionary = {}
+
+
 ## V15-02: a marker's sprite (MakerParts.marker_sprite: the game's own picture of the creature, item or
 ## platform, or Keen); null for a marker the game never draws.
 func marker_texture(value: int) -> Texture2D:

@@ -137,6 +137,8 @@ var dreams: DreamsData = null
 var count: Array = [0, 0]
 ## The categories: [{name, plane, values: PackedInt32Array, names: {value: name}}], in ORDER.
 var categories: Array = []
+## MAKER-04: the categories by tile kind, as built (the palette's own become MakerModel's, objects first)
+var tile_categories: Array = []
 ## tile use by plane: plane -> {value: category name}
 var _use: Dictionary = {}
 
