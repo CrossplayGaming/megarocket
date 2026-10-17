@@ -772,13 +772,17 @@ def maker06():
 def maker07():
     """MAKER-07: building's animations (Keen 4's view): a placed object pops in a cell at a time, an erased one
     puffs out with its tiles, a big box flashes once, an undo animates, all gone in half a second
-    (tests/maker09_fx.gd)."""
+    (tests/maker09_fx.gd); and its sounds, the game's own effects for every event, audible and short, each
+    action's kind told for its sound, none at volume 0 (tests/maker10_sounds.gd)."""
     import gdtest
-    code, out = gdtest.run("maker09_fx", [], timeout=600.0, quiet=True)
-    for line in out.splitlines():
-        if "FAIL" in line or "checks" in line or "ERROR" in line:
-            print("  " + line.strip())
-    return code
+    worst = common.PASS
+    for test in ("maker09_fx", "maker10_sounds"):
+        code, out = gdtest.run(test, [], timeout=600.0, quiet=True)
+        for line in out.splitlines():
+            if "FAIL" in line or "checks" in line or "ERROR" in line:
+                print("  " + line.strip())
+        worst = max(worst, code)
+    return worst
 
 
 def rend03r():

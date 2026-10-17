@@ -682,6 +682,8 @@ func erase_object_at(plane: int, x: int, y: int) -> int:
 ## MAKER-07: the cells painted since the screen last looked ([plane, x, y, before, value]; the view animates
 ## them and empties it). Presentation only.
 var recent: Array = []
+## MAKER-07: the changes in `recent` came from an undo or a redo (the view's sound is undo's)
+var recent_undo: bool = false
 
 
 ## Sets one cell; part of the current stroke (begin_stroke / end_stroke make one undo step of a drag).
@@ -883,6 +885,7 @@ func undo() -> bool:
 		var c: Array = step[i]
 		level.set_word(c[0], c[1], c[2], c[3])
 		recent.append([c[0], c[1], c[2], c[4], c[3]])
+	recent_undo = true
 	_redo.append(step)
 	dirty = true
 	return true
@@ -895,6 +898,7 @@ func redo() -> bool:
 	for c: Array in step:
 		level.set_word(c[0], c[1], c[2], c[4])
 		recent.append(c)
+	recent_undo = true
 	_undo.append(step)
 	dirty = true
 	return true

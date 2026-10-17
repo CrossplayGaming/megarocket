@@ -14,6 +14,9 @@ signal hovered(cell: Vector2i)
 signal changed
 ## V15-04: a part refused, and why
 signal refused(reason: String)
+## MAKER-07: what building just did, for its sound: "place", "paint" (a drag), "erase", "box" (a big one),
+## "undo", "link"
+signal built(kind: String)
 
 const TOOLS: Array = ["paint", "brush", "pick", "erase", "rect", "link", "start"]
 const ZOOMS: Array = [0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 6.0]
@@ -302,7 +305,10 @@ func _take_fx() -> void:
 		return
 	var now: int = Time.get_ticks_msec()
 	var changes: Array = model.recent
+	var undone: bool = model.recent_undo
 	model.recent = []
+	model.recent_undo = false
+	built.emit(_kind_of(changes, undone))
 	if changes.size() > FX_MAX:
 		var lo: Vector2i = Vector2i(changes[0][1], changes[0][2])
 		var hi: Vector2i = lo
@@ -323,6 +329,19 @@ func _take_fx() -> void:
 		_fx.append(["puff" if gone else "pop", c, plane_e, int(e[3]) if gone else int(e[4]), now])
 	if _fx.size() > FX_MAX:
 		_fx = _fx.slice(_fx.size() - FX_MAX)
+
+
+## MAKER-07: what a batch of changes was, for its sound.
+func _kind_of(changes: Array, undone: bool) -> String:
+	if undone:
+		return "undo"
+	if tool == "link" or (changes.size() == 1 and int(changes[0][0]) == 2 and model.engine == KeenLevel.GALAXY and parts.marker_name(int(changes[0][4])) == ""):
+		return "link"
+	if changes.size() > FX_MAX:
+		return "box"
+	if tool == "erase":
+		return "erase"
+	return "paint" if _painting else "place"
 
 
 func erase_value_of(p: int) -> int:

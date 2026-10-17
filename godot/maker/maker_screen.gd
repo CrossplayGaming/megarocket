@@ -43,6 +43,8 @@ var model: MakerModel = MakerModel.new()
 var tiles: MakerTiles = MakerTiles.new()
 var library: MakerLibrary = MakerLibrary.new()
 var view: MakerView = null
+## MAKER-07: building's sounds (the game's own effects)
+var sounds: MakerSounds = null
 var _scale: int = 0               # the pixel scale the theme was built at (_apply_scale)
 var _side: VBoxContainer = null   # the palette's column, as wide as its cells at this scale
 var palette: MakerPalette = null
@@ -79,6 +81,9 @@ var _notice_until: int = 0
 
 
 func _ready() -> void:
+	sounds = MakerSounds.new()
+	sounds.name = "Sounds"
+	add_child(sounds)
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	standalone = get_parent() == get_tree().root
 	_apply_scale()
@@ -483,6 +488,7 @@ func show_editor() -> void:
 	view.changed.connect(func() -> void:
 		_follow_up()
 		_refresh())
+	view.built.connect(func(kind: String) -> void: sounds.play(kind))
 	view.refused.connect(func(why: String) -> void:
 		_notice = "Can't: " + why
 		_notice_until = Time.get_ticks_msec() + 4000
@@ -514,6 +520,7 @@ func show_editor() -> void:
 	sc.add_child(palette)
 	palette.objects = model.kit
 	palette.setup(tiles, model.parts)
+	sounds.use(model.parts, float(Settings.new(Settings.default_path()).get_value("effects_volume")) / 100.0)
 	_part_label = Label.new()
 	_part_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	side.add_child(_part_label)
@@ -552,6 +559,7 @@ func _category(d: int) -> void:
 
 
 func _on_part(plane: int, value: int) -> void:
+	sounds.play("pick")
 	view.plane = plane
 	view.value = value
 	if view.tool in ["pick", "erase", "start", "brush", "link"]:
@@ -585,6 +593,7 @@ func _follow_up() -> void:
 		set_tool("paint")
 	_notice = str(n.say)
 	_notice_until = Time.get_ticks_msec() + 8000
+	sounds.play("ask")
 	view.queue_redraw()
 
 
