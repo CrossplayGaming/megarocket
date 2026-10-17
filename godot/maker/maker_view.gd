@@ -30,6 +30,13 @@ var cursor: Vector2i = Vector2i.ZERO
 ## The rectangle tool's first corner (-1, -1 when none)
 var anchor: Vector2i = Vector2i(-1, -1)
 var _painting: bool = false
+## MAKER-07: building's animations: [kind ("pop" a part put in, "puff" one taken out), cell, plane, tile, start
+## (msec)]. Presentation only; at most FX_MAX at once (a big box flashes its outline instead).
+var _fx: Array = []
+var _flash: Array = []    # [Rect2 in cells (position, size), start]
+const FX_MAX: int = 160
+const POP_MS: float = 220.0
+const PUFF_MS: float = 300.0
 var _panning: bool = false
 
 
@@ -123,6 +130,7 @@ func _draw() -> void:
 		var c: Color = MegaTheme.ega(14)
 		c.a = 0.15 + 0.75 * float(i) / float(maxi(1, n))
 		draw_rect(Rect2(p - Vector2(2, 2), Vector2(4, 4)), c)
+	_draw_fx()
 	# the rectangle being filled, and the cursor with the part it places
 	if anchor.x >= 0 and tool == "rect":
 		var a: Rect2 = _cell_rect(Vector2i(mini(anchor.x, cursor.x), mini(anchor.y, cursor.y)))
@@ -265,6 +273,7 @@ func act_at(c: Vector2i, drag: bool = false) -> void:
 		"start":
 			if not drag:
 				model.place_start(c.x, c.y)
+	_take_fx()
 	changed.emit()
 	queue_redraw()
 
@@ -285,6 +294,88 @@ func _box_refusal(a: Vector2i, b: Vector2i) -> String:
 
 
 ## The end of a held press: a drag's cells are one undo step.
+## MAKER-07: what the model just painted, as animations: a part put in pops (springs up a little and
+## settles), one taken out puffs (shrinks and fades, a little dust). More than FX_MAX cells at once (a big
+## box): one flash of their outline.
+func _take_fx() -> void:
+	if model == null or model.recent.is_empty():
+		return
+	var now: int = Time.get_ticks_msec()
+	var changes: Array = model.recent
+	model.recent = []
+	if changes.size() > FX_MAX:
+		var lo: Vector2i = Vector2i(changes[0][1], changes[0][2])
+		var hi: Vector2i = lo
+		for e: Array in changes:
+			lo = Vector2i(mini(lo.x, e[1]), mini(lo.y, e[2]))
+			hi = Vector2i(maxi(hi.x, e[1]), maxi(hi.y, e[2]))
+		_flash.append([Rect2(Vector2(lo), Vector2(hi - lo + Vector2i.ONE)), now])
+		return
+	var seen: Dictionary = {}
+	for e: Array in changes:
+		var c: Vector2i = Vector2i(e[1], e[2])
+		var plane_e: int = e[0]
+		var gone: bool = int(e[4]) == 0 or (model.engine == KeenLevel.VORTICONS and plane_e == 0 and int(e[4]) == erase_value_of(0))
+		var key: Array = [c, plane_e]
+		if seen.has(key):
+			continue
+		seen[key] = true
+		_fx.append(["puff" if gone else "pop", c, plane_e, int(e[3]) if gone else int(e[4]), now])
+	if _fx.size() > FX_MAX:
+		_fx = _fx.slice(_fx.size() - FX_MAX)
+
+
+func erase_value_of(p: int) -> int:
+	if model.engine == KeenLevel.VORTICONS and p == 0:
+		return int(model.tile_defaults.get("background", 0))
+	return 0
+
+
+func _process(_delta: float) -> void:
+	if model != null and not model.recent.is_empty():
+		_take_fx()    # (an undo, a redo, the screen's own changes)
+	if _fx.is_empty() and _flash.is_empty():
+		return
+	var now: int = Time.get_ticks_msec()
+	_fx = _fx.filter(func(f: Array) -> bool: return now - int(f[4]) < (POP_MS if f[0] == "pop" else PUFF_MS))
+	_flash = _flash.filter(func(f: Array) -> bool: return now - int(f[1]) < PUFF_MS)
+	queue_redraw()
+
+
+## MAKER-07: the animations over the level.
+func _draw_fx() -> void:
+	var now: int = Time.get_ticks_msec()
+	var mplane: int = MakerModel.START_PLANE[model.engine]
+	for f: Array in _fx:
+		var r: Rect2 = _cell_rect(f[1])
+		var tex: Texture2D = tiles.marker_texture(int(f[3])) if int(f[2]) == mplane else tiles.texture(int(f[2]), int(f[3]))
+		if f[0] == "pop":
+			var t: float = clampf((now - int(f[4])) / POP_MS, 0.0, 1.0)
+			var s: float = 1.0 + 0.35 * sin(t * PI) * (1.0 - t * 0.5)
+			var rr: Rect2 = Rect2(r.get_center() - r.size * s / 2.0, r.size * s)
+			if tex != null and int(f[2]) != mplane:
+				draw_texture_rect(tex, rr, false)
+			draw_rect(rr, Color(1, 1, 1, 0.7 * (1.0 - t)), false, maxf(1.0, zoom))
+		else:
+			var t2: float = clampf((now - int(f[4])) / PUFF_MS, 0.0, 1.0)
+			var s2: float = 1.0 - 0.6 * t2
+			var rr2: Rect2 = Rect2(r.get_center() - r.size * s2 / 2.0, r.size * s2)
+			if tex != null and int(f[2]) != mplane:
+				draw_texture_rect(tex, rr2, false, Color(1, 1, 1, 1.0 - t2))
+			# dust: four specks flying out from the corners
+			var spread: float = r.size.x * (0.2 + 0.6 * t2)
+			for d: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+				var p: Vector2 = r.get_center() + d * spread
+				var dot: float = maxf(1.0, zoom * 1.5 * (1.0 - t2))
+				draw_rect(Rect2(p - Vector2(dot, dot) / 2.0, Vector2(dot, dot)), Color(0.85, 0.85, 0.85, 1.0 - t2))
+	for fl: Array in _flash:
+		var t3: float = clampf((now - int(fl[1])) / PUFF_MS, 0.0, 1.0)
+		var cr: Rect2 = fl[0]
+		var a: Rect2 = _cell_rect(Vector2i(cr.position))
+		var b: Rect2 = _cell_rect(Vector2i(cr.end) - Vector2i.ONE)
+		draw_rect(a.merge(b).grow(2.0 + 6.0 * t3), Color(1, 1, 1, 0.8 * (1.0 - t3)), false, maxf(1.0, zoom * 1.5))
+
+
 func act_end() -> void:
 	if model != null:
 		model.end_stroke()

@@ -769,6 +769,18 @@ def maker06():
     return code
 
 
+def maker07():
+    """MAKER-07: building's animations (Keen 4's view): a placed object pops in a cell at a time, an erased one
+    puffs out with its tiles, a big box flashes once, an undo animates, all gone in half a second
+    (tests/maker09_fx.gd)."""
+    import gdtest
+    code, out = gdtest.run("maker09_fx", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend03r():
     """REND-03R: with smooth motion on, Keen riding a Bounder (Keen 4 level 2) or a lift (level 5) is drawn
     the same distance above it in every picture, between refreshes too (tests/rend03_ride.gd)."""
@@ -2126,6 +2138,7 @@ CHECKS = {
     "MAKER-04": (maker04, "slow"),
     "MAKER-05": (maker05, "slow"),
     "MAKER-06": (maker06, "slow"),
+    "MAKER-07": (maker07, "slow"),
     "NATIVE-03": (native03, "fast"),
     "REND-01R": (rend01r, "slow"),
     "REND-04": (rend04, "slow"),
