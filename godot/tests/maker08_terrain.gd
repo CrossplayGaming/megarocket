@@ -3,7 +3,8 @@ extends SceneTree
 ## MAKER-06: Keen Maker's ground styles (Keen 1, Keen 4, Keen Dreams). Each game has three or more; each
 ## style, asked for the piece of every cell id drew in it (by the cell's shape in id's level), gives id's
 ## own piece for many of them (the agreement printed: a guard, at least 40% over all the game's ground; id
-## varied his ground by hand, so it never reaches all: Keen 1 77%, Keen 4 42%, Keen Dreams 54% on 2026-10-17). A box of a
+## varied his ground by hand, so it never reaches all: Keen 1 88%, Keen 4 44%, Keen Dreams 55% on 2026-10-17);
+## no two styles look the same (the same fill and top edge, as seen). A box of a
 ## style painted in a new level is that material only (every piece the style's), its shapes' pieces as
 ## the style says, and the palette lists the styles first under Ground. A cell taken out of the box's top
 ## edge leaves its neighbours re-pieced for the gap; undo puts the level back.
@@ -51,6 +52,14 @@ func _go() -> void:
 		var agree: float = 100.0 * same / maxf(1.0, all)
 		t.ok("%s: %d ground styles; they give id's own piece for %.1f%% of the %d cells id drew in them" % [id, tr.styles.size(), agree, all],
 			tr.styles.size() >= 3 and agree >= 40.0)
+		var looks: Dictionary = {}
+		var twins: int = 0
+		for st: Dictionary in tr.styles:
+			var look: Array = [tr._seen(st.pieces.get(255)), tr._seen(st.pieces.get(MakerTerrain.TOP))]
+			if looks.has(look):
+				twins += 1
+			looks[look] = true
+		t.ok("%s: no two styles look the same (%d)" % [id, twins], twins == 0)
 		# a box of the first style, painted in a new level
 		var entry: int = -1
 		for i: int in range(m.kit.objects.size()):

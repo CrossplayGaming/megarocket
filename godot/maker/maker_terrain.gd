@@ -13,9 +13,11 @@ extends RefCounted
 ## sides beside it are ground, so an inner corner is told from an outer one: the 47 shapes of a blob
 ## tile set). A shape id never drew in that material takes the nearest one it did.
 
-const FAMILY: float = 0.15
+const FAMILY: float = 0.35
 ## A material's repeat is at most this many cells each way
 const MAX_PERIOD: int = 8
+## The shape of a flat top edge's cell (ground right, below and left, and both corners below)
+const TOP: int = 2 | 4 | 8 | 32 | 64
 ## A material needs this many cells in id's levels to be a style
 const MIN_CELLS: int = 60
 
@@ -134,6 +136,19 @@ func build(levels: Array, parts: MakerParts) -> void:
 		for pk: int in by_place:
 			placed[pk] = _most(by_place[pk])
 		var st: Dictionary = {"pieces": pieces, "placed": placed, "period": per, "cells": list.size()}
+		# a style looking the same as one before it (the same fill and the same top edge: Keen 6's metal floors
+		# that differ by a sign somewhere) is that one: its pieces are its
+		var same_as: int = -1
+		for j: int in range(styles.size()):
+			if _seen(styles[j].pieces.get(255)) == _seen(pieces.get(255)) and _seen(styles[j].pieces.get(TOP)) == _seen(pieces.get(TOP)):
+				same_as = j
+				break
+		if same_as >= 0:
+			for s2: int in by_shape:
+				for k: int in by_shape[s2]:
+					if not style_of.has(k):
+						style_of[k] = same_as
+			continue
 		var i: int = styles.size()
 		styles.append(st)
 		st["picture"] = _picture(i)
@@ -143,6 +158,38 @@ func build(levels: Array, parts: MakerParts) -> void:
 
 
 ## Where a cell is in its material's repeat, with its shape: one key.
+## What of a piece is seen: Keen 4-6 draw much ground as a solid foreground tile that hides the background
+## behind it (two pieces differing only there look the same); where the foreground tile lets anything through
+## (Keen 4's water, bushes and white rock are drawn in the background), the whole piece. Keen 1-3: its tile;
+## Keen Dreams: the whole piece.
+func _seen(piece: Variant) -> int:
+	if piece == null:
+		return -1
+	if _parts.engine != KeenLevel.GALAXY:
+		return int(piece)
+	var fg: int = int(piece) & 0xFFFF
+	return fg if _opaque(fg) else int(piece)
+
+
+## A Keen 4-6 foreground tile through which nothing behind shows (its mask clear nowhere).
+func _opaque(fg: int) -> bool:
+	if _opacity.has(fg):
+		return _opacity[fg]
+	var solid: bool = false
+	if fg > 0 and _parts.gal != null:
+		if _images == null:
+			_images = GalImages.new(_parts.gal)
+		var img: Dictionary = _images.mtile(fg)
+		if not img.is_empty():
+			solid = not (img.mask as PackedByteArray).has(1)
+	_opacity[fg] = solid
+	return solid
+
+
+var _opacity: Dictionary = {}
+var _images: GalImages = null
+
+
 static func _place_key(bits: int, px: int, py: int) -> int:
 	return (bits << 16) | (px << 8) | py
 
