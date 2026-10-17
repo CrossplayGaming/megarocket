@@ -494,7 +494,11 @@ func show_editor() -> void:
 	view.changed.connect(func() -> void:
 		_follow_up()
 		_refresh())
-	view.built.connect(func(kind: String) -> void: sounds.play(kind))
+	view.built.connect(func(kind: String) -> void:
+		sounds.play(kind)
+		# MAKER-10: a part built with goes to the front of the recent ones (browsing the palette does not)
+		if kind in ["place", "paint", "box"] and view.tool in ["paint", "rect"]:
+			_note_recent(view.plane, view.value))
 	view.refused.connect(func(why: String) -> void:
 		_notice = "Can't: " + why
 		_notice_until = Time.get_ticks_msec() + 4000
@@ -531,6 +535,13 @@ func show_editor() -> void:
 	_part_label = Label.new()
 	_part_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	side.add_child(_part_label)
+	# MAKER-10: the parts used last, a press away
+	_recent_box = HBoxContainer.new()
+	_recent_box.name = "Recent"
+	_recent_box.add_theme_constant_override("separation", 2 * _scale)
+	side.add_child(_recent_box)
+	_recent = []
+	_show_recent()
 	hints.text = EDITOR_KEYS
 	set_tool("paint")
 	palette.show_category(0)
@@ -581,6 +592,78 @@ func _on_picked(plane: int, value: int) -> void:
 		view.value = value
 	palette.show_chosen()
 	set_tool("paint")
+
+
+## MAKER-10: the parts built with last, newest first ([plane, value]; at most RECENT_MAX), shown under the palette
+const RECENT_MAX: int = 6
+var _recent: Array = []
+var _recent_box: HBoxContainer = null
+
+
+## Notes a part chosen (moved to the front of the recent ones).
+func _note_recent(plane: int, value: int) -> void:
+	var p: Array = [plane, value]
+	_recent.erase(p)
+	_recent.push_front(p)
+	if _recent.size() > RECENT_MAX:
+		_recent.resize(RECENT_MAX)
+	_show_recent()
+
+
+## The recent parts as buttons with their pictures; pressing one (or its number key) chooses it again.
+func _show_recent() -> void:
+	if _recent_box == null:
+		return
+	for c: Node in _recent_box.get_children():
+		c.queue_free()
+	# six to the palette's width (its column, less the gaps)
+	var cell: float = maxf(16.0, (_side.custom_minimum_size.x - 2.0 * _scale * (RECENT_MAX - 1)) / RECENT_MAX)
+	for i: int in range(_recent.size()):
+		var p: Array = _recent[i]
+		var b: TextureButton = TextureButton.new()
+		b.name = "Recent%d" % (i + 1)
+		b.focus_mode = Control.FOCUS_NONE
+		b.custom_minimum_size = Vector2(cell, cell)
+		b.ignore_texture_size = true
+		b.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+		b.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		b.texture_normal = _part_texture(int(p[0]), int(p[1]))
+		b.tooltip_text = "%d" % (i + 1)
+		b.pressed.connect(choose_recent.bind(i))
+		# a frame round it, the first (the part in use) in the focus colour
+		var frame: ReferenceRect = ReferenceRect.new()
+		frame.editor_only = false
+		frame.border_color = MegaTheme.ega(14) if i == 0 else MegaTheme.ega(8)
+		frame.border_width = maxf(1.0, _scale * 0.5)
+		frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(frame)
+		_recent_box.add_child(b)
+
+
+func _part_texture(plane: int, value: int) -> Texture2D:
+	if plane == MakerObjects.PLANE:
+		return tiles.object_texture(model.kit.objects[value]) if model.kit != null and value < model.kit.objects.size() else null
+	if plane == model.parts.marker_plane():
+		return tiles.marker_texture(value)
+	return tiles.texture(plane, value)
+
+
+## Chooses recent part `i` again (0 the last used).
+func choose_recent(i: int) -> void:
+	if i < 0 or i >= _recent.size():
+		return
+	var p: Array = _recent[i]
+	if palette.select_value(int(p[0]), int(p[1])):
+		palette.show_chosen()
+	view.plane = int(p[0])
+	view.value = int(p[1])
+	if view.tool in ["pick", "erase", "start", "brush", "link"]:
+		set_tool("paint")
+	_note_recent(int(p[0]), int(p[1]))
+	sounds.play("pick")
+	view.queue_redraw()
+	_refresh()
 
 
 ## MAKER-09: what the tool and the part chosen do, in a sentence (the builder's tutor).
@@ -1114,6 +1197,8 @@ func _editor_key(k: InputEventKey) -> bool:
 			_category(-1)
 		KEY_PAGEDOWN:
 			_category(1)
+		KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6:
+			choose_recent(k.keycode - KEY_1)
 		KEY_P:
 			play_here()
 		KEY_F5:

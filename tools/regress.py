@@ -809,6 +809,17 @@ def maker09():
     return code
 
 
+def maker10():
+    """MAKER-10: the parts built with last, a press away: browsing adds nothing, parts built with go to the
+    front as pictures, a number key chooses one again, six at most (tests/maker13_recent.gd)."""
+    import gdtest
+    code, out = gdtest.run("maker13_recent", [], timeout=600.0, quiet=True)
+    for line in out.splitlines():
+        if "FAIL" in line or "checks" in line or "ERROR" in line:
+            print("  " + line.strip())
+    return code
+
+
 def rend03r():
     """REND-03R: with smooth motion on, Keen riding a Bounder (Keen 4 level 2) or a lift (level 5) is drawn
     the same distance above it in every picture, between refreshes too (tests/rend03_ride.gd)."""
@@ -2169,6 +2180,7 @@ CHECKS = {
     "MAKER-07": (maker07, "slow"),
     "MAKER-08": (maker08, "slow"),
     "MAKER-09": (maker09, "slow"),
+    "MAKER-10": (maker10, "slow"),
     "NATIVE-03": (native03, "fast"),
     "REND-01R": (rend01r, "slow"),
     "REND-04": (rend04, "slow"),
