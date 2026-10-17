@@ -313,8 +313,20 @@ static func _decode_position() -> int:
 	return c | (i & 0x3F)
 
 
+## The decoder's state above is shared (static): one decode at a time, from any thread (the launcher's title
+## art and Keen Maker decoded Keen Dreams' files at once and broke each other's, 2026-10-17).
+static var _lock: Mutex = Mutex.new()
+
+
 ## lzhDecompress: `orig_len` bytes from `comp_len` bytes of `src` at `at`.
 static func lzh_decompress(src: PackedByteArray, at: int, comp_len: int, orig_len: int) -> PackedByteArray:
+	_lock.lock()
+	var out: PackedByteArray = _lzh_decompress(src, at, comp_len, orig_len)
+	_lock.unlock()
+	return out
+
+
+static func _lzh_decompress(src: PackedByteArray, at: int, comp_len: int, orig_len: int) -> PackedByteArray:
 	var out: PackedByteArray = PackedByteArray()
 	if orig_len <= 0:
 		return out
