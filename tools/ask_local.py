@@ -9,7 +9,8 @@ context (the app reports it per model).
     python tools/ask_local.py --models
     python tools/ask_local.py "..." --model ornith:35b --effort low --max-tokens 2000
 
-The endpoint is LocalAI Studio's OpenAI-compatible pass-through (Tailscale only); the key is the
+The endpoint is LocalAI Studio's OpenAI-compatible pass-through, its URL in the environment variable
+LOCALAI_BASE_URL or tools/config.local.json ("localai_url"); the key is the
 pairing code in the user environment variable LOCALAI_PAIRING_CODE, which the user sets. It is read
 at run time (from the process, else the Windows user environment) and never printed, logged or put
 on a command line. One request at a time; the first after a model switch takes 5-20 s to load.
@@ -21,7 +22,19 @@ import sys
 import urllib.error
 import urllib.request
 
-BASE = os.environ.get("LOCALAI_BASE_URL", "")
+def _base() -> str:
+    """The LocalAI Studio server's /v1 URL: LOCALAI_BASE_URL, else tools/config.local.json's "localai_url" (a
+    machine's own settings, never committed)."""
+    if os.environ.get("LOCALAI_BASE_URL"):
+        return os.environ["LOCALAI_BASE_URL"]
+    try:
+        with open(os.path.join(os.path.dirname(__file__), "config.local.json"), encoding="utf-8") as f:
+            return str(json.load(f).get("localai_url", ""))
+    except (OSError, ValueError):
+        return ""
+
+
+BASE = _base()
 DEFAULT_MODEL = "qwen3.8:27b-mtp-q4_K_M"
 KEY_VAR = "LOCALAI_PAIRING_CODE"
 CHARS_PER_TOKEN = 3.5    # a cautious guess for code and logs
@@ -42,6 +55,8 @@ def key() -> str:
 
 
 def call(path: str, body: dict | None = None, timeout: float = 600.0) -> dict:
+    if not BASE:
+        sys.exit("ask_local: no server URL: set LOCALAI_BASE_URL or \"localai_url\" in tools/config.local.json.")
     req = urllib.request.Request(BASE + path, data=None if body is None else json.dumps(body).encode("utf-8"),
                                  headers={"Authorization": "Bearer " + key(), "Content-Type": "application/json"})
     try:
